@@ -165,6 +165,12 @@ func _build() -> void:
 	var model := MODEL.instantiate()
 	add_child(model)
 	_skeleton = model.find_children("*", "Skeleton3D", true, false)[0]
+	# The low sun ahead would otherwise streak a dark coat with glints.
+	for part: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		for surface in part.mesh.get_surface_count():
+			var coat: StandardMaterial3D = part.mesh.surface_get_material(surface).duplicate()
+			coat.metallic_specular = 0.15
+			part.set_surface_override_material(surface, coat)
 	_body = _joint(self, &"body", BODY)
 	_chest = _joint(_body, &"chest", CHEST)
 	_pelvis = _joint(_body, &"pelvis", PELVIS)

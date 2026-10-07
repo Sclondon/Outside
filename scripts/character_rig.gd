@@ -17,6 +17,8 @@ const UPPER_ARM := 0.2
 const FOREARM := 0.2
 ## How far out the model's arms are held at rest (tools/build_character.py).
 const ARM_REST := 0.22
+## Where the foot bends, from the ankle.
+const TOE := Vector3(0.0, -0.035, 0.075)
 const MODEL := preload("res://models/boy.glb")
 
 
@@ -27,6 +29,7 @@ var _head: Node3D
 var _thighs: Array[Node3D] = []
 var _shins: Array[Node3D] = []
 var _feet: Array[Node3D] = []
+var _toes: Array[Node3D] = []
 var _shoulders: Array[Node3D] = []
 var _elbows: Array[Node3D] = []
 var _skeleton: Skeleton3D
@@ -85,8 +88,8 @@ func _process(delta: float) -> void:
 	_crouch = clampf(_crouch + _crouch_velocity * delta, -0.03, 0.3)
 
 	# One cycle is two steps. Advancing by distance keeps planted feet planted.
-	var stride := lerpf(0.95, 2.1, _run)
-	var stance := lerpf(0.6, 0.36, _run)
+	var stride := lerpf(0.86, 2.1, _run)
+	var stance := lerpf(0.6, 0.34, _run)
 	if grounded:
 		_phase = fposmod(_phase + speed / stride * delta, 1.0)
 	var gait := _move * (1.0 - _air)
@@ -104,15 +107,16 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	var roll := clampf(-_yaw_rate * speed * 0.012, -0.22, 0.22)
 	_lean = _lean.lerp(Vector2(pitch, roll), 1.0 - exp(-9.0 * get_process_delta_time()))
 
-	# Lowest at mid-stance, twice per cycle.
-	var bob := -cos(TAU * 2.0 * (_phase - stance * 0.5)) * lerpf(0.012, 0.035, _run) * gait
+	# Twice per cycle. Walking vaults over a straight leg, so the body is highest
+	# at mid-stance; running sinks into the leg there and is highest in flight.
+	var bob := cos(TAU * 2.0 * (_phase - stance * 0.5)) * lerpf(0.02, -0.03, _run) * gait
 	var breath := sin(_time * 1.7)
 	var sway := cos(TAU * (_phase - stance * 0.5)) * 0.014 * gait * (1.0 - _run * 0.5)
 	var twist := -cos(TAU * _phase) * lerpf(0.1, 0.17, _run) * gait
 
-	_hips.position = Vector3(sway, HIP_HEIGHT - _run * 0.07 - _crouch + bob + breath * 0.003 * (1.0 - _move), 0.0)
-	_hips.rotation = Vector3(_lean.x * 0.35 + _crouch * 0.8, twist, _lean.y)
-	_spine.rotation = Vector3(_lean.x * 0.65 + breath * 0.012 + _crouch * 0.9, -twist * 1.8, _lean.y * 0.5)
+	_hips.position = Vector3(sway, HIP_HEIGHT - _run * 0.02 - _crouch + bob + breath * 0.003 * (1.0 - _move), 0.0)
+	_hips.rotation = Vector3(_lean.x * 0.5 + _crouch * 0.8, twist, _lean.y)
+	_spine.rotation = Vector3(_lean.x * 0.5 + breath * 0.012 + _crouch * 0.9, -twist * 1.8, _lean.y * 0.5)
 	# The head stays level and looks where the body is going.
 	_head.rotation = Vector3(-_lean.x * 0.7 - _crouch * 1.2, twist * 0.8 + clampf(_yaw_rate * 0.04, -0.4, 0.4), -_lean.y * 0.9)
 
@@ -120,13 +124,16 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float) -> void:
 	var to_hips := _hips.transform.affine_inverse()
 	var half_step := stance * stride * 0.5
-	var lift := lerpf(0.07, 0.2, _run)
+	var lift := lerpf(0.07, 0.3, _run)
 	var rising := clampf(vertical_speed / 5.0, -1.0, 1.0) * 0.5 + 0.5
 	for i in 2:
 		var side := 1.0 if i == 0 else -1.0
 		var cycle := _foot_cycle(fposmod(_phase + 0.5 * i, 1.0), stance, half_step, lift)
-		var target := Vector3(side * HIP_HALF_WIDTH, ANKLE + cycle.y * gait, cycle.z * gait)
 		var pitch := cycle.x * gait
+		# Up on the toes (or back on the heel) the ankle rides higher, which is
+		# what lets the leg stay long at each end of a stride.
+		var ankle := ANKLE + sin(maxf(pitch, 0.0)) * 0.1 + sin(maxf(-pitch, 0.0)) * 0.04
+		var target := Vector3(side * HIP_HALF_WIDTH, ankle + cycle.y * gait, cycle.z * gait)
 
 		# Airborne: knees tuck on the way up, legs reach for the ground on the way down.
 		var lead := i == _lead_leg
@@ -136,21 +143,27 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 		target = target.lerp(reaching.lerp(tucked, rising), _air)
 		pitch = lerpf(pitch, 0.45, _air)
 
+		# Planted on the ball of the foot, the toes stay flat while the heel comes up.
+		_toes[i].rotation.x = -maxf(cycle.x * gait, 0.0) * (1.0 - clampf(cycle.y / 0.05, 0.0, 1.0)) * (1.0 - _air)
 		_solve_leg(i, side, to_hips * target, to_hips.basis * Basis(Vector3.RIGHT, pitch))
 
 
 ## Foot path for one leg over a gait cycle. Returns (toe pitch, height, forward).
 func _foot_cycle(phase: float, stance: float, half_step: float, lift: float) -> Vector3:
+	# Running, the foot lands nearly under the body and pushes off well behind it.
+	var trail := 0.09 * _run
 	if phase < stance:
 		# Planted: carried backwards under the body, rolling heel to toe.
 		var t := phase / stance
-		var roll := smoothstep(0.65, 1.0, t) * 0.55 - (1.0 - smoothstep(0.0, 0.2, t)) * 0.25
-		return Vector3(roll, 0.0, lerpf(half_step, -half_step, t))
-	# Swinging forward. Peaking early gives the heel a kick behind the body.
+		var roll := smoothstep(0.55, 1.0, t) * lerpf(0.55, 0.95, _run) - (1.0 - smoothstep(0.0, 0.2, t)) * lerpf(0.25, 0.1, _run)
+		return Vector3(roll, 0.0, lerpf(half_step, -half_step, t) - trail)
+	# Swinging forward. The heel kicks up behind first, then the knee drives
+	# through and the foot reaches out late.
 	var t := (phase - stance) / (1.0 - stance)
-	var height := sin(PI * pow(t, 0.75)) * lift
-	var toe := lerpf(0.55, -0.25, t) + sin(PI * t) * 0.5 * _run
-	return Vector3(toe, height, lerpf(-half_step, half_step, smoothstep(0.0, 1.0, t)))
+	var height := sin(PI * pow(t, 0.62)) * lift
+	var toe := lerpf(lerpf(0.55, 0.95, _run), -0.2, smoothstep(0.2, 1.0, t)) + sin(PI * t) * 0.3 * _run
+	var carry := lerpf(smoothstep(0.0, 1.0, t), smoothstep(0.12, 0.95, t), _run)
+	return Vector3(toe, height, lerpf(-half_step, half_step, carry) - trail)
 
 
 ## Two-bone IK in hip space, knee bending forward.
@@ -175,7 +188,7 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 	for i in 2:
 		var side := 1.0 if i == 0 else -1.0
 		# Opposite to the leg on the same side. Negative pitch is forward.
-		var swing := side * cos(TAU * _phase) * lerpf(0.35, 0.9, _run) * gait
+		var swing := side * cos(TAU * _phase) * lerpf(0.5, 0.9, _run) * gait
 		var pitch := swing + 0.05
 		var roll := side * 0.09
 		var elbow := -(0.14 + lerpf(0.12, 1.3, _run) * gait + maxf(-swing, 0.0) * 0.4)
@@ -243,6 +256,7 @@ func _build() -> void:
 		_thighs.append(_joint(_hips, "thigh" + suffix, hip))
 		_shins.append(_joint(_hips, "shin" + suffix, hip + Vector3.DOWN * THIGH))
 		_feet.append(_joint(_hips, "foot" + suffix, hip + Vector3.DOWN * (THIGH + SHIN)))
+		_toes.append(_joint(_feet[-1], "toe" + suffix, TOE))
 
 
 ## Adds a pose node for a bone. The animation moves these like ordinary nodes

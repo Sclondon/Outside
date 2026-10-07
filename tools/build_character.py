@@ -135,6 +135,7 @@ HIP_X, HIP_Y = 0.075, HIPS.y - 0.02
 UPPER_ARM = FOREARM = 0.2
 THIGH = SHIN = 0.32
 SOLE_DROP = 0.05  # ankle joint height above the sole
+TOE = Vector((0.0, -0.035, 0.075))  # where the foot bends, from the ankle
 # The arms are modelled held slightly away from the body so the sleeves do not
 # fuse to the shirt; the rig turns them back (ARM_REST in character_rig.gd).
 ARM_REST = 0.22
@@ -193,12 +194,12 @@ def boy_trousers(b):
         profile = [
             (0.00, 0.066, 0.000), (0.08, 0.064, 0.001), (0.18, 0.058, 0.003), (0.25, 0.054, 0.005),
             (0.29, 0.052, 0.007), (0.32, 0.052, 0.008), (0.35, 0.050, 0.005), (0.39, 0.049, -0.001),
-            (0.46, 0.050, -0.007), (0.54, 0.046, -0.004), (0.60, 0.044, 0.002), (0.622, 0.045, 0.004),
+            (0.46, 0.050, -0.007), (0.54, 0.046, -0.004), (0.575, 0.044, 0.000), (0.588, 0.045, 0.002),
         ]
         rings = [upright(x, HIP_Y - d, z, r, r * 1.06) for d, r, z in profile]
         rings = dome(rings[0], Y, 0.05)[::-1] + rings
-        rings.append(upright(x, HIP_Y - 0.624, 0.002, 0.036, 0.038))
-        rings.append(upright(x, HIP_Y - 0.60, 0.0, 0.033, 0.035))
+        rings.append(upright(x, HIP_Y - 0.590, 0.002, 0.036, 0.038))
+        rings.append(upright(x, HIP_Y - 0.565, 0.0, 0.033, 0.035))
         b.tube(rings)
 
 
@@ -260,23 +261,38 @@ def boy_hands(b):
     b.place = None
 
 
+def ankle_of(side):
+    return Vector((side * HIP_X, HIP_Y - THIGH - SHIN, 0.0))
+
+
+def boy_ankles(b):
+    # Bare ankle between the trouser hem and the shoe
+    for side in (1.0, -1.0):
+        ankle = ankle_of(side)
+        b.tube([upright(ankle.x, ankle.y + dy, z, r, r * 1.12) for dy, r, z in
+                ((0.11, 0.030, -0.002), (0.07, 0.026, -0.003), (0.035, 0.024, -0.002), (0.005, 0.027, 0.0), (-0.02, 0.028, 0.004))], 12)
+
+
 def boy_shoes(b):
     for side in (1.0, -1.0):
-        ankle = Vector((side * HIP_X, HIP_Y - THIGH - SHIN, 0.0))
-        # Sock, visible when the foot flexes.
-        b.tube([upright(ankle.x, ankle.y + dy, 0.0, 0.034, 0.036) for dy in (0.05, 0.0, -0.02)], 12)
+        ankle = ankle_of(side)
+        floor = ankle.y - SOLE_DROP
 
         def across(z, y, rx, ry, ankle=ankle):
             return (ankle + Vector((0.0, y, z)), X * rx, Y * ry)
 
-        # Built heel to toe and flattened onto the sole.
-        shoe = [
-            across(-0.040, -0.020, 0.033, 0.028), across(-0.010, -0.016, 0.039, 0.033),
-            across(0.030, -0.021, 0.042, 0.029), across(0.070, -0.027, 0.043, 0.023),
-            across(0.105, -0.031, 0.040, 0.019),
+        # The upper, heel to toe: a heel cup, sides that come up round the ankle, a rounded toe box
+        upper = [
+            across(-0.040, -0.018, 0.031, 0.032), across(-0.018, -0.006, 0.037, 0.046), across(0.012, -0.011, 0.039, 0.040),
+            across(0.040, -0.023, 0.042, 0.028), across(0.072, -0.030, 0.043, 0.021), across(0.103, -0.033, 0.040, 0.018),
+            across(0.124, -0.034, 0.033, 0.015),
         ]
-        shoe = dome(shoe[0], -Z, 0.022, 3)[::-1] + shoe + dome(shoe[-1], Z, 0.03, 3)
-        b.tube(shoe, 14, floor=ankle.y - SOLE_DROP)
+        b.tube(dome(upper[0], -Z, 0.014, 3)[::-1] + upper + dome(upper[-1], Z, 0.018, 3), 16, floor)
+        # The sole: a slab standing proud of the upper all round
+        b.tube([(Vector((ankle.x, y, 0.045)), X * 0.046, Z * 0.096) for y in (floor, floor + 0.007, floor + 0.014)], 24)
+    # Sit exactly on the ground
+    for vert in b.bm.verts:
+        vert.co.z = max(vert.co.z, ankle_of(1.0).y - SOLE_DROP)
 
 
 def boy_weights(part, p):
@@ -290,7 +306,12 @@ def boy_weights(part, p):
     if part == "hands":
         return {"forearm" + suffix: 1.0}
     if part == "shoes":
-        return {"foot" + suffix: 1.0}
+        toe = blend(TOE.z - 0.015, TOE.z + 0.015, p.z)
+        return {"foot" + suffix: 1.0 - toe, "toe" + suffix: toe}
+    if part == "ankles":
+        ankle_y = HIP_Y - THIGH - SHIN
+        foot = blend(ankle_y + 0.05, ankle_y, p.y)
+        return {"shin" + suffix: 1.0 - foot, "foot" + suffix: foot}
     if part == "trousers":
         leg = blend(HIP_Y + 0.05, HIP_Y - 0.07, p.y)
         left = blend(-0.012, 0.012, p.x)
@@ -325,6 +346,7 @@ def boy_bones():
         bones.append(("thigh" + suffix, hip, "hips"))
         bones.append(("shin" + suffix, hip - Y * THIGH, "hips"))
         bones.append(("foot" + suffix, hip - Y * (THIGH + SHIN), "hips"))
+        bones.append(("toe" + suffix, hip - Y * (THIGH + SHIN) + TOE, "foot" + suffix))
     return bones
 
 
@@ -335,7 +357,8 @@ BOY_PARTS = [
     ("head", 2, boy_head, (0.004, 5, 2600)),
     ("hands", 2, boy_hands, (0.0016, 2, 2400)),
     ("hair", 3, boy_hair, None),
-    ("shoes", 3, boy_shoes, None),
+    ("ankles", 2, boy_ankles, (0.003, 3, 700)),
+    ("shoes", 3, boy_shoes, (0.003, 3, 3000)),
 ]
 
 
@@ -352,49 +375,74 @@ HOUND_HIPS = {
     "_rl": Vector((0.065, 0.50, -0.26)), "_rr": Vector((-0.065, 0.50, -0.26)),
 }
 HOUND_NECK = (Vector((0.0, 0.60, 0.29)), HOUND_HEAD + Vector((0.0, -0.01, -0.01)))
-HOUND_TAIL_TIP = HOUND_TAIL + Vector((0.0, -0.15, -0.27))
+HOUND_TAIL_TIP = HOUND_TAIL + Vector((0.0, -0.125, -0.35))
 HOUND_MATERIALS = [("coat", (0.085, 0.075, 0.07))]
 
 
 def hound_coat(b):
-    # (along the body, centre height, half width, half height): deep chest, tucked waist
+    # (along the body, centre height, half width, half height): deep ribs, tucked loin, strong hips
     profile = [
-        (-0.33, 0.585, 0.060, 0.075), (-0.27, 0.565, 0.084, 0.100), (-0.18, 0.555, 0.088, 0.108),
-        (-0.07, 0.565, 0.078, 0.095), (0.05, 0.540, 0.090, 0.125), (0.17, 0.515, 0.102, 0.155),
-        (0.27, 0.530, 0.098, 0.140), (0.33, 0.565, 0.076, 0.100),
+        (-0.34, 0.590, 0.050, 0.060), (-0.29, 0.572, 0.078, 0.092), (-0.20, 0.560, 0.090, 0.108),
+        (-0.10, 0.566, 0.080, 0.094), (-0.02, 0.560, 0.080, 0.100), (0.06, 0.540, 0.092, 0.126),
+        (0.16, 0.516, 0.104, 0.154), (0.25, 0.522, 0.102, 0.146), (0.31, 0.548, 0.086, 0.116),
+        (0.35, 0.575, 0.064, 0.085),
     ]
     rings = [lengthwise(*ring) for ring in profile]
     b.tube(dome(rings[0], -Z, 0.04)[::-1] + rings + dome(rings[-1], Z, 0.04), 18)
+    # Withers, the point of the chest, and the muscle over each shoulder and haunch
+    b.ellipsoid(Vector((0.0, 0.646, 0.19)), Vector((0.050, 0.030, 0.110)))
+    b.ellipsoid(Vector((0.0, 0.525, 0.335)), Vector((0.060, 0.075, 0.055)))
+    for side in (1.0, -1.0):
+        b.ellipsoid(Vector((side * 0.088, 0.535, 0.225)), Vector((0.034, 0.105, 0.072)), Matrix.Rotation(0.25, 3, "X"))
+        b.ellipsoid(Vector((side * 0.078, 0.540, -0.235)), Vector((0.044, 0.110, 0.105)), Matrix.Rotation(-0.3, 3, "X"))
 
-    # Neck, rising forward out of the chest
+    # Neck, rising forward out of the chest, with a throat under it
     base, top = HOUND_NECK
     along = (top - base).normalized()
     across = along.cross(X).normalized()
-    b.tube([(base.lerp(top, t), X * r, across * (r * 1.12))
-            for t, r in ((-0.3, 0.080), (0.0, 0.074), (0.35, 0.064), (0.7, 0.056), (1.0, 0.052), (1.15, 0.044))], 14)
+    b.tube([(base.lerp(top, t) - across * sag, X * r, across * (r * 1.2))
+            for t, r, sag in ((-0.3, 0.080, 0.0), (0.0, 0.076, 0.006), (0.35, 0.066, 0.008), (0.7, 0.057, 0.006),
+                              (1.0, 0.052, 0.0), (1.15, 0.044, 0.0))], 14)
 
-    skull = HOUND_HEAD + Vector((0.0, 0.022, 0.035))
-    b.ellipsoid(skull, Vector((0.062, 0.064, 0.080)), None, 16, 9)
+    skull = HOUND_HEAD + Vector((0.0, 0.024, 0.035))
+    b.ellipsoid(skull, Vector((0.060, 0.061, 0.078)), None, 16, 9)
+    b.ellipsoid(skull + Vector((0.0, 0.030, 0.045)), Vector((0.046, 0.022, 0.030)))  # brow
+    # A long square muzzle over a lighter lower jaw, with the hanging lips of a hound
     muzzle = [(skull + Vector((0.0, y, z)), X * rx, Y * ry) for z, y, rx, ry in
-              ((0.035, -0.006, 0.050, 0.050), (0.09, -0.014, 0.041, 0.041), (0.15, -0.020, 0.035, 0.034), (0.20, -0.022, 0.031, 0.030))]
-    b.tube(muzzle + dome(muzzle[-1], Z, 0.022, 3), 14)
+              ((0.03, 0.000, 0.048, 0.044), (0.09, -0.004, 0.039, 0.034), (0.15, -0.007, 0.034, 0.029), (0.205, -0.009, 0.031, 0.026))]
+    b.tube(muzzle + dome(muzzle[-1], Z, 0.018, 3), 14)
+    jaw = [(skull + Vector((0.0, y, z)), X * rx, Y * ry) for z, y, rx, ry in
+           ((0.00, -0.034, 0.040, 0.022), (0.08, -0.040, 0.030, 0.015), (0.16, -0.040, 0.023, 0.012))]
+    b.tube(jaw + dome(jaw[-1], Z, 0.018, 3), 12)
+    b.ellipsoid(skull + Vector((0.0, 0.002, 0.226)), Vector((0.020, 0.016, 0.016)), None, 8, 5)  # nose
     for side in (1.0, -1.0):
-        # Ears hang, tipped a little outwards
-        flop = Matrix.Rotation(-side * 0.3, 3, "Z") @ Matrix.Rotation(0.2, 3, "X")
-        b.ellipsoid(skull + Vector((side * 0.062, -0.024, -0.018)), Vector((0.013, 0.060, 0.038)), flop, 10, 6)
+        b.ellipsoid(skull + Vector((side * 0.026, -0.030, 0.125)), Vector((0.015, 0.026, 0.060)), None, 8, 5)
+        # Ears: long, low-set, hanging past the jaw
+        flop = Matrix.Rotation(-side * 0.22, 3, "Z") @ Matrix.Rotation(0.3, 3, "X")
+        b.ellipsoid(skull + Vector((side * 0.066, -0.048, -0.006)), Vector((0.014, 0.088, 0.046)), flop, 10, 7)
 
-    b.strand([HOUND_TAIL.lerp(HOUND_TAIL_TIP, t) for t in (-0.2, 0.0, 0.35, 0.7, 1.0)], [0.028, 0.027, 0.021, 0.016, 0.012], 10)
+    # Tail: carried low with an upward curve at the tip
+    tail = [Vector((0.0, 0.03, 0.05)), Vector((0.0, 0.0, 0.0)), Vector((0.0, -0.05, -0.10)), Vector((0.0, -0.11, -0.19)),
+            Vector((0.0, -0.14, -0.28)), Vector((0.0, -0.125, -0.35))]
+    b.strand([HOUND_TAIL + offset for offset in tail], [0.030, 0.029, 0.024, 0.019, 0.015, 0.012], 10)
 
     for suffix, hip in HOUND_HIPS.items():
-        rear = suffix[1] == "r"
-        # (distance below the hip, half width, half depth): the rear leg has a haunch
-        profile = ([(0.00, 0.044, 0.100), (0.08, 0.042, 0.085), (0.17, 0.035, 0.052)] if rear
-                   else [(0.00, 0.036, 0.058), (0.08, 0.035, 0.048), (0.17, 0.031, 0.037)])
-        profile += [(0.21, 0.031, 0.036), (0.24, 0.030, 0.034), (0.27, 0.029, 0.032), (0.36, 0.027, 0.028), (0.455, 0.027, 0.029)]
-        rings = [upright(hip.x, hip.y - d, hip.z, rx, rz) for d, rx, rz in profile]
+        # (distance below the hip, half width, half depth, forward offset)
+        if suffix[1] == "r":
+            # Hind leg: broad thigh, the hock standing out behind, a thin shank
+            profile = [(0.00, 0.044, 0.105, 0.0), (0.07, 0.044, 0.092, 0.004), (0.14, 0.038, 0.066, 0.004),
+                       (0.19, 0.031, 0.046, -0.004), (0.24, 0.027, 0.036, -0.012), (0.27, 0.025, 0.030, -0.006)]
+        else:
+            # Foreleg: the elbow tucked back under the chest, a straight forearm
+            profile = [(0.00, 0.036, 0.058, 0.0), (0.07, 0.036, 0.050, -0.004), (0.14, 0.032, 0.040, -0.010),
+                       (0.19, 0.028, 0.034, -0.004), (0.24, 0.027, 0.031, 0.0), (0.27, 0.026, 0.029, 0.002)]
+        profile += [(0.34, 0.023, 0.025, 0.001), (0.41, 0.022, 0.024, 0.001), (0.455, 0.024, 0.027, 0.004)]
+        rings = [upright(hip.x, hip.y - d, hip.z + z, rx, rz) for d, rx, rz, z in profile]
         b.tube(dome(rings[0], Y, 0.04)[::-1] + rings, 12)
         wrist = hip - Y * (2 * HOUND_LEG)
-        b.ellipsoid(wrist + Vector((0.0, 0.012, 0.020)), Vector((0.031, 0.030, 0.052)), None, 10, 6)
+        b.ellipsoid(wrist + Vector((0.0, 0.012, 0.022)), Vector((0.030, 0.028, 0.050)), None, 10, 6)
+        for toe in (-0.018, -0.006, 0.006, 0.018):
+            b.ellipsoid(wrist + Vector((toe, 0.006, 0.060 - abs(toe) * 0.5)), Vector((0.009, 0.015, 0.020)), None, 8, 5)
 
 
 def hound_weights(_part, p):
@@ -435,7 +483,7 @@ def hound_bones():
     return bones
 
 
-HOUND_PARTS = [("coat", 0, hound_coat, (0.005, 6, 6500))]
+HOUND_PARTS = [("coat", 0, hound_coat, (0.004, 5, 9000))]
 
 
 # --- Assembly and export ---
@@ -571,6 +619,7 @@ def render_previews(folder, name):
     if name == "boy":
         views.append(("hand", (-0.6, -0.7, 0.1), (0.22, 0.0, 0.57), 0.22))
         views.append(("chest", (0.5, -0.8, 0.2), (0.0, 0.0, 0.95), 0.6))
+        views.append(("foot", (0.75, -0.6, 0.3), (0.075, -0.04, 0.04), 0.32))
     for view, direction, target, frame in views:
         offset = Vector(direction).normalized() * 4.0
         camera.data.ortho_scale = frame
