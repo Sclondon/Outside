@@ -7,12 +7,20 @@ const GROUND := Color(0.15, 0.16, 0.18)
 const PROP := Color(0.21, 0.22, 0.25)
 const BACKDROP := Color(0.09, 0.1, 0.12)
 const SKY := Color(0.34, 0.38, 0.42)
+## The hounds wait here, behind the start, until the player passes RELEASE_X.
+const KENNEL: Array[Vector3] = [Vector3(-11.0, 0.1, -1.2), Vector3(-12.5, 0.1, 1.0)]
+const RELEASE_X := 4.0
+
+var _player: Player
+var _hounds: Array[Hound] = []
+var _released := false
 
 
 func _ready() -> void:
 	_build_atmosphere()
 	_build_course()
 	_build_backdrop()
+	_kennel_hounds.call_deferred()
 
 
 func _build_atmosphere() -> void:
@@ -172,3 +180,32 @@ func _material(color: Color) -> StandardMaterial3D:
 	# The sun is low and ahead; any specular turns the far ground into glare.
 	material.metallic_specular = 0.0
 	return material
+
+
+func _kennel_hounds() -> void:
+	_player = get_parent().get_node_or_null("Player") as Player
+	if _player == null:
+		return
+	for start in KENNEL:
+		var hound := Hound.new()
+		hound.position = start
+		hound.target = _player
+		add_child(hound)
+		hound.caught.connect(_player.respawn)
+		_hounds.append(hound)
+	# Caught or fallen, the chase starts over.
+	_player.respawned.connect(_recall_hounds)
+
+
+func _physics_process(_delta: float) -> void:
+	if _released or _player == null or _player.global_position.x < RELEASE_X:
+		return
+	_released = true
+	for hound in _hounds:
+		hound.chasing = true
+
+
+func _recall_hounds() -> void:
+	_released = false
+	for hound in _hounds:
+		hound.reset()

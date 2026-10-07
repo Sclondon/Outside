@@ -1,18 +1,24 @@
-"""Builds the Outside character and exports it for Godot.
+"""Builds the Outside figures (the boy and the hound) and exports them for Godot.
 
 Run from the project root:
     blender --background --python tools/build_character.py
 
-Writes models/boy.glb (used by the game) and tools/boy.blend (for hand edits).
-If you edit the .blend by hand, export it over models/boy.glb as glTF Binary
+Writes models/<name>.glb (used by the game) and tools/<name>.blend (for hand
+edits). If you edit a .blend by hand, export it over its .glb as glTF Binary
 with +Y up; re-running this script overwrites both files.
 
-All coordinates below are in Godot space (metres, Y up, the character faces
-+Z and +X is its left) and converted on the way into Blender.
+How a figure is made: each part is lofted as simple overlapping shapes, the
+shapes of one garment are fused into a single surface (voxel remesh, smooth,
+decimate) so shoulders, hips and necks flow into each other, and skin weights
+are then worked out from where each vertex sits.
+
+All coordinates below are in Godot space (metres, Y up, the figure faces +Z and
++X is its left) and converted on the way into Blender.
 
 Every bone points straight up with no roll, which makes each bone's rest
-orientation the identity in Godot. scripts/character_rig.gd relies on that and
-on the joint positions here matching its constants.
+orientation the identity in Godot. scripts/character_rig.gd and
+scripts/hound_rig.gd rely on that and on the joint positions here matching
+their constants.
 """
 
 import math
@@ -26,29 +32,15 @@ from mathutils import Matrix, Vector
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PREVIEW_DIR = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else None
 
-# Joints. Keep in step with character_rig.gd.
-HIPS = Vector((0.0, 0.685, 0.0))
-SPINE = HIPS + Vector((0.0, 0.03, 0.0))
-HEAD = SPINE + Vector((0.0, 0.35, 0.0))
-SHOULDER_X, SHOULDER_Y = 0.14, SPINE.y + 0.28
-HIP_X, HIP_Y = 0.075, HIPS.y - 0.02
-UPPER_ARM = FOREARM = 0.2
-THIGH = SHIN = 0.32
-SOLE_DROP = 0.05  # ankle joint height above the sole
-
-SHIRT, TROUSERS, SKIN, DARK = range(4)
-MATERIALS = [
-    ("shirt", (0.60, 0.10, 0.08)),
-    ("trousers", (0.07, 0.075, 0.09)),
-    ("skin", (0.74, 0.68, 0.64)),
-    ("hair", (0.05, 0.045, 0.04)),
-]
-
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
 
 
 def to_blender(p):
     return Vector((p.x, -p.z, p.y))
+
+
+def from_blender(p):
+    return Vector((p.x, p.z, -p.y))
 
 
 def blend(edge0, edge1, x):
@@ -58,18 +50,20 @@ def blend(edge0, edge1, x):
 
 
 class Builder:
+    """Collects the closed shapes that make up one part of a figure."""
+
     def __init__(self):
         self.bm = bmesh.new()
-        self.weights = []
+        self.place = None  # optional function applied to every point
 
-    def tube(self, rings, material, weigh, segments=16, floor=None):
+    def tube(self, rings, segments=16, floor=None):
         """Skins a closed surface over rings of (centre, u, v) and caps both ends."""
         loops = []
         for centre, u, v in rings:
             loop = []
             for i in range(segments):
                 angle = math.tau * i / segments
-                loop.append(self._vert(centre + u * math.cos(angle) + v * math.sin(angle), weigh, floor))
+                loop.append(self._vert(centre + u * math.cos(angle) + v * math.sin(angle), floor))
             loops.append(loop)
         faces = []
         for a, b in zip(loops, loops[1:]):
@@ -77,15 +71,12 @@ class Builder:
                 j = (i + 1) % segments
                 faces.append(self.bm.faces.new((a[i], a[j], b[j], b[i])))
         for loop, (centre, _, _) in ((loops[0], rings[0]), (loops[-1], rings[-1])):
-            pole = self._vert(centre, weigh, floor)
+            pole = self._vert(centre, floor)
             for i in range(segments):
                 faces.append(self.bm.faces.new((loop[i], loop[(i + 1) % segments], pole)))
-        for face in faces:
-            face.material_index = material
-            face.smooth = True
         bmesh.ops.recalc_face_normals(self.bm, faces=faces)
 
-    def ellipsoid(self, centre, radii, material, weigh, tilt=None, segments=12, rings=7):
+    def ellipsoid(self, centre, radii, tilt=None, segments=12, rings=7):
         loops = []
         for k in range(1, rings + 1):
             phi = -math.pi / 2 + math.pi * k / (rings + 1)
@@ -94,14 +85,26 @@ class Builder:
             if tilt:
                 ring = tuple(tilt @ part for part in ring)
             loops.append((centre + ring[0], ring[1], ring[2]))
-        self.tube(loops, material, weigh, segments)
+        self.tube(loops, segments)
 
-    def _vert(self, position, weigh, floor):
+    def strand(self, points, radii, segments=8):
+        """A round-ended tube following a line of points (a finger, a tail)."""
+        rings = []
+        for i, point in enumerate(points):
+            ahead = points[min(i + 1, len(points) - 1)] - points[max(i - 1, 0)]
+            ahead.normalize()
+            u = ahead.cross(Z if abs(ahead.z) < 0.9 else X).normalized()
+            rings.append((point, u * radii[i], ahead.cross(u) * radii[i]))
+        first = (points[0] - points[1]).normalized()
+        last = (points[-1] - points[-2]).normalized()
+        self.tube(dome(rings[0], first, radii[0], 2)[::-1] + rings + dome(rings[-1], last, radii[-1], 2), segments)
+
+    def _vert(self, position, floor):
         if floor is not None and position.y < floor:
             position = Vector((position.x, floor, position.z))
-        vert = self.bm.verts.new(to_blender(position))
-        self.weights.append(weigh(position))
-        return vert
+        if self.place:
+            position = self.place(position)
+        return self.bm.verts.new(to_blender(position))
 
 
 def dome(ring, axis, height, steps=4):
@@ -118,110 +121,90 @@ def upright(x, y, z, rx, rz):
     return (Vector((x, y, z)), X * rx, Z * rz)
 
 
-def only(bone):
-    return lambda _p: {bone: 1.0}
+def lengthwise(z, y, rx, ry):
+    return (Vector((0.0, y, z)), X * rx, Y * ry)
 
 
-def build_leg(b, side, suffix):
-    thigh, shin, foot = "thigh" + suffix, "shin" + suffix, "foot" + suffix
-    x = side * HIP_X
-    knee_y = HIP_Y - THIGH
-    ankle = Vector((x, HIP_Y - THIGH - SHIN, 0.0))
+# --- The boy. Joints: keep in step with character_rig.gd. ---
 
-    def weigh(p):
-        lower = blend(knee_y + 0.05, knee_y - 0.05, p.y)
-        return {thigh: 1.0 - lower, shin: lower}
+HIPS = Vector((0.0, 0.685, 0.0))
+SPINE = HIPS + Vector((0.0, 0.03, 0.0))
+HEAD = SPINE + Vector((0.0, 0.35, 0.0))
+SHOULDER_X, SHOULDER_Y = 0.14, SPINE.y + 0.28
+HIP_X, HIP_Y = 0.075, HIPS.y - 0.02
+UPPER_ARM = FOREARM = 0.2
+THIGH = SHIN = 0.32
+SOLE_DROP = 0.05  # ankle joint height above the sole
+# The arms are modelled held slightly away from the body so the sleeves do not
+# fuse to the shirt; the rig turns them back (ARM_REST in character_rig.gd).
+ARM_REST = 0.22
 
-    # (distance below the hip, radius, forward offset)
+BOY_MATERIALS = [
+    ("shirt", (0.60, 0.10, 0.08)),
+    ("trousers", (0.07, 0.075, 0.09)),
+    ("skin", (0.74, 0.68, 0.64)),
+    ("hair", (0.05, 0.045, 0.04)),
+]
+
+
+def shoulder_of(side):
+    return Vector((side * SHOULDER_X, SHOULDER_Y, 0.0))
+
+
+def arm_rest(side):
+    """Moves a point modelled on a straight-hanging arm to the arm's rest pose."""
+    turn = Matrix.Rotation(side * ARM_REST, 3, "Z")
+    pivot = shoulder_of(side)
+    return lambda p: pivot + turn @ (p - pivot)
+
+
+def boy_shirt(b):
+    # (height, half width, half depth, forward offset). Starts tucked up inside the hem.
     profile = [
-        (0.00, 0.066, 0.000), (0.08, 0.064, 0.000), (0.18, 0.058, 0.002), (0.25, 0.054, 0.004),
-        (0.29, 0.052, 0.005), (0.32, 0.051, 0.006), (0.35, 0.050, 0.004), (0.39, 0.049, -0.001),
-        (0.46, 0.050, -0.006), (0.54, 0.045, -0.004), (0.60, 0.042, 0.000), (0.622, 0.043, 0.000),
+        (0.716, 0.094, 0.077, 0.000), (0.692, 0.096, 0.079, 0.000),
+        (0.690, 0.109, 0.092, 0.000), (0.70, 0.110, 0.093, 0.000), (0.75, 0.107, 0.089, 0.001),
+        (0.82, 0.100, 0.082, 0.002), (0.89, 0.105, 0.086, 0.005), (0.945, 0.116, 0.085, 0.004),
+        (0.985, 0.146, 0.080, 0.001), (1.010, 0.140, 0.074, -0.001), (1.030, 0.104, 0.065, -0.002),
+        (1.044, 0.066, 0.056, -0.003), (1.054, 0.051, 0.049, -0.002), (1.066, 0.047, 0.047, 0.000),
+        (1.070, 0.040, 0.040, 0.000), (1.058, 0.036, 0.036, 0.000),
     ]
-    rings = [upright(x, HIP_Y - d, z, r, r * 1.06) for d, r, z in profile]
-    rings = dome(rings[0], Y, 0.05)[::-1] + rings
-    # Tuck the hem back up inside the leg so the opening reads as cloth.
-    rings.append(upright(x, HIP_Y - 0.624, 0.0, 0.035, 0.037))
-    rings.append(upright(x, HIP_Y - 0.60, 0.0, 0.033, 0.035))
-    b.tube(rings, TROUSERS, weigh)
-
-    # Sock, visible when the foot flexes.
-    b.tube([upright(x, ankle.y + dy, 0.0, 0.034, 0.036) for dy in (0.05, 0.0, -0.02)], DARK, only(foot), 12)
-
-    # Shoe, built heel to toe and flattened onto the sole.
-    def across(z, y, rx, ry):
-        return (ankle + Vector((0.0, y, z)), X * rx, Y * ry)
-
-    shoe = [
-        across(-0.040, -0.020, 0.033, 0.028), across(-0.010, -0.016, 0.039, 0.033),
-        across(0.030, -0.021, 0.042, 0.029), across(0.070, -0.027, 0.043, 0.023),
-        across(0.105, -0.031, 0.040, 0.019),
-    ]
-    shoe = dome(shoe[0], -Z, 0.022, 3)[::-1] + shoe + dome(shoe[-1], Z, 0.03, 3)
-    b.tube(shoe, DARK, only(foot), 14, floor=ankle.y - SOLE_DROP)
+    b.tube([upright(0, y, z, rx, rz) for y, rx, rz, z in profile], 20)
+    for side in (1.0, -1.0):
+        b.place = arm_rest(side)
+        x = side * SHOULDER_X
+        # (distance down the arm, radius); the elbow sits slightly back
+        sleeve = [(0.00, 0.039), (0.06, 0.039), (0.13, 0.037), (0.17, 0.036), (0.20, 0.036),
+                  (0.23, 0.035), (0.30, 0.032), (0.37, 0.030), (0.392, 0.032)]
+        rings = [upright(x, SHOULDER_Y - d, -0.004 * math.sin(math.pi * min(d / 0.4, 1.0)), r, r) for d, r in sleeve]
+        rings = dome(rings[0], Y, 0.012)[::-1] + rings
+        rings.append(upright(x, SHOULDER_Y - 0.394, 0.0, 0.024, 0.024))
+        rings.append(upright(x, SHOULDER_Y - 0.37, 0.0, 0.022, 0.022))
+        b.tube(rings)
+    b.place = None
 
 
-def build_arm(b, side, suffix):
-    upper, lower = "upper_arm" + suffix, "forearm" + suffix
-    x = side * SHOULDER_X
-    elbow_y = SHOULDER_Y - UPPER_ARM
-
-    def weigh(p):
-        fore = blend(elbow_y + 0.04, elbow_y - 0.04, p.y)
-        return {upper: 1.0 - fore, lower: fore}
-
-    profile = [
-        (0.00, 0.043), (0.06, 0.040), (0.13, 0.036), (0.17, 0.035), (0.20, 0.035),
-        (0.23, 0.034), (0.30, 0.031), (0.37, 0.030), (0.392, 0.032),
-    ]
-    rings = [upright(x, SHOULDER_Y - d, 0.0, r, r) for d, r in profile]
-    rings = dome(rings[0], Y, 0.03)[::-1] + rings
-    rings.append(upright(x, SHOULDER_Y - 0.394, 0.0, 0.024, 0.024))
-    rings.append(upright(x, SHOULDER_Y - 0.37, 0.0, 0.022, 0.022))
-    b.tube(rings, SHIRT, weigh)
-
-    # Mitten hand, palm towards the body.
-    hand = [(0.375, 0.015, 0.019), (0.405, 0.018, 0.028), (0.435, 0.020, 0.033), (0.462, 0.018, 0.029)]
-    rings = [upright(x, SHOULDER_Y - d, 0.004, rx, rz) for d, rx, rz in hand]
-    rings += dome(rings[-1], -Y, 0.024)
-    b.tube(rings, SKIN, only(lower), 12)
-    thumb = Vector((x - side * 0.004, SHOULDER_Y - 0.425, 0.034))
-    b.ellipsoid(thumb, Vector((0.011, 0.024, 0.012)), SKIN, only(lower), Matrix.Rotation(0.5, 3, "X"), 8, 5)
+def boy_trousers(b):
+    seat = upright(0, 0.635, -0.004, 0.100, 0.086)
+    b.tube(dome(seat, -Y, 0.045)[::-1] + [seat, upright(0, 0.69, -0.002, 0.104, 0.089), upright(0, 0.74, 0, 0.099, 0.083)]
+           + dome(upright(0, 0.74, 0, 0.099, 0.083), Y, 0.03))
+    for side in (1.0, -1.0):
+        x = side * HIP_X
+        # (distance below the hip, radius, forward offset): thigh, knee, calf, hem
+        profile = [
+            (0.00, 0.066, 0.000), (0.08, 0.064, 0.001), (0.18, 0.058, 0.003), (0.25, 0.054, 0.005),
+            (0.29, 0.052, 0.007), (0.32, 0.052, 0.008), (0.35, 0.050, 0.005), (0.39, 0.049, -0.001),
+            (0.46, 0.050, -0.007), (0.54, 0.046, -0.004), (0.60, 0.044, 0.002), (0.622, 0.045, 0.004),
+        ]
+        rings = [upright(x, HIP_Y - d, z, r, r * 1.06) for d, r, z in profile]
+        rings = dome(rings[0], Y, 0.05)[::-1] + rings
+        rings.append(upright(x, HIP_Y - 0.624, 0.002, 0.036, 0.038))
+        rings.append(upright(x, HIP_Y - 0.60, 0.0, 0.033, 0.035))
+        b.tube(rings)
 
 
-def build_torso(b):
-    def weigh(p):
-        lower = blend(0.81, 0.71, p.y)
-        return {"hips": lower, "spine": 1.0 - lower}
-
-    b.tube(
-        dome(upright(0, 0.635, 0, 0.100, 0.083), -Y, 0.045)[::-1]
-        + [upright(0, 0.635, 0, 0.100, 0.083), upright(0, 0.69, 0, 0.105, 0.088), upright(0, 0.74, 0, 0.100, 0.083)]
-        + dome(upright(0, 0.74, 0, 0.100, 0.083), Y, 0.03),
-        TROUSERS, only("hips"),
-    )
-
-    # (height, half width, half depth, forward offset)
-    profile = [
-        (0.716, 0.098, 0.079, 0.000), (0.692, 0.100, 0.081, 0.000),
-        (0.690, 0.113, 0.094, 0.000), (0.70, 0.114, 0.095, 0.000), (0.75, 0.110, 0.091, 0.001),
-        (0.82, 0.102, 0.083, 0.002), (0.89, 0.108, 0.086, 0.005), (0.945, 0.128, 0.085, 0.004),
-        (0.985, 0.152, 0.079, 0.001), (1.012, 0.142, 0.072, -0.001), (1.032, 0.104, 0.064, -0.002), (1.042, 0.066, 0.056, -0.003),
-        (1.052, 0.050, 0.049, -0.002), (1.064, 0.046, 0.046, 0.000), (1.068, 0.039, 0.039, 0.000),
-        (1.058, 0.036, 0.036, 0.000),
-    ]
-    b.tube([upright(0, y, z, rx, rz) for y, rx, rz, z in profile], SHIRT, weigh, 20)
-
-
-def build_head(b):
-    def neck_weight(p):
-        upper = blend(1.045, 1.085, p.y)
-        return {"spine": 1.0 - upper, "head": upper}
-
-    b.tube([upright(0, y, 0.0, 0.033, 0.034) for y in (1.03, 1.06, 1.10)], SKIN, neck_weight, 12)
-
+def boy_head(b):
+    b.tube([upright(0, y, 0.002, 0.033, 0.035) for y in (1.02, 1.06, 1.11)], 12)
     centre = HEAD + Vector((0.0, 0.135, 0.008))
-    head = only("head")
     rings = []
     count = 13
     for k in range(1, count + 1):
@@ -231,13 +214,15 @@ def build_head(b):
         # Narrower towards a chin that sits slightly forward.
         rings.append(upright(0.0, centre.y + 0.128 * s, centre.z + 0.016 * jaw - 0.008 * max(0.0, s),
                              0.104 * c * (1.0 - 0.16 * jaw ** 1.5), 0.116 * c))
-    b.tube(rings, SKIN, head, 24)
-
+    b.tube(rings, 24)
     for side in (1.0, -1.0):
-        b.ellipsoid(centre + Vector((side * 0.101, -0.012, -0.012)), Vector((0.012, 0.027, 0.018)), SKIN, head, None, 8, 5)
-    b.ellipsoid(centre + Vector((0.0, -0.022, 0.114)), Vector((0.011, 0.016, 0.013)), SKIN, head, None, 8, 5)
+        b.ellipsoid(centre + Vector((side * 0.100, -0.012, -0.012)), Vector((0.013, 0.027, 0.018)), None, 8, 5)
+    b.ellipsoid(centre + Vector((0.0, -0.024, 0.112)), Vector((0.012, 0.018, 0.015)), None, 8, 5)
 
-    # Hair: a cap tilted so the hairline is high on the brow and low at the nape.
+
+def boy_hair(b):
+    # A cap tilted so the hairline is high on the brow and low at the nape.
+    centre = HEAD + Vector((0.0, 0.135, 0.008))
     tilt = Matrix.Rotation(-0.5, 3, "X")
     crown = centre + Vector((0.0, 0.010, -0.004))
     cap = []
@@ -245,46 +230,263 @@ def build_head(b):
         phi = -0.30 + (math.pi / 2 + 0.30) * k / 10
         c, s = math.cos(phi), math.sin(phi)
         cap.append((crown + tilt @ (Y * 0.128 * s), tilt @ (X * 0.109 * c), tilt @ (Z * 0.122 * c)))
-    b.tube(cap, DARK, head, 24)
+    b.tube(cap, 24)
 
 
-def build_mesh():
-    b = Builder()
-    build_torso(b)
-    build_head(b)
+def boy_hands(b):
+    for side in (1.0, -1.0):
+        b.place = arm_rest(side)
+        wrist = shoulder_of(side) - Y * (UPPER_ARM + FOREARM) + Z * 0.003
+        inward = -side  # the palm faces the body
+
+        # Palm: thin across the hand, widening to the knuckles
+        palm = [(0.022, 0.014, 0.017), (0.0, 0.0125, 0.020), (-0.022, 0.0115, 0.026), (-0.045, 0.0105, 0.029), (-0.058, 0.0095, 0.028)]
+        rings = [(wrist + Y * dy, X * rx, Z * rz) for dy, rx, rz in palm]
+        b.tube(rings + dome(rings[-1], -Y, 0.008, 2), 12)
+
+        # Fingers, little finger (back) to index (front), loosely curled towards the palm
+        for z, length, radius in ((-0.021, 0.036, 0.0058), (-0.007, 0.046, 0.0064), (0.007, 0.050, 0.0066), (0.021, 0.045, 0.0064)):
+            point = wrist + Vector((0.0, -0.058, z))
+            points = [point]
+            for curl, share in ((0.12, 0.42), (0.45, 0.33), (0.85, 0.25)):
+                point = point + Vector((inward * math.sin(curl), -math.cos(curl), 0.0)) * (length * share)
+                points.append(point)
+            b.strand(points, [radius, radius * 0.97, radius * 0.9, radius * 0.8])
+
+        # Thumb, off the front edge of the palm
+        root = wrist + Vector((inward * 0.003, -0.012, 0.018))
+        b.strand([root, root + Vector((inward * 0.004, -0.018, 0.016)), root + Vector((inward * 0.011, -0.036, 0.022)),
+                  root + Vector((inward * 0.018, -0.050, 0.022))], [0.0092, 0.0086, 0.0074, 0.0064])
+    b.place = None
+
+
+def boy_shoes(b):
+    for side in (1.0, -1.0):
+        ankle = Vector((side * HIP_X, HIP_Y - THIGH - SHIN, 0.0))
+        # Sock, visible when the foot flexes.
+        b.tube([upright(ankle.x, ankle.y + dy, 0.0, 0.034, 0.036) for dy in (0.05, 0.0, -0.02)], 12)
+
+        def across(z, y, rx, ry, ankle=ankle):
+            return (ankle + Vector((0.0, y, z)), X * rx, Y * ry)
+
+        # Built heel to toe and flattened onto the sole.
+        shoe = [
+            across(-0.040, -0.020, 0.033, 0.028), across(-0.010, -0.016, 0.039, 0.033),
+            across(0.030, -0.021, 0.042, 0.029), across(0.070, -0.027, 0.043, 0.023),
+            across(0.105, -0.031, 0.040, 0.019),
+        ]
+        shoe = dome(shoe[0], -Z, 0.022, 3)[::-1] + shoe + dome(shoe[-1], Z, 0.03, 3)
+        b.tube(shoe, 14, floor=ankle.y - SOLE_DROP)
+
+
+def boy_weights(part, p):
+    suffix = "_l" if p.x >= 0.0 else "_r"
+    side = 1.0 if p.x >= 0.0 else -1.0
+    if part == "hair":
+        return {"head": 1.0}
+    if part == "head":
+        upper = blend(1.045, 1.085, p.y)
+        return {"spine": 1.0 - upper, "head": upper}
+    if part == "hands":
+        return {"forearm" + suffix: 1.0}
+    if part == "shoes":
+        return {"foot" + suffix: 1.0}
+    if part == "trousers":
+        leg = blend(HIP_Y + 0.05, HIP_Y - 0.07, p.y)
+        left = blend(-0.012, 0.012, p.x)
+        knee_y = HIP_Y - THIGH
+        shin = blend(knee_y + 0.05, knee_y - 0.05, p.y)
+        return {
+            "hips": 1.0 - leg,
+            "thigh_l": leg * left * (1.0 - shin), "shin_l": leg * left * shin,
+            "thigh_r": leg * (1.0 - left) * (1.0 - shin), "shin_r": leg * (1.0 - left) * shin,
+        }
+    # The shirt: body below, an arm wherever the point is close to that arm's axis
+    shoulder = shoulder_of(side)
+    axis = Matrix.Rotation(side * ARM_REST, 3, "Z") @ -Y
+    along = min(max((p - shoulder).dot(axis), 0.0), UPPER_ARM + FOREARM)
+    arm = blend(0.078, 0.046, (p - shoulder - axis * along).length)
+    fore = blend(UPPER_ARM - 0.04, UPPER_ARM + 0.04, along)
+    low = blend(0.81, 0.71, p.y)
+    return {
+        "hips": low * (1.0 - arm), "spine": (1.0 - low) * (1.0 - arm),
+        "upper_arm" + suffix: arm * (1.0 - fore), "forearm" + suffix: arm * fore,
+    }
+
+
+def boy_bones():
+    bones = [("hips", HIPS, None), ("spine", SPINE, "hips"), ("head", HEAD, "spine")]
     for side, suffix in ((1.0, "_l"), (-1.0, "_r")):
-        build_leg(b, side, suffix)
-        build_arm(b, side, suffix)
-    return b
+        shoulder = shoulder_of(side)
+        bones.append(("upper_arm" + suffix, shoulder, "spine"))
+        bones.append(("forearm" + suffix, arm_rest(side)(shoulder - Y * UPPER_ARM), "upper_arm" + suffix))
+        # Leg bones are siblings: the rig places each one directly with IK.
+        hip = Vector((side * HIP_X, HIP_Y, 0.0))
+        bones.append(("thigh" + suffix, hip, "hips"))
+        bones.append(("shin" + suffix, hip - Y * THIGH, "hips"))
+        bones.append(("foot" + suffix, hip - Y * (THIGH + SHIN), "hips"))
+    return bones
 
 
-def build_armature():
+# (part, material, shapes, fuse as (voxel size, smoothing passes, triangle budget) or None)
+BOY_PARTS = [
+    ("shirt", 0, boy_shirt, (0.005, 6, 4600)),
+    ("trousers", 1, boy_trousers, (0.005, 6, 4000)),
+    ("head", 2, boy_head, (0.004, 5, 2600)),
+    ("hands", 2, boy_hands, (0.0016, 2, 2400)),
+    ("hair", 3, boy_hair, None),
+    ("shoes", 3, boy_shoes, None),
+]
+
+
+# --- The hound. Joints: keep in step with hound_rig.gd. ---
+
+HOUND_BODY = Vector((0.0, 0.54, 0.0))
+HOUND_CHEST = Vector((0.0, 0.56, 0.20))
+HOUND_PELVIS = Vector((0.0, 0.55, -0.22))
+HOUND_HEAD = Vector((0.0, 0.74, 0.44))
+HOUND_TAIL = Vector((0.0, 0.60, -0.36))
+HOUND_LEG = 0.24  # each of the two leg segments
+HOUND_HIPS = {
+    "_fl": Vector((0.075, 0.50, 0.24)), "_fr": Vector((-0.075, 0.50, 0.24)),
+    "_rl": Vector((0.065, 0.50, -0.26)), "_rr": Vector((-0.065, 0.50, -0.26)),
+}
+HOUND_NECK = (Vector((0.0, 0.60, 0.29)), HOUND_HEAD + Vector((0.0, -0.01, -0.01)))
+HOUND_TAIL_TIP = HOUND_TAIL + Vector((0.0, -0.15, -0.27))
+HOUND_MATERIALS = [("coat", (0.085, 0.075, 0.07))]
+
+
+def hound_coat(b):
+    # (along the body, centre height, half width, half height): deep chest, tucked waist
+    profile = [
+        (-0.33, 0.585, 0.060, 0.075), (-0.27, 0.565, 0.084, 0.100), (-0.18, 0.555, 0.088, 0.108),
+        (-0.07, 0.565, 0.078, 0.095), (0.05, 0.540, 0.090, 0.125), (0.17, 0.515, 0.102, 0.155),
+        (0.27, 0.530, 0.098, 0.140), (0.33, 0.565, 0.076, 0.100),
+    ]
+    rings = [lengthwise(*ring) for ring in profile]
+    b.tube(dome(rings[0], -Z, 0.04)[::-1] + rings + dome(rings[-1], Z, 0.04), 18)
+
+    # Neck, rising forward out of the chest
+    base, top = HOUND_NECK
+    along = (top - base).normalized()
+    across = along.cross(X).normalized()
+    b.tube([(base.lerp(top, t), X * r, across * (r * 1.12))
+            for t, r in ((-0.3, 0.080), (0.0, 0.074), (0.35, 0.064), (0.7, 0.056), (1.0, 0.052), (1.15, 0.044))], 14)
+
+    skull = HOUND_HEAD + Vector((0.0, 0.022, 0.035))
+    b.ellipsoid(skull, Vector((0.062, 0.064, 0.080)), None, 16, 9)
+    muzzle = [(skull + Vector((0.0, y, z)), X * rx, Y * ry) for z, y, rx, ry in
+              ((0.035, -0.006, 0.050, 0.050), (0.09, -0.014, 0.041, 0.041), (0.15, -0.020, 0.035, 0.034), (0.20, -0.022, 0.031, 0.030))]
+    b.tube(muzzle + dome(muzzle[-1], Z, 0.022, 3), 14)
+    for side in (1.0, -1.0):
+        # Ears hang, tipped a little outwards
+        flop = Matrix.Rotation(-side * 0.3, 3, "Z") @ Matrix.Rotation(0.2, 3, "X")
+        b.ellipsoid(skull + Vector((side * 0.062, -0.024, -0.018)), Vector((0.013, 0.060, 0.038)), flop, 10, 6)
+
+    b.strand([HOUND_TAIL.lerp(HOUND_TAIL_TIP, t) for t in (-0.2, 0.0, 0.35, 0.7, 1.0)], [0.028, 0.027, 0.021, 0.016, 0.012], 10)
+
+    for suffix, hip in HOUND_HIPS.items():
+        rear = suffix[1] == "r"
+        # (distance below the hip, half width, half depth): the rear leg has a haunch
+        profile = ([(0.00, 0.044, 0.100), (0.08, 0.042, 0.085), (0.17, 0.035, 0.052)] if rear
+                   else [(0.00, 0.036, 0.058), (0.08, 0.035, 0.048), (0.17, 0.031, 0.037)])
+        profile += [(0.21, 0.031, 0.036), (0.24, 0.030, 0.034), (0.27, 0.029, 0.032), (0.36, 0.027, 0.028), (0.455, 0.027, 0.029)]
+        rings = [upright(hip.x, hip.y - d, hip.z, rx, rz) for d, rx, rz in profile]
+        b.tube(dome(rings[0], Y, 0.04)[::-1] + rings, 12)
+        wrist = hip - Y * (2 * HOUND_LEG)
+        b.ellipsoid(wrist + Vector((0.0, 0.012, 0.020)), Vector((0.031, 0.030, 0.052)), None, 10, 6)
+
+
+def hound_weights(_part, p):
+    if p.z < HOUND_TAIL.z:
+        out = blend(HOUND_TAIL.z, HOUND_TAIL.z - 0.07, p.z)
+        return {"pelvis": 1.0 - out, "tail": out}
+    front = blend(-0.12, 0.08, p.z)
+    trunk = {"chest": front, "pelvis": 1.0 - front}
+    base, top = HOUND_NECK
+    reach = (p - base).dot((top - base).normalized()) / (top - base).length
+    if reach > 0.0 and p.z > base.z - 0.04:
+        upper = blend(0.15, 0.85, reach)
+        return {"chest": 1.0 - upper, "head": upper}
+    suffix = ("_f" if p.z > 0.0 else "_r") + ("l" if p.x >= 0.0 else "r")
+    hip = HOUND_HIPS[suffix]
+    # Only what hangs under a hip belongs to that leg, not the belly beside it
+    leg = blend(0.53, 0.42, p.y) * blend(0.085, 0.05, math.hypot(p.x - hip.x, (p.z - hip.z) / 1.8))
+    knee_y = HOUND_HIPS[suffix].y - HOUND_LEG
+    low = blend(knee_y + 0.04, knee_y - 0.04, p.y)
+    paw = blend(0.075, 0.04, p.y)
+    weights = {bone: weight * (1.0 - leg) for bone, weight in trunk.items()}
+    weights["upper" + suffix] = leg * (1.0 - low)
+    weights["lower" + suffix] = leg * low * (1.0 - paw)
+    weights["paw" + suffix] = leg * low * paw
+    return weights
+
+
+def hound_bones():
+    bones = [
+        ("body", HOUND_BODY, None), ("chest", HOUND_CHEST, "body"), ("pelvis", HOUND_PELVIS, "body"),
+        ("head", HOUND_HEAD, "chest"), ("tail", HOUND_TAIL, "pelvis"),
+    ]
+    for suffix, hip in HOUND_HIPS.items():
+        # Siblings under the body, placed directly by the rig's IK.
+        bones.append(("upper" + suffix, hip, "body"))
+        bones.append(("lower" + suffix, hip - Y * HOUND_LEG, "body"))
+        bones.append(("paw" + suffix, hip - Y * (2 * HOUND_LEG), "body"))
+    return bones
+
+
+HOUND_PARTS = [("coat", 0, hound_coat, (0.005, 6, 6500))]
+
+
+# --- Assembly and export ---
+
+def triangle_count(mesh):
+    return sum(len(polygon.vertices) - 2 for polygon in mesh.polygons)
+
+
+def fused(builder, fuse):
+    """The builder's shapes as a mesh; with `fuse`, merged into one smooth surface."""
+    mesh = bpy.data.meshes.new("part")
+    builder.bm.to_mesh(mesh)
+    builder.bm.free()
+    if fuse is None:
+        return mesh
+    voxel, passes, budget = fuse
+    part = bpy.data.objects.new("part", mesh)
+    bpy.context.collection.objects.link(part)
+    remesh = part.modifiers.new("remesh", "REMESH")
+    remesh.mode = "VOXEL"
+    remesh.voxel_size = voxel
+    remesh.adaptivity = 0.0
+    smooth = part.modifiers.new("smooth", "SMOOTH")
+    smooth.factor = 0.5
+    smooth.iterations = passes
+
+    def evaluated():
+        bpy.context.view_layer.update()
+        return bpy.data.meshes.new_from_object(part.evaluated_get(bpy.context.evaluated_depsgraph_get()))
+
+    dense = triangle_count(evaluated())
+    decimate = part.modifiers.new("decimate", "DECIMATE")
+    decimate.ratio = min(1.0, budget / dense)
+    result = evaluated()
+    bpy.data.objects.remove(part)
+    return result
+
+
+def make_armature(bones):
     data = bpy.data.armatures.new("Armature")
     armature = bpy.data.objects.new("Armature", data)
     bpy.context.collection.objects.link(armature)
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode="EDIT")
-
-    def bone(name, at, parent=None):
-        b = data.edit_bones.new(name)
-        b.head = to_blender(at)
-        b.tail = to_blender(at + Y * 0.06)
-        b.roll = 0.0
-        b.parent = parent
-        return b
-
-    hips = bone("hips", HIPS)
-    spine = bone("spine", SPINE, hips)
-    bone("head", HEAD, spine)
-    for side, suffix in ((1.0, "_l"), (-1.0, "_r")):
-        shoulder = Vector((side * SHOULDER_X, SHOULDER_Y, 0.0))
-        upper = bone("upper_arm" + suffix, shoulder, spine)
-        bone("forearm" + suffix, shoulder - Y * UPPER_ARM, upper)
-        # Leg bones are siblings: the rig places each one directly with IK.
-        hip = Vector((side * HIP_X, HIP_Y, 0.0))
-        bone("thigh" + suffix, hip, hips)
-        bone("shin" + suffix, hip - Y * THIGH, hips)
-        bone("foot" + suffix, hip - Y * (THIGH + SHIN), hips)
+    for name, at, parent in bones:
+        bone = data.edit_bones.new(name)
+        bone.head = to_blender(at)
+        bone.tail = to_blender(at + Y * 0.06)
+        bone.roll = 0.0
+        if parent:
+            bone.parent = data.edit_bones[parent]
     bpy.ops.object.mode_set(mode="OBJECT")
     return armature
 
@@ -293,16 +495,30 @@ def linear(c):
     return ((c + 0.055) / 1.055) ** 2.4 if c > 0.04045 else c / 12.92
 
 
-def main():
+def export(name, bones, parts, weigh, materials):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    armature = build_armature()
-    builder = build_mesh()
+    armature = make_armature(bones)
 
-    mesh = bpy.data.meshes.new("Boy")
-    body = bpy.data.objects.new("Boy", mesh)
+    whole = bmesh.new()
+    part_of = []
+    for part, material, shapes, fuse in parts:
+        builder = Builder()
+        shapes(builder)
+        first = len(whole.faces)
+        mesh = fused(builder, fuse)
+        whole.from_mesh(mesh)
+        bpy.data.meshes.remove(mesh)
+        whole.faces.ensure_lookup_table()
+        for face in whole.faces[first:]:
+            face.material_index = material
+            face.smooth = True
+        part_of += [part] * (len(whole.verts) - len(part_of))
+
+    mesh = bpy.data.meshes.new(name)
+    body = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(body)
-    for name, srgb in MATERIALS:
-        material = bpy.data.materials.new(name)
+    for label, srgb in materials:
+        material = bpy.data.materials.new(label)
         material.use_nodes = True
         color = tuple(linear(c) for c in srgb) + (1.0,)
         shader = material.node_tree.nodes["Principled BSDF"]
@@ -312,52 +528,57 @@ def main():
         mesh.materials.append(material)
 
     groups = {bone.name: body.vertex_groups.new(name=bone.name).index for bone in armature.data.bones}
-    layer = builder.bm.verts.layers.deform.verify()
-    for vert, weights in zip(builder.bm.verts, builder.weights):
-        for name, weight in weights.items():
+    layer = whole.verts.layers.deform.verify()
+    for vert, part in zip(whole.verts, part_of):
+        for bone, weight in weigh(part, from_blender(vert.co)).items():
             if weight > 0.001:
-                vert[layer][groups[name]] = weight
-    builder.bm.to_mesh(mesh)
-    builder.bm.free()
+                vert[layer][groups[bone]] = weight
+    whole.to_mesh(mesh)
+    whole.free()
 
     body.parent = armature
     body.modifiers.new("Armature", "ARMATURE").object = armature
 
     os.makedirs(os.path.join(ROOT, "models"), exist_ok=True)
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT, "tools", "boy.blend"))
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT, "tools", name + ".blend"))
     bpy.ops.export_scene.gltf(
-        filepath=os.path.join(ROOT, "models", "boy.glb"),
+        filepath=os.path.join(ROOT, "models", name + ".glb"),
         export_format="GLB",
         export_yup=True,
         export_animations=False,
         export_skins=True,
     )
-    print("BUILT verts=%d faces=%d" % (len(mesh.vertices), len(mesh.polygons)))
+    print("BUILT %s verts=%d tris=%d" % (name, len(mesh.vertices), triangle_count(mesh)))
     if PREVIEW_DIR:
-        render_previews(PREVIEW_DIR)
+        render_previews(PREVIEW_DIR, name)
 
 
-def render_previews(folder):
+def render_previews(folder, name):
     scene = bpy.context.scene
     scene.render.engine = "BLENDER_WORKBENCH"
     scene.display.shading.light = "STUDIO"
     scene.display.shading.color_type = "MATERIAL"
     scene.display.shading.show_cavity = True
-    scene.render.resolution_x, scene.render.resolution_y = 700, 1000
+    scene.render.resolution_x, scene.render.resolution_y = 900, 900
     scene.world = bpy.data.worlds.new("World")
     scene.world.color = (0.35, 0.38, 0.42)
     camera = bpy.data.objects.new("Camera", bpy.data.cameras.new("Camera"))
     camera.data.type = "ORTHO"
-    camera.data.ortho_scale = 1.5
     scene.collection.objects.link(camera)
     scene.camera = camera
-    target = Vector((0.0, 0.0, 0.67))
-    for name, direction in (("front", (0, -1, 0)), ("side", (1, 0, 0)), ("quarter", (0.7, -0.7, 0.25)), ("back", (-0.5, 0.85, 0.2))):
+    # (view, direction to the camera, what it looks at, how much it frames)
+    views = [("side", (1, 0, 0), (0.0, 0.0, 0.67), 1.5), ("quarter", (0.7, -0.7, 0.25), (0.0, 0.0, 0.67), 1.5)]
+    if name == "boy":
+        views.append(("hand", (-0.6, -0.7, 0.1), (0.22, 0.0, 0.57), 0.22))
+        views.append(("chest", (0.5, -0.8, 0.2), (0.0, 0.0, 0.95), 0.6))
+    for view, direction, target, frame in views:
         offset = Vector(direction).normalized() * 4.0
-        camera.location = target + offset
+        camera.data.ortho_scale = frame
+        camera.location = Vector(target) + offset
         camera.rotation_euler = (-offset).to_track_quat("-Z", "Y").to_euler()
-        scene.render.filepath = os.path.join(folder, "model_" + name + ".png")
+        scene.render.filepath = os.path.join(folder, "%s_%s.png" % (name, view))
         bpy.ops.render.render(write_still=True)
 
 
-main()
+export("boy", boy_bones(), BOY_PARTS, boy_weights, BOY_MATERIALS)
+export("hound", hound_bones(), HOUND_PARTS, hound_weights, HOUND_MATERIALS)

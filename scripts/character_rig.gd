@@ -15,6 +15,8 @@ const SHIN := 0.32
 const ANKLE := 0.05
 const UPPER_ARM := 0.2
 const FOREARM := 0.2
+## How far out the model's arms are held at rest (tools/build_character.py).
+const ARM_REST := 0.22
 const MODEL := preload("res://models/boy.glb")
 
 
@@ -257,3 +259,11 @@ func _joint(parent: Node3D, bone: StringName, at: Vector3) -> Node3D:
 func _apply_pose() -> void:
 	for i in _joints.size():
 		_skeleton.set_bone_pose(_bones[i], _joints[i].transform)
+	# The arms are modelled held away from the body so the sleeves stay clear of
+	# the shirt; turn that back out so an unposed arm hangs straight.
+	for i in 2:
+		var rest := Basis(Vector3.BACK, (1.0 if i == 0 else -1.0) * ARM_REST)
+		var shoulder := _shoulders[i].transform
+		var elbow := _elbows[i].transform
+		_skeleton.set_bone_pose(_bones[_joints.find(_shoulders[i])], Transform3D(shoulder.basis * rest.inverse(), shoulder.origin))
+		_skeleton.set_bone_pose(_bones[_joints.find(_elbows[i])], Transform3D(rest * elbow.basis * rest.inverse(), rest * elbow.origin))

@@ -82,6 +82,8 @@ func _ready() -> void:
 	floor_snap_length = max_step_height
 	floor_max_angle = deg_to_rad(46.0)
 	floor_constant_speed = true
+	# Its own layer, so hounds can run through the player rather than shove them.
+	collision_layer = 2
 	_spawn = global_transform
 	_rig.top_level = true
 	_reset_visuals()
