@@ -19,7 +19,8 @@ torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.
 - **Push** a block by walking into it.
 - **Duck** under what is too low to walk under; he stays down until there is room to stand.
 - **Slide** by ducking out of a run, which gets him under things lower still.
-- **Catch a ledge** by jumping at a wall whose top is within reach; push on to climb up, pull back or duck to drop.
+- **Catch a ledge** by jumping at a wall whose top is within reach. He hangs there until jump clambers up; pulling
+  back or duck drops him.
 - **Climb a rope** (`scripts/rope.gd`) by jumping into it; up and down climb, jump leaps off the way he faces.
 - **Throw**: act picks up any RigidBody3D in the group `throwable`, act again throws it.
 

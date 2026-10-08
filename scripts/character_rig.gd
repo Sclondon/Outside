@@ -57,6 +57,10 @@ var _feet: Array[Node3D] = []
 var _toes: Array[Node3D] = []
 var _shoulders: Array[Node3D] = []
 var _elbows: Array[Node3D] = []
+var _hands: Array[Node3D] = []
+## Where each hand is reaching, in the rig's own space, and whether it was last frame.
+var _hand_targets: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
+var _reach_held := false
 var _skeleton: Skeleton3D
 var _joints: Array[Node3D] = []
 var _bones: Array[int] = []
@@ -123,7 +127,7 @@ func _process(delta: float) -> void:
 	var velocity: Vector3 = _player.velocity
 	var flat := Vector3(velocity.x, 0.0, velocity.z)
 	var speed := flat.length()
-	var grounded: bool = _player.is_on_floor()
+	var grounded: bool = _player.is_on_floor() or (&"air_time" in _player and _player.air_time < 0.1)
 
 	# What the body is up to beyond walking and jumping. Only a Player does any
 	# of it; the mummy, on the same rig, has none of these.
@@ -134,7 +138,12 @@ func _process(delta: float) -> void:
 	_duck = _approach(_duck, 1.0 if ducking and doing == Player.State.FREE else 0.0, 12.0, delta)
 	_slide = _approach(_slide, 1.0 if doing == Player.State.SLIDE else 0.0, 14.0, delta)
 	_hang = _approach(_hang, 1.0 if hanging else 0.0, 16.0, delta)
-	_climb = _player.climb_progress if doing == Player.State.CLIMB else 0.0
+	if doing == Player.State.CLIMB:
+		_climb = _player.climb_progress
+	elif doing == Player.State.HANG or _hang < 0.02:
+		# (once up, it stays "finished" while the hang pose fades, or the arms
+		# would snap back overhead for an instant)
+		_climb = 0.0
 	_rope = _approach(_rope, 1.0 if doing == Player.State.ROPE else 0.0, 14.0, delta)
 	if doing == Player.State.ROPE:
 		_rope_phase = _player.rope_travel
@@ -182,7 +191,7 @@ func _process(delta: float) -> void:
 func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float) -> void:
 	var forward := global_basis.z
 	var pitch := _run * 0.2 + _move * 0.03 + clampf(_accel.dot(forward) * 0.012, -0.2, 0.2)
-	pitch += _duck * 0.95 - _slide * 1.1 + sin(PI * _climb) * 0.45
+	pitch += _duck * 0.95 - _slide * 1.1 + sin(PI * smoothstep(0.3, 0.97, _climb)) * 0.6
 	pitch += stoop + _push * 0.36 + _air * clampf(-vertical_speed * 0.02, -0.08, 0.16) + _skid * 0.3
 	var roll := clampf(-_yaw_rate * speed * 0.012, -0.22, 0.22)
 	_lean = _lean.lerp(Vector2(pitch, roll), 1.0 - exp(-9.0 * get_process_delta_time()))
@@ -198,7 +207,7 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	var idle := 1.0 - _move
 	sway += sin(_time * 0.55) * 0.014 * idle
 	var look := (sin(_time * 0.37) * 0.28 + sin(_time * 0.83 + 1.0) * 0.1) * idle + _glance
-	_hips.position = Vector3(sway, _hip_height - _run * 0.02 - _crouch - _skid * 0.08 - _duck * 0.3 - _slide * 0.34 + bob + breath * 0.003 * (1.0 - _move), 0.0)
+	_hips.position = Vector3(sway, _hip_height - _run * 0.02 - _crouch - _skid * 0.08 - _duck * 0.3 - _slide * 0.34 - sin(PI * smoothstep(0.5, 1.0, _climb)) * 0.26 + bob + breath * 0.003 * (1.0 - _move), -0.16 * _push)
 	_hips.rotation = Vector3(_lean.x * 0.5 + _crouch * 0.8, twist, _lean.y)
 	_spine.rotation = Vector3(_lean.x * 0.5 + breath * 0.012 + _crouch * 0.9, -twist * 1.8 + look * 0.25, _lean.y * 0.5)
 	# The head stays level and looks where the body is going.
@@ -232,8 +241,13 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 		# Sliding: one leg out in front, the other folded under.
 		target = target.lerp(Vector3(side * _hip_width, ANKLE + 0.05, 0.5 if i == 0 else 0.2), _slide)
 		# Hanging: legs loose below; climbing brings a knee up onto the ledge.
-		var heave := sin(PI * _climb)
-		var dangle := Vector3(side * _hip_width, ANKLE + 0.03 + heave * (0.4 if i == 0 else 0.12), 0.04 + sin(_time * 2.0 + i) * 0.03 + heave * 0.22)
+		var scrabble := smoothstep(0.05, 0.25, _climb) * (1.0 - smoothstep(0.45, 0.6, _climb))
+		var dangle := Vector3(side * _hip_width, ANKLE + 0.03 + scrabble * (0.14 + sin(_climb * 22.0 + i * PI) * 0.1), 0.04 + sin(_time * 2.0 + i) * 0.03 + scrabble * 0.14)
+		# Then one knee comes up onto the ledge, and the other leg follows it.
+		var onto := smoothstep(0.5, 0.78, _climb) if i == 0 else smoothstep(0.72, 0.96, _climb)
+		var ahead := 0.34 * (1.0 - smoothstep(0.58, 1.0, _climb))
+		dangle = dangle.lerp(Vector3(side * _hip_width, ANKLE, ahead if i == 0 else ahead * 0.4), onto)
+		dangle.y += sin(PI * onto) * (0.24 if i == 0 else 0.16)
 		target = target.lerp(dangle, _hang)
 		# On a rope: knees up, feet gripping, shifting as the hands do.
 		target = target.lerp(Vector3(side * 0.04, ANKLE + 0.26 + sin(_rope_phase * 5.0 + i * PI) * 0.07, 0.14), _rope)
@@ -289,7 +303,7 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 		# Opposite to the leg on the same side. Negative pitch is forward.
 		var swing := side * cos(TAU * _phase) * lerpf(0.5, 0.9, _run) * gait
 		var pitch := swing + 0.05
-		var roll := side * 0.09
+		var roll := side * 0.12
 		var elbow := -(0.14 + lerpf(0.12, 1.3, _run) * gait + maxf(-swing, 0.0) * 0.4)
 
 		var flail := sin(_time * 10.0 + i * 2.1) * 0.14
@@ -388,6 +402,7 @@ func _build() -> void:
 		var shoulder := _joint(_spine, "upper_arm" + suffix, _rest("upper_arm" + suffix))
 		_shoulders.append(shoulder)
 		_elbows.append(_joint(shoulder, "forearm" + suffix, Vector3(0.0, -_upper_arm, 0.0)))
+		_hands.append(_joint(_elbows[-1], "hand" + suffix, Vector3(0.0, -_forearm, 0.0)))
 		var hip := Vector3(side * _hip_width, _hip_drop, 0.0)
 		_thighs.append(_joint(_hips, "thigh" + suffix, hip))
 		_shins.append(_joint(_hips, "shin" + suffix, hip + Vector3.DOWN * _thigh))
@@ -417,6 +432,8 @@ func _apply_pose() -> void:
 		var elbow := _elbows[i].transform
 		_skeleton.set_bone_pose(_bones[_joints.find(_shoulders[i])], Transform3D(shoulder.basis * rest.inverse(), shoulder.origin))
 		_skeleton.set_bone_pose(_bones[_joints.find(_elbows[i])], Transform3D(rest * elbow.basis * rest.inverse(), rest * elbow.origin))
+		var hand := _hands[i].transform
+		_skeleton.set_bone_pose(_bones[_joints.find(_hands[i])], Transform3D(rest * hand.basis * rest.inverse(), rest * hand.origin))
 
 
 func is_limp() -> bool:
@@ -552,7 +569,7 @@ func _threat_bearing() -> float:
 
 ## Where the right hand is, for whatever it is holding.
 func hand_position() -> Vector3:
-	return _elbows[1].global_transform * Vector3(0.0, -_forearm - 0.07, 0.0)
+	return _hands[1].global_transform * Vector3(0.0, -0.07, 0.0)
 
 
 ## Takes the figure's proportions from its skeleton's rest pose.
@@ -567,7 +584,7 @@ func _measure() -> void:
 	_toe = _rest(&"toe_l")
 	var elbow := _rest(&"forearm_l")
 	_upper_arm = elbow.length()
-	_forearm = _upper_arm
+	_forearm = _rest(&"hand_l").length()
 	_arm_rest = atan2(elbow.x, -elbow.y)
 	_leg_scale = (_thigh + _shin) / 0.54
 
@@ -581,8 +598,11 @@ func _rest(bone: StringName) -> Vector3:
 ## by solving each arm as two bones, over whatever the arms were doing.
 func _reach_arms() -> void:
 	if _reach < 0.01:
+		_reach_held = false
 		return
 	var points: PackedVector3Array = _player.hand_points
+	var ease_in := 1.0 - exp(-18.0 * get_process_delta_time()) if _reach_held else 1.0
+	_reach_held = true
 	var forward := global_basis.z.normalized()
 	var fore_length := _forearm + 0.06
 	for i in 2:
@@ -591,8 +611,10 @@ func _reach_arms() -> void:
 		var weight := _reach * (1.0 - _carry if i == 1 else 1.0)
 		var shoulder := _shoulders[i]
 		var from := shoulder.global_position
-		var to := points[i] - from
-		var reach := clampf(to.length(), 0.08, _upper_arm + fore_length - 0.005)
+		# (eased towards, in his own space, so a target that hops does not jerk the arm)
+		_hand_targets[i] = _hand_targets[i].lerp(to_local(points[i]), ease_in)
+		var to := to_global(_hand_targets[i]) - from
+		var reach := clampf(to.length(), 0.2, _upper_arm + fore_length - 0.005)
 		var direction := to.normalized()
 		# Elbows hang down and a little out.
 		var pole := Vector3.DOWN + global_basis.x.normalized() * side * 0.6 - forward * 0.3

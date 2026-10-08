@@ -73,7 +73,7 @@ enum State {
 @export var ledge_reach := Vector2(0.55, 1.6)
 ## How far below the ledge the feet hang.
 @export var hang_height := 1.27
-@export var climb_time := 0.6
+@export var climb_time := 1.15
 @export var rope_speed := 1.5
 
 @export_group("Throwing")
@@ -99,6 +99,8 @@ var is_ducking := false
 var climb_progress := 0.0
 ## Distance climbed on the current rope, for the hand-over-hand.
 var rope_travel := 0.0
+## How long he has been off the ground, seconds.
+var air_time := 0.0
 ## Where his hands belong when he has hold of something (left, right, in world
 ## space), and how firmly, 0..1: a ledge, a rope, or whatever he is leaning on.
 ## The rig reaches for these.
@@ -133,6 +135,8 @@ var _rope: Rope
 var _rope_hand_y := 0.0
 var _carried_layers := Vector2i.ZERO
 var _lean_timer := 0.0
+## How long he has been leaning without a break; a brush against a step is not a lean.
+var _lean_held := 0.0
 var _lean_point := Vector3.ZERO
 var _lean_normal := Vector3.ZERO
 
@@ -235,12 +239,15 @@ func _move(strength: float, delta: float) -> void:
 	var now_grounded := is_on_floor()
 	if now_grounded and not _was_grounded:
 		_jumping = false
-		landed.emit(maxf(fall_speed, 0.0))
+		# (a step up or down leaves the ground for a frame; that is not a landing)
+		if air_time > 0.1:
+			landed.emit(maxf(fall_speed, 0.0))
 		if fall_speed > hard_landing_speed:
 			_stun = hard_landing_time
 	elif now_grounded and _was_grounded and not stepped:
 		_smooth_step_down(global_position.y - before.y, delta)
 	_was_grounded = now_grounded
+	air_time = 0.0 if now_grounded else air_time + delta
 
 	# Hands are free and he is in the air: catch a rope, or a ledge he is falling past.
 	if not now_grounded and state == State.FREE and carried == null and _grab_cooldown <= 0.0:
@@ -485,11 +492,11 @@ func _try_catch_ledge() -> bool:
 	return true
 
 
-## Hanging: push towards the ledge (or jump) to climb, away (or duck) to drop.
+## Hanging: he stays there until jump climbs up, or pulling away (or duck) drops him.
 func _hang() -> void:
 	velocity = Vector3.ZERO
 	var toward := _wish.dot(_ledge_direction)
-	if _jump_buffer > 0.0 or (toward > 0.4 and _state_time > 0.2):
+	if _jump_buffer > 0.0:
 		_jump_buffer = 0.0
 		_climb_from = global_position
 		climb_progress = 0.0
@@ -503,8 +510,8 @@ func _hang() -> void:
 ## Pulling up: first straight up the face, then forward onto the top.
 func _climb() -> void:
 	climb_progress = clampf(_state_time / climb_time, 0.0, 1.0)
-	var rise := smoothstep(0.0, 0.65, climb_progress)
-	var reach := smoothstep(0.45, 1.0, climb_progress)
+	var rise := smoothstep(0.0, 0.6, climb_progress)
+	var reach := smoothstep(0.58, 1.0, climb_progress)
 	global_position = Vector3(
 		lerpf(_climb_from.x, _ledge_top.x, reach),
 		lerpf(_climb_from.y, _ledge_top.y + 0.02, rise),
@@ -776,9 +783,10 @@ func _note_lean() -> void:
 ## or flat against what he is leaning into.
 func _place_hands(delta: float) -> void:
 	_lean_timer -= delta
+	_lean_held = _lean_held + delta if _lean_timer > 0.0 else 0.0
 	hand_reach = 0.0
 	var facing := Vector3(sin(facing_yaw), 0.0, cos(facing_yaw))
-	if state == State.HANG or (state == State.CLIMB and climb_progress < 0.7):
+	if state == State.HANG or (state == State.CLIMB and climb_progress < 0.86):
 		# Over the lip, a shoulder's width apart
 		var lip := _ledge_top - _ledge_direction * (_radius + 0.09) + Vector3.UP * 0.02
 		var along := Vector3(_ledge_direction.z, 0.0, -_ledge_direction.x)
@@ -791,12 +799,17 @@ func _place_hands(delta: float) -> void:
 		hand_points[0] = Vector3(_rope.global_position.x, _rope_hand_y + shift, _rope.global_position.z)
 		hand_points[1] = Vector3(_rope.global_position.x, _rope_hand_y - shift, _rope.global_position.z)
 		hand_reach = 1.0
-	elif state == State.FREE and _lean_timer > 0.0:
+	elif state == State.FREE and _lean_held > 0.15:
+		# Each hand goes where a line straight ahead from the shoulder meets the
+		# surface. Anything too low for both hands (a step, a kerb) is not leant on.
 		var left := Vector3(facing.z, 0.0, -facing.x)
+		var space := get_world_3d().direct_space_state
+		var found := PackedVector3Array()
 		for i in 2:
 			var from := global_position + Vector3.UP * (stand_height * 0.6) + left * (0.13 if i == 0 else -0.13)
-			var gap := (from - _lean_point).dot(_lean_normal)
-			if gap > 0.6:
+			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from - _lean_normal * 0.65, 1))
+			if hit.is_empty():
 				return
-			hand_points[i] = from - _lean_normal * (gap - 0.015)
+			found.append((hit.position as Vector3) + (hit.normal as Vector3) * 0.015)
+		hand_points = found
 		hand_reach = 1.0

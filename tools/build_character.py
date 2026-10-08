@@ -171,9 +171,10 @@ def lengthwise(z, y, rx, ry):
 HIPS = Vector((0.0, 0.685, 0.0))
 SPINE = HIPS + Vector((0.0, 0.03, 0.0))
 HEAD = SPINE + Vector((0.0, 0.35, 0.0))
-SHOULDER_X, SHOULDER_Y = 0.14, SPINE.y + 0.28
+SHOULDER_X, SHOULDER_Y = 0.155, SPINE.y + 0.28
 HIP_X, HIP_Y = 0.075, HIPS.y - 0.02
-UPPER_ARM = FOREARM = 0.2
+UPPER_ARM = 0.2
+FOREARM = 0.175
 THIGH = SHIN = 0.32
 SOLE_DROP = 0.05  # ankle joint height above the sole
 TOE = Vector((0.0, -0.035, 0.075))  # where the foot bends, from the ankle
@@ -182,10 +183,11 @@ TOE = Vector((0.0, -0.035, 0.075))  # where the foot bends, from the ankle
 ARM_REST = 0.22
 
 BOY_MATERIALS = [
-    ("shirt", (0.60, 0.10, 0.08)),
-    ("trousers", (0.07, 0.075, 0.09)),
-    ("skin", (0.74, 0.68, 0.64)),
+    ("shirt", (0.44, 0.12, 0.13)),
+    ("trousers", (0.05, 0.05, 0.06)),
+    ("skin", (0.76, 0.66, 0.56)),
     ("hair", (0.05, 0.045, 0.04)),
+    ("socks", (0.86, 0.86, 0.83)),
 ]
 
 
@@ -203,13 +205,16 @@ def arm_rest(side):
 def boy_shirt(b):
     # (height, half width, half depth, forward offset). Starts tucked up inside the hem.
     profile = [
-        (0.700, 0.098, 0.080, 0.000), (0.672, 0.101, 0.083, 0.000),
+        (0.700, 0.094, 0.078, 0.000), (0.672, 0.097, 0.081, 0.000),
         # A loose hem hanging clear of the trousers, a boxy body, soft sloping
         # shoulders, and a crew neck standing off the neck
-        (0.668, 0.121, 0.103, 0.002), (0.682, 0.122, 0.104, 0.002), (0.74, 0.116, 0.098, 0.002),
-        (0.82, 0.110, 0.092, 0.003), (0.89, 0.111, 0.092, 0.004), (0.945, 0.116, 0.089, 0.003),
-        (0.985, 0.130, 0.082, 0.001), (1.010, 0.120, 0.075, -0.001), (1.030, 0.096, 0.067, -0.002),
-        (1.046, 0.070, 0.061, -0.002), (1.056, 0.060, 0.057, -0.001), (1.066, 0.057, 0.056, 0.000),
+        (0.668, 0.115, 0.100, 0.002), (0.682, 0.116, 0.101, 0.002), (0.74, 0.110, 0.096, 0.002),
+        (0.82, 0.104, 0.090, 0.003), (0.89, 0.104, 0.090, 0.004), (0.935, 0.112, 0.088, 0.003),
+        # The shoulders are part of the body of the shirt, sloping out over the
+        # tops of the arms, so the sleeves grow out of it rather than sit on it
+        (0.962, 0.162, 0.074, 0.001), (0.985, 0.178, 0.068, 0.000), (1.004, 0.158, 0.066, -0.001),
+        (1.020, 0.120, 0.064, -0.002), (1.036, 0.088, 0.062, -0.002), (1.048, 0.068, 0.060, -0.002),
+        (1.058, 0.060, 0.057, -0.001), (1.066, 0.057, 0.056, 0.000),
         (1.072, 0.051, 0.051, 0.000), (1.060, 0.045, 0.045, 0.000), (1.040, 0.043, 0.043, 0.000),
     ]
     b.tube([upright(0, y, z, rx, rz) for y, rx, rz, z in profile], 20)
@@ -234,9 +239,9 @@ def boy_trousers(b):
         x = side * HIP_X
         # (distance below the hip, radius, forward offset): thigh, knee, calf, hem
         profile = [
-            (0.00, 0.070, 0.000), (0.08, 0.068, 0.001), (0.18, 0.061, 0.003), (0.25, 0.055, 0.005),
-            (0.29, 0.052, 0.007), (0.32, 0.051, 0.008), (0.35, 0.048, 0.005), (0.39, 0.046, -0.001),
-            (0.46, 0.044, -0.006), (0.54, 0.038, -0.003), (0.575, 0.035, 0.000), (0.588, 0.0345, 0.001),
+            (0.00, 0.072, 0.000), (0.08, 0.071, 0.001), (0.18, 0.066, 0.003), (0.25, 0.062, 0.005),
+            (0.29, 0.060, 0.007), (0.32, 0.060, 0.009), (0.35, 0.058, 0.006), (0.39, 0.056, -0.001),
+            (0.46, 0.054, -0.006), (0.53, 0.047, -0.003), (0.562, 0.039, 0.000), (0.574, 0.034, 0.000), (0.588, 0.033, 0.001),
         ]
         rings = [upright(x, HIP_Y - d, z, r, r * 1.06) for d, r, z in profile]
         rings = dome(rings[0], Y, 0.05)[::-1] + rings
@@ -255,25 +260,44 @@ def boy_head(b):
         c, s = math.cos(phi), math.sin(phi)
         jaw = max(0.0, -s)
         # Narrower towards a chin that sits slightly forward.
-        rings.append(upright(0.0, centre.y + 0.141 * s, centre.z + 0.016 * jaw - 0.008 * max(0.0, s),
-                             0.115 * c * (1.0 - 0.16 * jaw ** 1.5), 0.128 * c))
+        rings.append(upright(0.0, centre.y + 0.148 * s, centre.z + 0.016 * jaw - 0.008 * max(0.0, s),
+                             0.110 * c * (1.0 - 0.2 * jaw ** 1.5), 0.124 * c))
     b.tube(rings, 24)
     for side in (1.0, -1.0):
         b.ellipsoid(centre + Vector((side * 0.110, -0.013, -0.013)), Vector((0.014, 0.030, 0.020)), None, 8, 5)
-    b.ellipsoid(centre + Vector((0.0, -0.026, 0.123)), Vector((0.013, 0.019, 0.016)), None, 8, 5)
+
+
+def spike(b, base, tip, radius, segments=8):
+    """A lock of hair: a cone from `base` to a point at `tip`."""
+    ahead = (tip - base).normalized()
+    u = ahead.cross(X if abs(ahead.x) < 0.9 else Y).normalized()
+    v = ahead.cross(u)
+    b.tube([(base.lerp(tip, t), u * radius * (1.0 - t), v * radius * (1.0 - t)) for t in (0.0, 0.35, 0.7, 0.96)], segments)
 
 
 def boy_hair(b):
-    # A cap tilted so the hairline is high on the brow and low at the nape.
+    # A cap tilted so the hairline is high on the brow and low at the nape...
     centre = HEAD + Vector((0.0, 0.146, 0.008))
     tilt = Matrix.Rotation(-0.5, 3, "X")
-    crown = centre + Vector((0.0, 0.010, -0.004))
+    crown = centre + Vector((0.0, 0.012, -0.004))
     cap = []
     for k in range(10):
         phi = -0.30 + (math.pi / 2 + 0.30) * k / 10
         c, s = math.cos(phi), math.sin(phi)
-        cap.append((crown + tilt @ (Y * 0.141 * s), tilt @ (X * 0.120 * c), tilt @ (Z * 0.134 * c)))
+        cap.append((crown + tilt @ (Y * 0.150 * s), tilt @ (X * 0.116 * c), tilt @ (Z * 0.131 * c)))
     b.tube(cap, 24)
+    if LOW:
+        return
+    # ...broken into jagged locks: a ragged fringe over the brow, points down
+    # the sides and the nape, and a tuft at the crown.
+    for x, drop, radius in ((-0.082, 0.062, 0.034), (-0.046, 0.098, 0.036), (-0.006, 0.070, 0.040), (0.040, 0.108, 0.036), (0.080, 0.066, 0.034)):
+        base = centre + Vector((x, 0.090, 0.078 - abs(x) * 0.3))
+        spike(b, base, base + Vector((x * 0.2 + 0.012, -drop, 0.040 - abs(x) * 0.12)), radius)
+    for angle, drop in ((1.25, 0.075), (1.75, 0.095), (2.3, 0.085), (2.85, 0.105), (3.43, 0.085), (3.98, 0.095), (4.53, 0.075), (5.03, 0.075)):
+        out = Vector((math.sin(angle), 0.0, math.cos(angle)))
+        base = centre + out * 0.098 + Y * (-0.012 if math.cos(angle) < 0.3 else 0.03)
+        spike(b, base, base + out * 0.026 - Y * drop, 0.034)
+    spike(b, centre + Vector((0.01, 0.125, -0.04)), centre + Vector((0.025, 0.160, -0.085)), 0.045)
 
 
 def boy_forearms(b):
@@ -282,7 +306,7 @@ def boy_forearms(b):
         b.place = arm_rest(side)
         x = side * SHOULDER_X
         b.tube([upright(x, SHOULDER_Y - d, -0.003, r, r * 1.08) for d, r in
-                ((0.17, 0.027), (0.21, 0.030), (0.26, 0.029), (0.32, 0.024), (0.37, 0.019), (0.40, 0.017))], 12)
+                ((0.215, 0.030), (0.25, 0.029), (0.30, 0.025), (0.345, 0.020), (0.38, 0.017))], 12)
     b.place = None
 
 
@@ -360,7 +384,7 @@ def boy_weights(part, p):
         upper = blend(1.045, 1.085, p.y)
         return {"spine": 1.0 - upper, "head": upper}
     if part == "hands":
-        return {"forearm" + suffix: 1.0}
+        return {"hand" + suffix: 1.0}
     if part == "shoes":
         toe = blend(TOE.z - 0.015, TOE.z + 0.015, p.z)
         return {"foot" + suffix: 1.0 - toe, "toe" + suffix: toe}
@@ -383,6 +407,8 @@ def boy_weights(part, p):
     axis = Matrix.Rotation(side * ARM_REST, 3, "Z") @ -Y
     along = min(max((p - shoulder).dot(axis), 0.0), UPPER_ARM + FOREARM)
     arm = blend(0.078, 0.046, (p - shoulder - axis * along).length)
+    if part == "forearms":
+        arm = 1.0
     fore = blend(UPPER_ARM - 0.04, UPPER_ARM + 0.04, along)
     low = blend(0.81, 0.71, p.y)
     return {
@@ -397,6 +423,7 @@ def boy_bones():
         shoulder = shoulder_of(side)
         bones.append(("upper_arm" + suffix, shoulder, "spine"))
         bones.append(("forearm" + suffix, arm_rest(side)(shoulder - Y * UPPER_ARM), "upper_arm" + suffix))
+        bones.append(("hand" + suffix, arm_rest(side)(shoulder - Y * (UPPER_ARM + FOREARM)), "forearm" + suffix))
         # Leg bones are siblings: the rig places each one directly with IK.
         hip = Vector((side * HIP_X, HIP_Y, 0.0))
         bones.append(("thigh" + suffix, hip, "hips"))
@@ -408,13 +435,13 @@ def boy_bones():
 
 # (part, material, shapes, fuse as (voxel size, smoothing passes, triangle budget) or None)
 BOY_PARTS = [
-    ("shirt", 0, boy_shirt, (0.005, 6, 4600)),
+    ("shirt", 0, boy_shirt, (0.005, 8, 4800)),
     ("trousers", 1, boy_trousers, (0.005, 6, 4000)),
     ("head", 2, boy_head, (0.004, 5, 2600)),
     ("hands", 2, boy_hands, (0.0016, 2, 2400)),
-    ("hands", 2, boy_forearms, (0.003, 3, 800)),
-    ("hair", 3, boy_hair, None),
-    ("ankles", 2, boy_ankles, (0.003, 3, 700)),
+    ("forearms", 2, boy_forearms, (0.003, 3, 800)),
+    ("hair", 3, boy_hair, (0.004, 2, 1800)),
+    ("ankles", 4, boy_ankles, (0.003, 3, 700)),
     ("shoes", 3, boy_shoes, (0.003, 3, 3000)),
 ]
 BOY_PARTS_LOW = [(part, material, shapes, None) for part, material, shapes, _fuse in BOY_PARTS]
