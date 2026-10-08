@@ -59,6 +59,10 @@ var _lead_leg := 0
 ## Pulses to 1 at take-off and at touch-down, then fades.
 var _launch := 0.0
 var _land := 0.0
+## Braking against his own momentum, 0..1.
+var _skid := 0.0
+## Head turn towards a hound on his heels, radians.
+var _glance := 0.0
 ## The ragdoll, while limp: its container and each (pose node, rigid body) pair, parents first.
 var _ragdoll: Node3D
 var _limbs: Array[Array] = []
@@ -110,7 +114,11 @@ func _process(delta: float) -> void:
 	var stance := lerpf(0.6, 0.34, _run)
 	if grounded:
 		_phase = fposmod(_phase + speed / stride * delta, 1.0)
-	var gait := _move * (1.0 - _air)
+	# Braking hard against his own momentum, as when the stick is thrown the other way.
+	var against := -flat.dot(global_basis.z) / maxf(_player.run_speed, 0.01)
+	_skid = _approach(_skid, clampf(against * 1.6, 0.0, 1.0) if grounded else 0.0, 12.0, delta)
+	_glance = _approach(_glance, _threat_bearing(), 6.0, delta)
+	var gait := _move * (1.0 - _air) * (1.0 - _skid)
 
 	_pose_body(speed, velocity.y, stance, gait)
 	_pose_legs(velocity.y, stride, stance, gait)
@@ -121,7 +129,7 @@ func _process(delta: float) -> void:
 func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float) -> void:
 	var forward := global_basis.z
 	var pitch := _run * 0.2 + _move * 0.03 + clampf(_accel.dot(forward) * 0.012, -0.2, 0.2)
-	pitch += _push * 0.36 + _air * clampf(-vertical_speed * 0.02, -0.08, 0.16)
+	pitch += _push * 0.36 + _air * clampf(-vertical_speed * 0.02, -0.08, 0.16) + _skid * 0.3
 	var roll := clampf(-_yaw_rate * speed * 0.012, -0.22, 0.22)
 	_lean = _lean.lerp(Vector2(pitch, roll), 1.0 - exp(-9.0 * get_process_delta_time()))
 
@@ -132,11 +140,15 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	var sway := cos(TAU * (_phase - stance * 0.5)) * 0.014 * gait * (1.0 - _run * 0.5)
 	var twist := -cos(TAU * _phase) * lerpf(0.1, 0.17, _run) * gait
 
-	_hips.position = Vector3(sway, HIP_HEIGHT - _run * 0.02 - _crouch + bob + breath * 0.003 * (1.0 - _move), 0.0)
+	# Standing still he shifts his weight and looks about.
+	var idle := 1.0 - _move
+	sway += sin(_time * 0.55) * 0.014 * idle
+	var look := (sin(_time * 0.37) * 0.28 + sin(_time * 0.83 + 1.0) * 0.1) * idle + _glance
+	_hips.position = Vector3(sway, HIP_HEIGHT - _run * 0.02 - _crouch - _skid * 0.08 + bob + breath * 0.003 * (1.0 - _move), 0.0)
 	_hips.rotation = Vector3(_lean.x * 0.5 + _crouch * 0.8, twist, _lean.y)
-	_spine.rotation = Vector3(_lean.x * 0.5 + breath * 0.012 + _crouch * 0.9, -twist * 1.8, _lean.y * 0.5)
+	_spine.rotation = Vector3(_lean.x * 0.5 + breath * 0.012 + _crouch * 0.9, -twist * 1.8 + look * 0.25, _lean.y * 0.5)
 	# The head stays level and looks where the body is going.
-	_head.rotation = Vector3(-_lean.x * 0.7 - _crouch * 1.2, twist * 0.8 + clampf(_yaw_rate * 0.04, -0.4, 0.4), -_lean.y * 0.9)
+	_head.rotation = Vector3(-_lean.x * 0.7 - _crouch * 1.2, twist * 0.8 + clampf(_yaw_rate * 0.04, -0.4, 0.4) + look * 0.75, -_lean.y * 0.9)
 
 
 func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float) -> void:
@@ -160,6 +172,9 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 		reaching.z += sin(_time * 9.0 + i * PI) * 0.03
 		target = target.lerp(reaching.lerp(tucked, rising), _air)
 		pitch = lerpf(pitch, 0.45, _air)
+		# Skidding: feet planted apart, the back one braking.
+		target = target.lerp(Vector3(side * (HIP_HALF_WIDTH + 0.03), ANKLE, -0.3 if i == 0 else 0.12), _skid)
+		pitch = lerpf(pitch, 0.0, _skid)
 		# Take-off: both legs drive down off the toes before the knees come up.
 		target = target.lerp(Vector3(side * HIP_HALF_WIDTH, ANKLE + 0.06, -0.04 if lead else -0.15), _launch)
 		pitch = lerpf(pitch, 0.95, _launch)
@@ -228,6 +243,9 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 		pitch = lerpf(pitch, 0.35, _land * (1.0 - _air))
 		roll = lerpf(roll, side * 0.7, _land * (1.0 - _air))
 		elbow = lerpf(elbow, -0.7, _land * (1.0 - _air))
+
+		roll = lerpf(roll, side * 0.75, _skid)
+		elbow = lerpf(elbow, -0.5, _skid)
 
 		pitch = lerpf(pitch, -1.3, _push)
 		roll = lerpf(roll, -side * 0.06, _push)
@@ -428,3 +446,18 @@ func _attach(joint: Joint3D, parent: RigidBody3D, child: RigidBody3D) -> void:
 	joint.global_transform = Transform3D(Basis(limb.y, limb.z, limb.x), child.global_position)
 	joint.node_a = joint.get_path_to(parent)
 	joint.node_b = joint.get_path_to(child)
+
+
+## Which way to turn the head to look at a hound that is close and coming, or 0.
+## He only glances, a second or so at a time.
+func _threat_bearing() -> float:
+	if sin(_time * 1.9) < 0.2:
+		return 0.0
+	var nearest := 9.0
+	var bearing := 0.0
+	for hound: Hound in get_tree().get_nodes_in_group(&"hounds"):
+		var to := hound.global_position - global_position
+		if hound.chasing and to.length() < nearest:
+			nearest = to.length()
+			bearing = clampf(angle_difference(rotation.y, atan2(to.x, to.z)), -1.3, 1.3)
+	return bearing
