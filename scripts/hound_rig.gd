@@ -165,7 +165,7 @@ static func _aim_down(direction: Vector3) -> Basis:
 
 
 func _build() -> void:
-	var model := MODELS[1 if low_poly else 0].instantiate()
+	var model := MODELS[1 if low_poly or Settings.low_poly else 0].instantiate()
 	add_child(model)
 	_skeleton = model.find_children("*", "Skeleton3D", true, false)[0]
 	Toon.apply(model)

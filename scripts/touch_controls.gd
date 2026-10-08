@@ -77,6 +77,9 @@ func _act_centre() -> Vector2:
 
 
 func _press(index: int, pos: Vector2) -> void:
+	# The top right corner belongs to the menu button.
+	if pos.y < 64.0 and pos.x > size.x - 130.0:
+		return
 	_hint_alpha = 1.0
 	var reach := _button_radius() * 1.3
 	if pos.x < size.x * stick_zone:

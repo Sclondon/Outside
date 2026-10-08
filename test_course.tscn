@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/level.gd" id="1"]
 [ext_resource type="PackedScene" path="res://player.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/touch_controls.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/menu.gd" id="5"]
 
 [node name="Main" type="Node3D"]
 
@@ -31,3 +32,13 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4")
+
+[node name="Menu" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("5")

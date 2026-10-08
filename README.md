@@ -23,6 +23,12 @@ torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.
 - **Climb a rope** (`scripts/rope.gd`) by jumping into it; up and down climb, jump leaps off the way he faces.
 - **Throw**: act picks up any RigidBody3D in the group `throwable`, act again throws it.
 
+After those it has a section each for the hounds and the mummy, with a plate that lets them loose and calls them off.
+
+## Menu
+
+The Menu button (top right, or Esc) swaps every figure between its full and demade model, changes level, and restarts.
+
 ## Layout
 
 | File | What it does |
@@ -35,7 +41,8 @@ torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
 | `scripts/mechanics_course.gd` | The mechanics test course (`mechanics.tscn`) |
 | `scripts/rope.gd` | A climbable rope |
-| `scripts/toon.gd` | Cel shading and outlines for the figures |
+| `scripts/toon.gd` | Cel shading for the figures |
+| `scripts/menu.gd`, `scripts/settings.gd` | The in-game menu and what it remembers |
 | `scripts/mummy.gd` | The mummy: dormant until disturbed, then walks after the player; animated by the boy's rig |
 | `scripts/level.gd` | The old grey-box test course with the hounds (`test_course.tscn`) |
 | `scripts/hound.gd` | A hound: chases the player, leaps obstacles and gaps, bays (voice synthesised in code) |
@@ -54,7 +61,8 @@ blender --background --python tools/build_character.py
 blender --background --python tools/build_character.py -- "" mummy   # just one figure
 ```
 
-The joint positions in the script must match the constants at the top of `scripts/character_rig.gd` and `scripts/hound_rig.gd`.
+`scripts/character_rig.gd` reads each figure's proportions from its skeleton, so the boy and the mummy can differ freely.
+The hound's joint positions must still match the constants at the top of `scripts/hound_rig.gd`.
 
 ## The hounds
 
@@ -64,7 +72,7 @@ They are a little faster than the player; being caught knocks him down as a ragd
 ## Demade models
 
 The same script also builds low-poly, flat-shaded versions (`models/boy_lo.glb`, `models/hound_lo.glb`) on the same
-skeletons. Tick `low_poly` on the Player's Rig node and `low_poly_hounds` on the Level node to use them.
+skeletons. Switch to them from the menu.
 
 ## Ragdoll
 

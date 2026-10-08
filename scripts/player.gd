@@ -99,6 +99,11 @@ var is_ducking := false
 var climb_progress := 0.0
 ## Distance climbed on the current rope, for the hand-over-hand.
 var rope_travel := 0.0
+## Where his hands belong when he has hold of something (left, right, in world
+## space), and how firmly, 0..1: a ledge, a rope, or whatever he is leaning on.
+## The rig reaches for these.
+var hand_points := PackedVector3Array([Vector3.ZERO, Vector3.ZERO])
+var hand_reach := 0.0
 ## What he is holding, if anything.
 var carried: RigidBody3D
 ## Render-rate position of the character; follow this, not global_position.
@@ -127,6 +132,9 @@ var _climb_from := Vector3.ZERO
 var _rope: Rope
 var _rope_hand_y := 0.0
 var _carried_layers := Vector2i.ZERO
+var _lean_timer := 0.0
+var _lean_point := Vector3.ZERO
+var _lean_normal := Vector3.ZERO
 
 @onready var _rig: CharacterRig = $Rig
 @onready var _collider: CollisionShape3D = $Collision
@@ -195,6 +203,7 @@ func _physics_process(delta: float) -> void:
 		_:
 			_move(strength, delta)
 
+	_place_hands(delta)
 	if global_position.y < kill_height:
 		respawn()
 	_prev_pos = _curr_pos
@@ -221,6 +230,7 @@ func _move(strength: float, delta: float) -> void:
 	var stepped := grounded and velocity.y <= 0.0 and state == State.FREE and _try_step_up(delta)
 	move_and_slide()
 	_push_bodies(delta)
+	_note_lean()
 
 	var now_grounded := is_on_floor()
 	if now_grounded and not _was_grounded:
@@ -743,3 +753,50 @@ func recover() -> void:
 ## Makes `at` the place `respawn` returns to (a checkpoint).
 func set_spawn(at: Vector3) -> void:
 	_spawn = Transform3D(Basis.IDENTITY, at)
+
+
+# --- Hands ---
+
+## Remembers the upright surface he is pressing into, if any: a wall he has
+## walked up to, or a block he is pushing.
+func _note_lean() -> void:
+	if not is_on_floor() or is_ducking or state != State.FREE or _wish.length_squared() < 0.04:
+		return
+	for i in get_slide_collision_count():
+		var collision := get_slide_collision(i)
+		var normal := collision.get_normal()
+		if absf(normal.y) < 0.3 and _wish.normalized().dot(-normal) > 0.5:
+			_lean_point = collision.get_position()
+			_lean_normal = normal
+			_lean_timer = 0.15
+			return
+
+
+## Works out where his hands go: on the ledge he hangs from, the rope he is on,
+## or flat against what he is leaning into.
+func _place_hands(delta: float) -> void:
+	_lean_timer -= delta
+	hand_reach = 0.0
+	var facing := Vector3(sin(facing_yaw), 0.0, cos(facing_yaw))
+	if state == State.HANG or (state == State.CLIMB and climb_progress < 0.7):
+		# Over the lip, a shoulder's width apart
+		var lip := _ledge_top - _ledge_direction * (_radius + 0.09) + Vector3.UP * 0.02
+		var along := Vector3(_ledge_direction.z, 0.0, -_ledge_direction.x)
+		hand_points[0] = lip + along * 0.14
+		hand_points[1] = lip - along * 0.14
+		hand_reach = 1.0
+	elif state == State.ROPE:
+		# One above the other, swapping as he climbs
+		var shift := sin(rope_travel * 5.0) * 0.1
+		hand_points[0] = Vector3(_rope.global_position.x, _rope_hand_y + shift, _rope.global_position.z)
+		hand_points[1] = Vector3(_rope.global_position.x, _rope_hand_y - shift, _rope.global_position.z)
+		hand_reach = 1.0
+	elif state == State.FREE and _lean_timer > 0.0:
+		var left := Vector3(facing.z, 0.0, -facing.x)
+		for i in 2:
+			var from := global_position + Vector3.UP * (stand_height * 0.6) + left * (0.13 if i == 0 else -0.13)
+			var gap := (from - _lean_point).dot(_lean_normal)
+			if gap > 0.6:
+				return
+			hand_points[i] = from - _lean_normal * (gap - 0.015)
+		hand_reach = 1.0

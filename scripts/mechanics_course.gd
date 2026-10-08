@@ -12,7 +12,7 @@ const PROP := Color(0.3, 0.31, 0.34)
 const MARK := Color(0.5, 0.4, 0.24)
 const SKY := Color(0.42, 0.46, 0.5)
 ## Passing each of these makes it the place to come back to.
-const CHECKPOINTS: Array[float] = [12.5, 19.5, 26.0, 30.5, 40.0]
+const CHECKPOINTS: Array[float] = [12.5, 19.5, 26.0, 30.5, 40.0, 60.5, 90.2]
 const HIGH := 4.6
 
 var _player: Player
@@ -21,15 +21,18 @@ var _rocks: Array[RigidBody3D] = []
 var _rock_starts: Array[Vector3] = []
 var _bridge: AnimatableBody3D
 var _bridge_out := false
+var _hounds: Array[Hound] = []
+var _mummy: Mummy
 
 
 func _ready() -> void:
 	_build_light()
-	_box(StaticBody3D.new(), Vector3(25.0, -2.0, -19.0), Vector3(64.0, 4.0, 62.0), GROUND)
-	_wall(Vector3(25.0, 8.0, DEPTH * 0.5 + 0.5), Vector3(64.0, 18.0, 1.0))
-	_wall(Vector3(25.0, 8.0, -DEPTH * 0.5 - 0.5), Vector3(64.0, 18.0, 1.0))
+	_box(StaticBody3D.new(), Vector3(40.5, -2.0, -19.0), Vector3(95.0, 4.0, 62.0), GROUND)
+	_box(StaticBody3D.new(), Vector3(101.3, -2.0, -19.0), Vector3(23.4, 4.0, 62.0), GROUND)
+	_wall(Vector3(53.0, 8.0, DEPTH * 0.5 + 0.5), Vector3(122.0, 18.0, 1.0))
+	_wall(Vector3(53.0, 8.0, -DEPTH * 0.5 - 0.5), Vector3(122.0, 18.0, 1.0))
 	_wall(Vector3(-6.5, 8.0, 0.0), Vector3(1.0, 18.0, DEPTH + 2.0))
-	_wall(Vector3(56.5, 8.0, 0.0), Vector3(1.0, 18.0, DEPTH + 2.0))
+	_wall(Vector3(113.5, 8.0, 0.0), Vector3(1.0, 18.0, DEPTH + 2.0))
 
 	# 1. Push: the block onto the plate holds the door up.
 	_sign(6.0, 3.0, "PUSH\nwalk into the block")
@@ -69,7 +72,39 @@ func _ready() -> void:
 	_plate(49.9, HIGH, true, 3.2).changed.connect(func(pressed: bool) -> void: _bridge_out = _bridge_out or pressed)
 	_bridge = AnimatableBody3D.new()
 	_box(_bridge, Vector3(50.2, HIGH - 0.15, 0.0), Vector3(4.2, 0.3, DEPTH), MARK.darkened(0.2))
-	_sign(52.5, HIGH + 2.6, "END")
+	_sign(52.5, HIGH + 2.6, "ON TO THE
+HOUNDS AND THE MUMMY")
+	for step in 3:
+		_span(56.0 + step * 1.2, 57.2 + step * 1.2, 0.0, HIGH - 1.15 * (step + 1))
+
+	# 7. Hounds: the plate lets them loose, and calls them off again. The block
+	# at the back
+	# is somewhere to climb out of their reach, with room to run past it.
+	_sign(66.0, 4.2, "HOUNDS
+the plate lets them loose,
+and calls them off")
+	_plate(63.0, 0.0, false).changed.connect(_toggle_hounds)
+	_box(StaticBody3D.new(), Vector3(68.0, 1.05, -1.75), Vector3(2.6, 2.1, DEPTH * 0.5), PROP)
+	for kennel: Vector3 in [Vector3(82.0, 0.1, -1.2), Vector3(83.5, 0.1, 1.0)]:
+		var hound := Hound.new()
+		hound.position = kennel
+		add_child(hound)
+		hound.caught.connect(_on_caught.bind(hound))
+		_hounds.append(hound)
+
+	# 8. The mummy: the plate wakes it, and puts it back. A block to dodge
+	# round, a kerb for it to step over, and a pit behind that it will not cross.
+	_sign(96.0, 4.2, "MUMMY
+the plate wakes it,
+and puts it back")
+	_plate(92.0, 0.0, false).changed.connect(_toggle_mummy)
+	_block(Vector3(97.0, 0.45, 0.0))
+	_box(StaticBody3D.new(), Vector3(100.12, 0.125, 0.0), Vector3(0.24, 0.25, DEPTH), PROP.darkened(0.15))
+	_mummy = Mummy.new()
+	_mummy.position = Vector3(105.0, 0.05, 0.0)
+	add_child(_mummy)
+	_mummy.caught.connect(_on_caught.bind(_mummy))
+	_sign(108.0, 3.0, "END")
 
 	_settle_in.call_deferred()
 
@@ -107,6 +142,10 @@ func _settle_in() -> void:
 	_player = get_parent().get_node_or_null("Player") as Player
 	if _player:
 		_player.respawned.connect(_restore_rocks)
+		_player.respawned.connect(_call_off)
+		_mummy.target = _player
+		for hound in _hounds:
+			hound.target = _player
 
 
 func _physics_process(delta: float) -> void:
@@ -149,6 +188,9 @@ func _plate(x: float, y: float, latches: bool, width := 1.5) -> Plate:
 	plate.latches = latches
 	plate.position = Vector3(x, y, 0.0)
 	add_child(plate)
+	if not latches and y == 0.0 and x > 60.0:
+		# The switches for the hounds and the mummy answer to the player alone.
+		plate.collision_mask = 2
 	return plate
 
 
@@ -238,3 +280,41 @@ func _material(color: Color) -> StandardMaterial3D:
 	material.roughness = 1.0
 	material.metallic_specular = 0.0
 	return material
+
+
+func _toggle_hounds(pressed: bool) -> void:
+	if not pressed:
+		return
+	var loose := not _hounds[0].chasing
+	for hound in _hounds:
+		if loose:
+			hound.chasing = true
+		else:
+			hound.reset()
+
+
+func _toggle_mummy(pressed: bool) -> void:
+	if not pressed:
+		return
+	if _mummy.is_awake():
+		_mummy.reset()
+	else:
+		_mummy.wake()
+
+
+## Caught: he goes down, then starts again from the last checkpoint.
+func _on_caught(by: Node3D) -> void:
+	if _player.is_limp:
+		return
+	_player.ragdoll((_player.global_position - by.global_position).normalized() * 24.0 + Vector3.UP * 12.0)
+	for hound in _hounds:
+		hound.chasing = false
+	await get_tree().create_timer(2.2).timeout
+	if _player.is_limp:
+		_player.respawn()
+
+
+func _call_off() -> void:
+	for hound in _hounds:
+		hound.reset()
+	_mummy.reset()

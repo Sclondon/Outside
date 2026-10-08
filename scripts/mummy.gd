@@ -5,13 +5,14 @@ extends CharacterBody3D
 ## round blocks and over low kerbs but cannot jump, so a pit holds it.
 ##
 ## Like the hound, it builds everything it needs: `Mummy.new()` is a whole mummy.
-## It is animated by the same rig as the boy, on a taller copy of his skeleton.
+## It is animated by the same rig as the boy, on a skeleton of its own.
 
 signal caught
 
 const MODEL := preload("res://models/mummy.glb")
+const MODEL_LOW := preload("res://models/mummy_lo.glb")
 ## How much taller than the boy it stands.
-const SIZE := 1.4
+const SIZE := 1.3
 
 @export var walk_speed := 1.35
 @export var acceleration := 6.0
@@ -34,6 +35,8 @@ var _spawn := Transform3D.IDENTITY
 var _prev_pos := Vector3.ZERO
 var _curr_pos := Vector3.ZERO
 var _waking := 0.0
+var _detour := Vector3.ZERO
+var _detour_time := 0.0
 var _rig: CharacterRig
 
 
@@ -53,7 +56,7 @@ func _ready() -> void:
 	add_child(collider)
 
 	_rig = CharacterRig.new()
-	_rig.model = MODEL
+	_rig.model = MODEL_LOW if Settings.low_poly else MODEL
 	_rig.stoop = 0.12
 	add_child(_rig)
 	_rig.top_level = true
@@ -91,6 +94,7 @@ func _physics_process(delta: float) -> void:
 		chasing = _waking <= 0.0
 
 	var grounded := is_on_floor()
+	_detour_time -= delta
 	var wish := Vector3.ZERO
 	if chasing and target and not target.is_limp:
 		var to := target.global_position - global_position
@@ -136,15 +140,21 @@ func _negotiate(wish: Vector3) -> Vector3:
 
 	var hit := KinematicCollision3D.new()
 	if not test_move(global_transform, wish * 0.25, hit) or hit.get_normal().y > 0.6:
+		# Clear ahead; finish any detour it is in the middle of.
+		if _detour_time > 0.0:
+			return (wish * 0.5 + _detour).normalized()
 		return wish
 	# A kerb: step up onto it.
 	var raised := global_transform.translated(Vector3.UP * 0.32)
 	if not test_move(global_transform, Vector3.UP * 0.32) and not test_move(raised, wish * 0.3):
 		global_position += Vector3.UP * 0.3 + wish * 0.12
 		return wish
-	# Anything taller: slide round it, on whichever side it is already nearer.
-	var around := Vector3.UP.cross(hit.get_normal())
-	var obstacle := hit.get_collider() as Node3D
-	if obstacle and around.dot(global_position - obstacle.global_position) < 0.0:
-		around = -around
-	return around.normalized()
+	# Anything taller: pick a side and keep to it for a moment, so it walks
+	# clean round a corner instead of dithering against it.
+	if _detour_time <= 0.0:
+		_detour = Vector3(-wish.z, 0.0, wish.x)
+		var obstacle := hit.get_collider() as Node3D
+		if obstacle and _detour.dot(global_position - obstacle.global_position) < 0.0:
+			_detour = -_detour
+	_detour_time = 0.9
+	return (wish * 0.5 + _detour).normalized()

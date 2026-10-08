@@ -8,17 +8,25 @@ extends Node3D
 ## and its bones all rest unrotated (see tools/build_character.py), so a bone's
 ## pose is simply its transform relative to its parent bone.
 
-const HIP_HEIGHT := 0.585
-const HIP_HALF_WIDTH := 0.075
-const THIGH := 0.27
-const SHIN := 0.27
+## Height of a planted foot's ankle joint above the ground.
 const ANKLE := 0.05
-const UPPER_ARM := 0.2
-const FOREARM := 0.2
-## How far out the model's arms are held at rest (tools/build_character.py).
-const ARM_REST := 0.22
+
+## The figure's proportions. These are read from its skeleton when it is built
+## (see _measure), so the boy and the mummy each move to their own measure.
+var _hip_height := 0.585
+var _hip_width := 0.075
+## How far below the hips bone the hip joints sit (negative).
+var _hip_drop := -0.02
+var _thigh := 0.27
+var _shin := 0.27
+var _upper_arm := 0.2
+var _forearm := 0.2
+## How far out the model's arms are held at rest, radians.
+var _arm_rest := 0.22
 ## Where the foot bends, from the ankle.
-const TOE := Vector3(0.0, -0.035, 0.075)
+var _toe := Vector3(0.0, -0.035, 0.075)
+## Leg length against the boy's, for scaling strides.
+var _leg_scale := 1.0
 ## How far a limp elbow and knee may turn, radians (lower, upper).
 const ELBOW_LIMITS := Vector2(-2.4, 0.0)
 const KNEE_LIMITS := Vector2(0.0, 2.4)
@@ -83,6 +91,8 @@ var _rope := 0.0
 var _rope_phase := 0.0
 var _carry := 0.0
 var _throw := 0.0
+## How firmly the hands are held to the points the body gives them, 0..1.
+var _reach := 0.0
 ## The ragdoll, while limp: its container and each (pose node, rigid body) pair, parents first.
 var _ragdoll: Node3D
 var _limbs: Array[Array] = []
@@ -130,6 +140,7 @@ func _process(delta: float) -> void:
 		_rope_phase = _player.rope_travel
 	_carry = _approach(_carry, 1.0 if holding else 0.0, 10.0, delta)
 	_throw = _approach(_throw, 0.0, 7.0, delta)
+	_reach = _approach(_reach, _player.hand_reach if &"hand_reach" in _player else 0.0, 14.0, delta)
 	if doing != Player.State.FREE:
 		grounded = true
 
@@ -150,7 +161,7 @@ func _process(delta: float) -> void:
 	_crouch = clampf(_crouch + _crouch_velocity * delta, -0.03, 0.3)
 
 	# One cycle is two steps. Advancing by distance keeps planted feet planted.
-	var stride := lerpf(0.74, 1.8, _run) * (1.0 - 0.3 * _duck)
+	var stride := lerpf(0.74, 1.8, _run) * (1.0 - 0.3 * _duck) * _leg_scale
 	var stance := lerpf(0.6, 0.34, _run)
 	if grounded:
 		# (a figure scaled up covers more ground per stride)
@@ -164,6 +175,7 @@ func _process(delta: float) -> void:
 	_pose_body(speed, velocity.y, stance, gait)
 	_pose_legs(velocity.y, stride, stance, gait)
 	_pose_arms(velocity.y, gait)
+	_reach_arms()
 	_apply_pose()
 
 
@@ -186,7 +198,7 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	var idle := 1.0 - _move
 	sway += sin(_time * 0.55) * 0.014 * idle
 	var look := (sin(_time * 0.37) * 0.28 + sin(_time * 0.83 + 1.0) * 0.1) * idle + _glance
-	_hips.position = Vector3(sway, HIP_HEIGHT - _run * 0.02 - _crouch - _skid * 0.08 - _duck * 0.3 - _slide * 0.34 + bob + breath * 0.003 * (1.0 - _move), 0.0)
+	_hips.position = Vector3(sway, _hip_height - _run * 0.02 - _crouch - _skid * 0.08 - _duck * 0.3 - _slide * 0.34 + bob + breath * 0.003 * (1.0 - _move), 0.0)
 	_hips.rotation = Vector3(_lean.x * 0.5 + _crouch * 0.8, twist, _lean.y)
 	_spine.rotation = Vector3(_lean.x * 0.5 + breath * 0.012 + _crouch * 0.9, -twist * 1.8 + look * 0.25, _lean.y * 0.5)
 	# The head stays level and looks where the body is going.
@@ -196,7 +208,7 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float) -> void:
 	var to_hips := _hips.transform.affine_inverse()
 	var half_step := stance * stride * 0.5
-	var lift := lerpf(0.06, 0.26, _run)
+	var lift := lerpf(0.06, 0.26, _run) * _leg_scale
 	var rising := clampf(vertical_speed / 5.0, -1.0, 1.0) * 0.5 + 0.5
 	for i in 2:
 		var side := 1.0 if i == 0 else -1.0
@@ -205,29 +217,29 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 		# Up on the toes (or back on the heel) the ankle rides higher, which is
 		# what lets the leg stay long at each end of a stride.
 		var ankle := ANKLE + sin(maxf(pitch, 0.0)) * 0.1 + sin(maxf(-pitch, 0.0)) * 0.04
-		var target := Vector3(side * HIP_HALF_WIDTH, ankle + cycle.y * gait, cycle.z * gait)
+		var target := Vector3(side * _hip_width, ankle + cycle.y * gait, cycle.z * gait)
 
 		# Airborne: knees tuck on the way up, legs reach for the ground on the way down.
 		var lead := i == _lead_leg
-		var tucked := Vector3(side * HIP_HALF_WIDTH, 0.36 if lead else 0.2, 0.22 if lead else -0.28)
-		var reaching := Vector3(side * (HIP_HALF_WIDTH + 0.02), 0.06 if lead else 0.03, 0.17 if lead else 0.02)
+		var tucked := Vector3(side * _hip_width, 0.36 if lead else 0.2, 0.22 if lead else -0.28)
+		var reaching := Vector3(side * (_hip_width + 0.02), 0.06 if lead else 0.03, 0.17 if lead else 0.02)
 		reaching.z += sin(_time * 9.0 + i * PI) * 0.03
 		target = target.lerp(reaching.lerp(tucked, rising), _air)
 		pitch = lerpf(pitch, 0.45, _air)
 		# Skidding: feet planted apart, the back one braking.
-		target = target.lerp(Vector3(side * (HIP_HALF_WIDTH + 0.03), ANKLE, -0.3 if i == 0 else 0.12), _skid)
+		target = target.lerp(Vector3(side * (_hip_width + 0.03), ANKLE, -0.3 if i == 0 else 0.12), _skid)
 		pitch = lerpf(pitch, 0.0, _skid)
 		# Sliding: one leg out in front, the other folded under.
-		target = target.lerp(Vector3(side * HIP_HALF_WIDTH, ANKLE + 0.05, 0.5 if i == 0 else 0.2), _slide)
+		target = target.lerp(Vector3(side * _hip_width, ANKLE + 0.05, 0.5 if i == 0 else 0.2), _slide)
 		# Hanging: legs loose below; climbing brings a knee up onto the ledge.
 		var heave := sin(PI * _climb)
-		var dangle := Vector3(side * HIP_HALF_WIDTH, ANKLE + 0.03 + heave * (0.4 if i == 0 else 0.12), 0.04 + sin(_time * 2.0 + i) * 0.03 + heave * 0.22)
+		var dangle := Vector3(side * _hip_width, ANKLE + 0.03 + heave * (0.4 if i == 0 else 0.12), 0.04 + sin(_time * 2.0 + i) * 0.03 + heave * 0.22)
 		target = target.lerp(dangle, _hang)
 		# On a rope: knees up, feet gripping, shifting as the hands do.
 		target = target.lerp(Vector3(side * 0.04, ANKLE + 0.26 + sin(_rope_phase * 5.0 + i * PI) * 0.07, 0.14), _rope)
 		pitch = lerpf(pitch, 0.5, maxf(_hang, _rope))
 		# Take-off: both legs drive down off the toes before the knees come up.
-		target = target.lerp(Vector3(side * HIP_HALF_WIDTH, ANKLE + 0.06, -0.04 if lead else -0.15), _launch)
+		target = target.lerp(Vector3(side * _hip_width, ANKLE + 0.06, -0.04 if lead else -0.15), _launch)
 		pitch = lerpf(pitch, 0.95, _launch)
 
 		# Planted on the ball of the foot, the toes stay flat while the heel comes up.
@@ -255,15 +267,15 @@ func _foot_cycle(phase: float, stance: float, half_step: float, lift: float) -> 
 
 ## Two-bone IK in hip space, knee bending forward.
 func _solve_leg(index: int, side: float, target: Vector3, foot_basis: Basis) -> void:
-	var hip := Vector3(side * HIP_HALF_WIDTH, -0.02, 0.0)
+	var hip := Vector3(side * _hip_width, _hip_drop, 0.0)
 	var to_target := target - hip
-	var reach := clampf(to_target.length(), 0.1, THIGH + SHIN - 0.004)
+	var reach := clampf(to_target.length(), 0.1, _thigh + _shin - 0.004)
 	var direction := to_target.normalized() if to_target.length_squared() > 0.0001 else Vector3.DOWN
 	var bend_axis := direction.cross(Vector3.BACK)
 	bend_axis = bend_axis.normalized() if bend_axis.length_squared() > 0.0001 else Vector3.LEFT
-	var hip_angle := acos(clampf((THIGH * THIGH + reach * reach - SHIN * SHIN) / (2.0 * THIGH * reach), -1.0, 1.0))
+	var hip_angle := acos(clampf((_thigh * _thigh + reach * reach - _shin * _shin) / (2.0 * _thigh * reach), -1.0, 1.0))
 	var thigh_direction := direction.rotated(bend_axis, hip_angle)
-	var knee := hip + thigh_direction * THIGH
+	var knee := hip + thigh_direction * _thigh
 	var ankle := hip + direction * reach
 	_thighs[index].transform = Transform3D(_aim_down(thigh_direction), hip)
 	_shins[index].transform = Transform3D(_aim_down((ankle - knee).normalized()), knee)
@@ -361,25 +373,26 @@ static func _aim_down(direction: Vector3) -> Basis:
 
 
 func _build() -> void:
-	var figure := (model if model else MODELS[1 if low_poly else 0]).instantiate()
+	var figure := (model if model else MODELS[1 if low_poly or Settings.low_poly else 0]).instantiate()
 	add_child(figure)
 	if cel_shaded:
 		Toon.apply(figure)
 	_skeleton = figure.find_children("*", "Skeleton3D", true, false)[0]
 
-	_hips = _joint(self, &"hips", Vector3(0.0, HIP_HEIGHT, 0.0))
-	_spine = _joint(_hips, &"spine", Vector3(0.0, 0.03, 0.0))
-	_head = _joint(_spine, &"head", Vector3(0.0, 0.35, 0.0))
+	_measure()
+	_hips = _joint(self, &"hips", Vector3(0.0, _hip_height, 0.0))
+	_spine = _joint(_hips, &"spine", _rest(&"spine"))
+	_head = _joint(_spine, &"head", _rest(&"head"))
 	for suffix: String in ["_l", "_r"]:
 		var side := 1.0 if suffix == "_l" else -1.0
-		var shoulder := _joint(_spine, "upper_arm" + suffix, Vector3(side * 0.14, 0.28, 0.0))
+		var shoulder := _joint(_spine, "upper_arm" + suffix, _rest("upper_arm" + suffix))
 		_shoulders.append(shoulder)
-		_elbows.append(_joint(shoulder, "forearm" + suffix, Vector3(0.0, -UPPER_ARM, 0.0)))
-		var hip := Vector3(side * HIP_HALF_WIDTH, -0.02, 0.0)
+		_elbows.append(_joint(shoulder, "forearm" + suffix, Vector3(0.0, -_upper_arm, 0.0)))
+		var hip := Vector3(side * _hip_width, _hip_drop, 0.0)
 		_thighs.append(_joint(_hips, "thigh" + suffix, hip))
-		_shins.append(_joint(_hips, "shin" + suffix, hip + Vector3.DOWN * THIGH))
-		_feet.append(_joint(_hips, "foot" + suffix, hip + Vector3.DOWN * (THIGH + SHIN)))
-		_toes.append(_joint(_feet[-1], "toe" + suffix, TOE))
+		_shins.append(_joint(_hips, "shin" + suffix, hip + Vector3.DOWN * _thigh))
+		_feet.append(_joint(_hips, "foot" + suffix, hip + Vector3.DOWN * (_thigh + _shin)))
+		_toes.append(_joint(_feet[-1], "toe" + suffix, _toe))
 
 
 ## Adds a pose node for a bone. The animation moves these like ordinary nodes
@@ -399,7 +412,7 @@ func _apply_pose() -> void:
 	# The arms are modelled held away from the body so the sleeves stay clear of
 	# the shirt; turn that back out so an unposed arm hangs straight.
 	for i in 2:
-		var rest := Basis(Vector3.BACK, (1.0 if i == 0 else -1.0) * ARM_REST)
+		var rest := Basis(Vector3.BACK, (1.0 if i == 0 else -1.0) * _arm_rest)
 		var shoulder := _shoulders[i].transform
 		var elbow := _elbows[i].transform
 		_skeleton.set_bone_pose(_bones[_joints.find(_shoulders[i])], Transform3D(shoulder.basis * rest.inverse(), shoulder.origin))
@@ -433,10 +446,10 @@ func go_limp(velocity: Vector3, impulse := Vector3.ZERO) -> void:
 	_socket(hips, spine, 0.45, 0.35)
 	_socket(spine, head, 0.6, 0.5)
 	for i in 2:
-		var upper := _limb(_shoulders[i], 1.2, 0.04, -UPPER_ARM)
-		var fore := _limb(_elbows[i], 1.0, 0.035, -FOREARM - 0.07)
-		var thigh := _limb(_thighs[i], 3.5, 0.06, -THIGH)
-		var shin := _limb(_shins[i], 2.5, 0.05, -SHIN - 0.05)
+		var upper := _limb(_shoulders[i], 1.2, 0.04, -_upper_arm)
+		var fore := _limb(_elbows[i], 1.0, 0.035, -_forearm - 0.07)
+		var thigh := _limb(_thighs[i], 3.5, 0.06, -_thigh)
+		var shin := _limb(_shins[i], 2.5, 0.05, -_shin - 0.05)
 		_socket(spine, upper, 1.7, 0.6)
 		_hinge(upper, fore, ELBOW_LIMITS)
 		_socket(hips, thigh, 1.0, 0.25)
@@ -460,7 +473,7 @@ func _follow_ragdoll() -> void:
 		(limb[0] as Node3D).global_transform = (limb[1] as RigidBody3D).global_transform
 	for i in 2:
 		# Feet have no body of their own; they ride on the shins.
-		_feet[i].global_transform = _shins[i].global_transform * Transform3D(Basis.IDENTITY, Vector3.DOWN * SHIN)
+		_feet[i].global_transform = _shins[i].global_transform * Transform3D(Basis.IDENTITY, Vector3.DOWN * _shin)
 		_toes[i].rotation = Vector3.ZERO
 
 
@@ -539,4 +552,67 @@ func _threat_bearing() -> float:
 
 ## Where the right hand is, for whatever it is holding.
 func hand_position() -> Vector3:
-	return _elbows[1].global_transform * Vector3(0.0, -FOREARM - 0.07, 0.0)
+	return _elbows[1].global_transform * Vector3(0.0, -_forearm - 0.07, 0.0)
+
+
+## Takes the figure's proportions from its skeleton's rest pose.
+func _measure() -> void:
+	_hip_height = _rest(&"hips").y
+	var thigh := _rest(&"thigh_l")
+	var shin := _rest(&"shin_l")
+	_hip_width = absf(thigh.x)
+	_hip_drop = thigh.y
+	_thigh = thigh.distance_to(shin)
+	_shin = shin.distance_to(_rest(&"foot_l"))
+	_toe = _rest(&"toe_l")
+	var elbow := _rest(&"forearm_l")
+	_upper_arm = elbow.length()
+	_forearm = _upper_arm
+	_arm_rest = atan2(elbow.x, -elbow.y)
+	_leg_scale = (_thigh + _shin) / 0.54
+
+
+## Where a bone rests, relative to its parent bone.
+func _rest(bone: StringName) -> Vector3:
+	return _skeleton.get_bone_rest(_skeleton.find_bone(bone)).origin
+
+
+## Puts the hands where the body says they belong (a ledge, a rope, a wall)
+## by solving each arm as two bones, over whatever the arms were doing.
+func _reach_arms() -> void:
+	if _reach < 0.01:
+		return
+	var points: PackedVector3Array = _player.hand_points
+	var forward := global_basis.z.normalized()
+	var fore_length := _forearm + 0.06
+	for i in 2:
+		var side := 1.0 if i == 0 else -1.0
+		# The right hand keeps hold of anything it is carrying.
+		var weight := _reach * (1.0 - _carry if i == 1 else 1.0)
+		var shoulder := _shoulders[i]
+		var from := shoulder.global_position
+		var to := points[i] - from
+		var reach := clampf(to.length(), 0.08, _upper_arm + fore_length - 0.005)
+		var direction := to.normalized()
+		# Elbows hang down and a little out.
+		var pole := Vector3.DOWN + global_basis.x.normalized() * side * 0.6 - forward * 0.3
+		var bend_axis := direction.cross(pole)
+		bend_axis = bend_axis.normalized() if bend_axis.length_squared() > 0.0001 else global_basis.x.normalized()
+		var angle := acos(clampf((_upper_arm * _upper_arm + reach * reach - fore_length * fore_length) / (2.0 * _upper_arm * reach), -1.0, 1.0))
+		var upper_direction := direction.rotated(bend_axis, angle)
+		var elbow_at := from + upper_direction * _upper_arm
+		var fore_direction := (from + direction * reach - elbow_at).normalized()
+
+		var parent := (shoulder.get_parent() as Node3D).global_basis.orthonormalized()
+		shoulder.basis = shoulder.basis.orthonormalized().slerp(parent.inverse() * _aim(upper_direction, forward), weight)
+		var elbow := _elbows[i]
+		var upper := shoulder.global_basis.orthonormalized()
+		elbow.basis = elbow.basis.orthonormalized().slerp(upper.inverse() * _aim(fore_direction, forward), weight)
+
+
+## Basis whose -Y axis points along `direction`, with +Z as near `ahead` as it can be.
+static func _aim(direction: Vector3, ahead: Vector3) -> Basis:
+	var y := -direction
+	var x := y.cross(ahead)
+	x = x.normalized() if x.length_squared() > 0.0001 else y.cross(Vector3.UP).normalized()
+	return Basis(x, y, x.cross(y))

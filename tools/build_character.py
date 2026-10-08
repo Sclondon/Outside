@@ -203,24 +203,25 @@ def arm_rest(side):
 def boy_shirt(b):
     # (height, half width, half depth, forward offset). Starts tucked up inside the hem.
     profile = [
-        (0.716, 0.094, 0.077, 0.000), (0.692, 0.096, 0.079, 0.000),
-        (0.690, 0.109, 0.092, 0.000), (0.70, 0.110, 0.093, 0.000), (0.75, 0.107, 0.089, 0.001),
-        (0.82, 0.100, 0.082, 0.002), (0.89, 0.105, 0.086, 0.005), (0.945, 0.116, 0.085, 0.004),
-        (0.985, 0.146, 0.080, 0.001), (1.010, 0.140, 0.074, -0.001), (1.030, 0.104, 0.065, -0.002),
-        (1.044, 0.066, 0.056, -0.003), (1.054, 0.051, 0.049, -0.002), (1.066, 0.047, 0.047, 0.000),
-        (1.070, 0.040, 0.040, 0.000), (1.058, 0.036, 0.036, 0.000),
+        (0.700, 0.098, 0.080, 0.000), (0.672, 0.101, 0.083, 0.000),
+        # A loose hem hanging clear of the trousers, a boxy body, soft sloping
+        # shoulders, and a crew neck standing off the neck
+        (0.668, 0.121, 0.103, 0.002), (0.682, 0.122, 0.104, 0.002), (0.74, 0.116, 0.098, 0.002),
+        (0.82, 0.110, 0.092, 0.003), (0.89, 0.111, 0.092, 0.004), (0.945, 0.116, 0.089, 0.003),
+        (0.985, 0.130, 0.082, 0.001), (1.010, 0.120, 0.075, -0.001), (1.030, 0.096, 0.067, -0.002),
+        (1.046, 0.070, 0.061, -0.002), (1.056, 0.060, 0.057, -0.001), (1.066, 0.057, 0.056, 0.000),
+        (1.072, 0.051, 0.051, 0.000), (1.060, 0.045, 0.045, 0.000), (1.040, 0.043, 0.043, 0.000),
     ]
     b.tube([upright(0, y, z, rx, rz) for y, rx, rz, z in profile], 20)
     for side in (1.0, -1.0):
         b.place = arm_rest(side)
         x = side * SHOULDER_X
         # (distance down the arm, radius); the elbow sits slightly back
-        sleeve = [(0.00, 0.041), (0.06, 0.041), (0.13, 0.039), (0.17, 0.037), (0.20, 0.036),
-                  (0.23, 0.034), (0.30, 0.029), (0.37, 0.025), (0.392, 0.0245)]
+        # Pushed up: the sleeve stops in a bunched roll just past the elbow
+        sleeve = [(0.00, 0.034), (0.025, 0.041), (0.06, 0.044), (0.13, 0.043), (0.17, 0.042), (0.20, 0.042),
+                  (0.222, 0.044), (0.238, 0.048), (0.252, 0.047), (0.258, 0.040), (0.236, 0.034)]
         rings = [upright(x, SHOULDER_Y - d, -0.004 * math.sin(math.pi * min(d / 0.4, 1.0)), r, r) for d, r in sleeve]
-        rings = dome(rings[0], Y, 0.012)[::-1] + rings
-        rings.append(upright(x, SHOULDER_Y - 0.394, 0.0, 0.020, 0.020))
-        rings.append(upright(x, SHOULDER_Y - 0.37, 0.0, 0.018, 0.018))
+        rings = dome(rings[0], Y, 0.026)[::-1] + rings
         b.tube(rings)
     b.place = None
 
@@ -275,6 +276,16 @@ def boy_hair(b):
     b.tube(cap, 24)
 
 
+def boy_forearms(b):
+    # Bare below the pushed-up sleeves, tapering to the wrist
+    for side in (1.0, -1.0):
+        b.place = arm_rest(side)
+        x = side * SHOULDER_X
+        b.tube([upright(x, SHOULDER_Y - d, -0.003, r, r * 1.08) for d, r in
+                ((0.17, 0.027), (0.21, 0.030), (0.26, 0.029), (0.32, 0.024), (0.37, 0.019), (0.40, 0.017))], 12)
+    b.place = None
+
+
 def boy_hands(b):
     for side in (1.0, -1.0):
         b.place = arm_rest(side)
@@ -282,12 +293,12 @@ def boy_hands(b):
         inward = -side  # the palm faces the body
 
         # Palm: thin across the hand, widening to the knuckles
-        palm = [(0.022, 0.014, 0.017), (0.0, 0.0125, 0.020), (-0.022, 0.0115, 0.026), (-0.045, 0.0105, 0.029), (-0.058, 0.0095, 0.028)]
+        palm = [(0.022, 0.015, 0.018), (0.0, 0.0135, 0.022), (-0.022, 0.0125, 0.029), (-0.045, 0.0115, 0.033), (-0.058, 0.0105, 0.032)]
         rings = [(wrist + Y * dy, X * rx, Z * rz) for dy, rx, rz in palm]
         b.tube(rings + dome(rings[-1], -Y, 0.008, 2), 12)
 
         # Fingers, little finger (back) to index (front), loosely curled towards the palm
-        for z, length, radius in (() if LOW else ((-0.021, 0.036, 0.0058), (-0.007, 0.046, 0.0064), (0.007, 0.050, 0.0066), (0.021, 0.045, 0.0064))):
+        for z, length, radius in (() if LOW else ((-0.0245, 0.034, 0.0080), (-0.0082, 0.043, 0.0088), (0.0082, 0.046, 0.0090), (0.0245, 0.042, 0.0088))):
             point = wrist + Vector((0.0, -0.058, z))
             points = [point]
             for curl, share in ((0.12, 0.42), (0.45, 0.33), (0.85, 0.25)):
@@ -302,7 +313,7 @@ def boy_hands(b):
         # Thumb, off the front edge of the palm
         root = wrist + Vector((inward * 0.003, -0.012, 0.018))
         b.strand([root, root + Vector((inward * 0.004, -0.018, 0.016)), root + Vector((inward * 0.011, -0.036, 0.022)),
-                  root + Vector((inward * 0.018, -0.050, 0.022))], [0.0092, 0.0086, 0.0074, 0.0064])
+                  root + Vector((inward * 0.018, -0.050, 0.022))], [0.0115, 0.0108, 0.0096, 0.0084])
     b.place = None
 
 
@@ -401,6 +412,7 @@ BOY_PARTS = [
     ("trousers", 1, boy_trousers, (0.005, 6, 4000)),
     ("head", 2, boy_head, (0.004, 5, 2600)),
     ("hands", 2, boy_hands, (0.0016, 2, 2400)),
+    ("hands", 2, boy_forearms, (0.003, 3, 800)),
     ("hair", 3, boy_hair, None),
     ("ankles", 2, boy_ankles, (0.003, 3, 700)),
     ("shoes", 3, boy_shoes, (0.003, 3, 3000)),
@@ -534,7 +546,7 @@ HOUND_PARTS = [("coat", 0, hound_coat, (0.004, 5, 9000))]
 HOUND_PARTS_LOW = [("coat", 0, hound_coat, None)]
 
 
-# --- The mummy. Built on the boy's skeleton, so the same rig animates it (scaled up in game). ---
+# --- The mummy. Laid out like the boy (same bone names, so the same rig animates it) but with its own proportions. ---
 
 MUMMY_MATERIALS = [("linen", (0.50, 0.45, 0.36)), ("hollow", (0.03, 0.025, 0.02))]
 
@@ -785,9 +797,12 @@ def render_previews(folder, name):
 
 export("boy", boy_bones(), BOY_PARTS, boy_weights, BOY_MATERIALS, True)
 export("hound", hound_bones(), HOUND_PARTS, hound_weights, HOUND_MATERIALS)
-export("mummy", boy_bones(), MUMMY_PARTS, boy_weights, MUMMY_MATERIALS, True)
+# The mummy keeps the long legs it is modelled with: its skeleton is its own,
+# not the boy's, and the rig reads each figure's proportions from its bones.
+export("mummy", boy_bones(), MUMMY_PARTS, boy_weights, MUMMY_MATERIALS)
 
 # The demade versions: the same shapes lofted coarsely, left unfused and flat shaded.
 LOW = True
 export("boy_lo", boy_bones(), BOY_PARTS_LOW, boy_weights, BOY_MATERIALS, True)
 export("hound_lo", hound_bones(), HOUND_PARTS_LOW, hound_weights, HOUND_MATERIALS)
+export("mummy_lo", boy_bones(), [(part, material, shapes, None) for part, material, shapes, _fuse in MUMMY_PARTS], boy_weights, MUMMY_MATERIALS)
