@@ -6,9 +6,22 @@ torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.
 
 ## Controls
 
-- Touch: drag anywhere on the left half to move (a gentle push walks, a full push runs); tap the right
-  half to jump, hold for a higher jump.
-- Keyboard: WASD or arrows, Space to jump, Shift to walk, R to drop him as a ragdoll and stand him back up. Gamepads work too.
+- Touch: drag anywhere on the left half to move (a gentle push walks, a full push runs); two small buttons bottom right
+  duck and act (pick up / throw); tap anywhere else on the right
+  to jump, hold for a higher jump.
+- Keyboard: WASD or arrows, Space to jump, C or Ctrl to duck, E or F to act, Shift to walk, R to drop him as a ragdoll
+  and stand him back up. Gamepads work too.
+
+## What he can do
+
+`mechanics.tscn` is a plain course with one station for each of these, in order:
+
+- **Push** a block by walking into it.
+- **Duck** under what is too low to walk under; he stays down until there is room to stand.
+- **Slide** by ducking out of a run, which gets him under things lower still.
+- **Catch a ledge** by jumping at a wall whose top is within reach; push on to climb up, pull back or duck to drop.
+- **Climb a rope** (`scripts/rope.gd`) by jumping into it; up and down climb, jump leaps off the way he faces.
+- **Throw**: act picks up any RigidBody3D in the group `throwable`, act again throws it.
 
 ## Layout
 
@@ -20,6 +33,9 @@ torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.
 | `scripts/follow_camera.gd` | Fixed-angle side camera |
 | `scripts/tomb.gd` | The game (`main.tscn`): the approach, the passage and three chambers, their puzzles and the mummy |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
+| `scripts/mechanics_course.gd` | The mechanics test course (`mechanics.tscn`) |
+| `scripts/rope.gd` | A climbable rope |
+| `scripts/toon.gd` | Cel shading and outlines for the figures |
 | `scripts/mummy.gd` | The mummy: dormant until disturbed, then walks after the player; animated by the boy's rig |
 | `scripts/level.gd` | The old grey-box test course with the hounds (`test_course.tscn`) |
 | `scripts/hound.gd` | A hound: chases the player, leaps obstacles and gaps, bays (voice synthesised in code) |

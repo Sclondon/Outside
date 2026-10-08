@@ -62,6 +62,8 @@ class Torch extends Node3D:
 class Plate extends Area3D:
 	signal changed(pressed: bool)
 	var pressed := false
+	## Once pressed it stays down: a target to hit rather than a weight to hold.
+	var latches := false
 	var span := Vector3(1.5, 0.5, 7.0)
 	var _slab: MeshInstance3D
 
@@ -89,7 +91,7 @@ class Plate extends Area3D:
 		add_child(_slab)
 
 	func _physics_process(delta: float) -> void:
-		var weight := false
+		var weight := latches and pressed
 		for body in get_overlapping_bodies():
 			if body is RigidBody3D or body is CharacterBody3D:
 				weight = true

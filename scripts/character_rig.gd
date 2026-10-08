@@ -8,10 +8,10 @@ extends Node3D
 ## and its bones all rest unrotated (see tools/build_character.py), so a bone's
 ## pose is simply its transform relative to its parent bone.
 
-const HIP_HEIGHT := 0.685
+const HIP_HEIGHT := 0.585
 const HIP_HALF_WIDTH := 0.075
-const THIGH := 0.32
-const SHIN := 0.32
+const THIGH := 0.27
+const SHIN := 0.27
 const ANKLE := 0.05
 const UPPER_ARM := 0.2
 const FOREARM := 0.2
@@ -32,6 +32,8 @@ const MODELS: Array[PackedScene] = [preload("res://models/boy.glb"), preload("re
 @export_range(0.0, 1.0) var arms_reach := 0.0
 ## Extra forward hunch, radians.
 @export var stoop := 0.0
+## Flat bands of light and a dark outline, instead of smooth shading.
+@export var cel_shaded := true
 
 
 ## Whoever this figure is: the Player, or any body with the same shape (velocity,
@@ -72,6 +74,15 @@ var _land := 0.0
 var _skid := 0.0
 ## Head turn towards a hound on his heels, radians.
 var _glance := 0.0
+## Blends towards each of the poses a Player can be in, 0..1.
+var _duck := 0.0
+var _slide := 0.0
+var _hang := 0.0
+var _climb := 0.0
+var _rope := 0.0
+var _rope_phase := 0.0
+var _carry := 0.0
+var _throw := 0.0
 ## The ragdoll, while limp: its container and each (pose node, rigid body) pair, parents first.
 var _ragdoll: Node3D
 var _limbs: Array[Array] = []
@@ -84,6 +95,8 @@ func _ready() -> void:
 		_player.jumped.connect(_on_jumped)
 		_player.landed.connect(_on_landed)
 		_player.respawned.connect(_on_respawned)
+	if _player and _player.has_signal(&"threw"):
+		_player.threw.connect(func() -> void: _throw = 1.0)
 	_prev_yaw = rotation.y
 
 
@@ -102,6 +115,24 @@ func _process(delta: float) -> void:
 	var speed := flat.length()
 	var grounded: bool = _player.is_on_floor()
 
+	# What the body is up to beyond walking and jumping. Only a Player does any
+	# of it; the mummy, on the same rig, has none of these.
+	var doing: int = _player.state if &"state" in _player else 0
+	var ducking: bool = _player.is_ducking if &"is_ducking" in _player else false
+	var holding: bool = &"carried" in _player and _player.carried != null
+	var hanging := doing == Player.State.HANG or doing == Player.State.CLIMB
+	_duck = _approach(_duck, 1.0 if ducking and doing == Player.State.FREE else 0.0, 12.0, delta)
+	_slide = _approach(_slide, 1.0 if doing == Player.State.SLIDE else 0.0, 14.0, delta)
+	_hang = _approach(_hang, 1.0 if hanging else 0.0, 16.0, delta)
+	_climb = _player.climb_progress if doing == Player.State.CLIMB else 0.0
+	_rope = _approach(_rope, 1.0 if doing == Player.State.ROPE else 0.0, 14.0, delta)
+	if doing == Player.State.ROPE:
+		_rope_phase = _player.rope_travel
+	_carry = _approach(_carry, 1.0 if holding else 0.0, 10.0, delta)
+	_throw = _approach(_throw, 0.0, 7.0, delta)
+	if doing != Player.State.FREE:
+		grounded = true
+
 	_move = _approach(_move, clampf(speed / _player.walk_speed, 0.0, 1.0), 10.0, delta)
 	_run = _approach(_run, clampf(inverse_lerp(_player.walk_speed, _player.run_speed, speed), 0.0, 1.0), 8.0, delta)
 	_air = _approach(_air, 0.0 if grounded else 1.0, 16.0 if grounded else 10.0, delta)
@@ -119,7 +150,7 @@ func _process(delta: float) -> void:
 	_crouch = clampf(_crouch + _crouch_velocity * delta, -0.03, 0.3)
 
 	# One cycle is two steps. Advancing by distance keeps planted feet planted.
-	var stride := lerpf(0.86, 2.1, _run)
+	var stride := lerpf(0.74, 1.8, _run) * (1.0 - 0.3 * _duck)
 	var stance := lerpf(0.6, 0.34, _run)
 	if grounded:
 		# (a figure scaled up covers more ground per stride)
@@ -128,7 +159,7 @@ func _process(delta: float) -> void:
 	var against := -flat.dot(global_basis.z) / maxf(_player.run_speed, 0.01)
 	_skid = _approach(_skid, clampf(against * 1.6, 0.0, 1.0) if grounded else 0.0, 12.0, delta)
 	_glance = _approach(_glance, _threat_bearing(), 6.0, delta)
-	var gait := _move * (1.0 - _air) * (1.0 - _skid)
+	var gait := _move * (1.0 - _air) * (1.0 - _skid) * (1.0 - _slide) * (1.0 - maxf(_hang, _rope))
 
 	_pose_body(speed, velocity.y, stance, gait)
 	_pose_legs(velocity.y, stride, stance, gait)
@@ -139,6 +170,7 @@ func _process(delta: float) -> void:
 func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float) -> void:
 	var forward := global_basis.z
 	var pitch := _run * 0.2 + _move * 0.03 + clampf(_accel.dot(forward) * 0.012, -0.2, 0.2)
+	pitch += _duck * 0.95 - _slide * 1.1 + sin(PI * _climb) * 0.45
 	pitch += stoop + _push * 0.36 + _air * clampf(-vertical_speed * 0.02, -0.08, 0.16) + _skid * 0.3
 	var roll := clampf(-_yaw_rate * speed * 0.012, -0.22, 0.22)
 	_lean = _lean.lerp(Vector2(pitch, roll), 1.0 - exp(-9.0 * get_process_delta_time()))
@@ -154,7 +186,7 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	var idle := 1.0 - _move
 	sway += sin(_time * 0.55) * 0.014 * idle
 	var look := (sin(_time * 0.37) * 0.28 + sin(_time * 0.83 + 1.0) * 0.1) * idle + _glance
-	_hips.position = Vector3(sway, HIP_HEIGHT - _run * 0.02 - _crouch - _skid * 0.08 + bob + breath * 0.003 * (1.0 - _move), 0.0)
+	_hips.position = Vector3(sway, HIP_HEIGHT - _run * 0.02 - _crouch - _skid * 0.08 - _duck * 0.3 - _slide * 0.34 + bob + breath * 0.003 * (1.0 - _move), 0.0)
 	_hips.rotation = Vector3(_lean.x * 0.5 + _crouch * 0.8, twist, _lean.y)
 	_spine.rotation = Vector3(_lean.x * 0.5 + breath * 0.012 + _crouch * 0.9, -twist * 1.8 + look * 0.25, _lean.y * 0.5)
 	# The head stays level and looks where the body is going.
@@ -164,7 +196,7 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float) -> void:
 	var to_hips := _hips.transform.affine_inverse()
 	var half_step := stance * stride * 0.5
-	var lift := lerpf(0.07, 0.3, _run)
+	var lift := lerpf(0.06, 0.26, _run)
 	var rising := clampf(vertical_speed / 5.0, -1.0, 1.0) * 0.5 + 0.5
 	for i in 2:
 		var side := 1.0 if i == 0 else -1.0
@@ -185,6 +217,15 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 		# Skidding: feet planted apart, the back one braking.
 		target = target.lerp(Vector3(side * (HIP_HALF_WIDTH + 0.03), ANKLE, -0.3 if i == 0 else 0.12), _skid)
 		pitch = lerpf(pitch, 0.0, _skid)
+		# Sliding: one leg out in front, the other folded under.
+		target = target.lerp(Vector3(side * HIP_HALF_WIDTH, ANKLE + 0.05, 0.5 if i == 0 else 0.2), _slide)
+		# Hanging: legs loose below; climbing brings a knee up onto the ledge.
+		var heave := sin(PI * _climb)
+		var dangle := Vector3(side * HIP_HALF_WIDTH, ANKLE + 0.03 + heave * (0.4 if i == 0 else 0.12), 0.04 + sin(_time * 2.0 + i) * 0.03 + heave * 0.22)
+		target = target.lerp(dangle, _hang)
+		# On a rope: knees up, feet gripping, shifting as the hands do.
+		target = target.lerp(Vector3(side * 0.04, ANKLE + 0.26 + sin(_rope_phase * 5.0 + i * PI) * 0.07, 0.14), _rope)
+		pitch = lerpf(pitch, 0.5, maxf(_hang, _rope))
 		# Take-off: both legs drive down off the toes before the knees come up.
 		target = target.lerp(Vector3(side * HIP_HALF_WIDTH, ANKLE + 0.06, -0.04 if lead else -0.15), _launch)
 		pitch = lerpf(pitch, 0.95, _launch)
@@ -261,6 +302,23 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 		roll = lerpf(roll, -side * 0.06, _push)
 		elbow = lerpf(elbow, -0.4, _push)
 
+		# Sliding: the trailing hand skims the ground behind.
+		pitch = lerpf(pitch, 0.9 if i == 1 else -0.5, _slide)
+		elbow = lerpf(elbow, -0.3, _slide)
+		# Hanging by the hands; pulling up, they end beside the hips pushing down.
+		pitch = lerpf(pitch, lerpf(-2.95, -0.25, smoothstep(0.15, 0.75, _climb)), _hang)
+		roll = lerpf(roll, side * 0.12, _hang)
+		elbow = lerpf(elbow, -0.12 - sin(PI * _climb) * 1.5, _hang)
+		# Hand over hand up a rope.
+		var haul := sin(_rope_phase * 5.0 + i * PI)
+		pitch = lerpf(pitch, -2.55 + haul * 0.3, _rope)
+		roll = lerpf(roll, -side * 0.2, _rope)
+		elbow = lerpf(elbow, -0.9 + haul * 0.45, _rope)
+		# Carrying in the right hand, up by the shoulder; a throw whips it forward.
+		if i == 1:
+			pitch = lerpf(lerpf(pitch, -0.9, _carry), -2.0, _throw)
+			elbow = lerpf(lerpf(elbow, -1.7, _carry), -0.25, _throw)
+
 		pitch = lerpf(pitch, -1.35 + sin(_time * 1.3 + i * 1.7) * 0.08, arms_reach)
 		roll = lerpf(roll, -side * 0.05, arms_reach)
 		elbow = lerpf(elbow, -0.25, arms_reach)
@@ -305,6 +363,8 @@ static func _aim_down(direction: Vector3) -> Basis:
 func _build() -> void:
 	var figure := (model if model else MODELS[1 if low_poly else 0]).instantiate()
 	add_child(figure)
+	if cel_shaded:
+		Toon.apply(figure)
 	_skeleton = figure.find_children("*", "Skeleton3D", true, false)[0]
 
 	_hips = _joint(self, &"hips", Vector3(0.0, HIP_HEIGHT, 0.0))
@@ -475,3 +535,8 @@ func _threat_bearing() -> float:
 			nearest = to.length()
 			bearing = clampf(angle_difference(rotation.y, atan2(to.x, to.z)), -1.3, 1.3)
 	return bearing
+
+
+## Where the right hand is, for whatever it is holding.
+func hand_position() -> Vector3:
+	return _elbows[1].global_transform * Vector3(0.0, -FOREARM - 0.07, 0.0)

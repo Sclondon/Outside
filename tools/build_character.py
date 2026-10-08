@@ -52,12 +52,39 @@ def blend(edge0, edge1, x):
     return t * t * (3.0 - 2.0 * t)
 
 
+# The boy (and the mummy, on his skeleton) is modelled with long legs and then
+# brought to his real proportions: the legs are shortened between hip and ankle
+# and everything above comes down with them. Doing it as a last step keeps every
+# measurement below valid. character_rig.gd's THIGH, SHIN and HIP_HEIGHT are the
+# settled values.
+LEG_SCALE = 0.27 / 0.32
+MODELLED_HIP_Y, ANKLE_Y = 0.665, 0.025
+DROP = (MODELLED_HIP_Y - ANKLE_Y) * (1.0 - LEG_SCALE)
+LEG_PARTS = ("trousers", "ankles", "shoes")
+
+
+def settled(part, p):
+    y = p.y - DROP
+    if part in LEG_PARTS and p.y < MODELLED_HIP_Y:
+        y = ANKLE_Y + (p.y - ANKLE_Y) * LEG_SCALE if p.y > ANKLE_Y else p.y
+    return Vector((p.x, y, p.z))
+
+
+def unsettled(part, p):
+    """Where a settled point was modelled, which is what the weights are written for."""
+    y = p.y + DROP
+    if part in LEG_PARTS and p.y < MODELLED_HIP_Y - DROP:
+        y = ANKLE_Y + (p.y - ANKLE_Y) / LEG_SCALE if p.y > ANKLE_Y else p.y
+    return Vector((p.x, y, p.z))
+
+
 class Builder:
     """Collects the closed shapes that make up one part of a figure."""
 
     def __init__(self):
         self.bm = bmesh.new()
         self.place = None  # optional function applied to every point
+        self.settle = None  # optional last step, bringing a figure to its final proportions
 
     def tube(self, rings, segments=16, floor=None):
         """Skins a closed surface over rings of (centre, u, v) and caps both ends."""
@@ -109,10 +136,13 @@ class Builder:
         self.tube(dome(rings[0], first, radii[0], 2)[::-1] + rings + dome(rings[-1], last, radii[-1], 2), segments)
 
     def _vert(self, position, floor):
+        # (see `settled`: runs after everything else)
         if floor is not None and position.y < floor:
             position = Vector((position.x, floor, position.z))
         if self.place:
             position = self.place(position)
+        if self.settle:
+            position = self.settle(position)
         return self.bm.verts.new(to_blender(position))
 
 
@@ -185,12 +215,12 @@ def boy_shirt(b):
         b.place = arm_rest(side)
         x = side * SHOULDER_X
         # (distance down the arm, radius); the elbow sits slightly back
-        sleeve = [(0.00, 0.039), (0.06, 0.039), (0.13, 0.037), (0.17, 0.036), (0.20, 0.036),
-                  (0.23, 0.035), (0.30, 0.032), (0.37, 0.030), (0.392, 0.032)]
+        sleeve = [(0.00, 0.041), (0.06, 0.041), (0.13, 0.039), (0.17, 0.037), (0.20, 0.036),
+                  (0.23, 0.034), (0.30, 0.029), (0.37, 0.025), (0.392, 0.0245)]
         rings = [upright(x, SHOULDER_Y - d, -0.004 * math.sin(math.pi * min(d / 0.4, 1.0)), r, r) for d, r in sleeve]
         rings = dome(rings[0], Y, 0.012)[::-1] + rings
-        rings.append(upright(x, SHOULDER_Y - 0.394, 0.0, 0.024, 0.024))
-        rings.append(upright(x, SHOULDER_Y - 0.37, 0.0, 0.022, 0.022))
+        rings.append(upright(x, SHOULDER_Y - 0.394, 0.0, 0.020, 0.020))
+        rings.append(upright(x, SHOULDER_Y - 0.37, 0.0, 0.018, 0.018))
         b.tube(rings)
     b.place = None
 
@@ -203,20 +233,20 @@ def boy_trousers(b):
         x = side * HIP_X
         # (distance below the hip, radius, forward offset): thigh, knee, calf, hem
         profile = [
-            (0.00, 0.066, 0.000), (0.08, 0.064, 0.001), (0.18, 0.058, 0.003), (0.25, 0.054, 0.005),
-            (0.29, 0.052, 0.007), (0.32, 0.052, 0.008), (0.35, 0.050, 0.005), (0.39, 0.049, -0.001),
-            (0.46, 0.050, -0.007), (0.54, 0.046, -0.004), (0.575, 0.044, 0.000), (0.588, 0.045, 0.002),
+            (0.00, 0.070, 0.000), (0.08, 0.068, 0.001), (0.18, 0.061, 0.003), (0.25, 0.055, 0.005),
+            (0.29, 0.052, 0.007), (0.32, 0.051, 0.008), (0.35, 0.048, 0.005), (0.39, 0.046, -0.001),
+            (0.46, 0.044, -0.006), (0.54, 0.038, -0.003), (0.575, 0.035, 0.000), (0.588, 0.0345, 0.001),
         ]
         rings = [upright(x, HIP_Y - d, z, r, r * 1.06) for d, r, z in profile]
         rings = dome(rings[0], Y, 0.05)[::-1] + rings
-        rings.append(upright(x, HIP_Y - 0.590, 0.002, 0.036, 0.038))
-        rings.append(upright(x, HIP_Y - 0.565, 0.0, 0.033, 0.035))
+        rings.append(upright(x, HIP_Y - 0.590, 0.002, 0.029, 0.030))
+        rings.append(upright(x, HIP_Y - 0.565, 0.0, 0.026, 0.027))
         b.tube(rings)
 
 
 def boy_head(b):
     b.tube([upright(0, y, 0.002, 0.033, 0.035) for y in (1.02, 1.06, 1.11)], 12)
-    centre = HEAD + Vector((0.0, 0.135, 0.008))
+    centre = HEAD + Vector((0.0, 0.146, 0.008))
     rings = []
     count = 13
     for k in range(1, count + 1):
@@ -224,24 +254,24 @@ def boy_head(b):
         c, s = math.cos(phi), math.sin(phi)
         jaw = max(0.0, -s)
         # Narrower towards a chin that sits slightly forward.
-        rings.append(upright(0.0, centre.y + 0.128 * s, centre.z + 0.016 * jaw - 0.008 * max(0.0, s),
-                             0.104 * c * (1.0 - 0.16 * jaw ** 1.5), 0.116 * c))
+        rings.append(upright(0.0, centre.y + 0.141 * s, centre.z + 0.016 * jaw - 0.008 * max(0.0, s),
+                             0.115 * c * (1.0 - 0.16 * jaw ** 1.5), 0.128 * c))
     b.tube(rings, 24)
     for side in (1.0, -1.0):
-        b.ellipsoid(centre + Vector((side * 0.100, -0.012, -0.012)), Vector((0.013, 0.027, 0.018)), None, 8, 5)
-    b.ellipsoid(centre + Vector((0.0, -0.024, 0.112)), Vector((0.012, 0.018, 0.015)), None, 8, 5)
+        b.ellipsoid(centre + Vector((side * 0.110, -0.013, -0.013)), Vector((0.014, 0.030, 0.020)), None, 8, 5)
+    b.ellipsoid(centre + Vector((0.0, -0.026, 0.123)), Vector((0.013, 0.019, 0.016)), None, 8, 5)
 
 
 def boy_hair(b):
     # A cap tilted so the hairline is high on the brow and low at the nape.
-    centre = HEAD + Vector((0.0, 0.135, 0.008))
+    centre = HEAD + Vector((0.0, 0.146, 0.008))
     tilt = Matrix.Rotation(-0.5, 3, "X")
     crown = centre + Vector((0.0, 0.010, -0.004))
     cap = []
     for k in range(10):
         phi = -0.30 + (math.pi / 2 + 0.30) * k / 10
         c, s = math.cos(phi), math.sin(phi)
-        cap.append((crown + tilt @ (Y * 0.128 * s), tilt @ (X * 0.109 * c), tilt @ (Z * 0.122 * c)))
+        cap.append((crown + tilt @ (Y * 0.141 * s), tilt @ (X * 0.120 * c), tilt @ (Z * 0.134 * c)))
     b.tube(cap, 24)
 
 
@@ -660,16 +690,21 @@ def linear(c):
     return ((c + 0.055) / 1.055) ** 2.4 if c > 0.04045 else c / 12.92
 
 
-def export(name, bones, parts, weigh, materials):
+def export(name, bones, parts, weigh, materials, settle=False):
     if ONLY and name not in ONLY:
         return
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    if settle:
+        legs = ("thigh", "shin", "foot", "toe")
+        bones = [(bone, settled("trousers" if bone.split("_")[0] in legs else "shirt", at), parent) for bone, at, parent in bones]
     armature = make_armature(bones)
 
     whole = bmesh.new()
     part_of = []
     for part, material, shapes, fuse in parts:
         builder = Builder()
+        if settle:
+            builder.settle = lambda p, part=part: settled(part, p)
         shapes(builder)
         first = len(whole.faces)
         mesh = fused(builder, fuse)
@@ -697,7 +732,7 @@ def export(name, bones, parts, weigh, materials):
     groups = {bone.name: body.vertex_groups.new(name=bone.name).index for bone in armature.data.bones}
     layer = whole.verts.layers.deform.verify()
     for vert, part in zip(whole.verts, part_of):
-        for bone, weight in weigh(part, from_blender(vert.co)).items():
+        for bone, weight in weigh(part, unsettled(part, from_blender(vert.co)) if settle else from_blender(vert.co)).items():
             if weight > 0.001:
                 vert[layer][groups[bone]] = weight
     whole.to_mesh(mesh)
@@ -748,11 +783,11 @@ def render_previews(folder, name):
         bpy.ops.render.render(write_still=True)
 
 
-export("boy", boy_bones(), BOY_PARTS, boy_weights, BOY_MATERIALS)
+export("boy", boy_bones(), BOY_PARTS, boy_weights, BOY_MATERIALS, True)
 export("hound", hound_bones(), HOUND_PARTS, hound_weights, HOUND_MATERIALS)
-export("mummy", boy_bones(), MUMMY_PARTS, boy_weights, MUMMY_MATERIALS)
+export("mummy", boy_bones(), MUMMY_PARTS, boy_weights, MUMMY_MATERIALS, True)
 
 # The demade versions: the same shapes lofted coarsely, left unfused and flat shaded.
 LOW = True
-export("boy_lo", boy_bones(), BOY_PARTS_LOW, boy_weights, BOY_MATERIALS)
+export("boy_lo", boy_bones(), BOY_PARTS_LOW, boy_weights, BOY_MATERIALS, True)
 export("hound_lo", hound_bones(), HOUND_PARTS_LOW, hound_weights, HOUND_MATERIALS)

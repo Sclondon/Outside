@@ -4,7 +4,8 @@ extends Node3D
 ##
 ##  1. A plate holds the door open only while something stands on it: push the
 ##     block onto it.
-##  2. A ledge too high to jump: push the block against it and climb.
+##  2. A ledge too high to catch from the floor: push the block against it,
+##     get on the block, and jump for the edge.
 ##  3. The burial chamber. Moving the block wakes what is in the sarcophagus;
 ##     get the door open and get out. A pit beyond stops it following.
 ##
@@ -178,10 +179,10 @@ func _build_chambers() -> void:
 	# --- 2. The high ledge
 	_torch(Vector3(36.5, 2.3, -3.3), 2.4)
 	_torch(Vector3(42.0, 2.3, -3.3), 2.6, true)
-	_torch(Vector3(50.0, 3.5, -3.3), 2.2)
+	_torch(Vector3(50.0, 3.85, -3.3), 2.2)
 	_pillar(39.5)
 	_block(Vector3(37.5, 0.45, 0.0))
-	_box(StaticBody3D.new(), Vector3(50.0, 0.95, 0.0), Vector3(8.0, 1.9, DEPTH), STONE.lightened(0.04))
+	_box(StaticBody3D.new(), Vector3(50.0, 1.45, 0.0), Vector3(8.0, 2.9, DEPTH), STONE.lightened(0.04))
 	_urn(Vector3(44.6, 0.0, -2.9), 0.8)
 
 	# --- 3. The burial chamber

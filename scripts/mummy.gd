@@ -11,7 +11,7 @@ signal caught
 
 const MODEL := preload("res://models/mummy.glb")
 ## How much taller than the boy it stands.
-const SIZE := 1.3
+const SIZE := 1.4
 
 @export var walk_speed := 1.35
 @export var acceleration := 6.0
