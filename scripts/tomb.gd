@@ -396,10 +396,7 @@ func _box(body: PhysicsBody3D, at: Vector3, size: Vector3, color: Color) -> Phys
 	return body
 
 
-func _material(color: Color) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = 1.0
-	# Torches and a low moon would turn any specular into glare.
-	material.metallic_specular = 0.0
-	return material
+func _material(color: Color) -> Material:
+	# Banded or smooth, as the menu has it. Either way no specular: torches
+	# and a low moon would turn it into glare.
+	return Toon.surface(color)

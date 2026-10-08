@@ -3,3 +3,5 @@ class_name Settings
 
 ## Use the demade, low-poly models for every figure.
 static var low_poly := false
+## Shade the world in hard bands of light, like the figures, rather than smoothly.
+static var world_banded := false

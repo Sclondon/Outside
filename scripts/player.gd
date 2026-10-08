@@ -133,6 +133,7 @@ var _ledge_direction := Vector3.ZERO
 var _climb_from := Vector3.ZERO
 var _rope: Rope
 var _rope_hand_y := 0.0
+var _rope_heading := Vector3.ZERO
 var _carried_layers := Vector2i.ZERO
 var _lean_timer := 0.0
 ## How long he has been leaning without a break; a brush against a step is not a lean.
@@ -269,8 +270,8 @@ func _process(delta: float) -> void:
 	elif state == State.SLIDE:
 		heading = _slide_direction
 	elif state == State.ROPE:
-		# Left and right choose which way he will leap off.
-		heading = Vector3(signf(_wish.x), 0.0, 0.0) if absf(_wish.x) > 0.3 else Vector3.ZERO
+		# Left and right (as the camera sees them) choose which way he will leap off.
+		heading = _rope_heading.normalized() if _rope_heading.length() > 0.3 else Vector3.ZERO
 	elif heading.length_squared() < 0.01:
 		heading = Vector3(velocity.x, 0.0, velocity.z)
 		if heading.length_squared() < 0.25:
@@ -554,6 +555,7 @@ func _climb_rope(input: Vector2, delta: float) -> void:
 	if _is_duck_held() and _state_time > 0.15:
 		_leave_rope()
 		return
+	_rope_heading = _to_world(Vector2(input.x, 0.0))
 	var step := -input.y * rope_speed * delta
 	var hand_y := clampf(_rope_hand_y + step, _rope.bottom_y() + 0.3, _rope.top_y() - 0.1)
 	rope_travel += hand_y - _rope_hand_y

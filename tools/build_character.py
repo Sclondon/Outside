@@ -1,4 +1,5 @@
-"""Builds the Outside figures (the boy and the hound) and exports them for Godot.
+"""Builds the hound and the mummy and exports them for Godot, and holds the tools
+build_boy.py uses to build the boy.
 
 Run from the project root:
     blender --background --python tools/build_character.py
@@ -166,7 +167,7 @@ def lengthwise(z, y, rx, ry):
     return (Vector((0.0, y, z)), X * rx, Y * ry)
 
 
-# --- The boy. Joints: keep in step with character_rig.gd. ---
+# --- The first boy. The boy is now built by build_boy.py; what is left here is the layout the mummy is built on. ---
 
 HIPS = Vector((0.0, 0.685, 0.0))
 SPINE = HIPS + Vector((0.0, 0.03, 0.0))
@@ -744,14 +745,16 @@ def export(name, bones, parts, weigh, materials, settle=False):
         builder = Builder()
         if settle:
             builder.settle = lambda p, part=part: settled(part, p)
-        shapes(builder)
+        ready = shapes(builder)  # most parts fill the builder; one may hand back a finished mesh
         first = len(whole.faces)
-        mesh = fused(builder, fuse)
+        mesh = ready if ready is not None else fused(builder, fuse)
         whole.from_mesh(mesh)
         bpy.data.meshes.remove(mesh)
         whole.faces.ensure_lookup_table()
         for face in whole.faces[first:]:
-            face.material_index = material
+            # (a part that brings its own mesh may already have its faces assigned)
+            if material is not None:
+                face.material_index = material
             face.smooth = not LOW
         part_of += [part] * (len(whole.verts) - len(part_of))
 
@@ -822,14 +825,14 @@ def render_previews(folder, name):
         bpy.ops.render.render(write_still=True)
 
 
-export("boy", boy_bones(), BOY_PARTS, boy_weights, BOY_MATERIALS, True)
-export("hound", hound_bones(), HOUND_PARTS, hound_weights, HOUND_MATERIALS)
-# The mummy keeps the long legs it is modelled with: its skeleton is its own,
-# not the boy's, and the rig reads each figure's proportions from its bones.
-export("mummy", boy_bones(), MUMMY_PARTS, boy_weights, MUMMY_MATERIALS)
+if __name__ == "__main__":
+    export("hound", hound_bones(), HOUND_PARTS, hound_weights, HOUND_MATERIALS)
+    # The mummy keeps the long legs it is modelled with: its skeleton is its own.
+    # (It is laid out with the measurements above headed "the boy", which were
+    # the first boy's; the boy himself is now built by build_boy.py.)
+    export("mummy", boy_bones(), MUMMY_PARTS, boy_weights, MUMMY_MATERIALS)
 
-# The demade versions: the same shapes lofted coarsely, left unfused and flat shaded.
-LOW = True
-export("boy_lo", boy_bones(), BOY_PARTS_LOW, boy_weights, BOY_MATERIALS, True)
-export("hound_lo", hound_bones(), HOUND_PARTS_LOW, hound_weights, HOUND_MATERIALS)
-export("mummy_lo", boy_bones(), [(part, material, shapes, None) for part, material, shapes, _fuse in MUMMY_PARTS], boy_weights, MUMMY_MATERIALS)
+    # The demade versions: the same shapes lofted coarsely, left unfused and flat shaded.
+    LOW = True
+    export("hound_lo", hound_bones(), HOUND_PARTS_LOW, hound_weights, HOUND_MATERIALS)
+    export("mummy_lo", boy_bones(), [(part, material, shapes, None) for part, material, shapes, _fuse in MUMMY_PARTS], boy_weights, MUMMY_MATERIALS)

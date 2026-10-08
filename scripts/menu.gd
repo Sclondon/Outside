@@ -6,7 +6,7 @@ extends Control
 
 const LEVELS := [
 	["The tomb", "res://main.tscn"],
-	["Mechanics course", "res://mechanics.tscn"],
+	["Test yard", "res://mechanics.tscn"],
 	["Hound run", "res://test_course.tscn"],
 ]
 
@@ -42,8 +42,9 @@ func _ready() -> void:
 	list.custom_minimum_size.x = 340.0
 	margin.add_child(list)
 
-	list.add_child(_heading("Models"))
-	list.add_child(_button("Showing: demade (low poly)" if Settings.low_poly else "Showing: full detail", _swap_models))
+	list.add_child(_heading("Look"))
+	list.add_child(_button("Figures: demade (low poly)" if Settings.low_poly else "Figures: full detail", _swap_models))
+	list.add_child(_button("World: banded light" if Settings.world_banded else "World: smooth light", _swap_world))
 	list.add_child(_heading("Level"))
 	for level: Array in LEVELS:
 		list.add_child(_button(level[0], _go_to.bind(level[1])))
@@ -64,6 +65,11 @@ func _set_open(open: bool) -> void:
 
 func _swap_models() -> void:
 	Settings.low_poly = not Settings.low_poly
+	_restart()
+
+
+func _swap_world() -> void:
+	Settings.world_banded = not Settings.world_banded
 	_restart()
 
 

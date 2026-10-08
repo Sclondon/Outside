@@ -20,6 +20,7 @@ current = true
 fov = 30.0
 script = ExtResource("3")
 target = NodePath("../Player")
+mode = 1
 
 [node name="HUD" type="CanvasLayer" parent="."]
 

@@ -21,11 +21,16 @@ signal act_pressed
 var move := Vector2.ZERO
 var jump_held := false
 var duck_held := false
+## Set by an orbiting camera: drags on the upper right of the screen then turn
+## it, and jump is the lower right only.
+var look_enabled := false
 
 var _stick_index := -1
 var _jump_index := -1
 var _duck_index := -1
 var _act_index := -1
+var _look_index := -1
+var _look := Vector2.ZERO
 var _stick_origin := Vector2.ZERO
 var _stick_knob := Vector2.ZERO
 var _stick_alpha := 0.0
@@ -52,6 +57,8 @@ func _input(event: InputEvent) -> void:
 			_press(event.index, pos)
 		else:
 			_release(event.index)
+	elif event is InputEventScreenDrag and event.index == _look_index:
+		_look += event.relative
 	elif event is InputEventScreenDrag and event.index == _stick_index:
 		_drag(make_input_local(event).position)
 
@@ -59,7 +66,7 @@ func _input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	# Touches never get a release event if the app loses focus mid-press.
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
-		for index: int in [_stick_index, _jump_index, _duck_index, _act_index]:
+		for index: int in [_stick_index, _jump_index, _duck_index, _act_index, _look_index]:
 			_release(index)
 
 
@@ -96,6 +103,9 @@ func _press(index: int, pos: Vector2) -> void:
 		if _act_index == -1:
 			_act_index = index
 			act_pressed.emit()
+	elif look_enabled and pos.y < size.y * 0.5:
+		if _look_index == -1:
+			_look_index = index
 	elif _jump_index == -1:
 		_jump_index = index
 		jump_held = true
@@ -115,6 +125,8 @@ func _release(index: int) -> void:
 	elif index == _duck_index:
 		_duck_index = -1
 		duck_held = false
+	elif index == _look_index:
+		_look_index = -1
 	elif index == _act_index:
 		_act_index = -1
 
@@ -164,3 +176,10 @@ func _draw() -> void:
 func _draw_button(centre: Vector2, radius: float, pressed: float) -> void:
 	draw_arc(centre, radius, 0.0, TAU, 40, Color(tint, lerpf(0.09, 0.3, pressed)), 2.0, true)
 	draw_circle(centre, radius * lerpf(0.0, 0.8, pressed), Color(tint, 0.16 * pressed))
+
+
+## How far the look-drag has moved since this was last asked, in pixels.
+func take_look() -> Vector2:
+	var moved := _look
+	_look = Vector2.ZERO
+	return moved
