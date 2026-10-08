@@ -26,9 +26,18 @@ const MODELS: Array[PackedScene] = [preload("res://models/boy.glb"), preload("re
 
 ## Use the demade, low-poly model (models/boy_lo.glb).
 @export var low_poly := false
+## A different figure on the same skeleton (the mummy). Overrides `low_poly`.
+@export var model: PackedScene
+## Arms held out ahead, 0..1, for something that walks with its hands reaching.
+@export_range(0.0, 1.0) var arms_reach := 0.0
+## Extra forward hunch, radians.
+@export var stoop := 0.0
 
 
-var _player: Player
+## Whoever this figure is: the Player, or any body with the same shape (velocity,
+## is_on_floor(), walk_speed, run_speed, is_pushing). Its jumped, landed and
+## respawned signals are used if it has them.
+var _player
 var _hips: Node3D
 var _spine: Node3D
 var _head: Node3D
@@ -70,8 +79,8 @@ var _limbs: Array[Array] = []
 
 func _ready() -> void:
 	_build()
-	_player = get_parent() as Player
-	if _player:
+	_player = get_parent()
+	if _player and _player.has_signal(&"jumped"):
 		_player.jumped.connect(_on_jumped)
 		_player.landed.connect(_on_landed)
 		_player.respawned.connect(_on_respawned)
@@ -88,10 +97,10 @@ func _process(delta: float) -> void:
 	delta = minf(delta, 1.0 / 30.0)
 	_time += delta
 
-	var velocity := _player.velocity
+	var velocity: Vector3 = _player.velocity
 	var flat := Vector3(velocity.x, 0.0, velocity.z)
 	var speed := flat.length()
-	var grounded := _player.is_on_floor()
+	var grounded: bool = _player.is_on_floor()
 
 	_move = _approach(_move, clampf(speed / _player.walk_speed, 0.0, 1.0), 10.0, delta)
 	_run = _approach(_run, clampf(inverse_lerp(_player.walk_speed, _player.run_speed, speed), 0.0, 1.0), 8.0, delta)
@@ -113,7 +122,8 @@ func _process(delta: float) -> void:
 	var stride := lerpf(0.86, 2.1, _run)
 	var stance := lerpf(0.6, 0.34, _run)
 	if grounded:
-		_phase = fposmod(_phase + speed / stride * delta, 1.0)
+		# (a figure scaled up covers more ground per stride)
+		_phase = fposmod(_phase + speed / (stride * global_basis.get_scale().y) * delta, 1.0)
 	# Braking hard against his own momentum, as when the stick is thrown the other way.
 	var against := -flat.dot(global_basis.z) / maxf(_player.run_speed, 0.01)
 	_skid = _approach(_skid, clampf(against * 1.6, 0.0, 1.0) if grounded else 0.0, 12.0, delta)
@@ -129,7 +139,7 @@ func _process(delta: float) -> void:
 func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float) -> void:
 	var forward := global_basis.z
 	var pitch := _run * 0.2 + _move * 0.03 + clampf(_accel.dot(forward) * 0.012, -0.2, 0.2)
-	pitch += _push * 0.36 + _air * clampf(-vertical_speed * 0.02, -0.08, 0.16) + _skid * 0.3
+	pitch += stoop + _push * 0.36 + _air * clampf(-vertical_speed * 0.02, -0.08, 0.16) + _skid * 0.3
 	var roll := clampf(-_yaw_rate * speed * 0.012, -0.22, 0.22)
 	_lean = _lean.lerp(Vector2(pitch, roll), 1.0 - exp(-9.0 * get_process_delta_time()))
 
@@ -251,6 +261,10 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 		roll = lerpf(roll, -side * 0.06, _push)
 		elbow = lerpf(elbow, -0.4, _push)
 
+		pitch = lerpf(pitch, -1.35 + sin(_time * 1.3 + i * 1.7) * 0.08, arms_reach)
+		roll = lerpf(roll, -side * 0.05, arms_reach)
+		elbow = lerpf(elbow, -0.25, arms_reach)
+
 		_shoulders[i].rotation = Vector3(pitch, 0.0, roll)
 		_elbows[i].rotation = Vector3(elbow, 0.0, 0.0)
 
@@ -289,9 +303,9 @@ static func _aim_down(direction: Vector3) -> Basis:
 
 
 func _build() -> void:
-	var model := MODELS[1 if low_poly else 0].instantiate()
-	add_child(model)
-	_skeleton = model.find_children("*", "Skeleton3D", true, false)[0]
+	var figure := (model if model else MODELS[1 if low_poly else 0]).instantiate()
+	add_child(figure)
+	_skeleton = figure.find_children("*", "Skeleton3D", true, false)[0]
 
 	_hips = _joint(self, &"hips", Vector3(0.0, HIP_HEIGHT, 0.0))
 	_spine = _joint(_hips, &"spine", Vector3(0.0, 0.03, 0.0))
@@ -455,8 +469,8 @@ func _threat_bearing() -> float:
 		return 0.0
 	var nearest := 9.0
 	var bearing := 0.0
-	for hound: Hound in get_tree().get_nodes_in_group(&"hounds"):
-		var to := hound.global_position - global_position
+	for hound in get_tree().get_nodes_in_group(&"pursuers"):
+		var to: Vector3 = hound.global_position - global_position
 		if hound.chasing and to.length() < nearest:
 			nearest = to.length()
 			bearing = clampf(angle_difference(rotation.y, atan2(to.x, to.z)), -1.3, 1.3)

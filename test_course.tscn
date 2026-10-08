@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://scripts/tomb.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/level.gd" id="1"]
 [ext_resource type="PackedScene" path="res://player.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/touch_controls.gd" id="4"]

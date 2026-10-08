@@ -400,3 +400,8 @@ func recover() -> void:
 	is_limp = false
 	_was_grounded = false
 	_reset_visuals()
+
+
+## Makes `at` the place `respawn` returns to (a checkpoint).
+func set_spawn(at: Vector3) -> void:
+	_spawn = Transform3D(Basis.IDENTITY, at)

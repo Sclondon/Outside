@@ -42,6 +42,7 @@ static var _voices: Array[AudioStreamWAV] = []
 
 func _ready() -> void:
 	add_to_group(&"hounds")
+	add_to_group(&"pursuers")
 	# Hounds and the player pass through each other; only the world stops them.
 	collision_layer = 4
 	collision_mask = 1

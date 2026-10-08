@@ -30,7 +30,9 @@ import bpy
 from mathutils import Matrix, Vector
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PREVIEW_DIR = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else None
+PREVIEW_DIR = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv and len(sys.argv) > sys.argv.index("--") + 1 else None
+# Build only some figures: pass their names after the preview folder, e.g. `-- "" mummy`.
+ONLY = sys.argv[sys.argv.index("--") + 2:] if "--" in sys.argv else []
 
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
 LOW = False  # True while building the demade, low-poly versions
@@ -502,6 +504,105 @@ HOUND_PARTS = [("coat", 0, hound_coat, (0.004, 5, 9000))]
 HOUND_PARTS_LOW = [("coat", 0, hound_coat, None)]
 
 
+# --- The mummy. Built on the boy's skeleton, so the same rig animates it (scaled up in game). ---
+
+MUMMY_MATERIALS = [("linen", (0.50, 0.45, 0.36)), ("hollow", (0.03, 0.025, 0.02))]
+
+
+def lapped(x, z, profile, band=0.03, lap=0.005):
+    """Rings for an upright tube wound in bandage: each turn overlaps the one below.
+
+    `profile` is (height, half width, half depth, forward offset) from the bottom up.
+    """
+    rings = []
+    y = profile[0][0]
+    while y < profile[-1][0]:
+        for level, scale in ((y, lap), (min(y + band, profile[-1][0]) - 0.001, 0.0)):
+            for (y0, rx0, rz0, z0), (y1, rx1, rz1, z1) in zip(profile, profile[1:]):
+                if y0 <= level <= y1:
+                    t = (level - y0) / (y1 - y0)
+                    rings.append(upright(x, level, z + z0 + (z1 - z0) * t, rx0 + (rx1 - rx0) * t + scale, rz0 + (rz1 - rz0) * t + scale))
+                    break
+        y += band
+    return rings
+
+
+def mummy_torso(b):
+    # Sunken belly, a ribcage, shoulders hunched forward
+    profile = [(0.69, 0.084, 0.070, 0.0), (0.78, 0.076, 0.064, 0.0), (0.86, 0.092, 0.076, 0.006), (0.94, 0.112, 0.084, 0.010),
+               (0.99, 0.130, 0.078, 0.004), (1.02, 0.116, 0.068, -0.004), (1.045, 0.060, 0.050, -0.004), (1.068, 0.034, 0.034, 0.0)]
+    b.tube(lapped(0.0, 0.0, profile), 20)
+    for side in (1.0, -1.0):
+        b.place = arm_rest(side)
+        arm = [(-0.41, 0.022, 0.022, 0.0), (-0.38, 0.021, 0.021, 0.0), (-0.24, 0.025, 0.025, -0.002), (-0.21, 0.030, 0.030, -0.004),
+               (-0.19, 0.026, 0.026, -0.002), (-0.10, 0.030, 0.030, 0.0), (0.0, 0.035, 0.035, 0.0), (0.02, 0.030, 0.030, 0.0)]
+        b.tube(lapped(side * SHOULDER_X, 0.0, [(SHOULDER_Y + y, rx, rz, z) for y, rx, rz, z in arm], 0.026, 0.004))
+    b.place = None
+
+
+def mummy_legs(b):
+    b.tube(lapped(0.0, -0.002, [(0.60, 0.050, 0.045, 0.0), (0.64, 0.088, 0.074, 0.0), (0.70, 0.090, 0.076, 0.0), (0.75, 0.080, 0.066, 0.0)]))
+    for side in (1.0, -1.0):
+        leg = [(-0.645, 0.028, 0.030, 0.0), (-0.62, 0.026, 0.028, 0.0), (-0.50, 0.031, 0.033, -0.004), (-0.36, 0.035, 0.036, 0.0),
+               (-0.33, 0.039, 0.041, 0.006), (-0.30, 0.037, 0.039, 0.004), (-0.15, 0.045, 0.047, 0.0), (0.0, 0.052, 0.054, 0.0), (0.04, 0.040, 0.042, 0.0)]
+        b.tube(lapped(side * HIP_X, 0.0, [(HIP_Y + y, rx, rz, z) for y, rx, rz, z in leg]))
+
+
+def mummy_skull():
+    return HEAD + Vector((0.0, 0.115, 0.006))
+
+
+def mummy_head(b):
+    b.tube([upright(0, y, 0.0, 0.028, 0.030) for y in (1.02, 1.06, 1.11)], 12)
+    centre = mummy_skull()
+    rings = []
+    for k in range(1, 13):
+        phi = -math.pi / 2 + math.pi * k / 13
+        c, s = math.cos(phi), math.sin(phi)
+        jaw = max(0.0, -s)
+        # A long skull, hollow at the cheeks, with the jaw hanging
+        rings.append(upright(0.0, centre.y + 0.108 * s, centre.z + 0.012 * jaw, 0.083 * c * (1.0 - 0.34 * jaw ** 1.3), 0.094 * c * (1.0 - 0.12 * jaw)))
+    b.tube(rings, 20)
+    # Turns of bandage crossing the head at angles
+    for tilt, y in ((0.2, 0.04), (-0.16, -0.005), (0.1, -0.055)):
+        b.ellipsoid(centre + Y * y, Vector((0.085, 0.012, 0.096)), Matrix.Rotation(tilt, 3, "Z") @ Matrix.Rotation(tilt * 0.6, 3, "X"), 16, 5)
+
+
+def mummy_hollows(b):
+    centre = mummy_skull()
+    for side in (1.0, -1.0):
+        b.ellipsoid(centre + Vector((side * 0.032, 0.008, 0.071)), Vector((0.023, 0.019, 0.017)), None, 10, 5)
+    b.ellipsoid(centre + Vector((0.0, -0.052, 0.072)), Vector((0.022, 0.009, 0.014)), None, 8, 5)
+
+
+def mummy_wrist_tatters(b):
+    # Loose ends of bandage hanging from the wrists
+    for side in (1.0, -1.0):
+        b.place = arm_rest(side)
+        wrist = shoulder_of(side) - Y * 0.36
+        b.tube([(wrist + Vector((side * 0.014, -d, sway)), X * 0.004, Z * w)
+                for d, w, sway in ((0.0, 0.013, 0.0), (0.06, 0.014, 0.006), (0.12, 0.012, -0.004), (0.17, 0.006, 0.004))], 4)
+    b.place = None
+
+
+def mummy_hip_tatter(b):
+    b.tube([(Vector((0.088, 0.70 - d, 0.02 + sway)), X * 0.004, Z * w)
+            for d, w, sway in ((0.0, 0.017, 0.0), (0.08, 0.018, 0.008), (0.17, 0.015, -0.006), (0.24, 0.007, 0.006))], 4)
+
+
+MUMMY_PARTS = [
+    ("shirt", 0, mummy_torso, (0.004, 3, 5000)),
+    ("trousers", 0, mummy_legs, (0.004, 3, 3500)),
+    ("head", 0, mummy_head, (0.004, 3, 2200)),
+    ("hands", 0, boy_hands, (0.0016, 2, 1600)),
+    ("shoes", 0, boy_shoes, (0.003, 3, 1200)),
+    ("hair", 1, mummy_hollows, None),
+    # (weighted as hands, so they hang from the forearm whatever the arm does)
+    ("hands", 0, mummy_wrist_tatters, None),
+    ("trousers", 0, mummy_hip_tatter, None),
+]
+
+
 # --- Assembly and export ---
 
 def triangle_count(mesh):
@@ -560,6 +661,8 @@ def linear(c):
 
 
 def export(name, bones, parts, weigh, materials):
+    if ONLY and name not in ONLY:
+        return
     bpy.ops.wm.read_factory_settings(use_empty=True)
     armature = make_armature(bones)
 
@@ -632,7 +735,7 @@ def render_previews(folder, name):
     scene.camera = camera
     # (view, direction to the camera, what it looks at, how much it frames)
     views = [("side", (1, 0, 0), (0.0, 0.0, 0.67), 1.5), ("quarter", (0.7, -0.7, 0.25), (0.0, 0.0, 0.67), 1.5)]
-    if name == "boy":
+    if name in ("boy", "mummy"):
         views.append(("hand", (-0.6, -0.7, 0.1), (0.22, 0.0, 0.57), 0.22))
         views.append(("chest", (0.5, -0.8, 0.2), (0.0, 0.0, 0.95), 0.6))
         views.append(("foot", (0.75, -0.6, 0.3), (0.075, -0.04, 0.04), 0.32))
@@ -647,6 +750,7 @@ def render_previews(folder, name):
 
 export("boy", boy_bones(), BOY_PARTS, boy_weights, BOY_MATERIALS)
 export("hound", hound_bones(), HOUND_PARTS, hound_weights, HOUND_MATERIALS)
+export("mummy", boy_bones(), MUMMY_PARTS, boy_weights, MUMMY_MATERIALS)
 
 # The demade versions: the same shapes lofted coarsely, left unfused and flat shaded.
 LOW = True
