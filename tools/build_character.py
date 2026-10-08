@@ -33,6 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PREVIEW_DIR = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else None
 
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
+LOW = False  # True while building the demade, low-poly versions
 
 
 def to_blender(p):
@@ -58,6 +59,10 @@ class Builder:
 
     def tube(self, rings, segments=16, floor=None):
         """Skins a closed surface over rings of (centre, u, v) and caps both ends."""
+        if LOW:
+            segments = 8 if segments >= 20 else 6 if segments >= 16 else 5 if segments >= 12 else 4
+            if len(rings) > 7:
+                rings = rings[:1] + rings[1:-1][::2] + rings[-1:]
         loops = []
         for centre, u, v in rings:
             loop = []
@@ -77,6 +82,8 @@ class Builder:
         bmesh.ops.recalc_face_normals(self.bm, faces=faces)
 
     def ellipsoid(self, centre, radii, tilt=None, segments=12, rings=7):
+        if LOW:
+            segments, rings = 16, 3
         loops = []
         for k in range(1, rings + 1):
             phi = -math.pi / 2 + math.pi * k / (rings + 1)
@@ -109,6 +116,8 @@ class Builder:
 
 def dome(ring, axis, height, steps=4):
     """Rings that round off the end of a tube, starting just past `ring`."""
+    if LOW:
+        steps = 1
     centre, u, v = ring
     out = []
     for k in range(1, steps + 1):
@@ -246,7 +255,7 @@ def boy_hands(b):
         b.tube(rings + dome(rings[-1], -Y, 0.008, 2), 12)
 
         # Fingers, little finger (back) to index (front), loosely curled towards the palm
-        for z, length, radius in ((-0.021, 0.036, 0.0058), (-0.007, 0.046, 0.0064), (0.007, 0.050, 0.0066), (0.021, 0.045, 0.0064)):
+        for z, length, radius in (() if LOW else ((-0.021, 0.036, 0.0058), (-0.007, 0.046, 0.0064), (0.007, 0.050, 0.0066), (0.021, 0.045, 0.0064))):
             point = wrist + Vector((0.0, -0.058, z))
             points = [point]
             for curl, share in ((0.12, 0.42), (0.45, 0.33), (0.85, 0.25)):
@@ -254,6 +263,10 @@ def boy_hands(b):
                 points.append(point)
             b.strand(points, [radius, radius * 0.97, radius * 0.9, radius * 0.8])
 
+        if LOW:
+            # Demade: the fingers are a single curled mitt
+            mitt = [(-0.058, 0.0, 0.0095, 0.027), (-0.082, 0.006, 0.0085, 0.025), (-0.102, 0.016, 0.007, 0.020)]
+            b.tube([(wrist + Vector((inward * x, dy, 0.0)), X * rx, Z * rz) for dy, x, rx, rz in mitt], 12)
         # Thumb, off the front edge of the palm
         root = wrist + Vector((inward * 0.003, -0.012, 0.018))
         b.strand([root, root + Vector((inward * 0.004, -0.018, 0.016)), root + Vector((inward * 0.011, -0.036, 0.022)),
@@ -360,6 +373,7 @@ BOY_PARTS = [
     ("ankles", 2, boy_ankles, (0.003, 3, 700)),
     ("shoes", 3, boy_shoes, (0.003, 3, 3000)),
 ]
+BOY_PARTS_LOW = [(part, material, shapes, None) for part, material, shapes, _fuse in BOY_PARTS]
 
 
 # --- The hound. Joints: keep in step with hound_rig.gd. ---
@@ -392,7 +406,7 @@ def hound_coat(b):
     # Withers, the point of the chest, and the muscle over each shoulder and haunch
     b.ellipsoid(Vector((0.0, 0.646, 0.19)), Vector((0.050, 0.030, 0.110)))
     b.ellipsoid(Vector((0.0, 0.525, 0.335)), Vector((0.060, 0.075, 0.055)))
-    for side in (1.0, -1.0):
+    for side in (() if LOW else (1.0, -1.0)):
         b.ellipsoid(Vector((side * 0.088, 0.535, 0.225)), Vector((0.034, 0.105, 0.072)), Matrix.Rotation(0.25, 3, "X"))
         b.ellipsoid(Vector((side * 0.078, 0.540, -0.235)), Vector((0.044, 0.110, 0.105)), Matrix.Rotation(-0.3, 3, "X"))
 
@@ -406,7 +420,8 @@ def hound_coat(b):
 
     skull = HOUND_HEAD + Vector((0.0, 0.024, 0.035))
     b.ellipsoid(skull, Vector((0.060, 0.061, 0.078)), None, 16, 9)
-    b.ellipsoid(skull + Vector((0.0, 0.030, 0.045)), Vector((0.046, 0.022, 0.030)))  # brow
+    if not LOW:
+        b.ellipsoid(skull + Vector((0.0, 0.030, 0.045)), Vector((0.046, 0.022, 0.030)))  # brow
     # A long square muzzle over a lighter lower jaw, with the hanging lips of a hound
     muzzle = [(skull + Vector((0.0, y, z)), X * rx, Y * ry) for z, y, rx, ry in
               ((0.03, 0.000, 0.048, 0.044), (0.09, -0.004, 0.039, 0.034), (0.15, -0.007, 0.034, 0.029), (0.205, -0.009, 0.031, 0.026))]
@@ -441,7 +456,7 @@ def hound_coat(b):
         b.tube(dome(rings[0], Y, 0.04)[::-1] + rings, 12)
         wrist = hip - Y * (2 * HOUND_LEG)
         b.ellipsoid(wrist + Vector((0.0, 0.012, 0.022)), Vector((0.030, 0.028, 0.050)), None, 10, 6)
-        for toe in (-0.018, -0.006, 0.006, 0.018):
+        for toe in (() if LOW else (-0.018, -0.006, 0.006, 0.018)):
             b.ellipsoid(wrist + Vector((toe, 0.006, 0.060 - abs(toe) * 0.5)), Vector((0.009, 0.015, 0.020)), None, 8, 5)
 
 
@@ -484,6 +499,7 @@ def hound_bones():
 
 
 HOUND_PARTS = [("coat", 0, hound_coat, (0.004, 5, 9000))]
+HOUND_PARTS_LOW = [("coat", 0, hound_coat, None)]
 
 
 # --- Assembly and export ---
@@ -559,7 +575,7 @@ def export(name, bones, parts, weigh, materials):
         whole.faces.ensure_lookup_table()
         for face in whole.faces[first:]:
             face.material_index = material
-            face.smooth = True
+            face.smooth = not LOW
         part_of += [part] * (len(whole.verts) - len(part_of))
 
     mesh = bpy.data.meshes.new(name)
@@ -631,3 +647,8 @@ def render_previews(folder, name):
 
 export("boy", boy_bones(), BOY_PARTS, boy_weights, BOY_MATERIALS)
 export("hound", hound_bones(), HOUND_PARTS, hound_weights, HOUND_MATERIALS)
+
+# The demade versions: the same shapes lofted coarsely, left unfused and flat shaded.
+LOW = True
+export("boy_lo", boy_bones(), BOY_PARTS_LOW, boy_weights, BOY_MATERIALS)
+export("hound_lo", hound_bones(), HOUND_PARTS_LOW, hound_weights, HOUND_MATERIALS)

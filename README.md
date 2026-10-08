@@ -7,7 +7,7 @@ through a foggy grey-box course. Godot 4.7, built for phones and the web (the Sc
 
 - Touch: drag anywhere on the left half to move (a gentle push walks, a full push runs); tap the right
   half to jump, hold for a higher jump.
-- Keyboard: WASD or arrows, Space to jump, Shift to walk. Gamepads work too.
+- Keyboard: WASD or arrows, Space to jump, Shift to walk, R to drop him as a ragdoll and stand him back up. Gamepads work too.
 
 ## Layout
 
@@ -38,7 +38,17 @@ The joint positions in the script must match the constants at the top of `script
 ## The hounds
 
 Two hounds wait behind the start and are let loose once the player passes `RELEASE_X` (`scripts/level.gd`).
-They are a little faster than the player; being caught, or falling, restarts the chase.
+They are a little faster than the player; being caught knocks him down as a ragdoll, and that, or falling, restarts the chase.
+
+## Demade models
+
+The same script also builds low-poly, flat-shaded versions (`models/boy_lo.glb`, `models/hound_lo.glb`) on the same
+skeletons. Tick `low_poly` on the Player's Rig node and `low_poly_hounds` on the Level node to use them.
+
+## Ragdoll
+
+`Player.ragdoll(impulse)` drops the body as jointed rigid bodies from whatever pose it is in; `Player.recover()` stands
+it back up where it lies, and `respawn()` also ends it.
 
 ## Web build
 

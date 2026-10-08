@@ -21,6 +21,8 @@ signal bayed
 
 var target: Player
 var chasing := false
+## Use the demade, low-poly model. Set before the hound enters the tree.
+var low_poly := false
 ## Heading of the model, radians around Y. Zero faces +Z.
 var facing_yaw := PI * 0.5
 ## Render-rate position; the rig follows this.
@@ -62,6 +64,7 @@ func _ready() -> void:
 	add_child(_voice)
 
 	_rig = HoundRig.new()
+	_rig.low_poly = low_poly
 	add_child(_rig)
 	_rig.top_level = true
 

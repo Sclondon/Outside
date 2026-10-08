@@ -19,7 +19,13 @@ const FOREARM := 0.2
 const ARM_REST := 0.22
 ## Where the foot bends, from the ankle.
 const TOE := Vector3(0.0, -0.035, 0.075)
-const MODEL := preload("res://models/boy.glb")
+## How far a limp elbow and knee may turn, radians (lower, upper).
+const ELBOW_LIMITS := Vector2(-2.4, 0.0)
+const KNEE_LIMITS := Vector2(0.0, 2.4)
+const MODELS: Array[PackedScene] = [preload("res://models/boy.glb"), preload("res://models/boy_lo.glb")]
+
+## Use the demade, low-poly model (models/boy_lo.glb).
+@export var low_poly := false
 
 
 var _player: Player
@@ -50,6 +56,12 @@ var _yaw_rate := 0.0
 var _prev_velocity := Vector3.ZERO
 var _prev_yaw := 0.0
 var _lead_leg := 0
+## Pulses to 1 at take-off and at touch-down, then fades.
+var _launch := 0.0
+var _land := 0.0
+## The ragdoll, while limp: its container and each (pose node, rigid body) pair, parents first.
+var _ragdoll: Node3D
+var _limbs: Array[Array] = []
 
 
 func _ready() -> void:
@@ -65,6 +77,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _player == null:
 		return
+	if _ragdoll:
+		_follow_ragdoll()
+		_apply_pose()
+		return
 	delta = minf(delta, 1.0 / 30.0)
 	_time += delta
 
@@ -77,6 +93,8 @@ func _process(delta: float) -> void:
 	_run = _approach(_run, clampf(inverse_lerp(_player.walk_speed, _player.run_speed, speed), 0.0, 1.0), 8.0, delta)
 	_air = _approach(_air, 0.0 if grounded else 1.0, 16.0 if grounded else 10.0, delta)
 	_push = _approach(_push, 1.0 if _player.is_pushing else 0.0, 8.0, delta)
+	_launch = _approach(_launch, 0.0, 11.0, delta)
+	_land = _approach(_land, 0.0, 5.0, delta)
 
 	_accel = _accel.lerp((flat - _prev_velocity) / delta, 1.0 - exp(-8.0 * delta))
 	_yaw_rate = lerpf(_yaw_rate, angle_difference(_prev_yaw, rotation.y) / delta, 1.0 - exp(-10.0 * delta))
@@ -137,11 +155,14 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 
 		# Airborne: knees tuck on the way up, legs reach for the ground on the way down.
 		var lead := i == _lead_leg
-		var tucked := Vector3(side * HIP_HALF_WIDTH, 0.3 if lead else 0.14, 0.17 if lead else -0.15)
-		var reaching := Vector3(side * (HIP_HALF_WIDTH + 0.02), 0.09 if lead else 0.04, 0.1 if lead else -0.07)
+		var tucked := Vector3(side * HIP_HALF_WIDTH, 0.36 if lead else 0.2, 0.22 if lead else -0.28)
+		var reaching := Vector3(side * (HIP_HALF_WIDTH + 0.02), 0.06 if lead else 0.03, 0.17 if lead else 0.02)
 		reaching.z += sin(_time * 9.0 + i * PI) * 0.03
 		target = target.lerp(reaching.lerp(tucked, rising), _air)
 		pitch = lerpf(pitch, 0.45, _air)
+		# Take-off: both legs drive down off the toes before the knees come up.
+		target = target.lerp(Vector3(side * HIP_HALF_WIDTH, ANKLE + 0.06, -0.04 if lead else -0.15), _launch)
+		pitch = lerpf(pitch, 0.95, _launch)
 
 		# Planted on the ball of the foot, the toes stay flat while the heel comes up.
 		_toes[i].rotation.x = -maxf(cycle.x * gait, 0.0) * (1.0 - clampf(cycle.y / 0.05, 0.0, 1.0)) * (1.0 - _air)
@@ -194,11 +215,19 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 		var elbow := -(0.14 + lerpf(0.12, 1.3, _run) * gait + maxf(-swing, 0.0) * 0.4)
 
 		var flail := sin(_time * 10.0 + i * 2.1) * 0.14
-		var air_pitch := lerpf(-0.35 + flail, -0.7 if i == _lead_leg else 0.5, rising)
+		# Rising, the arm opposite the leading knee drives forward, as in a stride.
+		var air_pitch := lerpf(-0.35 + flail, 0.75 if i == _lead_leg else -1.15, rising)
 		var air_roll := side * lerpf(1.05 + flail, 0.3, rising)
 		pitch = lerpf(pitch, air_pitch, _air)
 		roll = lerpf(roll, air_roll, _air)
-		elbow = lerpf(elbow, lerpf(-0.45, -1.0, rising), _air)
+		elbow = lerpf(elbow, lerpf(-0.45, -0.7 if i == _lead_leg else -1.35, rising), _air)
+
+		# Take-off throws the arms up and forward; landing spreads them for balance.
+		pitch = lerpf(pitch, -1.9, _launch * _launch)
+		elbow = lerpf(elbow, -0.6, _launch * _launch)
+		pitch = lerpf(pitch, 0.35, _land * (1.0 - _air))
+		roll = lerpf(roll, side * 0.7, _land * (1.0 - _air))
+		elbow = lerpf(elbow, -0.7, _land * (1.0 - _air))
 
 		pitch = lerpf(pitch, -1.3, _push)
 		roll = lerpf(roll, -side * 0.06, _push)
@@ -210,12 +239,14 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 
 func _on_jumped() -> void:
 	_crouch_velocity -= 1.2
+	_launch = 1.0
 	# Tuck whichever leg is already swinging forward.
 	_lead_leg = 1 if _phase < 0.5 else 0
 
 
 func _on_landed(impact_speed: float) -> void:
 	_crouch_velocity += clampf(impact_speed * 0.5, 0.6, 7.0)
+	_land = clampf(impact_speed / 9.0, 0.3, 1.0)
 
 
 func _on_respawned() -> void:
@@ -240,7 +271,7 @@ static func _aim_down(direction: Vector3) -> Basis:
 
 
 func _build() -> void:
-	var model := MODEL.instantiate()
+	var model := MODELS[1 if low_poly else 0].instantiate()
 	add_child(model)
 	_skeleton = model.find_children("*", "Skeleton3D", true, false)[0]
 
@@ -281,3 +312,119 @@ func _apply_pose() -> void:
 		var elbow := _elbows[i].transform
 		_skeleton.set_bone_pose(_bones[_joints.find(_shoulders[i])], Transform3D(shoulder.basis * rest.inverse(), shoulder.origin))
 		_skeleton.set_bone_pose(_bones[_joints.find(_elbows[i])], Transform3D(rest * elbow.basis * rest.inverse(), rest * elbow.origin))
+
+
+func is_limp() -> bool:
+	return _ragdoll != null
+
+
+## Where the body is lying (its hips), while limp.
+func limp_position() -> Vector3:
+	return (_limbs[0][1] as RigidBody3D).global_position if _ragdoll else global_position
+
+
+## Lets go of the pose: the figure becomes jointed rigid bodies that start from
+## exactly where it is, moving at `velocity`, with `impulse` landing on the chest.
+## The pose nodes then follow the bodies, so the model goes on being drawn the
+## same way. `recover` hands control back to the animation.
+func go_limp(velocity: Vector3, impulse := Vector3.ZERO) -> void:
+	if _ragdoll:
+		return
+	_ragdoll = Node3D.new()
+	_ragdoll.top_level = true
+	add_child(_ragdoll)
+	_ragdoll.global_transform = Transform3D.IDENTITY
+
+	var hips := _limb(_hips, 6.0, 0.1, 0.0)
+	var spine := _limb(_spine, 9.0, 0.095, 0.32)
+	var head := _limb(_head, 3.0, 0.11, 0.27)
+	_socket(hips, spine, 0.45, 0.35)
+	_socket(spine, head, 0.6, 0.5)
+	for i in 2:
+		var upper := _limb(_shoulders[i], 1.2, 0.04, -UPPER_ARM)
+		var fore := _limb(_elbows[i], 1.0, 0.035, -FOREARM - 0.07)
+		var thigh := _limb(_thighs[i], 3.5, 0.06, -THIGH)
+		var shin := _limb(_shins[i], 2.5, 0.05, -SHIN - 0.05)
+		_socket(spine, upper, 1.7, 0.6)
+		_hinge(upper, fore, ELBOW_LIMITS)
+		_socket(hips, thigh, 1.0, 0.25)
+		_hinge(thigh, shin, KNEE_LIMITS)
+	for limb in _limbs:
+		(limb[1] as RigidBody3D).linear_velocity = velocity
+	spine.apply_central_impulse(impulse)
+
+
+func recover() -> void:
+	if _ragdoll == null:
+		return
+	_ragdoll.queue_free()
+	_ragdoll = null
+	_limbs.clear()
+	_on_respawned()
+
+
+func _follow_ragdoll() -> void:
+	for limb in _limbs:
+		(limb[0] as Node3D).global_transform = (limb[1] as RigidBody3D).global_transform
+	for i in 2:
+		# Feet have no body of their own; they ride on the shins.
+		_feet[i].global_transform = _shins[i].global_transform * Transform3D(Basis.IDENTITY, Vector3.DOWN * SHIN)
+		_toes[i].rotation = Vector3.ZERO
+
+
+## A rigid body standing in for the bone `joint` drives: a capsule reaching
+## `extent` along the bone (negative hangs below the joint), or a ball if zero.
+func _limb(joint: Node3D, mass: float, radius: float, extent: float) -> RigidBody3D:
+	var body := RigidBody3D.new()
+	body.mass = mass
+	body.angular_damp = 3.0
+	# Its own layer: the world stops it, nothing else notices it.
+	body.collision_layer = 8
+	body.collision_mask = 1
+	var collider := CollisionShape3D.new()
+	if is_zero_approx(extent):
+		var ball := SphereShape3D.new()
+		ball.radius = radius
+		collider.shape = ball
+	else:
+		var capsule := CapsuleShape3D.new()
+		capsule.radius = radius
+		capsule.height = maxf(absf(extent), radius * 2.0)
+		collider.shape = capsule
+		collider.position.y = extent * 0.5
+	body.add_child(collider)
+	_ragdoll.add_child(body)
+	body.global_transform = joint.global_transform.orthonormalized()
+	_limbs.append([joint, body])
+	return body
+
+
+## Ball-and-socket between two limbs at the child's joint, limited to a cone.
+func _socket(parent: RigidBody3D, child: RigidBody3D, swing: float, twist: float) -> void:
+	var joint := ConeTwistJoint3D.new()
+	joint.swing_span = swing
+	joint.twist_span = twist
+	_attach(joint, parent, child)
+
+
+## Elbows and knees: one axis, and only the way they really bend.
+func _hinge(parent: RigidBody3D, child: RigidBody3D, limits: Vector2) -> void:
+	var joint := HingeJoint3D.new()
+	# The engine measures a hinge from the pose it is made in, and in the opposite
+	# sense to a turn about the limb's X axis, so restate the limits that way.
+	var relative := parent.global_basis.inverse() * child.global_basis
+	var bend := clampf(atan2(relative.y.z, relative.y.y), limits.x, limits.y)
+	joint.set_flag(HingeJoint3D.FLAG_USE_LIMIT, true)
+	joint.set_param(HingeJoint3D.PARAM_LIMIT_LOWER, bend - limits.y)
+	joint.set_param(HingeJoint3D.PARAM_LIMIT_UPPER, bend - limits.x)
+	_attach(joint, parent, child)
+
+
+func _attach(joint: Joint3D, parent: RigidBody3D, child: RigidBody3D) -> void:
+	_ragdoll.add_child(joint)
+	# A cone twists about the joint's X and a hinge turns about its Z: point X
+	# along the limb and Z along the limb's own side-to-side axis.
+	var limb := child.global_basis
+	joint.global_transform = Transform3D(Basis(limb.y, limb.z, limb.x), child.global_position)
+	joint.node_a = joint.get_path_to(parent)
+	joint.node_b = joint.get_path_to(child)

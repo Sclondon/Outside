@@ -7,7 +7,7 @@ extends Node3D
 ##
 ## The joint positions must match tools/build_character.py.
 
-const MODEL := preload("res://models/hound.glb")
+const MODELS: Array[PackedScene] = [preload("res://models/hound.glb"), preload("res://models/hound_lo.glb")]
 const BODY := Vector3(0.0, 0.54, 0.0)
 const CHEST := Vector3(0.0, 0.02, 0.2)
 const PELVIS := Vector3(0.0, 0.01, -0.22)
@@ -25,6 +25,9 @@ const HIPS: Array[Vector3] = [
 ## Where in the cycle each leg lands.
 const TROT: Array[float] = [0.0, 0.5, 0.5, 0.0]
 const GALLOP: Array[float] = [0.5, 0.62, 0.0, 0.12]
+
+## Use the demade, low-poly model (models/hound_lo.glb). Set before entering the tree.
+var low_poly := false
 
 var _hound: Hound
 var _skeleton: Skeleton3D
@@ -162,7 +165,7 @@ static func _aim_down(direction: Vector3) -> Basis:
 
 
 func _build() -> void:
-	var model := MODEL.instantiate()
+	var model := MODELS[1 if low_poly else 0].instantiate()
 	add_child(model)
 	_skeleton = model.find_children("*", "Skeleton3D", true, false)[0]
 	# The low sun ahead would otherwise streak a dark coat with glints.

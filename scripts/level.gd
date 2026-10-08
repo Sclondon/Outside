@@ -11,6 +11,9 @@ const SKY := Color(0.34, 0.38, 0.42)
 const KENNEL: Array[Vector3] = [Vector3(-11.0, 0.1, -1.2), Vector3(-12.5, 0.1, 1.0)]
 const RELEASE_X := 4.0
 
+## Use the demade, low-poly hound model.
+@export var low_poly_hounds := false
+
 var _player: Player
 var _hounds: Array[Hound] = []
 var _released := false
@@ -190,8 +193,9 @@ func _kennel_hounds() -> void:
 		var hound := Hound.new()
 		hound.position = start
 		hound.target = _player
+		hound.low_poly = low_poly_hounds
 		add_child(hound)
-		hound.caught.connect(_player.respawn)
+		hound.caught.connect(_on_caught.bind(hound))
 		_hounds.append(hound)
 	# Caught or fallen, the chase starts over.
 	_player.respawned.connect(_recall_hounds)
@@ -209,3 +213,16 @@ func _recall_hounds() -> void:
 	_released = false
 	for hound in _hounds:
 		hound.reset()
+
+
+## A hound has him: he goes down, the pack stops, and the chase starts over.
+func _on_caught(hound: Hound) -> void:
+	if _player.is_limp:
+		return
+	var shove := (_player.global_position - hound.global_position).normalized() * 28.0 + Vector3.UP * 14.0
+	_player.ragdoll(shove)
+	for other in _hounds:
+		other.chasing = false
+	await get_tree().create_timer(2.2).timeout
+	if _player.is_limp:
+		_player.respawn()

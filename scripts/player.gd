@@ -53,6 +53,8 @@ enum MoveMode {
 ## Heading of the model, radians around Y. Zero faces +Z.
 var facing_yaw := PI * 0.5
 var is_pushing := false
+## True while the body is a ragdoll and takes no input.
+var is_limp := false
 ## Render-rate position of the character; follow this, not global_position.
 var visual_position := Vector3.ZERO
 
@@ -71,7 +73,7 @@ var _prev_pos := Vector3.ZERO
 var _curr_pos := Vector3.ZERO
 var _visual_offset := Vector3.ZERO
 
-@onready var _rig: Node3D = $Rig
+@onready var _rig: CharacterRig = $Rig
 @onready var _radius: float = ($Collision.shape as CapsuleShape3D).radius
 
 
@@ -99,6 +101,12 @@ func _connect_touch() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"jump"):
 		_queue_jump()
+	elif event.is_action_pressed(&"ragdoll"):
+		# For trying it out: R drops him, R again stands him back up.
+		if is_limp:
+			recover()
+		else:
+			ragdoll(Vector3(sin(facing_yaw), 0.6, cos(facing_yaw)) * 25.0)
 
 
 func _queue_jump() -> void:
@@ -106,6 +114,9 @@ func _queue_jump() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_limp:
+		velocity = Vector3.ZERO
+		return
 	var input := _read_move_input()
 	var strength := minf(input.length(), 1.0)
 	_wish = _to_world(input)
@@ -143,6 +154,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if is_limp:
+		# The camera follows the body, wherever it tumbles.
+		visual_position = _rig.limp_position() + Vector3.DOWN * 0.2
+		return
 	_visual_offset = _visual_offset.lerp(Vector3.ZERO, 1.0 - exp(-16.0 * delta))
 	visual_position = _prev_pos.lerp(_curr_pos, Engine.get_physics_interpolation_fraction()) + _visual_offset
 
@@ -159,6 +174,9 @@ func _process(delta: float) -> void:
 
 
 func respawn() -> void:
+	if is_limp:
+		_rig.recover()
+		is_limp = false
 	global_transform = _spawn
 	velocity = Vector3.ZERO
 	_stun = 0.0
@@ -340,6 +358,7 @@ static func _ensure_input_actions() -> void:
 	_add_action(&"move_down", [KEY_S, KEY_DOWN], JOY_AXIS_LEFT_Y, 1.0)
 	_add_action(&"walk", [KEY_SHIFT])
 	_add_action(&"jump", [KEY_SPACE])
+	_add_action(&"ragdoll", [KEY_R])
 	if not InputMap.action_get_events(&"jump").any(func(e: InputEvent) -> bool: return e is InputEventJoypadButton):
 		var button := InputEventJoypadButton.new()
 		button.button_index = JOY_BUTTON_A
@@ -359,3 +378,25 @@ static func _add_action(action: StringName, keys: Array[Key], axis := JOY_AXIS_I
 		motion.axis = axis
 		motion.axis_value = axis_value
 		InputMap.action_add_event(action, motion)
+
+
+## Drops the body as a ragdoll, carrying its current motion plus `impulse`
+## (newton-seconds, applied to the chest). Input is ignored until `recover`
+## or `respawn`.
+func ragdoll(impulse := Vector3.ZERO) -> void:
+	if is_limp:
+		return
+	is_limp = true
+	_rig.go_limp(velocity, impulse)
+	velocity = Vector3.ZERO
+
+
+## Stands the body back up where it came to rest.
+func recover() -> void:
+	if not is_limp:
+		return
+	global_position = _rig.limp_position() + Vector3.UP * 0.05
+	_rig.recover()
+	is_limp = false
+	_was_grounded = false
+	_reset_visuals()
