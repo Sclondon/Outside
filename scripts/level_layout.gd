@@ -82,6 +82,18 @@ const PALETTE := {
 		["Cartridges", "thing", "ammo_box"], ["Target board", "thing", "target_board"], ["Gong", "thing", "target_gong"],
 		["Pot to shoot", "thing", "target_pot"], ["Bottle", "thing", "bottle"], ["Tin can", "thing", "tin_can"],
 	],
+	# A railway of about 1910 (PROPS.md, "The railway"). A "Train" is vehicles coupled up that run (`scripts/train.gd`);
+	# each vehicle is also a prop by itself, standing where it is put. Track and what stands by a line are props.
+	"Railway": [
+		["Train", "train", ""], ["Engine", "prop", "loco"], ["Tender", "prop", "tender"], ["Carriage", "prop", "carriage"],
+		["Third-class carriage", "prop", "carriage_third"], ["Goods van", "prop", "van_goods"], ["Open wagon", "prop", "wagon_open"],
+		["Wagon of finds", "prop", "wagon_finds"], ["Flat wagon", "prop", "wagon_flat"], ["Tank wagon", "prop", "wagon_tank"], ["Brake van", "prop", "van_brake"],
+		["Track", "prop", "track_straight"], ["Curved track", "prop", "track_curve"], ["Points", "prop", "track_points"], ["Buffer stop", "prop", "buffer_stop"],
+		["Level crossing", "prop", "level_crossing"], ["Low bridge", "prop", "bridge_low"], ["Loading gauge", "prop", "loading_gauge"],
+		["Signal", "prop", "signal_semaphore"], ["Telegraph pole", "prop", "telegraph_pole"], ["Water tower", "prop", "water_tower"], ["Water column", "prop", "water_column"],
+		["Platform", "prop", "halt_platform"], ["Station building", "prop", "halt_shelter"], ["Name board", "prop", "station_nameboard"],
+		["Station lamp", "prop", "halt_lamp"], ["Bench", "prop", "halt_bench"], ["Luggage", "prop", "luggage"],
+	],
 }
 
 ## What each kind keeps besides where it is, and how the editor lets it be
@@ -138,6 +150,11 @@ const FIELDS := {
 	"checkpoint": [],
 	"start": [],
 	"sign": [["text", "Says", "t", "A SIGN"]],
+	# A train (`Train.from_item`): what it is made up of, how fast it goes and how far, and which way the ride is staged.
+	"train": [["engine", "Engine and tender", "b", true], ["carriages", "Carriages", "n", 0.0, 4.0, 1.0, 1.0], ["wagons", "Goods wagons", "n", 0.0, 6.0, 1.0, 2.0],
+		["brake", "Brake van", "b", true], ["speed", "Speed", "n", 1.0, 20.0, 0.5, 8.0], ["run", "Runs for", "n", 10.0, 400.0, 5.0, 80.0],
+		["round", "At the end", "c", ["Stops", "Comes round again", "Goes back"], 0], ["staging", "What moves", "c", ["The train", "The world"], 0],
+		["running", "Running", "b", false], ["links", "Started and stopped by", "links"]],
 }
 
 ## How far above the ground each kind is put when it is first set down.

@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_1nyrc"]
+[ext_resource type="PackedScene" path="res://models/train/loading_gauge.glb" id="2_cwkq2"]
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_fuoen"]
+points = PackedVector3Array(-2.5, 0, -0.1, -2.3000002, 0, -0.1, -2.3000002, 0, 0.1, -2.5, 0, 0.1, -2.47, 5.8, -0.07, -2.3300002, 5.8, -0.07, -2.3300002, 5.8, 0.07, -2.47, 5.8, 0.07)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_0j50c"]
+size = Vector3(2.2, 0.2, 0.1)
+
+[node name="LoadingGauge" type="StaticBody3D" unique_id=1400455724]
+script = ExtResource("1_1nyrc")
+draw_distance = 220.0
+metadata/strikes = AABB(-1.1, 4.63, -0.1, 2.2, 0.4, 0.2)
+
+[node name="Model" parent="." unique_id=485531407 instance=ExtResource("2_cwkq2")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1268301691]
+shape = SubResource("ConvexPolygonShape3D_fuoen")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1374194457]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.73, 0)
+shape = SubResource("BoxShape3D_0j50c")

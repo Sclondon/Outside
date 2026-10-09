@@ -223,6 +223,10 @@ and restarts. Colours last until the game is closed.
 | `scripts/grapple_point.gd` | Somewhere a hook will catch; marks them on props of its own accord |
 | `scripts/ladder.gd`, `scripts/pool.gd` | A ladder; a box of water to swim in |
 | `scripts/dust.gd` | Puffs of dust, drawn all at once as one MultiMesh |
+| `scripts/train.gd`, `scripts/train_vehicle.gd` | A train: vehicles coupled and run along a line, and carrying whoever rides them; one vehicle, whose wheels turn and rods work |
+| `scripts/train_scenery.gd`, `scripts/train_smoke.gd`, `scripts/train_signal.gd` | What goes by a train that stands still; an engine's smoke, steam and sparks; a semaphore signal |
+| `tools/build_train.py`, `tools/build_train_scenes.gd` | Build the railway's models in Blender and their scenes in `props/` |
+| `tools/train_sheets.gd`, `tools/train_test.gd` | Not part of the game: draw the railway and the boy riding it; ride it with nothing drawn and say what happened |
 | `scripts/toon.gd` | Cel shading: two flat tones for the figures, and optionally the world; a shader for hair; the pinstripe in his shirt |
 | `scripts/menu.gd`, `scripts/settings.gd` | The in-game menu and what it remembers |
 | `scripts/worn.gd` | What a figure wears that is not part of its model: the backpack and the helmets (`Worn.put_on(figure, &"helmet_anubis")`) |
@@ -494,6 +498,20 @@ godot --headless --path . --script tools/build_gun_scenes.gd
 godot --path . --fixed-fps 60 --resolution 960x960 --script tools/gun_sheets.gd -- <folder> [looks fire reload rounds targets flare] [revolver ...]
 godot --headless --path . --fixed-fps 60 --script tools/gun_test.gd      # every gun fires, runs dry, reloads, hits things
 godot --headless --path . --script tools/gun_audio_check.gd              # length, peak and level of every recording
+```
+
+## The railway
+
+An engine and tender, two carriages, six kinds of goods vehicle, track, and a halt with what stands by a line (PROPS.md,
+"The railway", lists them; the level editor's Railway page places them). A `Train` (`scripts/train.gd`) couples vehicles
+and runs them along a line or a Path3D: wheels and rods turn, the bodies rock, the chimney smokes. He boards from a
+platform, goes through a carriage or up the ladder at its end and along the roofs, jumps the gaps between vehicles, and
+must duck under a low bridge or be knocked down. A ride is staged either with the train really moving or with the train
+standing still and the world going by it (`TrainScenery`); the test yard's halt has a plate for each.
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/train_sheets.gd -- <folder> [vehicles train dusk moving rods ride world lineside yard]
+godot --headless --path . --fixed-fps 60 --script tools/train_test.gd
 ```
 
 ## Web build

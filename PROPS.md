@@ -104,6 +104,109 @@ godot --path . --resolution 960x960 --script tools/prop_sheets.gd -- <folder> [f
 `build_prop_scenes.gd` writes a prop's scene afresh, so make changes in the Python, not in `props/*.tscn`. Props placed in a level
 are instances and pick the change up.
 
+## The railway
+
+A railway of about 1910, after the Egyptian State Railways on the line up the Nile: British-built tender engines, carriages
+with clerestories or double "tropical" roofs and louvred shutters, four-wheeled goods stock with side buffers. Everything
+is a scene in `props/` like any other prop, and is on the level editor's Railway page. The liveries (a green engine with a
+black smokebox, red beams and a brass dome; a white first-class carriage; teak third class; grey wagons; an oxide-red brake
+van) are a guess: no source for the colours of the time was found. The engine is given outside cylinders so that its rods
+are seen working; most of the State Railways' engines of those years had them inside.
+
+A vehicle lies along its own Z, its front towards +Z, with the ground at its origin: its wheels stand on rails whose tops
+are 0.3 m up, so set it on a length of track. Its root is an AnimatableBody3D with `scripts/train_vehicle.gd` on it. Put
+down by itself it stands still; a `Train` runs several (below). Floors are 1.3 m up (a platform's height), an engine's
+footplate 1.8 m, carriage roofs 3.5 m. Buffers touch, which leaves about 1.1 m between two floors and 1 to 1.5 m between
+two roofs: gaps he has to jump.
+
+| Scene | What it is, and how he gets about on it | Triangles |
+| --- | --- | --- |
+| `loco` | A 2-6-0 tender engine, 9.9 m over its buffers. Six coupled wheels and a pony truck, each pair a piece that turns; coupling rods, connecting rods and crossheads that work. He can walk the running plate each side of the boiler, along the top of the boiler, and stand in the cab (open at the back and sides, a way through its front each side of the firebox, steps up to it from the ground). Markers: `Chimney`, `Whistle`, `Lamp`, `SteamL`, `SteamR`. | 3602 |
+| `tender` | Six wheels, 6.5 m. Coal heaped in the front of the tank: he walks up and over it from the cab to the tank top, and a ladder goes down the back. | 1166 |
+| `carriage` | First class, on two bogies, 14.1 m: a saloon with a clerestory, an open platform with railings and steps at each end. He goes in at either end door and through between the seats (the roof is not drawn while he is inside); a ladder on each end wall goes up through a gap in the canopy to the roof, where the clerestory is a step up along the middle. | 3044 |
+| `carriage_third` | Third class, six wheels, 10.5 m: teak, a double roof (flat on top), benches down the sides. Otherwise as the other. | 2156 |
+| `van_goods` | A covered van, 7.5 m: doors slid open on both sides, cases and sacks inside, a ladder up the back to its roof. | 1492 |
+| `wagon_open` | An open wagon, sides 0.85 m: cases, casks and sacks to climb on. | 1676 |
+| `wagon_finds` | The same from the dig: a load roped under a tarpaulin, and a gilded coffin in a crate. | 1472 |
+| `wagon_flat` | A flat wagon, 8.1 m: a bare deck, a few baulks of timber. | 1000 |
+| `wagon_tank` | A tank wagon: the tank is round, and he keeps his feet only along the top of it. | 1140 |
+| `van_brake` | A brake van, 7.9 m: a cabin with look-outs, a platform at the back with the brake wheel, tail lamps, and a ladder to the roof. | 1418 |
+
+A train of six (engine, tender, carriage, open wagon, van, brake van) is 12,400 triangles and about 120 surfaces.
+
+| Scene | What it is |
+| --- | --- |
+| `track_straight` | Ten metres of line along Z, its middle at the origin: rails, sleepers, ballast. He walks over it. |
+| `track_curve` | 15 degrees of a 40 m circle (10.5 m). It starts at the origin going along +Z and bears right; the marker `End` is where the next length starts, turned 15 degrees. Turn it over (scale x by -1) for a left-hand one. |
+| `track_points` | A turnout, 20 m: straight on along Z, and a road bearing right (marker `Branch`). It does not move; a `Train` follows its own path. |
+| `buffer_stop` | The end of a line. It faces -Z. |
+| `level_crossing` | A boarded road across the line with two gates. Lay it over a length of track, the line along Z. |
+| `bridge_low` | An iron girder on stone abutments with a road over it, the line along Z through the origin. The underside is 4.63 m up: a train passes, and he on a carriage roof passes only if he ducks. |
+| `loading_gauge` | A post and an arm with a bar hung over the line at the same height, to the same end. |
+| `signal_semaphore` | A semaphore signal (`scripts/train_signal.gd`): set `clear` and its arm drops. It faces +Z. |
+| `telegraph_pole` | A pole with its four wires as far as the next, 30 m along +Z: stand them 30 m apart. |
+| `water_tower`, `water_column` | An iron tank on a stone base, with a ladder; a standpipe with its arm out over the line towards +X. |
+| `halt_platform` | A platform 18 m by 6 m and 1.3 m high, a ramp at each end. Its edge towards the line is the one at +X: set that 1.62 m from the middle of the track. |
+| `halt_shelter` | The halt's building, with an awning towards +X and its name over the door (the Label3D `Name1`: change its `text`). Stand it on the platform. |
+| `station_nameboard` | The name on a board on posts (`Name1`, `Name2`). |
+| `halt_lamp`, `halt_bench`, `luggage` | A lamp (marker `Flame`), a bench, trunks and a hat box. |
+
+### Making or changing them
+
+They are built by a builder of their own, with the props' tools and in the props' way (one function a thing), which also
+says what is solid, where the ladders are and what turns:
+
+```
+blender --background --python tools/build_train.py [-- name ...]            # models/train/*.glb and train.json
+godot --headless --path . --import
+godot --headless --path . --script tools/build_train_scenes.gd [-- name ...]   # props/*.tscn
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/train_sheets.gd -- <folder> [vehicles train dusk moving rods ride world lineside yard]
+godot --headless --path . --fixed-fps 60 --script tools/train_test.gd       # he rides it: ends PASSED or FAILED
+```
+
+### A train
+
+`Train` (`scripts/train.gd`) couples vehicles and runs them. In the editor it is "Train" on the Railway page (how many
+carriages and wagons, its speed, how far it runs, what it does at the end, which way the ride is staged, and the plates
+that start and stop it). In code:
+
+```gdscript
+var train := Train.new()
+train.consist = PackedStringArray(["loco", "tender", "carriage", "wagon_open", "van_goods", "van_brake"])
+train.speed = 8.0                       # metres a second; `acceleration` is how quickly it gets there and stops
+train.distance = 80.0                   # how far it runs along its own +Z; or give it `path`, a Path3D to follow
+train.run = Train.Run.THERE_AND_BACK    # or ONCE, or ROUND (put back at the start: only while nobody is on it)
+train.position = where_its_front_buffers_are
+add_child(train)
+train.start()                           # `stop()`, `toggle()`; signals `started`, `stopped`, `arrived`, `lost(who)`
+```
+
+Its wheels turn at the rate for its speed, the engine's rods work, each body rocks a little on its springs (the model
+only: what he stands on does not), and the chimney beats smoke four times to a turn of the driving wheels
+(`scripts/train_smoke.gd`), with steam from the cylinders as it gets away and sparks if `sparks` is set. It makes no sound.
+
+A ride on it can be staged in two ways.
+
+- **The train moves** (`world_moves` off). He is carried by the vehicle he stands on. While he is off his feet (a jump, a
+  fall, hanging from an edge, getting on or off the top of a ladder) the train carries him itself, a step at a time, by as
+  far as the vehicle he left has gone: so a jump keeps the train's speed and comes down where it would on a train standing
+  still. Whatever stands by the line and is too low stops him while the train goes on, and he is knocked down; if he comes
+  down on the ground he is thrown along it.
+- **The world moves** (`world_moves` on): the train stands still, its wheels turning and its smoke streaming back, and a
+  `TrainScenery` (`scripts/train_scenery.gd`, the train's `scenery`) goes by. Everything that is a child of that node is
+  drawn back past the train and comes round again after `span` metres. A child with the metadata `strikes` (the bridge and
+  the loading gauge have it) knocks down whoever it meets standing; one with `rest_only` is there only while nothing moves.
+
+For a sequence, the second is the one to use. A ride of two minutes at 10 m/s is more than a kilometre of line, in levels a
+few hundred metres across with ground in squares a metre wide; with the train standing still it needs none. Everything he
+does (ledges, ladders, ropes, throwing, being chased, the ragdoll) works without knowing about the train, because he is on
+something that is not moving; the first way has to move him and what he holds each step from outside the Player, and
+anything else that comes aboard (a hound, a thrown pot) would need the same. And a low bridge, a signal or a tunnel mouth
+can be sent at him exactly when the sequence wants it. The first way is for a train that arrives, leaves, or is ridden a
+short way in a level, as at the halt in the test yard (which has both). What the simple version of the second does not
+do: the sand itself does not move (its grain is drawn from where it is in the world), and things come round again with a
+pop at half a `span` from the node.
+
 ## The desert (`desert.tscn`)
 
 The desert is not laid out in the Godot editor any more. It is made from a layout (`levels/desert.json`, or the one saved on

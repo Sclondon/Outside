@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/train_vehicle.gd" id="1_7yndd"]
+[ext_resource type="PackedScene" path="res://models/train/wagon_flat.glb" id="2_q4rhb"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yns1p"]
+size = Vector3(2.5, 0.3, 7)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_05nfy"]
+size = Vector3(1.7, 0.2, 2.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yqctl"]
+size = Vector3(0.8, 0.2, 2.5)
+
+[node name="WagonFlat" type="AnimatableBody3D" unique_id=986210430]
+script = ExtResource("1_7yndd")
+draw_distance = 320.0
+front = 4.05
+rear = 4.05
+wheels = {
+"Wheel1": 0.48,
+"Wheel2": 0.48
+}
+
+[node name="Model" parent="." unique_id=1064386254 instance=ExtResource("2_q4rhb")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1355781458]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+shape = SubResource("BoxShape3D_yns1p")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=890918233]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, -2)
+shape = SubResource("BoxShape3D_05nfy")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=951823823]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 1.6, -2)
+shape = SubResource("BoxShape3D_yqctl")

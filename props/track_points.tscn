@@ -1,0 +1,57 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_78ukv"]
+[ext_resource type="PackedScene" path="res://models/train/track_points.glb" id="2_qlisv"]
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_wm3oj"]
+points = PackedVector3Array(-1.75, 0, -10, -1.75, 0, 10, 1.75, 0, -10, 1.75, 0, 10, -1.3, 0.2, -10, -1.3, 0.2, 10, 1.3, 0.2, -10, 1.3, 0.2, 10)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_fhsn7"]
+points = PackedVector3Array(-1.112064, 0, -0.72946405, 2.3344564, 0, -1.3389702, 2.7869709, 0, 0.8460703, -0.618143, 0, 1.6555147, -0.7280232, 0.198, -0.79738045, 1.9504155, 0.198, -1.2710538, 2.407544, 0.198, 0.936265, -0.23871607, 0.198, 1.5653191)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_7ssuu"]
+points = PackedVector3Array(-0.618143, 0, 1.6555147, 2.7869709, 0, 0.8460703, 3.3661306, 0, 3.0010042, 0.0140117, 0, 4.0076323, -0.23871607, 0.198, 1.5653191, 2.407544, 0.198, 0.936265, 2.9926088, 0.198, 3.1131716, 0.38753352, 0.198, 3.8954659)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_5nyqv"]
+points = PackedVector3Array(0.0140117, 0, 4.0076323, 3.3661306, 0, 3.0010042, 4.0699644, 0, 5.1184998, 0.7822488, 0, 6.318886, 0.38753352, 0.198, 3.8954659, 2.9926088, 0.198, 3.1131716, 3.703619, 0.198, 5.2522573, 1.1485943, 0.198, 6.185128)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_eicat"]
+points = PackedVector3Array(0.7822488, 0, 6.318886, 4.0699644, 0, 5.1184998, 4.896077, 0, 7.19135, 1.6839538, 0, 8.581408, 1.1485943, 0.198, 6.185128, 3.703619, 0.198, 5.2522573, 4.538155, 0.198, 7.346242, 2.041876, 0.198, 8.426516)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_vbk7h"]
+points = PackedVector3Array(1.6839538, 0, 8.581408, 4.896077, 0, 7.19135, 5.8416576, 0, 9.2125, 2.7160578, 0, 10.7875, 2.041876, 0.198, 8.426516, 4.538155, 0.198, 7.346242, 5.4933767, 0.198, 9.3880005, 3.064339, 0.198, 10.6119995)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hj01x"]
+size = Vector3(0.5, 0.2, 0.9)
+
+[node name="TrackPoints" type="StaticBody3D" unique_id=442664546]
+script = ExtResource("1_78ukv")
+draw_distance = 260.0
+casts_shadow = false
+
+[node name="Model" parent="." unique_id=750630979 instance=ExtResource("2_qlisv")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1464190579]
+shape = SubResource("ConvexPolygonShape3D_wm3oj")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1180764759]
+shape = SubResource("ConvexPolygonShape3D_fhsn7")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=329308776]
+shape = SubResource("ConvexPolygonShape3D_7ssuu")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=1607820393]
+shape = SubResource("ConvexPolygonShape3D_5nyqv")
+
+[node name="Solid5" type="CollisionShape3D" parent="." unique_id=758094495]
+shape = SubResource("ConvexPolygonShape3D_eicat")
+
+[node name="Solid6" type="CollisionShape3D" parent="." unique_id=1558526600]
+shape = SubResource("ConvexPolygonShape3D_vbk7h")
+
+[node name="Solid7" type="CollisionShape3D" parent="." unique_id=1912224697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.1, -8)
+shape = SubResource("BoxShape3D_hj01x")
+
+[node name="Branch" type="Marker3D" parent="." unique_id=2023064799]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2788577, 0, 10)

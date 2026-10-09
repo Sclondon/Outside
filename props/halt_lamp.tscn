@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_v0h32"]
+[ext_resource type="PackedScene" path="res://models/train/halt_lamp.glb" id="2_xc02a"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_naq4m"]
+height = 2.4
+radius = 0.07
+
+[node name="HaltLamp" type="StaticBody3D" unique_id=2007009725]
+script = ExtResource("1_v0h32")
+draw_distance = 160.0
+
+[node name="Model" parent="." unique_id=609676969 instance=ExtResource("2_xc02a")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=29084742]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+shape = SubResource("CylinderShape3D_naq4m")
+
+[node name="Flame" type="Marker3D" parent="." unique_id=1405671677]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.58, 0)

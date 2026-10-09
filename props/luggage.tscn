@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gear_prop.gd" id="1_tlcxq"]
+[ext_resource type="PackedScene" path="res://models/train/luggage.glb" id="2_vj1ll"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_orfp2"]
+size = Vector3(0.6, 0.6, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5diam"]
+size = Vector3(0.55, 0.5, 0.85)
+
+[node name="Luggage" type="StaticBody3D" unique_id=1405290289]
+script = ExtResource("1_tlcxq")
+draw_distance = 120.0
+
+[node name="Model" parent="." unique_id=305821633 instance=ExtResource("2_vj1ll")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1316450427]
+transform = Transform3D(0.9800666, 0, 0.19866937, 0, 1, 0, -0.19866937, 0, 0.9800666, 0, 0.3, 0)
+shape = SubResource("BoxShape3D_orfp2")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=803011329]
+transform = Transform3D(0.9553365, 0, -0.29552016, 0, 1, 0, 0.29552016, 0, 0.9553365, 0.75, 0.25, 0.15)
+shape = SubResource("BoxShape3D_5diam")

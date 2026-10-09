@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_lnx5v"]
+[ext_resource type="PackedScene" path="res://models/train/telegraph_pole.glb" id="2_c2x0m"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_opj2q"]
+height = 3.0
+radius = 0.12
+
+[node name="TelegraphPole" type="StaticBody3D" unique_id=433942979]
+script = ExtResource("1_lnx5v")
+draw_distance = 220.0
+casts_shadow = false
+
+[node name="Model" parent="." unique_id=406966954 instance=ExtResource("2_c2x0m")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1426332253]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("CylinderShape3D_opj2q")
