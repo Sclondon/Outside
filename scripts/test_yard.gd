@@ -34,6 +34,7 @@ const FLATS: Array[Rect2] = [
 	Rect2(-16, 8, 5, 5), Rect2(-26, -8, 9, 8), Rect2(-2, -25, 16, 8), Rect2(32, -26, 7, 7),
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
 	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6), Rect2(17, -47, 14, 6),
+	Rect2(-50, 50, 7, 6),
 ]
 const EASE := 9.0
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
@@ -94,6 +95,7 @@ func _ready() -> void:
 	_build_dig(Vector3(24.5, 0.0, 27.0))
 	_build_grapple(Vector3(6.0, 0.0, -47.0))
 	_build_kinds()
+	_build_canines(Vector3(-50.0, 0.0, 50.0))
 	_settle_in.call_deferred()
 
 
@@ -517,6 +519,55 @@ func _build_camels(at: Vector3) -> void:
 	resting.position = at + Vector3(0.5, 0.1, 2.5)
 	resting.rotation.y = 1.2
 	add_child(resting)
+
+
+## The jackals of Anubis: two mummified jackals lying on plinths either side of a
+## doorway, one of them masked. They wake when he comes near, or when the plate
+## is pressed, which also puts them back. There is a block to get up onto, out
+## of their reach; and a pair of hyenas hang about in the dunes beyond.
+func _build_canines(at: Vector3) -> void:
+	_mark_here(at + Vector3(5.0, 0.0, 0.0), "JACKALS OF ANUBIS
+they wake when he comes near:
+the plate wakes them, and puts them back
+hyenas hang about beyond", 3.8)
+	# A doorway for them to guard, and somewhere to climb out of their reach
+	_solid(at + Vector3(-5.6, 1.3, -1.5), Vector3(0.6, 2.6, 0.8), DARK)
+	_solid(at + Vector3(-5.6, 1.3, 1.5), Vector3(0.6, 2.6, 0.8), DARK)
+	_solid(at + Vector3(-5.6, 2.85, 0.0), Vector3(0.8, 0.5, 4.2), DARK)
+	_solid(at + Vector3(3.5, 1.05, -4.0), Vector3(3.0, 2.1, 3.0), PROP)
+	var jackals: Array[JackalMummy] = []
+	for side: float in [-1.0, 1.0]:
+		_solid(at + Vector3(-4.0, 0.3, side * 2.6), Vector3(1.9, 0.6, 0.9), PROP.darkened(0.08))
+		var jackal := JackalMummy.new()
+		jackal.finery = JackalMummy.Finery.MASK if side > 0.0 else JackalMummy.Finery.COLLAR
+		jackal.wake_within = 4.0
+		jackal.position = at + Vector3(-4.0, 0.62, side * 2.6)
+		# (facing out over the yard)
+		jackal.rotation.y = PI * 0.5
+		add_child(jackal)
+		jackal.caught.connect(_on_caught.bind(jackal))
+		jackals.append(jackal)
+	var put_back := func() -> void:
+		for jackal in jackals:
+			jackal.reset()
+	for jackal in jackals:
+		# (they go back onto their plinths whenever he starts again)
+		jackal.woke.connect(func() -> void:
+			if _player and not _player.respawned.is_connected(put_back):
+				_player.respawned.connect(put_back))
+	_switch(at + Vector3(1.0, 0.0, 0.0), func() -> void:
+		var waking := not jackals[0].is_awake()
+		for jackal in jackals:
+			if waking:
+				jackal.wake()
+			else:
+				jackal.reset())
+	for den: Vector3 in [Vector3(-9.0, 0.0, 9.5), Vector3(-11.5, 0.0, 7.0)]:
+		var hyena := Hyena.new()
+		hyena.position = Vector3(at.x + den.x, height_at(at.x + den.x, at.z + den.z) + 0.2, at.z + den.z)
+		hyena.rotation.y = 2.2
+		add_child(hyena)
+		hyena.caught.connect(_on_caught.bind(hyena))
 
 
 ## The guns, laid out on a bench, a box of cartridges, and things to shoot at.
