@@ -29,10 +29,12 @@ const Ink := preload("res://scripts/notebook_ink.gd")
 const LEVELS := [
 	["Test yard", "res://test_yard.tscn"],
 	["Desert", "res://desert.tscn"],
+	["Tombs", "res://tomb.tscn"],
 ]
 ## What is drawn and said of each place on the map, and whereabouts on its sheet it is.
 const PLACES := {
 	"res://desert.tscn": {"sketch": "pyramid", "about": "dunes, ruins, the pyramids", "at": Rect2(34, 92, 236, 150)},
+	"res://tomb.tscn": {"sketch": "scarab", "about": "today's tomb, and any other", "at": Rect2(48, 336, 150, 110)},
 	"res://test_yard.tscn": {"sketch": "yard", "about": "a station for everything I can do", "at": Rect2(226, 322, 236, 150)},
 }
 ## The parts of the book, in the order of their pages, and what is written on the tab of each.
