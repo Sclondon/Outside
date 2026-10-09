@@ -192,6 +192,9 @@ func _made(item: Dictionary) -> Node3D:
 			return prop
 		"pyramid":
 			return Pyramid.from_item(item)
+		"train":
+			# A train (`scripts/train.gd`): the plates linked to it start and stop it.
+			return Train.from_item(item, func(id: int) -> Node: return nodes.get(id))
 		"pond", "river":
 			for water: Dictionary in terrain.waters():
 				if water["id"] == item["id"]:

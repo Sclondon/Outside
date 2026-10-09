@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_q5d7c"]
+[ext_resource type="PackedScene" path="res://models/train/water_tower.glb" id="2_vi7xr"]
+[ext_resource type="Script" path="res://scripts/ladder.gd" id="3_u1cmt"]
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_eyi7y"]
+points = PackedVector3Array(-1.7, 0, -1.7, 1.7, 0, -1.7, 1.7, 0, 1.7, -1.7, 0, 1.7, -1.462, 4.4, -1.462, 1.462, 4.4, -1.462, 1.462, 4.4, 1.462, -1.462, 4.4, 1.462)
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_e515t"]
+height = 2.4
+radius = 1.78
+
+[node name="WaterTower" type="StaticBody3D" unique_id=405048925]
+script = ExtResource("1_q5d7c")
+draw_distance = 280.0
+
+[node name="Model" parent="." unique_id=535531294 instance=ExtResource("2_vi7xr")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=925479445]
+shape = SubResource("ConvexPolygonShape3D_eyi7y")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=254299588]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.8, 0)
+shape = SubResource("CylinderShape3D_e515t")
+
+[node name="Ladder" type="Node3D" parent="." unique_id=2030185442]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.9, 0, -1.76)
+script = ExtResource("3_u1cmt")
+height = 7.0

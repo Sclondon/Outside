@@ -37,6 +37,7 @@ const FLATS: Array[Rect2] = [
 	Rect2(-18, -46, 6, 5),
 	Rect2(44, -44, 6, 5),
 	Rect2(-50, 50, 7, 6),
+	Rect2(10, 57, 45, 4),
 ]
 const EASE := 9.0
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
@@ -98,6 +99,7 @@ func _ready() -> void:
 	_build_grapple(Vector3(6.0, 0.0, -47.0))
 	_build_scarabs(Vector3(-18.0, 0.0, -46.0))
 	_build_glyphs(Vector3(44.0, 0.0, -44.0))
+	_build_railway(Vector3(10.0, 0.0, 58.5))
 	_build_kinds()
 	_build_canines(Vector3(-50.0, 0.0, 50.0))
 	_settle_in.call_deferred()
@@ -465,6 +467,89 @@ duck lets down, jump lets go", 3.8)
 		_solid(foot + Vector3(0.0, tall * 0.5, 0.0), Vector3(0.3, tall, 0.3), DARK)
 		_prop(foot + Vector3(-1.0, tall - 0.15, 0.0), Vector3(2.3, 0.25, 0.25), DARK)
 		GrapplePoint.mark(self, foot + Vector3(-2.0, tall - 0.3, 0.0), true)
+
+
+## The railway: ninety metres of line along the south of the yard, a halt, a train standing at it, a low bridge over the
+## line. The first plate on the platform starts and stops the train, which really runs to the end of the line, and comes
+## back when it is started again. The second starts and stops it the other way: the train stands still and everything
+## by the line goes past it, for as long as you like. A plate on the flat wagon does whichever was done last.
+func _build_railway(at: Vector3) -> void:
+	_mark_here(at + Vector3(-17.0, 0.0, -9.5), "THE RAILWAY
+the first plate starts the train: it runs to the end of the line, and back next time
+the second makes the world go by instead  ·  either stops it
+a ladder at each end of the carriage goes up to the roof: duck under the bridge", 4.8)
+	# Everything by the line is under one node: it is what goes by when the world moves.
+	var line := TrainScenery.new()
+	line.name = "Railway"
+	line.span = 90.0
+	line.position = at
+	add_child(line)
+	var lay := func(what: String, where: Vector3, yaw: float) -> Node3D:
+		var made := (load("res://props/%s.tscn" % what) as PackedScene).instantiate() as Node3D
+		made.position = where
+		made.rotation.y = yaw
+		line.add_child(made)
+		return made
+	# (the line runs along X here: things made to lie along Z are turned a quarter)
+	for i in 9:
+		lay.call("track_straight", Vector3(-40.0 + i * 10.0, 0.0, 0.0), PI * 0.5)
+	for end: float in [-1.0, 1.0]:
+		(lay.call("buffer_stop", Vector3(end * 45.2, 0.0, 0.0), end * PI * 0.5) as Node3D).set_meta(&"rest_only", true)
+	# The halt, north of the line: a platform with its building, a lamp, a bench, luggage and cases, and its name
+	var platform := Vector3(-21.0, 0.0, -4.62)
+	var top := platform + Vector3.UP * 1.3
+	lay.call("halt_platform", platform, -PI * 0.5)
+	lay.call("halt_shelter", top + Vector3(-5.0, 0.0, -1.2), -PI * 0.5)
+	lay.call("halt_bench", top + Vector3(2.5, 0.0, -2.4), 0.0)
+	lay.call("halt_lamp", top + Vector3(0.6, 0.0, -2.6), 0.0)
+	lay.call("halt_lamp", top + Vector3(-8.6, 0.0, 1.6), 0.0)
+	lay.call("luggage", top + Vector3(5.2, 0.0, -1.6), 0.5)
+	lay.call("crate", top + Vector3(7.4, 0.0, -2.3), 0.2)
+	lay.call("station_nameboard", top + Vector3(8.2, 0.0, -0.6), 0.0)
+	# By the line: a water column where the tender stands and the tower that feeds it, telegraph poles, a signal, a
+	# loading gauge, and the bridge
+	lay.call("water_column", Vector3(-3.2, 0.0, -2.6), -PI * 0.5)
+	lay.call("water_tower", Vector3(2.0, 0.0, -5.6), -PI * 0.5)
+	for x: float in [-44.0, -14.0]:
+		lay.call("telegraph_pole", Vector3(x, 0.0, 3.3), PI * 0.5)
+	var signal_post := lay.call("signal_semaphore", Vector3(8.0, 0.0, -2.7), -PI * 0.5) as TrainSignal
+	lay.call("loading_gauge", Vector3(36.0, 0.0, 0.0), PI * 0.5)
+	lay.call("bridge_low", Vector3(18.0, 0.0, 0.0), PI * 0.5)
+	# The train: its front where the engine stands, looking east along the line
+	var train := Train.new()
+	train.name = "Train"
+	train.consist = PackedStringArray(["loco", "tender", "carriage", "wagon_flat", "van_brake"])
+	train.speed = 6.0
+	train.distance = 41.0
+	train.run = Train.Run.THERE_AND_BACK
+	train.scenery = line
+	train.position = at + Vector3(2.0, 0.0, 0.0)
+	train.rotation.y = PI * 0.5
+	add_child(train)
+	train.started.connect(func() -> void: signal_post.clear = true)
+	train.stopped.connect(func() -> void: signal_post.clear = false)
+	# Started one way, it is stopped by any plate; and it is not started the other way until everything is back in its place.
+	var work := func(world: bool) -> void:
+		if train.running or train.pace > 0.0:
+			train.stop()
+			return
+		if train.world_moves != world:
+			line.settle()
+			train.world_moves = world
+		train.start()
+	var plates: Array = [[line, top + Vector3(6.0, 0.0, 1.9), false], [line, top + Vector3(3.0, 0.0, 1.9), true]]
+	if train.vehicles.size() > 3:
+		plates.append([train.vehicles[3], Vector3(0.0, 1.3, 1.6), null])
+	for entry: Array in plates:
+		var plate := Plate.new()
+		plate.span = Vector3(1.3, 0.5, 1.3)
+		plate.collision_mask = 2
+		plate.position = entry[1]
+		(entry[0] as Node3D).add_child(plate)
+		var which: Variant = entry[2]
+		plate.changed.connect(func(pressed: bool) -> void:
+			if pressed:
+				work.call(train.world_moves if which == null else bool(which)))
 
 
 ## Hounds: the plate lets them loose, and calls them off again.

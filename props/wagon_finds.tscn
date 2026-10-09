@@ -1,0 +1,73 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/train_vehicle.gd" id="1_cnm2t"]
+[ext_resource type="PackedScene" path="res://models/train/wagon_finds.glb" id="2_fq61n"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rarpt"]
+size = Vector3(2.5, 0.3, 6.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_84qsa"]
+size = Vector3(0.08, 0.85, 6.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_26ko5"]
+size = Vector3(0.08, 0.85, 6.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_qbwqy"]
+size = Vector3(2.5, 0.85, 0.08)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_c1eof"]
+size = Vector3(2.5, 0.85, 0.08)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5vm06"]
+size = Vector3(2.1, 1.2, 2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5a852"]
+size = Vector3(1.0999999, 0.91999996, 2.6)
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_tgk6s"]
+height = 0.9
+radius = 0.33
+
+[node name="WagonFinds" type="AnimatableBody3D" unique_id=112413308]
+script = ExtResource("1_cnm2t")
+draw_distance = 320.0
+front = 3.75
+rear = 3.75
+wheels = {
+"Wheel1": 0.48,
+"Wheel2": 0.48
+}
+
+[node name="Model" parent="." unique_id=341388945 instance=ExtResource("2_fq61n")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1526030389]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+shape = SubResource("BoxShape3D_rarpt")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1633257991]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.21, 1.725, 0)
+shape = SubResource("BoxShape3D_84qsa")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=1744013104]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.21, 1.725, 0)
+shape = SubResource("BoxShape3D_26ko5")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=1029840324]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.725, -3.16)
+shape = SubResource("BoxShape3D_qbwqy")
+
+[node name="Solid5" type="CollisionShape3D" parent="." unique_id=54103712]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.725, 3.16)
+shape = SubResource("BoxShape3D_c1eof")
+
+[node name="Solid6" type="CollisionShape3D" parent="." unique_id=2147169002]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, 1.65)
+shape = SubResource("BoxShape3D_5vm06")
+
+[node name="Solid7" type="CollisionShape3D" parent="." unique_id=182425547]
+transform = Transform3D(0.9982006, 0, 0.059963953, 0, 1, 0, -0.059963953, 0, 0.9982006, 0.1, 1.76, -1.5)
+shape = SubResource("BoxShape3D_5a852")
+
+[node name="Solid8" type="CollisionShape3D" parent="." unique_id=1785393328]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.85, 1.75, -0.1)
+shape = SubResource("CylinderShape3D_tgk6s")

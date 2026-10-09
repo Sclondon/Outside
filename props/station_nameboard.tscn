@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_a2ivb"]
+[ext_resource type="PackedScene" path="res://models/train/station_nameboard.glb" id="2_62qbr"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_heqmi"]
+size = Vector3(0.1, 2.2, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tqojb"]
+size = Vector3(0.1, 2.2, 0.1)
+
+[node name="StationNameboard" type="StaticBody3D" unique_id=791821517]
+script = ExtResource("1_a2ivb")
+draw_distance = 200.0
+
+[node name="Model" parent="." unique_id=955725473 instance=ExtResource("2_62qbr")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=470701442]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -1.2)
+shape = SubResource("BoxShape3D_heqmi")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1748409958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 1.2)
+shape = SubResource("BoxShape3D_tqojb")
+
+[node name="Name1" type="Label3D" parent="." unique_id=270669873]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 0.04, 1.8, 0)
+pixel_size = 0.00375
+shaded = true
+modulate = Color(0.12, 0.1, 0.09, 1)
+text = "DARAW"
+font_size = 96
+outline_size = 0
+
+[node name="Name2" type="Label3D" parent="." unique_id=1004348733]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -0.04, 1.8, 0)
+pixel_size = 0.00375
+shaded = true
+modulate = Color(0.12, 0.1, 0.09, 1)
+text = "DARAW"
+font_size = 96
+outline_size = 0

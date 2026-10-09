@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/train_signal.gd" id="1_kurhn"]
+[ext_resource type="PackedScene" path="res://models/train/signal_semaphore.glb" id="2_spknx"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_6s6i4"]
+size = Vector3(0.26, 3, 0.26)
+
+[node name="SignalSemaphore" type="StaticBody3D" unique_id=1644823467]
+script = ExtResource("1_kurhn")
+draw_distance = 220.0
+
+[node name="Model" parent="." unique_id=849274337 instance=ExtResource("2_spknx")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1326204096]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("BoxShape3D_6s6i4")
+
+[node name="Lamp" type="Marker3D" parent="." unique_id=958196120]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.26, 5.71, 0.2)

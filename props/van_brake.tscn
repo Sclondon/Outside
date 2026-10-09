@@ -1,0 +1,108 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/train_vehicle.gd" id="1_wirvo"]
+[ext_resource type="PackedScene" path="res://models/train/van_brake.glb" id="2_h27kt"]
+[ext_resource type="Script" path="res://scripts/ladder.gd" id="3_xxflq"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_opito"]
+size = Vector3(2.5, 0.3, 6.8)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_qhjy2"]
+size = Vector3(0.08, 1.9, 5.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_2wf3d"]
+size = Vector3(0.08, 1.9, 5.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_mwey2"]
+size = Vector3(2.5, 1.9, 0.08)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_2und2"]
+size = Vector3(0.8, 1.9, 0.08)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_molh5"]
+size = Vector3(0.8, 1.9, 0.08)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_upp5r"]
+size = Vector3(0.9, 0.2, 0.08)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_6ghnu"]
+size = Vector3(0.06, 0.95, 2.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tttos"]
+size = Vector3(0.5, 0.5, 1.6)
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_qutuh"]
+height = 0.6
+radius = 0.22
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_7yjuo"]
+size = Vector3(2.7, 0.14, 5.76)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_eqke4"]
+size = Vector3(1.8, 0.14, 0.9)
+
+[node name="VanBrake" type="AnimatableBody3D" unique_id=1927062963]
+script = ExtResource("1_wirvo")
+draw_distance = 320.0
+front = 3.95
+rear = 3.95
+wheels = {
+"Wheel1": 0.48,
+"Wheel2": 0.48
+}
+roof_top = 3.37
+
+[node name="Model" parent="." unique_id=313417061 instance=ExtResource("2_h27kt")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1786750945]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+shape = SubResource("BoxShape3D_opito")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=39259914]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.21, 2.25, 0.6)
+shape = SubResource("BoxShape3D_qhjy2")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=1061407816]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.21, 2.25, 0.6)
+shape = SubResource("BoxShape3D_2wf3d")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=1960687745]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.25, 3.36)
+shape = SubResource("BoxShape3D_mwey2")
+
+[node name="Solid5" type="CollisionShape3D" parent="." unique_id=2016297396]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.85, 2.25, -2.2)
+shape = SubResource("BoxShape3D_2und2")
+
+[node name="Solid6" type="CollisionShape3D" parent="." unique_id=1316009844]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 2.25, -2.2)
+shape = SubResource("BoxShape3D_molh5")
+
+[node name="Solid7" type="CollisionShape3D" parent="." unique_id=404651707]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1, -2.2)
+shape = SubResource("BoxShape3D_upp5r")
+
+[node name="Solid8" type="CollisionShape3D" parent="." unique_id=716322159]
+transform = Transform3D(7.54979e-08, 0, 1, 0, 1, 0, -1, 0, 7.54979e-08, 0, 1.775, -3.35)
+shape = SubResource("BoxShape3D_6ghnu")
+
+[node name="Solid9" type="CollisionShape3D" parent="." unique_id=48174917]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 1.55, 2.2)
+shape = SubResource("BoxShape3D_tttos")
+
+[node name="Solid10" type="CollisionShape3D" parent="." unique_id=737409460]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 1.6, 2.6)
+shape = SubResource("CylinderShape3D_qutuh")
+
+[node name="Solid11" type="CollisionShape3D" parent="." unique_id=491252504]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.3, 0.6)
+shape = SubResource("BoxShape3D_7yjuo")
+
+[node name="Solid12" type="CollisionShape3D" parent="." unique_id=1258361662]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 3.3, -2.65)
+shape = SubResource("BoxShape3D_eqke4")
+
+[node name="Ladder" type="Node3D" parent="." unique_id=1099338492]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.85, 1.3, -2.25)
+script = ExtResource("3_xxflq")
+height = 2.0700000000000003

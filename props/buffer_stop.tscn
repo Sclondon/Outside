@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_anlvh"]
+[ext_resource type="PackedScene" path="res://models/train/buffer_stop.glb" id="2_jch5e"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5iw43"]
+size = Vector3(2.6, 0.5, 0.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_u6ojl"]
+size = Vector3(2.4, 1.4, 0.3)
+
+[node name="BufferStop" type="StaticBody3D" unique_id=1416217497]
+script = ExtResource("1_anlvh")
+
+[node name="Model" parent="." unique_id=1107575264 instance=ExtResource("2_jch5e")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=471583679]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 1.6)
+shape = SubResource("BoxShape3D_5iw43")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=223641772]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, -0.05)
+shape = SubResource("BoxShape3D_u6ojl")
