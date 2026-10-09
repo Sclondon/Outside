@@ -203,3 +203,14 @@ Scenes to drag into a level, like the props, but with scripts of their own (see 
 
 Give a wall or a prop the metadata `surface` (`stone`, `sand`, `wood`, `metal`, `clay`, `glass`, `soft`) to choose what a bullet
 does to it; without it, the terrain is sand, creatures are soft, loose things are wood and the rest is stone.
+
+## Scarabs and cobwebs
+
+Not scenes in `props/`: each is made whole in code, and placed by the level editor (see "Scarabs" and "Cobwebs" in README.md).
+
+| Class | What it is |
+| --- | --- |
+| `ScarabSwarm` | A nest of scarabs: this node is the hole they come out of. `harmless` for a few that only wander; `dung_ball` and one rolls a ball. |
+| `ScarabAmulet` | RigidBody3D, in the groups `throwable`, `interest` and `scarab_amulets`: a gold and lapis scarab, 14 cm, its origin its middle and its head towards +Z. |
+| `ScarabSocket` | A stone 0.5 by 0.3 by 0.6 m with a hollow for the amulet, its foot at the origin. A `TombParts.Plate` that only the amulet presses (`changed`). |
+| `Cobweb` | `kind` `CORNER` (the corner is at the origin, `height` above it; one edge runs towards +X along the roof and the other down the wall), `SHEET` (stands on the origin, across X, facing along Z), `HANGING` (hangs from `height` above the origin, spread along X), `DRAPE` (stands on the origin, over something `over` in size). In the group `cobwebs`. |
