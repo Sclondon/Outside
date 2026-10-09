@@ -319,8 +319,10 @@ func run() -> void:
 			InputMap.action_erase_events(action)
 			Input.action_release(action)
 	await frames(5)
-	for name: String in ["turnaround", "idle", "walk", "sprint", "cap", "flatout", "turn", "sneak", "slide", "jump", "hang", "shimmy", "climb", "slab", "land1", "sprawl", "scramble", "land2", "land3", "land0", "throw", "stairs", "hatless", "crawl", "tired", "ladder", "swim", "bat", "rope", "kick", "dive", "dive_edges", "flip", "spin", "sit", "sleep", "gun", "wade", "stairs_sprint"]:
+	for name: String in ["turnaround", "idle", "walk", "sprint", "cap", "flatout", "turn", "sneak", "slide", "jump", "hang", "shimmy", "climb", "slab", "land1", "sprawl", "scramble", "land2", "land3", "land0", "throw", "stairs", "hatless", "crawl", "tired", "ladder", "swim", "bat", "rope", "kick", "dive", "dive_edges", "flip", "spin", "sit", "sleep", "gun", "wade", "stairs_sprint", "roll"]:
 		if wants(name):
+			# (what he does by chance, he does the same way every time a sheet is drawn)
+			seed(hash(name))
 			await call(name)
 	quit()
 
@@ -1184,6 +1186,71 @@ func land2() -> void:
 
 func land3() -> void:
 	await drop("land3", -30, 5.0, true)
+
+
+## Where his legs are this frame, for a roll: how high each knee, ankle and toe
+## is off the ground (negative is through it), how far each knee and ankle is
+## from the middle of his chest and from his head, how far each knee is folded,
+## and how far apart his ankles are across his hips (negative is crossed).
+func legs(tag: String, floor_y := 0.0) -> void:
+	var rig: Node3D = player._rig
+	var skeleton: Skeleton3D = rig._skeleton
+	var line := "LEGS %s ball=%.2f spin=%4.0f" % [tag, rig._ball, rad_to_deg(rig._hips.rotation.x)]
+	var chest: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("chest")).origin
+	var head: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("head")).origin
+	var hips: Transform3D = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("hips"))
+	var ankles: Array[Vector3] = []
+	for suffix: String in ["_l", "_r"]:
+		var knee: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("shin" + suffix)).origin
+		var foot: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("foot" + suffix)).origin
+		var toe: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("toe" + suffix)).origin
+		var thigh: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("thigh" + suffix)).origin
+		ankles.append(foot)
+		var fold := rad_to_deg((knee - thigh).angle_to(foot - knee))
+		line += " | %s knee y=%.2f chest=%.2f head=%.2f fold=%3.0f ankle y=%.2f chest=%.2f head=%.2f toe y=%.2f" % [suffix, knee.y - floor_y, knee.distance_to(chest), knee.distance_to(head), fold, foot.y - floor_y, foot.distance_to(chest), foot.distance_to(head), toe.y - floor_y]
+	line += " | apart=%.2f" % (ankles[0] - ankles[1]).dot(hips.basis.x.normalized())
+	if OS.get_environment("LEGS_WHERE") != "":
+		var to_hips := hips.affine_inverse()
+		line += " | in hips: head %.2v chest %.2v knees %.2v %.2v" % [to_hips * head, to_hips * chest, to_hips * (skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("shin_l")).origin), to_hips * (skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("shin_r")).origin)]
+	print(line)
+
+
+## The two rolls from close to, every other frame, from the side and from three
+## quarters in front: off the high tower, and out of a dive. Prints where his
+## legs are on every frame of each (see `legs`).
+func roll() -> void:
+	track.clear()
+	for kind: Array in [["roll_land", Vector3(PI * 0.5, 0.06, 2.7), true], ["roll_land_q", Vector3(0.75, 0.2, 2.7), false]]:
+		place(Vector3(-18.5, 5.05, -30), PI * 0.5)
+		view = kind[1]
+		look_h = 0.4
+		await frames(8)
+		for i in 400:
+			await frames(1, Vector3(1, 0, 0))
+			if player.is_on_floor() and player.global_position.y < 0.3:
+				break
+		for i in 60:
+			if i % 2 == 0:
+				await snap()
+			if kind[2]:
+				legs("land %d" % i)
+			await frames(1, Vector3(1, 0, 0))
+		sheet(kind[0], 6)
+	for kind: Array in [["roll_dive", Vector3(PI * 0.5, 0.06, 2.7), true], ["roll_dive_q", Vector3(0.75, 0.2, 2.7), false]]:
+		view = kind[1]
+		look_h = 0.4
+		await to_dive(Vector3(0, 0.05, 0), Vector3(1, 0, 0))
+		await frames(2, Vector3(1, 0, 0))
+		touch.duck_held = false
+		await frames(22, Vector3(1, 0, 0))
+		for i in 60:
+			if i % 2 == 0:
+				await snap()
+			if kind[2]:
+				legs("dive %d" % i)
+			await frames(1, Vector3(1, 0, 0))
+		sheet(kind[0], 6)
+	look_h = 0.65
 
 
 func sprawl() -> void:
