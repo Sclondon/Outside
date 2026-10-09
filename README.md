@@ -76,7 +76,32 @@ Each of the newer moves has a switch on the Player (`dive_enabled`, `flip_enable
 The yard also has everything sand does (footprints, sand running down steep faces, wind and its weather plate, sand
 pouring into heaps, two lumps of wet sand), water as a tank and as a pond lying in the sand, a fire, the guns on a
 bench with things to shoot, his brother, a cat, and a pen each for the hounds and the mummy, with a plate that lets
-them loose and calls them off.
+them loose and calls them off. North of the start the kinds of ground are laid side by side in a row to walk along.
+
+## Sand, and the other kinds of ground
+
+The ground of a level is a `SandGround` (`scripts/sand_ground.gd`), drawn by the one sand shader (`scripts/sand.gd`).
+
+- **Footprints** in sand are soft, shallow, rounded dents with nothing of the boot in them, and in loose sand a
+  collar of it is pushed out round the foot and slumps there.
+- **Snow mode**: the crisp print (heel, sole, and the lip round them) is kept for snow. `ground.snow = true` makes the
+  whole ground snow: pale (`Sand.SNOW`, unless `colour` is set), crisp prints, nothing runs or is pushed out. Set it
+  before or after the ground is built. `ground.crisp_prints = true` alone gives sand that holds the print of a boot;
+  `Sand.Kind.SNOW` can be painted where snow lies on other ground; `Sand.snow_surface()` is the material for any
+  other mesh.
+- **Sand on a steep face** lets go when it is trodden on and oozes downhill as lava does: thick rounded lobes that
+  creep, spread, slow and slump, each leaving a low tongue behind it (`SandGround.ooze`; `disturb` sets it off). It is
+  the ground itself that swells and moves, not something drawn over it.
+- **Kinds of ground**, painted with `ground.paint(kind, at, radius, amount, feather)` or `paint_line`, each fading
+  into the next. `Sand.Kind`: `COARSE`, `DAMP`, `PACKED`, `PALE` (as before); `DIRT` (hard dirt, mottled and
+  cracked: no prints, no sinking, does not run, and he raises dust on it, not sand); `SANDSTONE` (rock in bands of
+  colour: nothing marks it); `WHITE`, `RED`, `BLACK` (sand of another colour, and sand in every other way); `SNOW`.
+  `ground.give_at(x, z)` is how soft the ground is at a place (1 loose sand, 0 hard), and `share_at(kind, x, z)` how
+  much of a kind has been painted there.
+- **Sand thrown up** by feet (`SandSpray`) is many fine grains that are flung out and come straight back down in
+  arcs, drifting a little in the wind.
+
+`tools/sand_sheets.gd` walks and runs him over all of it in the test yard and saves pictures (see the top of the file).
 
 ## The level editor
 

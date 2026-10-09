@@ -36,6 +36,11 @@ const FLATS: Array[Rect2] = [
 	Rect2(-44, 6, 7, 6),
 ]
 const EASE := 9.0
+## The kinds of ground, laid in a row to walk along: the middle of the row, how
+## far it runs each way (it is level, like a patch of `FLATS`), and how far it
+## is from the middle of one kind to the middle of the next.
+const KINDS := Rect2(1.0, 12.5, 16.0, 3.0)
+const KIND_GAP := 5.0
 ## The hollow one lump of sand lies in: where, how wide, how deep.
 const HOLLOW := Vector3(32.0, 0.0, -26.0)
 const HOLLOW_WIDE := 5.5
@@ -86,6 +91,7 @@ func _ready() -> void:
 	_build_mummy(Vector3(-42.0, 0.0, -32.0))
 	_build_range(Vector3(40.0, 0.0, 36.0))
 	_build_camels(Vector3(-44.0, 0.0, 6.0))
+	_build_kinds()
 	_settle_in.call_deferred()
 
 
@@ -144,6 +150,8 @@ func _shaped(dunes: float, x: float, z: float) -> float:
 		for flat in FLATS:
 			var outside := (at - flat.position).abs() - flat.size
 			level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(outside.x, 0.0), maxf(outside.y, 0.0)).length()))
+		var beside := (at - KINDS.position).abs() - KINDS.size
+		level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(beside.x, 0.0), maxf(beside.y, 0.0)).length()))
 		hollow = HOLLOW_DEEP * (1.0 - smoothstep(0.0, HOLLOW_WIDE, at.distance_to(Vector2(HOLLOW.x, HOLLOW.z))))
 	var rim := 5.0 * smoothstep(YARD - 30.0, YARD, maxf(absf(x), absf(z)))
 	var open := dunes * level + rim - hollow
@@ -361,6 +369,28 @@ func _build_pond() -> void:
 	ground.paint_line(Sand.Kind.PACKED, Vector2(29.5, 0.0), Vector2(POND.x - POND_WIDE - 3.0, POND.z), 0.5, 0.85, 1.2)
 	var by := Vector3(POND.x - POND_WIDE - 4.0, 0.0, POND.z)
 	_mark_here(Vector3(by.x, height_at(by.x, by.z), by.z), "WADE\nwalk in: slowed in the shallows,\nswimming when it is over his chest", 3.2)
+
+
+## The kinds of ground, side by side in a row north of the start, each fading
+## into the next, with plain sand at either end to compare them with: walk the
+## length of it. Hard dirt and sandstone take no prints and he does not sink
+## into them; the three coloured sands are sand; and the snow keeps the print
+## of his boot.
+func _build_kinds() -> void:
+	var kinds := [
+		[Sand.Kind.DIRT, "HARD DIRT\nno prints, no sinking"],
+		[Sand.Kind.SANDSTONE, "SANDSTONE\nrock: nothing marks it"],
+		[Sand.Kind.WHITE, "WHITE SAND"],
+		[Sand.Kind.RED, "RED SAND"],
+		[Sand.Kind.BLACK, "BLACK SAND"],
+		[Sand.Kind.SNOW, "SNOW\ncrisp prints"],
+	]
+	var first := KINDS.position.x - KIND_GAP * (kinds.size() - 1) * 0.5
+	for i in kinds.size():
+		var at := Vector2(first + i * KIND_GAP, KINDS.position.y)
+		ground.paint_line(kinds[i][0], at + Vector2(0.0, -1.0), at + Vector2(0.0, 1.0), 1.7, 1.0, 1.4)
+		_sign(Vector3(at.x, 2.3, at.y), kinds[i][1])
+	_mark_here(Vector3(KINDS.position.x, 0.0, KINDS.position.y - 3.5), "KINDS OF GROUND\nwalk along the row", 3.4)
 
 
 ## Two walls to go up between: jump at one, and jump again against each in turn.
