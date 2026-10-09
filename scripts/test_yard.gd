@@ -371,6 +371,15 @@ func _build_pond() -> void:
 	ground.paint_line(Sand.Kind.PACKED, Vector2(29.5, 0.0), Vector2(POND.x - POND_WIDE - 3.0, POND.z), 0.5, 0.85, 1.2)
 	var by := Vector3(POND.x - POND_WIDE - 4.0, 0.0, POND.z)
 	_mark_here(Vector3(by.x, height_at(by.x, by.z), by.z), "WADE\nwalk in: slowed in the shallows,\nswimming when it is over his chest", 3.2)
+	# A crocodile in it, which is docile until the plate is trodden on (and again when it is trodden on again)
+	var crocodile := Crocodile.new()
+	crocodile.docile = true
+	crocodile.position = POND + Vector3(2.5, -0.5, 1.5)
+	add_child(crocodile)
+	crocodile.caught.connect(_on_caught.bind(crocodile))
+	var plate := Vector3(by.x, height_at(by.x, by.z + 4.5), by.z + 4.5)
+	_sign(plate + Vector3.UP * 2.6, "CROCODILE\nthe plate sets it on him,\nand makes it docile again")
+	_switch(plate, func() -> void: crocodile.docile = not crocodile.docile)
 
 
 ## The kinds of ground, side by side in a row north of the start, each fading

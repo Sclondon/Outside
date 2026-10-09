@@ -312,6 +312,12 @@ func _person(item: Dictionary, who: String) -> Node3D:
 				# (to a peg a little way from where it is put)
 				camel.tether = place_of(item) + Vector3(1.2, 0.0, 0.0)
 			return camel
+		"crocodile":
+			# (it finds its own water: the pond or the river it is put in, or the nearest)
+			var crocodile := Crocodile.new()
+			crocodile.docile = item.get("docile", false)
+			crocodile.reach = item.get("reach", 5.0)
+			return crocodile
 	return null
 
 
@@ -338,6 +344,8 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as Hound).caught.connect(_on_caught.bind(made))
 	elif made is Mummy:
 		(made as Mummy).caught.connect(_on_caught.bind(made))
+	elif made is Crocodile:
+		(made as Crocodile).caught.connect(_on_caught.bind(made))
 	if made is RigidBody3D and made.is_in_group(&"throwable"):
 		_loose.append(made)
 		_loose_starts.append(made.global_transform)
@@ -409,6 +417,8 @@ func _introduce(node: Node3D) -> void:
 		(node as Hound).target = _player
 	elif node is Mummy:
 		(node as Mummy).target = _player
+	elif node is Crocodile:
+		(node as Crocodile).target = _player
 
 
 func _physics_process(delta: float) -> void:
