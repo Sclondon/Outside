@@ -46,8 +46,9 @@ func _init() -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Only advertise the controls on devices that can actually use them.
-	_hint_alpha = 1.0 if DisplayServer.is_touchscreen_available() else 0.0
+	# Shown on anything with a touch screen, and on the web always: a phone's browser
+	# does not always own up to having one. (Elsewhere they appear at the first touch.)
+	_hint_alpha = 1.0 if DisplayServer.is_touchscreen_available() or OS.has_feature("web") else 0.0
 
 
 func _input(event: InputEvent) -> void:
@@ -71,7 +72,7 @@ func _notification(what: int) -> void:
 
 
 func _button_radius() -> float:
-	return stick_radius * 0.5
+	return stick_radius * 0.58
 
 
 ## Duck sits under the thumb's resting place, act beside it.
@@ -80,7 +81,7 @@ func _duck_centre() -> Vector2:
 
 
 func _act_centre() -> Vector2:
-	return Vector2(size.x * 0.81, size.y - size.x * 0.055)
+	return Vector2(size.x * 0.795, size.y - size.x * 0.055)
 
 
 func _press(index: int, pos: Vector2) -> void:
@@ -155,27 +156,38 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if _hint_alpha <= 0.0:
 		return
+	# Everything is drawn twice over: a dark ground and a pale line on it, so
+	# that it shows on bright sand as well as in the dark.
 	var rest := Vector2(size.x * 0.14, size.y - size.x * 0.13)
 	var origin := _stick_origin if _stick_index != -1 else rest
 	var knob := _stick_knob if _stick_index != -1 else rest
-	var ring := Color(tint, lerpf(0.07, 0.22, _stick_alpha))
-	draw_arc(origin, stick_radius, 0.0, TAU, 48, ring, 2.0, true)
-	draw_circle(knob, stick_radius * 0.36, Color(tint, lerpf(0.05, 0.28, _stick_alpha)))
+	draw_circle(origin, stick_radius, Color(0.0, 0.0, 0.0, lerpf(0.1, 0.16, _stick_alpha)))
+	draw_arc(origin, stick_radius, 0.0, TAU, 48, Color(tint, lerpf(0.45, 0.7, _stick_alpha)), 2.5, true)
+	draw_circle(knob, stick_radius * 0.36, Color(0.0, 0.0, 0.0, 0.22))
+	draw_circle(knob, stick_radius * 0.33, Color(tint, lerpf(0.4, 0.7, _stick_alpha)))
 
 	var jump_centre := Vector2(size.x * 0.87, size.y - size.x * 0.17)
 	_draw_button(jump_centre, stick_radius * 0.62, _jump_alpha)
 	_draw_button(_duck_centre(), _button_radius(), _duck_alpha)
 	_draw_button(_act_centre(), _button_radius(), _act_alpha)
-	# Duck: a chevron pointing down. Act: an open hand, drawn as a dot.
+	var mark := Color(tint, 0.9)
+	# Jump: a chevron pointing up. Duck: one pointing down. Act: a hand, drawn as a ring and a dot.
+	draw_polyline([jump_centre + Vector2(-17.0, 8.0), jump_centre + Vector2(0.0, -11.0), jump_centre + Vector2(17.0, 8.0)], mark, 3.5, true)
 	var duck := _duck_centre()
-	var mark := Color(tint, 0.3)
-	draw_polyline([duck + Vector2(-12.0, -6.0), duck + Vector2(0.0, 7.0), duck + Vector2(12.0, -6.0)], mark, 2.0, true)
-	draw_circle(_act_centre(), 7.0, mark)
+	draw_polyline([duck + Vector2(-13.0, -6.0), duck + Vector2(0.0, 8.0), duck + Vector2(13.0, -6.0)], mark, 3.5, true)
+	draw_arc(_act_centre(), 13.0, 0.0, TAU, 24, mark, 3.0, true)
+	draw_circle(_act_centre(), 5.0, mark)
+	var font := get_theme_default_font()
+	for label: Array in [[jump_centre, stick_radius * 0.62, "JUMP"], [duck, _button_radius(), "DUCK"], [_act_centre(), _button_radius(), "GRAB"]]:
+		var wide := font.get_string_size(label[2], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13).x
+		draw_string_outline(font, (label[0] as Vector2) + Vector2(-wide * 0.5, -float(label[1]) - 7.0), label[2], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13, 4, Color(0.0, 0.0, 0.0, 0.6))
+		draw_string(font, (label[0] as Vector2) + Vector2(-wide * 0.5, -float(label[1]) - 7.0), label[2], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13, Color(tint, 0.9))
 
 
 func _draw_button(centre: Vector2, radius: float, pressed: float) -> void:
-	draw_arc(centre, radius, 0.0, TAU, 40, Color(tint, lerpf(0.09, 0.3, pressed)), 2.0, true)
-	draw_circle(centre, radius * lerpf(0.0, 0.8, pressed), Color(tint, 0.16 * pressed))
+	draw_circle(centre, radius, Color(0.0, 0.0, 0.0, lerpf(0.22, 0.1, pressed)))
+	draw_circle(centre, radius * lerpf(0.0, 0.92, pressed), Color(tint, 0.45 * pressed))
+	draw_arc(centre, radius, 0.0, TAU, 40, Color(tint, lerpf(0.6, 0.95, pressed)), 2.5, true)
 
 
 ## How far the look-drag has moved since this was last asked, in pixels.

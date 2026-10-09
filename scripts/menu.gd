@@ -38,7 +38,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	var open := _button("Menu", func() -> void: _set_open(not _panel.visible))
-	open.modulate.a = 0.55
+	open.modulate.a = 0.9
 	open.anchor_left = 1.0
 	open.anchor_right = 1.0
 	open.offset_left = -118.0
