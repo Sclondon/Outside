@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_i5hbt"]
+[ext_resource type="PackedScene" path="res://models/props/grass_tuft.glb" id="2_80kge"]
+
+[node name="GrassTuft" type="StaticBody3D" unique_id=1770779261]
+script = ExtResource("1_i5hbt")
+draw_distance = 70.0
+casts_shadow = false
+
+[node name="Model" parent="." unique_id=147379026 instance=ExtResource("2_80kge")]

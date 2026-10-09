@@ -13,7 +13,9 @@ their middle.
 | `pyramid_great` | 60 m across, 46 high, in steps of 1.35 m, each one he can catch and climb, up to the smooth casing at the top. (For any other pyramid see "Pyramids made from numbers" below.) |
 | `pyramid_ruined` | 20 m across, its top gone and one corner fallen in (towards +X +Z) as a slope of blocks. |
 | `pyramid_entrance` | A doorway with a cornice and a short dark passage, shut at the back. Stand its back against a pyramid's face. |
-| `palm_a`, `palm_b`, `palm_c` | Palms: 8 m; 10.5 m and well bent; 5 m. The leaves sway. |
+| `palm_a`, `palm_b`, `palm_c` | Date palms: 8 m; 10.5 m and well bent; 5 m. A trunk in the diamonds of its old leaf bases, a crown of feather leaves with a dry skirt under it, bunches of dates. The trunk is solid as far up as he can reach. |
+| `palm_doum` | A doum palm, 8 m: a ringed trunk that forks, and three heads of fan leaves. The trunk is solid up to the fork. |
+| `palm_sucker`, `reeds`, `shrub_dry`, `grass_tuft` | Plants he walks through: a chest-high bush of date palm leaves on a stump; a clump of papyrus, 2.5 m, for the edge of water; a dry grey-green shrub, 1.2 m; a tuft of straw grass (no shadow). |
 | `obelisk` | 14 m, on a plinth. Tipped over it makes a fallen one. |
 | `column`, `column_broken`, `column_stump`, `column_fallen` | 6 m whole; snapped at 3.6 m; a stump he can get onto (1.4 m); drums and capital lying along Z. |
 | `lintel` | A beam 5.2 m long: across two columns 4.6 m apart, at a height of 6 m, or on the ground. |
@@ -37,6 +39,20 @@ on any one you have placed.
 light. In the editor you see the model's own plain materials instead, and a `Ladder` or `Pool` shows nothing: those draw
 themselves only when the game runs.
 
+### Plants
+
+A plant is one mesh in one material, `plant`, and every plant in a level is drawn with the same shader (`PLANT_SHADER` in
+`scripts/prop.gd`). Its leaves are cut out of triangles, not drawn on cards. The points of the mesh carry what the shader
+goes by: their colour (and in its alpha, how much they are leaf), where they are on their leaf, how far along their part
+they are from where it is rooted, and a normal that leans out from the heart of the crown, so that a crown is lit as one
+round mass. The shader paints a leaf darker at its root and paler at its tip in flat tones, lights it in bands or smoothly
+as the menu says, lets the sun through it when the sun is behind, and moves it in the wind: the level's `SandWind` if it has
+one, a light breeze if not. In `tools/build_props.py` a plant is put together from `frond` (a feather leaf), `fan` (a fan
+leaf), `blade` (a strap), `stem` and `bark`.
+
+`prop_sheets.gd` has words for looking at them: `sky` (from the ground, against the sky), `backlit` (the sun behind),
+`crown` (the top, close) and `sway` (four moments of a stiff wind).
+
 ### Making or changing one
 
 They are made in Blender from code, in `tools/build_props.py`: one function per prop, out of boxes, lathed shapes, tubes and flat
@@ -46,7 +62,7 @@ glyphs, and it says there what is solid. Then:
 blender --background --python tools/build_props.py [-- name ...]     # models/props/*.glb and props.json
 godot --headless --path . --import
 godot --headless --path . --script tools/build_prop_scenes.gd [-- name ...]   # props/*.tscn
-godot --path . --resolution 960x960 --script tools/prop_sheets.gd -- <folder> [four] [banded] [name ...]   # pictures of them
+godot --path . --resolution 960x960 --script tools/prop_sheets.gd -- <folder> [four] [banded] [sky] [backlit] [crown] [sway] [name ...]   # pictures of them
 ```
 
 `build_prop_scenes.gd` writes a prop's scene afresh, so make changes in the Python, not in `props/*.tscn`. Props placed in a level

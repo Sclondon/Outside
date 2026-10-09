@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_ytnbx"]
+[ext_resource type="PackedScene" path="res://models/props/shrub_dry.glb" id="2_pwhb5"]
+
+[node name="ShrubDry" type="StaticBody3D" unique_id=1584342180]
+script = ExtResource("1_ytnbx")
+draw_distance = 110.0
+
+[node name="Model" parent="." unique_id=1082199231 instance=ExtResource("2_pwhb5")]

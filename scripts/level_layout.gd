@@ -50,6 +50,8 @@ const PALETTE := {
 	],
 	"Camp": [
 		["Palm", "prop", "palm_a"], ["Bent palm", "prop", "palm_b"], ["Small palm", "prop", "palm_c"],
+		["Doum palm", "prop", "palm_doum"], ["Palm bush", "prop", "palm_sucker"], ["Reeds", "prop", "reeds"],
+		["Dry shrub", "prop", "shrub_dry"], ["Grass tuft", "prop", "grass_tuft"],
 		["Tent", "prop", "tent"], ["Awning", "prop", "awning"], ["Scaffold", "prop", "scaffold"], ["Crate", "prop", "crate"],
 		["Big jar", "prop", "pot_large"], ["Brazier", "prop", "brazier"], ["Torch", "prop", "torch_stand"], ["Campfire", "prop", "campfire"],
 		["Pot", "prop", "pot"], ["Canopic jar", "prop", "jar_canopic"], ["Jackal jar", "prop", "jar_canopic_jackal"], ["Stone to throw", "prop", "rock_small"],

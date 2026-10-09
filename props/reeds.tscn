@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_05hgq"]
+[ext_resource type="PackedScene" path="res://models/props/reeds.glb" id="2_c610w"]
+
+[node name="Reeds" type="StaticBody3D" unique_id=1697167134]
+script = ExtResource("1_05hgq")
+draw_distance = 120.0
+
+[node name="Model" parent="." unique_id=1460993173 instance=ExtResource("2_c610w")]

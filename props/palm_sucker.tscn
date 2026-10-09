@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_e3k35"]
+[ext_resource type="PackedScene" path="res://models/props/palm_sucker.glb" id="2_akkq7"]
+
+[node name="PalmSucker" type="StaticBody3D" unique_id=770944379]
+script = ExtResource("1_e3k35")
+draw_distance = 150.0
+
+[node name="Model" parent="." unique_id=1485527991 instance=ExtResource("2_akkq7")]

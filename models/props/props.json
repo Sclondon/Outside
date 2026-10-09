@@ -2544,9 +2544,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      1.6909093586710469,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2574,9 +2574,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      1.8186586332988233,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2604,9 +2604,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      2.261708304030256,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2636,8 +2636,8 @@
   "ladders": [],
   "far": 210.0,
   "shadow": true,
-  "triangles": 954,
-  "materials": 3
+  "triangles": 1714,
+  "materials": 1
  },
  "palm_b": {
   "body": "static",
@@ -2646,9 +2646,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      2.480827335660726,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2676,9 +2676,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      2.549104088792052,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2706,9 +2706,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      3.0218255233264673,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2738,8 +2738,8 @@
   "ladders": [],
   "far": 210.0,
   "shadow": true,
-  "triangles": 1034,
-  "materials": 3
+  "triangles": 1906,
+  "materials": 1
  },
  "palm_c": {
   "body": "static",
@@ -2748,9 +2748,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      0.9838495800070385,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2778,9 +2778,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      1.0686354068070005,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2808,9 +2808,9 @@
    {
     "type": "box",
     "size": [
-     0.4,
+     0.55,
      1.3477019551895637,
-     0.4
+     0.55
     ],
     "basis": [
      [
@@ -2840,8 +2840,8 @@
   "ladders": [],
   "far": 210.0,
   "shadow": true,
-  "triangles": 874,
-  "materials": 3
+  "triangles": 1388,
+  "materials": 1
  },
  "obelisk": {
   "body": "static",
@@ -6564,5 +6564,121 @@
   "shadow": true,
   "triangles": 120,
   "materials": 4
+ },
+ "palm_doum": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.55,
+     1.7753521422931662,
+     0.55
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.012500002048909664,
+     0.8875000476837158,
+     0.012500000186264515
+    ]
+   },
+   {
+    "type": "box",
+    "size": [
+     0.55,
+     1.7483919937810048,
+     0.55
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.16250000894069672,
+     2.637500047683716,
+     0.0625
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 210.0,
+  "shadow": true,
+  "triangles": 1666,
+  "materials": 1
+ },
+ "palm_sucker": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [],
+  "markers": {},
+  "ladders": [],
+  "far": 150.0,
+  "shadow": true,
+  "triangles": 558,
+  "materials": 1
+ },
+ "reeds": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 438,
+  "materials": 1
+ },
+ "shrub_dry": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [],
+  "markers": {},
+  "ladders": [],
+  "far": 110.0,
+  "shadow": true,
+  "triangles": 606,
+  "materials": 1
+ },
+ "grass_tuft": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [],
+  "markers": {},
+  "ladders": [],
+  "far": 70.0,
+  "shadow": false,
+  "triangles": 120,
+  "materials": 1
  }
 }

@@ -2,7 +2,10 @@ extends SceneTree
 ## Not part of the game. Draws each prop in props/ alone, from two sides (or from four,
 ## with `four` among the names), four props to a sheet, to see what a change to
 ## tools/build_props.py has done.
-## godot --path . --resolution 960x960 --script tools/prop_sheets.gd -- <outdir> [banded] [four] [name ...]
+## godot --path . --resolution 960x960 --script tools/prop_sheets.gd -- <outdir> [banded] [four] [sky] [backlit] [sway] [name ...]
+## For the plants: `sky` looks up at it from the ground, `backlit` puts the sun behind
+## it, and `sway` draws one side of it at four moments a quarter of a second apart, in
+## a stiff wind. `crown` looks closely at the top of it.
 
 const CELL := 480
 var out := ""
@@ -11,6 +14,12 @@ var stage: Node3D
 var cam: Camera3D
 var cells: Array[Image] = []
 var views := 2
+var sky := false
+var backlit := false
+var sway := false
+var crown := false
+var sun: DirectionalLight3D
+var blown := 0.0
 
 
 func _initialize() -> void:
@@ -25,6 +34,10 @@ func _initialize() -> void:
 	if "four" in only:
 		only.erase("four")
 		views = 4
+	for word: String in ["sky", "backlit", "sway", "crown"]:
+		if word in only:
+			only.erase(word)
+			set(word, true)
 	stage = Node3D.new()
 	root.add_child(stage)
 	var env := Environment.new()
@@ -37,12 +50,19 @@ func _initialize() -> void:
 	var world := WorldEnvironment.new()
 	world.environment = env
 	stage.add_child(world)
-	var sun := DirectionalLight3D.new()
+	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-46.0, 150.0, 0.0)
 	sun.light_color = Color(1.0, 0.95, 0.86)
 	sun.light_energy = 1.25
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 200.0
+	# (on the web a sun that casts shadows is turned down, and the sand is told: see
+	# `Sand.sky`. The same here, so that `--rendering-method gl_compatibility` shows a
+	# prop as a level on the web does)
+	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		sun.light_energy *= 0.3
+		Sand.sun_gain = 1.0 / 0.3
+		Sand.sky = env.ambient_light_color.srgb_to_linear() * env.ambient_light_energy
 	stage.add_child(sun)
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
@@ -75,13 +95,29 @@ func run() -> void:
 		var middle := bounds.get_center()
 		var reach := bounds.size.length() * 0.5 / tan(deg_to_rad(15.0)) * 1.05
 		var yaws: Array = [0.6, PI + 0.9] if views == 2 else [0.0, 0.75, PI * 0.5, PI + 0.6]
+		if sway:
+			yaws.fill(0.6)
+		if crown:
+			# (the top third of it, close)
+			middle.y = bounds.end.y - bounds.size.y * 0.2
+			reach *= 0.45
 		for yaw: float in yaws:
-			var pitch := 0.3
+			var pitch := -0.1 if sky else 0.3
 			cam.global_position = middle + Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch)) * reach
+			cam.global_position.y = maxf(cam.global_position.y, 0.5)
 			cam.look_at(middle)
 			cam.far = reach * 4.0 + 200.0
+			if backlit:
+				sun.rotation = Vector3(deg_to_rad(-24.0), yaw + PI + 0.25, 0.0)
 			for i in 3:
 				await process_frame
+			if sway:
+				# (as a `SandWind` would tell it: a quarter of a second of a stiff wind)
+				var until := Time.get_ticks_msec() + 250
+				while Time.get_ticks_msec() < until:
+					blown += 8.0 * root.get_process_delta_time()
+					Sand.blow(Vector2(1.0, 0.0), 0.75, blown, Color(0.0, 0.0, 0.0, 0.0))
+					await process_frame
 			await RenderingServer.frame_post_draw
 			var image := root.get_texture().get_image()
 			var side: int = mini(image.get_width(), image.get_height())
