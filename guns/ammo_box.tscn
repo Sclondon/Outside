@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ammo_box.gd" id="1_3b4s7"]
+[ext_resource type="PackedScene" path="res://models/guns/ammo_box.glb" id="2_fjddu"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_jqhhx"]
+radius = 0.9
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_r3njw"]
+size = Vector3(0.34, 0.15, 0.2)
+
+[node name="AmmoBox" type="Area3D" unique_id=1497896539 groups=["interest"]]
+collision_layer = 0
+collision_mask = 3
+script = ExtResource("1_3b4s7")
+
+[node name="Model" parent="." unique_id=1104026642 instance=ExtResource("2_fjddu")]
+
+[node name="Zone" type="CollisionShape3D" parent="." unique_id=746410812]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+shape = SubResource("SphereShape3D_jqhhx")
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1552502427]
+metadata/surface = &"wood"
+
+[node name="Solid1" type="CollisionShape3D" parent="Solid" unique_id=1078974620]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.075, 0)
+shape = SubResource("BoxShape3D_r3njw")

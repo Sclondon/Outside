@@ -1,12 +1,12 @@
 # Outside
 
-A touch-first 3D adventure in the spirit of Inside: a small figure in a red shirt finding his way through a
+A touch-first 3D adventure in the spirit of Inside: a boy of the 1910s, flat cap and faded blue overalls, finding his way through a
 torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.7, built for phones and the web
 (the Scareathon arcade).
 
 ## Controls
 
-- Touch: drag anywhere on the left half to move (a gentle push walks, a full push runs); two small buttons bottom right
+- Touch: drag anywhere on the left half to move (a gentle push walks, a full push runs, and held there he sprints); two small buttons bottom right
   duck and act (pick up / throw); tap anywhere else on the right
   to jump, hold for a higher jump.
 - Keyboard: WASD or arrows, Space to jump, C or Ctrl to duck, E or F to act, Shift to walk, R to drop him as a ragdoll
@@ -17,72 +17,287 @@ torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.
 `mechanics.tscn` is an open yard to run about in, with a station for each of these set out round it. The camera
 orbits there: drag the upper right of the screen, hold the right mouse button, or use a right stick.
 
-- **Push** a block by walking into it.
-- **Duck** under what is too low to walk under; he stays down until there is room to stand.
-- **Slide** by ducking out of a run, which gets him under things lower still.
-- **Catch a ledge** by jumping at a wall whose top is within reach. He hangs there until jump clambers up; pulling
-  back or duck drops him.
-- **Climb a rope** (`scripts/rope.gd`) by jumping into it; up and down climb, jump leaps off the way he faces.
-- **Throw**: act picks up any RigidBody3D in the group `throwable`, act again throws it.
+- **Sprint** by keeping up a full run for a moment (`sprint_delay`, `sprint_speed` on the Player): he throws himself
+  forward and claps a hand to his cap to keep it on: whichever hand is towards the camera. Sprint for long and he is
+  winded: when he stops he bends over, hands on his knees, and pants until he has his breath back.
+- **Push** a block by walking into it: he leans his chest in behind flat, spread hands and drives it with long slow steps.
+- **Sneak** by holding duck: low, on his toes, hands out in front of him. It gets him under what is too low to walk
+  under, and he stays down until there is room to stand.
+- **Slide** by ducking out of a run, which gets him under things lower still: down on the seat of his trousers, one
+  heel out in front, a hand on the ground behind and the other (the one the camera sees) on his cap.
+- **Crawl** by sneaking on into something too low to sneak under: he goes down on his hands and knees.
+- **Kick off a wall** by jumping again in the air against one (`wall_kick`): he springs away from it, and can go
+  from wall to wall.
+- **Catch a ledge** by jumping at a wall whose top is within reach. He hangs by his fingers with a foot against the
+  wall (sometimes the left, sometimes the right: `favoured_leg` on the rig fixes it); left and right shimmy him along
+  it, his feet walking the wall under him; jump clambers up, and pulling back or duck drops him.
+- **Land** according to how hard he comes down (`landing_speeds` on the Player): on his feet from a jump; from about
+  1.5 m, on one knee and a fist, held a moment; from about 2.3 m he goes on over them, flat on his front, and pushes
+  himself up (or, if he is still being steered, scrambles up off his hands at a run); from about 3 m, in a stumble that
+  his legs cannot catch up with and that goes over in a roll almost at once; straight over in a roll from 4 m and more.
+- **Climb a rope** (`scripts/rope.gd`) by jumping into it; up and down climb, left and right set it swinging, jump
+  leaps off with whatever swing it has. The rope is a simulated chain: it bends and swings under him.
+- **Climb a ladder** (`scripts/ladder.gd`) by walking or jumping into it; he steps off at the top, jump leaps off backwards.
+  Walking out over the top of one from above, he turns round and gets onto it. Left alone on it a moment he hangs
+  out from it by one hand to look about.
+- **Swim** (`scripts/pool.gd`) when he is in over his chest: a gentle push is breast stroke and a full one a crawl;
+  duck dives, where it is a frog kick and a flutter kick; jump comes up, and at the surface heaves him out, or at the
+  side takes hold of it to climb out. He walks out up steps, and the first time he stands still afterwards he shakes
+  himself dry.
+- **Throw**: act stoops for any RigidBody3D in the group `throwable`, act again throws it, with a ball player's
+  wind-up, stride and follow-through (`pickup_time`, `throw_time`).
+- **Swing a bat**: anything also in the group `bats` is held in both hands and swung instead, and sends flying
+  whatever loose thing is in front of him; duck and act puts it down.
+- **Shoot**: anything also in the group `guns` (`scripts/gun.gd`, the scenes in `guns/`) is carried as a gun: a pistol
+  low at his side, muzzle down; a rifle or shotgun across his body in both hands. Act brings it up and fires it (the
+  pistol at the end of a straight arm, his other fist on his hip; a long gun from the shoulder, his off hand at the
+  gun's `support_point()`), and he takes the kick in his hands, shoulders and back and is shoved a step backwards
+  by it, in proportion to the gun's `kick`. He aims where he faces, helped towards the nearest thing in the groups
+  `pursuers` or `interest` within `gun_cone`. Duck and act puts it down; he drops it when he has to swim.
+- **Dive roll** by pressing duck just after jumping out of a run (`dive_window`): he throws himself out flat, comes
+  down on his hands, goes over a shoulder and is up and running with his speed kept. He is as low as a slide
+  through it, so it gets him under things; a dive off a height is still a roll; a dive into water goes in head first.
+- **Back tuck** by jumping out of a duck, where there is the height for it: up, over once backwards, and down
+  where he started, pleased with himself. (Under anything too low to stand in he still cannot jump.)
+- **Spin** by whipping the stick right round (a full turn in about half a second): arms flung out, one leg trailing,
+  his cap all but off. He staggers coming out of it, and kept at it long enough he gets so giddy he sits down.
+- **Sit and sleep**: left alone for `sleep_after` seconds he yawns and stretches, sits down, and lies down curled on
+  his side with his cap over his face; holding duck while standing still does the same sooner (sat after `sit_hold`,
+  asleep after as long again). Anything pressed wakes him: he sits up, rubs his eyes and gets up; anything in the
+  group `pursuers` giving chase wakes him with a start. Levels can call `Player.sit()`, `sleep()`, `wake()`.
+- **Wade**: in water that is not yet over his chest he is slowed, stepping high in the shallows and pushing through
+  with his arms up when it is to his waist.
+
+Each of the newer moves has a switch on the Player (`dive_enabled`, `flip_enabled`, `spin_enabled`, `rest_enabled`,
+`gun_handling`), all on.
 
 It also has a pen each for the hounds and the mummy, with a plate that lets them loose and calls them off.
+
+## How he moves
+
+Nothing is a clip; `scripts/character_rig.gd` poses him every frame.
+
+- **His back** is three joints and his neck two, and every lean, twist and curl is shared along them.
+- **Standing** he has two ways of being: at ease, weight on one leg and shifting to the other every so often, or
+  wary (feet apart, knees bent, hands half closed) while anything in the group `pursuers` is after him.
+- **He looks at things**: whatever is chasing him first, otherwise the nearest node in the group `interest` that is
+  close and not behind him, for a few seconds at a time. Blocks, crates, rocks and pressure plates are in it; add
+  anything else worth a glance.
+- **His hands** close to fists when he runs, open when he falls, and lie flat with the fingers spread on anything
+  he leans on or pushes. The Player says which way that surface faces in `hand_normal`.
+- **His feet** roll: heel first on the outer edge, in across the sole, then up onto the ball. They are turned out, land
+  nearer the line he is walking than his hips are wide, and never quite where they did last time. Off the ground the
+  ankle is slack: the foot hangs from it on a spring, trailing the leg and swinging a little past, toes after it.
+- **Nothing moves all at once**: shoulders answer the hips late, the forearm the upper arm, the hand the forearm, and
+  the head nods to each footfall, which jolts him. His right arm swings the freer. `looseness` on the rig scales all
+  of this; the mummy is given very little.
+- **He runs like a boy who is growing**: long legs, long strides, thrown forward into it and banking into his turns.
+- **Getting onto a ledge** is drawn by hand as curves (the `CLIMB_` constants in the rig) and placed from the ledge
+  itself, not from wherever the body under him is.
+- **On stairs** his feet go on the treads. The Player looks along his way for a flight (two risers or more: a kerb
+  or a ramp is not one) and says so in `on_stairs`, `stair_rise`, `stair_run`; the rig then steps one tread at a walk
+  and two at a run, knee high going up, toes first coming down.
+- **In the air his arms are thrown, not posed**: each follows where it is wanted on a spring, forearm after upper arm.
+- **His cap** is an object of its own on a bone of its own (`cap`), and rides on his head on a spring: it lifts and
+  tips with every jolt, unless he has a hand on it.
+- **Dust** (`scripts/dust.gd`) puffs up where his feet come down, where he lands, and along the ground as he slides,
+  skids or rolls: pale discs that swell and thin out into rings. `dusty` on the rig turns it off.
+- **His curls** hang from bones of their own and swing on springs (`Dangle` in the rig; a figure with bones named
+  `hem_0`... gets a swinging hem the same way). This stands in for cloth: a real cloth simulation was not used,
+  because it is costly and unreliable on a skinned figure in a web build.
 
 ## Menu
 
 The Menu button (top right, or Esc) swaps every figure between its full and demade model, switches the world between
-smooth and banded light, changes level, and restarts.
+smooth and banded light, dresses the boy (a colour for each thing he wears, and his cap on or off), changes level,
+and restarts. Colours last until the game is closed.
 
 ## Layout
 
 | File | What it does |
 | --- | --- |
 | `scripts/player.gd` | The controller: movement, jumping, stairs, pushing crates, respawn |
-| `scripts/character_rig.gd` | Animates the model in code: gait, leg IK, lean, arms, landing |
+| `scripts/character_rig.gd` | Animates the model in code: gait, leg IK, a jointed back, hands, looking about, and the swing of hair and hem |
 | `scripts/touch_controls.gd` | Floating stick and jump area |
 | `scripts/follow_camera.gd` | The camera: a fixed side view (the tomb) or a third-person orbit (the yard) |
 | `scripts/tomb.gd` | The game (`main.tscn`): the approach, the passage and three chambers, their puzzles and the mummy |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
 | `scripts/mechanics_course.gd` | The test yard (`mechanics.tscn`) |
-| `scripts/rope.gd` | A climbable rope |
-| `scripts/toon.gd` | Cel shading: banded light for the figures, and optionally the world |
+| `scripts/rope.gd` | A rope to climb and swing on, simulated as a chain |
+| `scripts/ladder.gd`, `scripts/pool.gd` | A ladder; a box of water to swim in |
+| `scripts/dust.gd` | Puffs of dust, drawn all at once as one MultiMesh |
+| `scripts/toon.gd` | Cel shading: two flat tones for the figures, and optionally the world; a shader for hair; the pinstripe in his shirt |
 | `scripts/menu.gd`, `scripts/settings.gd` | The in-game menu and what it remembers |
-| `scripts/mummy.gd` | The mummy: dormant until disturbed, then walks after the player; animated by the boy's rig |
+| `scripts/mummy.gd` | The mummy: dormant until disturbed, then lurches after the player; within reach it rears back and swipes an arm at him, and catches him only if the arm finds him |
+| `scripts/mummy_rig.gd` | Its own way of moving, laid over the boy's rig: a step and a dragged leg, the swipe, and its loose bandages swinging as chains |
+| `tools/build_mummy.py` | Builds the mummy in Blender: its proportions, the face under its wrappings, and a chain of bones down each loose end |
+| `tools/mummy_sheets.gd` | Not part of the game: drives the mummy through each thing it does and saves pictures of it |
 | `scripts/level.gd` | The old grey-box test course with the hounds (`test_course.tscn`) |
-| `scripts/hound.gd` | A hound: chases the player, leaps obstacles and gaps, bays (voice synthesised in code) |
-| `scripts/hound_rig.gd` | Animates the hound in code: trot, gallop, spine flex, head and tail |
-| `tools/build_boy.py` | Builds the boy in Blender: one continuous body, modelled in a T-pose |
-| `tools/build_character.py` | Builds the hound and the mummy, and holds the tools `build_boy.py` uses |
+| `scripts/hound.gd` | A hound, of either breed: chases the player, leaps obstacles and gaps, bays and barks (recordings of dogs, in `audio/hounds/`), braces and barks under what it cannot reach, and plays, sits and sleeps when left alone |
+| `scripts/hound_rig.gd` | Animates a hound in code: walk, trot and rotary gallop on three-jointed legs, spine flex, a jaw that keeps time with its voice, a head that watches things, sitting, lying and the bow, a tail on springs, and ears that hang and swing or stand and turn |
+| `scripts/fur.gd` | The hound's coat: streaked along the lie of the hair, with a few shells stood off it |
+| `scripts/cat.gd` | A cat: wanders, watches the boy, follows him, rubs round his legs, stalks, sleeps in the sun, and goes up out of reach of anything in the group `pursuers` (recordings of cats, in `audio/cat/`) |
+| `scripts/cat_rig.gd` | Animates a cat in code, on the hound's rig: the walk that puts each hind paw in the fore paw's print, trot and bound, stalking and springing, jumping up and down, sitting, lying, curled asleep, stretching, washing, and a tail, ears, eyes and whiskers that say what it feels |
+| `tools/hound_sheets.gd` | Not part of the game: drives the hounds through each thing they do and saves pictures of it |
+| `tools/cat_sheets.gd` | Not part of the game: the same for the cat |
+| `tools/cat_test.gd` | Not part of the game: runs a cat with nothing drawn and checks that it wanders, watches, flees a hound up onto something and comes down |
+| `tools/build_boy.py` | Builds the boy in Blender: one continuous body, modelled in a T-pose, in shirt, patched overalls and curls, and his cap as a separate object |
+| `tools/pose_sheets.gd` | Not part of the game: drives the Player through each thing he does and saves pictures of it |
+| `tools/build_hound.py` | Builds the two hounds in Blender from two lists of measurements |
+| `tools/cut_hound_audio.py` | Not needed to run the game: cuts the hounds' voices out of the recordings they come from |
+| `tools/build_cat.py` | Builds the two cats in Blender, the way the hounds are built |
+| `tools/cut_cat_audio.py` | Not needed to run the game: cuts the cat's voice out of the recordings it comes from |
+| `tools/build_character.py` | Holds the tools `build_boy.py`, `build_hound.py` and `build_mummy.py` use |
 
 Tuning values are exported properties on the Player, Camera and TouchControls nodes.
 Set `move_mode` to `SIDE_SCROLL` on the Player to lock movement to a line.
 
 ## The models
 
-`models/boy.glb`, `models/hound.glb` and `models/mummy.glb` are generated by a Blender script (editable copies are saved to `tools/*.blend`):
+`models/boy.glb`, `models/hound.glb`, `models/hound_pharaoh.glb` and `models/mummy.glb` are generated by Blender scripts (editable copies are saved to `tools/*.blend`):
 
 ```
 blender --background --python tools/build_boy.py
-blender --background --python tools/build_character.py
-blender --background --python tools/build_character.py -- "" mummy   # just one figure
+blender --background --python tools/build_hound.py
+blender --background --python tools/build_mummy.py
 ```
 
 `scripts/character_rig.gd` reads each figure's proportions from its skeleton, so the boy and the mummy can differ freely.
-The hound's joint positions must still match the constants at the top of `scripts/hound_rig.gd`.
+It also uses whichever of the optional bones a figure has (chest, neck, fingers, hem, hair). The mummy has a back, a neck and fingers, and bones of its own (`drape_...`) that only `scripts/mummy_rig.gd` knows about.
+
+The boy's colours are the `MATERIALS` list at the top of `tools/build_boy.py`. A material named `hair` is given the
+hair shader (`Toon.HAIR_SHADER`): strands of differing tone, darker roots, and a broken band of light across the curls.
+
+To see what a change to the model or the rig has done, without playing through it:
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/pose_sheets.gd -- <folder> [hang climb sneak ...]
+```
+
+writes a sheet of pictures for each (see the list in the script's `run`); with no names, all of them. Add `lo` to
+the names for the demade model. Its window is kept off the screen and takes no input, so it can run while you work.
+`stairs` among the names prints how fast he gets up a flight and draws him going up and down two flights (one
+shallow, one steep) at a walk and a run; `jump` also draws every other frame of a jump; and `rope`, `kick`, `swim`,
+`ladder`, `bat`, `crawl`, `tired`, `throw`, `sprawl`, `scramble` and `hatless` draw what their names say, most of them
+as several sheets (`swim_in`, `swim_out`, `ladder_top`, `rope_climb` and so on). `dive`, `dive_edges`, `flip`, `spin`,
+`sit`, `sleep`, `gun` (add `revolver`, `rifle`, `shotgun` or `flare_pistol` for just that one), `wade` and
+`stairs_sprint` draw the newer moves as strips a few frames apart, and print the edge cases they test.
+The hounds' rig reads their joints from their skeletons too, so the two breeds can differ in any measurement.
 
 ## The hounds
 
 Two hounds wait behind the start and are let loose once the player passes `RELEASE_X` (`scripts/level.gd`).
+
+There are two breeds (`breed` on the Hound; left at `ANY`, the hounds of a scene take turns, so a pair is one of each):
+
+- the **bloodhound** (`models/hound.glb`): heavy in the head and the bone, hanging lips, a dewlap, a folded brow, and long
+  ears that hang and swing; it mostly bays, and its voice is the deeper;
+- the **pharaoh hound** (`models/hound_pharaoh.glb`), the jackal of the tomb paintings: lean and leggy, with tall pointed
+  ears that stand, come forward when it is after something, turn aside to listen, and lie back flat when it runs; it mostly barks.
+
+They are separate models built by one script from two lists of measurements (`tools/build_hound.py`), on the same bones.
+Their legs are three bones and a paw (upper arm, forearm, pastern; thigh, shank, hock), and at a gallop they are clear of
+the ground twice a stride. Their voices are recordings of dogs (`audio/hounds/`, credited in `CREDITS.md` there).
 They are a little faster than the player; being caught knocks him down as a ragdoll, and that, or falling, restarts the chase.
+
+Until they are let loose they play (bows, barks, jumps aside, a run round each other), then sit, then lie down and
+sleep; `play_time`, `settle_after` and `sleep_after` on the Hound set how long each lasts. Hunting, a hound that is
+getting nowhere (he is up on something) drops onto braced forepaws under him and barks. They watch the player first,
+otherwise each other or anything in the group `interest`.
+
+Their gaits follow measurements of dogs (the sources are in the comments at the top of `scripts/hound_rig.gd`). To see them:
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/hound_sheets.gd -- <folder> [walk trot gallop bay bow play sit sleep look fur ...]
+```
+
+Add `pharaoh` for the prick-eared hound, `lo` for the demade models, `pale` for a light coat that shows the shape; the
+names beginning `m_` (`m_wag m_ears m_breath m_bark m_gallop m_stop`) are strips of consecutive frames, for watching how a thing moves.
+
+## The cat
+
+`Cat.new()` is a whole cat (`scripts/cat.gd`). None is placed in a level yet; to put one in:
+
+```gdscript
+var cat := Cat.new()
+cat.coat = Cat.Coat.BRONZE   # SILVER, BLACK, RUDDY: the lean temple cat. TABBY, GINGER: the heavier house cat
+cat.tame = 0.6               # over a half, it comes and rubs round the boy's legs when he stands still or crouches; under a quarter, it will not be come up to
+cat.curiosity = 0.6          # over a half, it follows him about at a distance
+cat.position = Vector3(x, y, z)
+add_child(cat)
+```
+
+Left alone it wanders within `roam` of where it was put, sits and watches the boy, washes, now and then stalks something
+in the group `prey` or `interest` and springs on it, and after `nap_after` seconds finds a place the sun reaches and
+sleeps for `nap_length`, waking with a yawn and two stretches. Anything in the group `pursuers` that comes within
+`fear_distance` sends it up onto the nearest flat thing that is higher than the pursuer can jump and no higher than its
+own `jump_height` (it looks for one itself; a `Marker3D` in the group `perches` points one out), where it stays, bristling
+and then merely cross, until they have been gone a while. With nothing to get up on it runs. `cat.hear(place)` turns its
+ears to a sound. `voice = false` makes it silent.
+
+There are two models built by one script (`tools/build_cat.py`: `models/cat.glb` and `models/cat_tabby.glb`, and a demade
+`_lo` of each), on the hound's bones plus a back in six pieces, a tail of seven, shoulder blades, toes, eyelids, pupils and
+whiskers. Their markings are not a texture: the fur shader draws spots, bars, rings and a pale belly from the lie of the
+hair, where the model says each goes. `CatRig` (`scripts/cat_rig.gd`) extends `HoundRig` and uses its leg solver, paw
+path, springs and breathing unchanged; the gaits, the back, the postures and everything about its face and tail are its
+own. The sources it follows are in the comments at the top of that file. To see it:
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/cat_sheets.gd -- <folder> [walk trot bound stalk sit loaf side curl wake groom tails look rub fur flee m_walk m_bound m_pounce m_up m_down m_lash m_blink m_ears ...]
+godot --headless --path . --fixed-fps 60 --script tools/cat_test.gd
+```
+
+Add a coat's name (`silver`, `black`, `tabby`...) or `lo` to the first. Under each gait it prints how far ahead of the
+fore paw's print the hind paw of that side came down.
 
 ## Demade models
 
-The same script also builds low-poly, flat-shaded versions (`models/boy_lo.glb`, `models/hound_lo.glb`) on the same
-skeletons. Switch to them from the menu.
+The same scripts also build low-poly, flat-shaded versions (`models/boy_lo.glb`, `models/hound_lo.glb`,
+`models/hound_pharaoh_lo.glb`) on the same skeletons. Switch to them from the menu.
 
 ## Ragdoll
 
 `Player.ragdoll(impulse)` drops the body as jointed rigid bodies from whatever pose it is in; `Player.recover()` stands
 it back up where it lies, and `respawn()` also ends it.
+
+## Guns
+
+Four guns of the 1910s, each a scene in `guns/` to drag into a level or instance in code, and each a `Gun`
+(`scripts/gun.gd`): a RigidBody3D in the groups `throwable`, `interest` and `guns`, its origin at the grip, its
+barrel along -Z. Whoever holds one calls `gun.fire(self, aim)`; the gun does the rest (works its own action,
+reloads from its spare rounds when the trigger is pulled on nothing, and says so with the signals `fired`, `cycled`,
+`reload_started`, `reloaded`, `dry_fired`).
+
+| Scene | What it is | Holds / spare | Between shots | Reload | Damage | Kick |
+| --- | --- | --- | --- | --- | --- | --- |
+| `revolver` | A break-top service revolver | 6 / 18 | 0.45 s | 2.6 s | 35 | 0.5 |
+| `rifle` | A bolt-action magazine rifle (two hands) | 10 / 30 | 1.1 s | 3.2 s | 80 | 1.0 |
+| `shotgun` | A double-barrelled hammer gun (two hands) | 2 / 12 | 0.35 s | 2.4 s | 8 pellets of 12 | 1.4 |
+| `flare_pistol` | A brass signal pistol: fires a `Flare` that flies, bounces, and burns for nine seconds, lighting a room | 1 / 6 | 0.4 s | 1.8 s | 15 | 0.35 |
+
+- **What is hit** is told: a method `shot(by, at, direction, damage)` on the collider or a node above it is called
+  (or `struck(by, impulse)`, as for a punch); loose bodies are pushed. The top of `scripts/gun.gd` has the details,
+  and how a surface says what it is made of (the metadata `surface`).
+- **What it looks and sounds like** is `scripts/gun_fx.gd`, one node for the whole scene: flash and its light, smoke,
+  sparks, chips, bullet marks, tracers, spent cases, and a row of cartridges over the gun that shows what is left in
+  it (there is no other display; `show_rounds` on the gun turns it off). The sounds are recordings (`audio/guns/`,
+  credited in `CREDITS.md` there, cut by `tools/cut_gun_audio.py`); a kind with no recording is made up from noise.
+- **Things to shoot** (`guns/`): `target_board` falls over and stands up again, `target_gong` rings and swings
+  (`scripts/shoot_target.gd`); `target_pot`, `target_jar`, `target_jackal` and `bottle` smash into pieces cut from
+  their own models, and `tin_can` jumps (`scripts/breakable.gd`; set `comes_back` for a range). `ammo_box` fills the
+  gun of whoever walks up to it.
+
+They are modelled by `tools/build_guns.py` and made into scenes by `tools/build_gun_scenes.gd`, which also holds each
+gun's numbers:
+
+```
+blender --background --python tools/build_guns.py [-- name ...]
+godot --headless --path . --import
+godot --headless --path . --script tools/build_gun_scenes.gd
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/gun_sheets.gd -- <folder> [looks fire reload rounds targets flare] [revolver ...]
+godot --headless --path . --fixed-fps 60 --script tools/gun_test.gd      # every gun fires, runs dry, reloads, hits things
+godot --headless --path . --script tools/gun_audio_check.gd              # length, peak and level of every recording
+```
 
 ## Web build
 

@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/breakable.gd" id="1_l3fkh"]
+[ext_resource type="PackedScene" path="res://models/props/jar_canopic_jackal.glb" id="2_p6wue"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_weblq"]
+height = 0.42
+radius = 0.115
+
+[node name="TargetJackal" type="RigidBody3D" unique_id=1614661226 groups=["interest", "throwable"]]
+mass = 2.0
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_l3fkh")
+
+[node name="Model" parent="." unique_id=299376103 instance=ExtResource("2_p6wue")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=493881134]
+shape = SubResource("CylinderShape3D_weblq")

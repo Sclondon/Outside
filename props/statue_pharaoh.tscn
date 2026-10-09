@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_iqru4"]
+[ext_resource type="PackedScene" path="res://models/props/statue_pharaoh.glb" id="2_luce0"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yl1cu"]
+size = Vector3(2.5, 0.4, 3.9)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_i178d"]
+size = Vector3(2.1, 2.2, 2.9)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_fx5cj"]
+size = Vector3(2, 2.8, 1.7)
+
+[node name="StatuePharaoh" type="StaticBody3D" unique_id=595798898]
+script = ExtResource("1_iqru4")
+draw_distance = 230.0
+
+[node name="Model" parent="." unique_id=1469873681 instance=ExtResource("2_luce0")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1309928043]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0.34)
+shape = SubResource("BoxShape3D_yl1cu")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=331861766]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, -0.05)
+shape = SubResource("BoxShape3D_i178d")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=125233369]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.8, -0.5)
+shape = SubResource("BoxShape3D_fx5cj")

@@ -1,0 +1,56 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gun.gd" id="1_ps401"]
+[ext_resource type="PackedScene" path="res://models/guns/shotgun.glb" id="2_2u46a"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_xlcjn"]
+size = Vector3(0.05, 0.07, 0.83)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5gl01"]
+size = Vector3(0.04, 0.13, 0.36)
+
+[node name="Shotgun" type="RigidBody3D" unique_id=4741316 groups=["guns", "interest", "throwable"]]
+mass = 3.1
+gravity_scale = 2.0
+angular_damp = 6.0
+script = ExtResource("1_ps401")
+kind = &"shotgun"
+two_handed = true
+kick = 1.4
+rounds = 2
+capacity = 2
+reserve = 12
+ammo = &"shell"
+cycle_time = 0.35
+reload_time = 2.4
+damage = 12.0
+range = 40.0
+spread = 4.0
+pellets = 8
+force = 2.2
+flash = 1.2
+smoke = 1.25
+eject = 2
+shell_size = Vector2(0.0102, 0.065)
+shell_colour = Color(0.62, 0.16, 0.13, 1)
+break_angle = 32.0
+barrel_gap = 0.0256
+
+[node name="Model" parent="." unique_id=382792155 instance=ExtResource("2_2u46a")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=839819547]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.028, -0.385)
+shape = SubResource("BoxShape3D_xlcjn")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1495648396]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.045, 0.18)
+shape = SubResource("BoxShape3D_5gl01")
+
+[node name="Muzzle" type="Marker3D" parent="." unique_id=1938653138]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.041, -0.8)
+
+[node name="Support" type="Marker3D" parent="." unique_id=569842322]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.004, -0.26)
+
+[node name="Eject" type="Marker3D" parent="." unique_id=866983116]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, -0.085)

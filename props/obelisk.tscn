@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_f2rj5"]
+[ext_resource type="PackedScene" path="res://models/props/obelisk.glb" id="2_v36kd"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_sfsi6"]
+size = Vector3(3.2, 0.4, 3.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_2gewk"]
+size = Vector3(2.3, 0.8, 2.3)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_8woeq"]
+points = PackedVector3Array(-0.8, 1.1999998, -0.8, 0.8, 1.1999998, -0.8, 0.8, 1.1999998, 0.8, -0.8, 1.1999998, 0.8, -0.52, 13.2, -0.52, 0.52, 13.2, -0.52, 0.52, 13.2, 0.52, -0.52, 13.2, 0.52)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_0lyp8"]
+points = PackedVector3Array(-0.52, 13.2, -0.52, 0.52, 13.2, -0.52, 0.52, 13.2, 0.52, -0.52, 13.2, 0.52, -0.0104, 14.400001, -0.0104, 0.0104, 14.400001, -0.0104, 0.0104, 14.400001, 0.0104, -0.0104, 14.400001, 0.0104)
+
+[node name="Obelisk" type="StaticBody3D" unique_id=1744882089]
+script = ExtResource("1_f2rj5")
+
+[node name="Model" parent="." unique_id=1160684890 instance=ExtResource("2_v36kd")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1899276156]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+shape = SubResource("BoxShape3D_sfsi6")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=558085297]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("BoxShape3D_2gewk")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=1873351332]
+shape = SubResource("ConvexPolygonShape3D_8woeq")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=1222745800]
+shape = SubResource("ConvexPolygonShape3D_0lyp8")

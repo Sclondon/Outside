@@ -305,6 +305,7 @@ func _kerb(x: float) -> void:
 
 func _block(at: Vector3) -> RigidBody3D:
 	var block := RigidBody3D.new()
+	block.add_to_group(&"interest")
 	block.mass = 20.0
 	# Blocks slide rather than tumble, so they stay usable as steps.
 	block.lock_rotation = true

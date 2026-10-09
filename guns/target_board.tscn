@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/shoot_target.gd" id="1_we5jo"]
+[ext_resource type="PackedScene" path="res://models/guns/target_board.glb" id="2_uq2ab"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_womkd"]
+size = Vector3(0.5, 0.1, 0.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_agkai"]
+size = Vector3(0.07, 0.8, 0.05)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_sjt2j"]
+size = Vector3(0.46, 0.46, 0.04)
+
+[node name="TargetBoard" type="StaticBody3D" unique_id=1119242231]
+script = ExtResource("1_we5jo")
+
+[node name="Model" parent="." unique_id=205872242 instance=ExtResource("2_uq2ab")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=631152008]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+shape = SubResource("BoxShape3D_womkd")
+
+[node name="Hinge" type="AnimatableBody3D" parent="." unique_id=1382284628]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0)
+sync_to_physics = false
+
+[node name="Solid1" type="CollisionShape3D" parent="Hinge" unique_id=1514854519]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.38, 0)
+shape = SubResource("BoxShape3D_agkai")
+
+[node name="Solid2" type="CollisionShape3D" parent="Hinge" unique_id=1165843678]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.98, 0)
+shape = SubResource("BoxShape3D_sjt2j")
+
+[node name="Middle" type="Marker3D" parent="Hinge" unique_id=620701174]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.98, 0.02)

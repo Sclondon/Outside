@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gun.gd" id="1_q5hsn"]
+[ext_resource type="PackedScene" path="res://models/guns/flare_pistol.glb" id="2_3v5ds"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_xc4it"]
+size = Vector3(0.05, 0.09, 0.19)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5quca"]
+size = Vector3(0.032, 0.11, 0.07)
+
+[node name="FlarePistol" type="RigidBody3D" unique_id=78811192 groups=["guns", "interest", "throwable"]]
+gravity_scale = 2.0
+angular_damp = 6.0
+script = ExtResource("1_q5hsn")
+kind = &"flare"
+kick = 0.35
+rounds = 1
+capacity = 1
+reserve = 6
+ammo = &"flare"
+cycle_time = 0.4
+reload_time = 1.8
+damage = 15.0
+range = 80.0
+spread = 1.0
+force = 3.0
+fires_flare = true
+flash = 0.8
+smoke = 1.2
+tracer = false
+eject = 2
+shell_size = Vector2(0.013, 0.07)
+break_angle = 55.0
+
+[node name="Model" parent="." unique_id=204802590 instance=ExtResource("2_3v5ds")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=604656670]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, -0.07)
+shape = SubResource("BoxShape3D_xc4it")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1783835052]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.012, 0.018)
+shape = SubResource("BoxShape3D_5quca")
+
+[node name="Muzzle" type="Marker3D" parent="." unique_id=453513274]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.068, -0.158)
+
+[node name="Eject" type="Marker3D" parent="." unique_id=1883179635]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, -0.004)

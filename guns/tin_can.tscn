@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/breakable.gd" id="1_hy5nc"]
+[ext_resource type="PackedScene" path="res://models/guns/tin_can.glb" id="2_31s2i"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_n3r0h"]
+height = 0.11
+radius = 0.04
+
+[node name="TinCan" type="RigidBody3D" unique_id=1139565476 groups=["interest", "throwable"]]
+mass = 0.3
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_hy5nc")
+made_of = &"metal"
+unbreakable = true
+
+[node name="Model" parent="." unique_id=44372158 instance=ExtResource("2_31s2i")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=218921270]
+shape = SubResource("CylinderShape3D_n3r0h")

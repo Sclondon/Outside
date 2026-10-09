@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_jias5"]
+[ext_resource type="PackedScene" path="res://models/props/pot.glb" id="2_chk3a"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_h5x5q"]
+height = 0.32
+radius = 0.15
+
+[node name="Pot" type="RigidBody3D" unique_id=296129817 groups=["interest", "throwable"]]
+mass = 2.0
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_jias5")
+draw_distance = 70.0
+casts_shadow = false
+
+[node name="Model" parent="." unique_id=1452220913 instance=ExtResource("2_chk3a")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1969906676]
+shape = SubResource("CylinderShape3D_h5x5q")

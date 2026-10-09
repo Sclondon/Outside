@@ -5,9 +5,14 @@ class_name TombParts
 ## A wall torch: a bracket, a flame, and a warm light that gutters.
 class Torch extends Node3D:
 	const FLAME := Color(1.0, 0.58, 0.24)
+	## The flame as it used to be drawn, a plain glowing tongue, for every torch
+	## made after this is set, in place of a `Fire`.
+	static var plain := false
 	var energy := 2.4
 	var reach := 9.0
 	var casts_shadows := false
+	## The fire on it (none on a plain torch).
+	var fire: Fire
 	var _light: OmniLight3D
 	var _flame: MeshInstance3D
 	var _time := 0.0
@@ -24,6 +29,19 @@ class Torch extends Node3D:
 		bracket.material_override = wood
 		add_child(bracket)
 
+		if not plain:
+			# The flame stands on the head of the stick; its light is out from the
+			# wall, where the old one was, so that the wall behind is not burnt out.
+			fire = Fire.torch()
+			fire.light_energy = energy * 0.86
+			fire.light_range = reach
+			fire.light_shadows = casts_shadows
+			fire.position = Vector3(0.0, 0.2, 0.09)
+			fire.light_offset = Vector3(0.0, 0.4, 0.5) - fire.position - Vector3(0.0, fire.size * 0.55, 0.0)
+			add_child(fire)
+			set_process(false)
+			return
+
 		_flame = MeshInstance3D.new()
 		var tongue := SphereMesh.new()
 		tongue.radius = 0.07
@@ -31,11 +49,11 @@ class Torch extends Node3D:
 		tongue.radial_segments = 8
 		tongue.rings = 4
 		_flame.mesh = tongue
-		var fire := StandardMaterial3D.new()
-		fire.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		fire.albedo_color = Color(1.0, 0.78, 0.42)
-		fire.disable_fog = true
-		_flame.material_override = fire
+		var glow := StandardMaterial3D.new()
+		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		glow.albedo_color = Color(1.0, 0.78, 0.42)
+		glow.disable_fog = true
+		_flame.material_override = glow
 		_flame.position = Vector3(0.0, 0.34, 0.12)
 		_flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(_flame)
@@ -68,6 +86,7 @@ class Plate extends Area3D:
 	var _slab: MeshInstance3D
 
 	func _ready() -> void:
+		add_to_group(&"interest")
 		# Player, blocks and pursuers
 		collision_mask = 1 | 2 | 4
 		var shape := BoxShape3D.new()

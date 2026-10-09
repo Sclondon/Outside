@@ -1,0 +1,449 @@
+class_name Sand
+## Sand, and the one shader all of it is drawn with: the ground (`SandGround`),
+## the piles under a `SandFall`, the lumps of a `SandBlob`, and any mesh a
+## level gives `Sand.surface()` to.
+##
+## - Grain: every grain is a little lighter or darker than the next. There is
+##   no texture; a grain is a cell of space, and its tone a number made from
+##   where the cell is. Further off, where a grain would be smaller than a
+##   pixel, bigger cells take over for a while and then the grain fades out
+##   altogether, as real grain does: far sand is smooth.
+## - Glitter: each grain is also a tiny mirror tipped its own way, and shows
+##   only when it happens to throw the light straight at the eye.
+## - Ripples: the small waves the wind leaves, lying across the wind, lit as
+##   ridges, and bending to the lie of the land. They fade out before they
+##   would be too fine to draw.
+## - Kinds: fine pale drift sand; coarse, darker, pebbly sand; smooth slip
+##   faces in the lee of a crest; and, where a `SandGround` has been painted,
+##   damp dark sand and hard-packed paths. Which is where comes from broad
+##   patches, from the slope and which way it faces the wind, and from paint.
+## - Light: the same hard cut between light and shadow as `Toon.surface` when
+##   the menu's world shading is banded, and smooth when it is not.
+##
+## It is worked out from where a point is in the world, not from texture
+## coordinates, so any mesh can wear it, and two that touch match.
+##
+## What looked stretched before this was the far grain: a pixel of distant
+## ground covers a long thin strip of it, and grains (and glints) sized to the
+## length of that strip came out as wide flat dashes on the screen. Grains are
+## now sized by the strip's area, and fade as it gets longer and thinner.
+
+const COLOUR := Color(0.83, 0.68, 0.45)
+## Wet sand is darker, and shows fewer glints.
+const WET := Color(0.66, 0.52, 0.33)
+
+## What may be painted on a `SandGround` (see `SandGround.paint`).
+enum Kind { COARSE, DAMP, PACKED, PALE }
+
+const SHADER := """
+shader_type spatial;
+render_mode world_vertex_coords;
+//DEFINES
+
+uniform vec3 albedo : source_color = vec3(0.83, 0.68, 0.45);
+uniform vec3 glint : source_color = vec3(1.0, 0.95, 0.82);
+// 1: light cut into two flat tones, as the rest of the world is when banded.
+uniform float banded = 0.0;
+uniform float wrap = 0.15;
+// How big a grain is, in metres, and how far its tone differs from the next.
+uniform float grain_size = 0.006;
+uniform float grain = 0.13;
+// Patches of lighter and darker sand a metre or two across, and wind ripples:
+// how strong their tone and their relief, and how far apart they are, metres.
+uniform float patch = 0.05;
+uniform float ripple = 0.035;
+uniform float ripple_relief = 0.5;
+uniform float ripple_gap = 0.3;
+// How bright a glint is, how nearly a grain must face the light to show one
+// (nearer 1: fewer), and how far the grains are tipped from the surface.
+uniform float sparkle = 2.2;
+uniform float sparkle_aim = 0.97;
+uniform float scatter = 1.3;
+// Leans every normal towards straight up, so that lumps heaped together are
+// lit as one soft mass (0: not at all).
+uniform float soft = 0.0;
+// How much the kinds of sand differ from place to place (0: all one kind),
+// and what each does to the colour.
+uniform float variety = 1.0;
+uniform vec3 coarse_tint = vec3(0.8, 0.755, 0.71);
+uniform vec3 pale_tint = vec3(1.09, 1.09, 1.08);
+uniform vec3 damp_tint = vec3(0.6, 0.57, 0.53);
+uniform vec3 packed_tint = vec3(0.87, 0.845, 0.8);
+// The wind: which way it blows over the ground (x, z), how hard (0..1), and
+// how far it has carried the sand it is moving, metres.
+uniform vec4 wind = vec4(1.0, 0.0, 0.0, 0.0);
+// Sand in the air between here and the eye: its colour, and how thick.
+uniform vec4 haze = vec4(0.86, 0.78, 0.62, 0.0);
+// 0: plain (no ripples in relief, no kinds of grain); 1; 2: everything.
+uniform float detail = 2.0;
+// For the web, where one sun that casts shadows comes out too bright (see
+// `Sand.sky`): the light of the sky, which is then added here and not taken
+// from the scene, and how much to turn the sun back up.
+uniform vec3 sky = vec3(0.0);
+uniform float sun_gain = 1.0;
+
+#ifdef GROUND
+// The ground's own shape: how high each corner of its grid stands; which way
+// it faces, how sharply it bends and how deep in a hollow it lies; what has
+// been painted on it; and what has been pressed into it round the player.
+uniform sampler2D height_map : filter_nearest, repeat_disable;
+uniform sampler2D form_map : filter_linear, repeat_disable;
+uniform sampler2D kind_map : filter_linear, repeat_disable, hint_default_black;
+uniform sampler2D dent_map : filter_linear, repeat_enable;
+// One corner of the grid (x, z), the side of a square, and how high zero is.
+uniform vec4 field = vec4(-60.0, -60.0, 1.0, 0.0);
+uniform vec2 field_cells = vec2(120.0, 120.0);
+// Where the fine part of the mesh is gathered.
+uniform vec3 focus = vec3(0.0);
+// The dents: the side of a square of them, how many squares, how many metres
+// the whole range of a square is, and which value is "not pressed"; and where
+// the middle of the patch that has them is.
+uniform vec4 dent = vec4(0.015, 1024.0, 0.1275, 0.6667);
+uniform vec2 dent_at = vec2(0.0);
+// The desert beyond the edge: how high it lies, and how far it rolls up and down.
+uniform vec2 apron = vec2(0.0, 6.0);
+
+float ground(vec2 xz) {
+	vec2 square = (xz - field.xy) / field.z;
+	vec2 whole = clamp(floor(square), vec2(0.0), field_cells - 1.0);
+	vec2 part = clamp(square - whole, 0.0, 1.0);
+	ivec2 corner = ivec2(whole);
+	float a = texelFetch(height_map, corner, 0).r;
+	float d = texelFetch(height_map, corner + ivec2(1, 1), 0).r;
+	// (each square is two triangles, split the way the collider splits it)
+	if (part.x > part.y) {
+		float b = texelFetch(height_map, corner + ivec2(1, 0), 0).r;
+		return a + part.x * (b - a) + part.y * (d - b) + field.w;
+	}
+	float c = texelFetch(height_map, corner + ivec2(0, 1), 0).r;
+	return a + part.y * (c - a) + part.x * (d - c) + field.w;
+}
+
+// How much of the dents shows at a place: all of it near the middle of their
+// patch, none at its edge.
+float dented(vec2 xz) {
+	vec2 off = abs(xz - dent_at) / (dent.x * dent.y * 0.5);
+	return 1.0 - smoothstep(0.78, 0.92, max(off.x, off.y));
+}
+#endif
+
+const mat3 TIPPED = mat3(vec3(0.36, -0.8, 0.48), vec3(0.48, 0.6, 0.64), vec3(-0.8, 0.0, 0.6));
+
+varying vec3 at;
+varying vec3 faces;
+varying vec3 facet;
+varying float spot;
+
+// (no sines: they give different numbers on different phones)
+vec3 hash3(vec3 p) {
+	p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+	p += dot(p, p.yxz + 33.33);
+	return fract((p.xxy + p.yxx) * p.zyx);
+}
+
+float hash2(vec2 p) {
+	vec3 q = fract(vec3(p.xyx) * 0.1031);
+	q += dot(q, q.yzx + 33.33);
+	return fract((q.x + q.y) * q.z);
+}
+
+float patches(vec2 p) {
+	vec2 whole = floor(p);
+	vec2 part = fract(p);
+	part = part * part * (3.0 - 2.0 * part);
+	return mix(mix(hash2(whole), hash2(whole + vec2(1.0, 0.0)), part.x),
+			mix(hash2(whole + vec2(0.0, 1.0)), hash2(whole + vec2(1.0, 1.0)), part.x), part.y);
+}
+
+void vertex() {
+#ifdef GROUND
+	// The mesh is rings of squares, each ring twice as coarse as the one
+	// inside it, and all of it follows `focus`: each ring a whole square of
+	// its own at a time, so that no corner ever slides over the ground. (The
+	// innermost corners of a ring sit on the ring inside it instead.)
+	float square = UV.x;
+	float step_by = UV.y > 0.5 ? square * 0.5 : square;
+	vec2 xz = VERTEX.xz + floor(focus.xz / step_by + 0.5) * step_by;
+	// Past the edge of the ground it runs on as open desert: from the height
+	// of the edge to a rolling plain.
+	vec2 within = clamp(xz, field.xy, field.xy + field_cells * field.z);
+	float past = length(xz - within);
+	float y = ground(within);
+	if (past > 0.0) {
+		y = mix(y, field.w + apron.x + (patches(xz / 70.0) - 0.5) * apron.y, smoothstep(0.0, 60.0, past));
+	}
+	if (square < 0.2) {
+		// (only where the mesh is fine enough to take the shape of a dent)
+		y += (textureLod(dent_map, xz / (dent.x * dent.y), 0.0).r - dent.w) * dent.z * dented(xz) * clamp((0.2 - square) * 10.0, 0.0, 1.0);
+	}
+	VERTEX = vec3(xz.x, y, xz.y);
+	vec2 lean = textureLod(form_map, ((xz - field.xy) / field.z + 0.5) / (field_cells + 1.0), 0.0).xy;
+	NORMAL = normalize(vec3(lean.x, sqrt(max(1.0 - dot(lean, lean), 0.01)), lean.y));
+#endif
+	at = VERTEX;
+	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), soft));
+	faces = NORMAL;
+}
+
+void fragment() {
+	// How much sand one pixel covers here: a strip `reach` long, of the same
+	// area as a square `size` on a side. Seen square on they are the same;
+	// far off across level ground the strip is many times longer than wide.
+	vec3 across = dFdx(at);
+	vec3 down = dFdy(at);
+	float reach = max(max(length(across), length(down)), 0.00001);
+	float size = sqrt(max(length(cross(across, down)), 1.0e-10));
+	float thin = reach / size;
+
+	vec3 up = normalize(faces);
+	float crest = 0.0;
+	float hollow = 0.0;
+	vec4 painted = vec4(0.0);
+	float pressed = 0.0;
+#ifdef GROUND
+	vec2 where = ((at.xz - field.xy) / field.z + 0.5) / (field_cells + 1.0);
+	vec4 form = texture(form_map, where);
+	up = normalize(vec3(form.x, sqrt(max(1.0 - dot(form.xy, form.xy), 0.01)), form.y));
+	float past = length(at.xz - clamp(at.xz, field.xy, field.xy + field_cells * field.z));
+	up = normalize(mix(up, vec3(0.0, 1.0, 0.0), smoothstep(0.0, 60.0, past)));
+	form.zw *= 1.0 - smoothstep(0.0, 30.0, past);
+	crest = max(form.z, 0.0);
+	hollow = max(form.w, 0.0) + max(-form.z, 0.0) * 0.5;
+	painted = texture(kind_map, where);
+	float shows = dented(at.xz);
+	if (shows > 0.0) {
+		// What has been pressed in: darker in the hollow, and lit as the
+		// slope of its sides, which is what raises a rim round it.
+		vec2 spot_at = at.xz / (dent.x * dent.y);
+		float one = 1.0 / dent.y;
+		float here = textureLod(dent_map, spot_at, 0.0).r;
+		float east = textureLod(dent_map, spot_at + vec2(one, 0.0), 0.0).r;
+		float south = textureLod(dent_map, spot_at + vec2(0.0, one), 0.0).r;
+		pressed = (here - dent.w) * dent.z * shows;
+		// (too far off to tell one dent from the next, they are left unlit)
+		float sharp = shows * clamp(2.0 - reach / (dent.x * 2.0), 0.0, 1.0);
+		vec2 slope = vec2(east - here, south - here) * dent.z / dent.x * sharp;
+		up = normalize(up + vec3(-slope.x, 0.0, -slope.y) * up.y);
+	}
+#endif
+	vec2 blows = wind.xy;
+	float steep = 1.0 - up.y;
+	float lee = dot(up.xz, blows) / max(length(up.xz), 0.001);
+	// A slip face: steep, and turned away from the wind.
+	float slip = smoothstep(0.075, 0.125, steep) * smoothstep(-0.1, 0.5, lee) * step(soft, 0.0);
+
+	// Which kind of sand lies here.
+	float region = patches(at.xz / 41.0 + 3.7);
+	float lesser = patches(at.xz / 15.0 - 9.1);
+	float coarse = variety * smoothstep(0.56, 0.74, region * 0.7 + lesser * 0.3 + hollow * 0.45 - crest * 0.5);
+	coarse = clamp(coarse + painted.r, 0.0, 1.0) * (1.0 - slip);
+	float pale = variety * smoothstep(0.5, 0.72, (1.0 - region) * 0.6 + lesser * 0.4 + crest * 0.5 - hollow * 0.3);
+	pale = clamp(pale + painted.a, 0.0, 1.0) * (1.0 - coarse);
+	float damp = painted.g;
+	float packed = painted.b * (1.0 - damp * 0.5);
+
+	// Grain. Never drawn much smaller than a pixel: each doubling of the
+	// distance doubles the grains, and thins them out, until they are gone.
+	float level = log2(max(size * 1.5 / grain_size, 1.0));
+	float whole = floor(level);
+	// (the grid of grains is tipped over, so that no wall or floor lies along it)
+	vec3 cell = TIPPED * at / (grain_size * exp2(whole));
+	vec3 near = hash3(floor(cell) + whole * 17.0);
+	vec3 far = hash3(floor(cell * 0.5) + (whole + 1.0) * 17.0);
+	// (one size fades into the next, so the grain does not jump as he walks)
+	float keep = (1.0 - smoothstep(3.0, 7.0, thin)) / (1.0 + 0.5 * level);
+	float fine = (mix(near.x, far.x, level - whole) - 0.5) * keep;
+	if (coarse > 0.02 && detail > 0.5) {
+		// Coarse sand: bigger grains among the small, and a dark pebble here and there.
+		float big = grain_size * 3.5;
+		float big_level = log2(max(size * 1.5 / big, 1.0));
+		float big_whole = floor(big_level);
+		vec3 big_cell = TIPPED * at / (big * exp2(big_whole));
+		float a = hash3(floor(big_cell) + big_whole * 29.0 + 5.0).x;
+		float b = hash3(floor(big_cell * 0.5) + (big_whole + 1.0) * 29.0 + 5.0).x;
+		float pebble = mix(a, b, big_level - big_whole);
+		float big_keep = (1.0 - smoothstep(3.0, 7.0, thin)) / (1.0 + 0.5 * big_level);
+		fine = mix(fine, fine * 0.6 + ((pebble - 0.5) * 1.5 - smoothstep(0.86, 0.9, pebble) * 0.55) * big_keep, coarse);
+	}
+	fine *= (1.0 - 0.45 * slip) * (1.0 - 0.4 * packed);
+	// Patches a metre or two across (gone before they are too small to draw).
+	float broad = (patches(at.xz * 0.7) - 0.5) * clamp(1.5 - reach * 1.4, 0.0, 1.0);
+
+	// Ripples: waves lying across the wind, steeper on the side away from it,
+	// their lines bent by the rise of the ground and a little by chance.
+	float rippled = (1.0 - slip) * (1.0 - packed) * (1.0 - 0.75 * coarse) * (1.0 - 0.6 * damp) * (1.0 - smoothstep(0.1, 0.2, steep)) * step(soft, 0.0);
+	rippled *= clamp(ripple_gap * 0.22 / reach - 0.5, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.25, 0.6, lesser + pale * 0.4));
+	float wave = 0.0;
+	if (rippled > 0.0) {
+		float along = dot(at.xz, blows) + at.y * 0.55;
+		float bent = patches(at.xz * 0.23 + 4.0) * 2.4 + patches(at.xz * 0.9) * 0.5;
+		float turn = (along / ripple_gap + bent) * TAU;
+		wave = sin(turn + 0.5 * sin(turn)) * rippled;
+		float tilt = cos(turn + 0.5 * sin(turn)) * (1.0 + 0.5 * cos(turn)) * rippled * ripple_relief;
+		if (detail > 0.5) {
+			up = normalize(up - vec3(blows.x, 0.0, blows.y) * tilt);
+		} else {
+			wave += tilt * 0.6;
+		}
+	}
+
+	// Sand on the move: pale wisps streaming over the surface where the wind
+	// reaches it, most of all at a crest.
+	float wisps = 0.0;
+	if (wind.z > 0.01 && detail > 0.5) {
+		vec2 lie = vec2(dot(at.xz, blows) - wind.w, dot(at.xz, vec2(-blows.y, blows.x)));
+		float snake = patches(lie * vec2(0.05, 0.11)) * 3.0;
+		float streak = patches(vec2(lie.x * 0.11, lie.y * 0.8 + snake));
+		float gusting = patches(vec2(lie.x * 0.035 + 7.0, lie.y * 0.05));
+		wisps = smoothstep(0.52, 0.9, streak) * smoothstep(0.25, 0.75, gusting) * wind.z;
+		wisps *= (1.0 - slip) * (0.45 + crest * 2.5) * clamp(1.6 - reach * 1.5, 0.0, 1.0) * step(soft, 0.0);
+	}
+
+	vec3 colour = albedo;
+	colour *= mix(vec3(1.0), coarse_tint, coarse);
+	colour *= mix(vec3(1.0), pale_tint, pale);
+	colour *= mix(vec3(1.0), vec3(1.04, 1.03, 1.0), slip);
+	colour *= mix(vec3(1.0), damp_tint, damp);
+	colour *= mix(vec3(1.0), packed_tint, packed);
+	float tone = 1.0 + fine * grain * 2.0 + broad * patch * 2.0 + wave * ripple;
+	// (far off these are all there is to see: crests catch the light, hollows keep less of it)
+	tone += crest * 0.16 - hollow * 0.09;
+	tone *= 1.0 + clamp(pressed * 13.0, -0.45, 0.2);
+	colour = colour * tone + glint * wisps * 0.22;
+	float distance_off = length(VERTEX);
+	float veil = 1.0 - exp(-haze.a * distance_off);
+	ALBEDO = colour * (1.0 - veil);
+	EMISSION = haze.rgb * veil;
+	ROUGHNESS = 1.0;
+	SPECULAR = 0.0;
+	AO = sky.r + sky.g + sky.b > 0.0 ? 0.0 : 1.0;
+	NORMAL = normalize(mat3(VIEW_MATRIX) * up);
+	// Which way this grain's mirror faces, and a round spot in the middle of it.
+	facet = normalize(NORMAL + mat3(VIEW_MATRIX) * (near * 2.0 - 1.0) * scatter);
+	spot = (1.0 - smoothstep(0.28, 0.5, length(fract(cell) - 0.5))) * (1.0 - 0.85 * damp) * (1.0 - veil)
+			* (1.0 - smoothstep(4.0, 9.0, thin)) / (1.0 + 0.6 * level * level);
+}
+
+float cut(float value, float edge) {
+	float pixel = max(fwidth(value), 0.0005);
+	return smoothstep(edge - pixel, edge + pixel, value);
+}
+
+void light() {
+	float reach = clamp(ATTENUATION, 0.0, 1.0);
+	float facing = (dot(NORMAL, LIGHT) + wrap) / (1.0 + wrap);
+	float hard = cut(facing * smoothstep(0.15, 0.6, reach), 0.04) * reach;
+	float smooth_lit = clamp(dot(NORMAL, LIGHT), 0.0, 1.0) * reach;
+	float lit = mix(smooth_lit, hard, banded);
+	// (only the sun is turned back up, and the sky is added once, with it: a
+	// torch or a fire is a light too, and comes here as well)
+	vec3 sun = LIGHT_COLOR / PI * (LIGHT_IS_DIRECTIONAL ? sun_gain : 1.0);
+	DIFFUSE_LIGHT += lit * sun + (LIGHT_IS_DIRECTIONAL ? sky : vec3(0.0));
+	// A glint, where this grain throws the light at the eye; none in shadow.
+	float aim = dot(facet, normalize(LIGHT + VIEW));
+	float spark = smoothstep(sparkle_aim, sparkle_aim + 0.006, aim) * spot * smoothstep(0.0, 0.25, lit);
+	SPECULAR_LIGHT += spark * sparkle * glint * sun;
+}
+"""
+
+## How much is spent on sand: 0 for a slow phone, 1 for a phone, 2 for a
+## desktop. It is chosen when first asked for (a phone or a browser gets 1),
+## and a `SandGround` turns it down by itself if frames are coming slowly. Set
+## it at any time; everything made of sand follows within a second.
+static var quality := -1: get = _get_quality
+
+## For the web. Its renderer draws a light that casts shadows as a second coat
+## over the first (the light of the sky), and adds the two together only after
+## each has been made ready for the screen, which comes out much too bright:
+## pale sand goes white. A level lit by one such sun can turn the sun down to
+## make up for it, and say so here before it makes any sand: `sun_gain` is how
+## much the sand should turn it back up, and `sky` the light of the sky (its colour
+## through `srgb_to_linear`, times its energy), which the sand then adds to the sun's coat itself, so that
+## the sum is done properly. Left alone, sand is lit like anything else.
+static var sun_gain := 1.0
+static var sky := Color.BLACK
+
+## The wind, as `SandWind` last gave it: the way it blows over the ground,
+## how hard (0 calm, about 0.35 a breeze, 1 a storm, gusts and all), and how
+## far it has carried loose sand since it began, metres. Sand reads these;
+## only a `SandWind` should write them.
+static var wind_way := Vector2(1.0, 0.0)
+static var wind_force := 0.0
+static var wind_travel := 0.0
+## Sand in the air: its colour, and how thick (see `haze` in the shader).
+static var haze := Color(0.86, 0.78, 0.62, 0.0)
+
+static var _shader: Shader
+static var _ground_shader: Shader
+static var _made: Array[WeakRef] = []
+
+
+## A sand material. `soft` leans its light towards what falls on level ground
+## (see the shader): for lumps drawn heaped together.
+static func surface(colour := COLOUR, soft := 0.0) -> ShaderMaterial:
+	if _shader == null:
+		_shader = Shader.new()
+		_shader.code = SHADER
+	var material := _dress(_shader, colour)
+	material.set_shader_parameter(&"soft", soft)
+	if soft > 0.0:
+		material.set_shader_parameter(&"variety", 0.0)
+	return material
+
+
+## The material a `SandGround` wears: the same sand, on a mesh that takes its
+## shape from the ground's own maps and shows what has been pressed into it.
+static func ground_surface(colour := COLOUR) -> ShaderMaterial:
+	if _ground_shader == null:
+		_ground_shader = Shader.new()
+		_ground_shader.code = SHADER.replace("//DEFINES", "#define GROUND")
+	return _dress(_ground_shader, colour)
+
+
+## Tells every sand material which way the wind blows and how hard. `SandWind`
+## calls this each frame.
+static func blow(way: Vector2, force: float, travel: float, air: Color) -> void:
+	wind_way = way
+	wind_force = force
+	wind_travel = travel
+	haze = air
+	var value := Vector4(way.x, way.y, force, travel)
+	var live := false
+	for made in _made:
+		var material := made.get_ref() as ShaderMaterial
+		if material:
+			material.set_shader_parameter(&"wind", value)
+			material.set_shader_parameter(&"haze", air)
+			live = true
+	if not live:
+		_made.clear()
+
+
+## Gives every sand material the quality as it is now (a `SandGround` calls this when it changes).
+static func refresh() -> void:
+	for made in _made:
+		var material := made.get_ref() as ShaderMaterial
+		if material:
+			material.set_shader_parameter(&"detail", float(quality))
+
+
+static func _dress(shader: Shader, colour: Color) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter(&"albedo", colour)
+	material.set_shader_parameter(&"banded", 1.0 if Settings.world_banded else 0.0)
+	material.set_shader_parameter(&"sun_gain", sun_gain)
+	material.set_shader_parameter(&"sky", Vector3(sky.r, sky.g, sky.b))
+	material.set_shader_parameter(&"detail", float(quality))
+	material.set_shader_parameter(&"wind", Vector4(wind_way.x, wind_way.y, wind_force, wind_travel))
+	material.set_shader_parameter(&"haze", haze)
+	_made.append(weakref(material))
+	if _made.size() > 64:
+		_made = _made.filter(func(made: WeakRef) -> bool: return made.get_ref() != null)
+	return material
+
+
+static func _get_quality() -> int:
+	if quality < 0:
+		quality = 1 if OS.has_feature("web") or OS.has_feature("mobile") else 2
+	return quality

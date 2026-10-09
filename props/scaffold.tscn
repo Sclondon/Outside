@@ -1,0 +1,58 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_fsnvg"]
+[ext_resource type="PackedScene" path="res://models/props/scaffold.glb" id="2_0khrj"]
+[ext_resource type="Script" path="res://scripts/ladder.gd" id="3_gfp1n"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5vs6m"]
+size = Vector3(0.14, 4.5, 0.14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tpwxj"]
+size = Vector3(0.14, 3.5, 0.14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_3kpwq"]
+size = Vector3(0.14, 4.5, 0.14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_jm0vu"]
+size = Vector3(0.14, 3.5, 0.14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_m5qef"]
+size = Vector3(2.9, 0.12, 2.3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_xppi6"]
+size = Vector3(2.8, 1, 0.06)
+
+[node name="Scaffold" type="StaticBody3D" unique_id=777729628]
+script = ExtResource("1_fsnvg")
+draw_distance = 170.0
+
+[node name="Model" parent="." unique_id=60452546 instance=ExtResource("2_0khrj")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1976582375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, 2.25, -1)
+shape = SubResource("BoxShape3D_5vs6m")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=466065282]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, 1.75, 1)
+shape = SubResource("BoxShape3D_tpwxj")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=182013321]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, 2.25, -1)
+shape = SubResource("BoxShape3D_3kpwq")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=329503361]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, 1.75, 1)
+shape = SubResource("BoxShape3D_jm0vu")
+
+[node name="Solid5" type="CollisionShape3D" parent="." unique_id=1817276582]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.44, 0)
+shape = SubResource("BoxShape3D_m5qef")
+
+[node name="Solid6" type="CollisionShape3D" parent="." unique_id=1784940847]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -1.06)
+shape = SubResource("BoxShape3D_xppi6")
+
+[node name="Ladder" type="Node3D" parent="." unique_id=415667115]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0, 1.21)
+script = ExtResource("3_gfp1n")
+height = 3.5

@@ -1,5 +1,5 @@
-"""Builds the hound and the mummy and exports them for Godot, and holds the tools
-build_boy.py uses to build the boy.
+"""Builds the mummy and exports it for Godot, and holds the tools build_boy.py
+and build_hound.py use to build the boy and the hounds.
 
 Run from the project root:
     blender --background --python tools/build_character.py
@@ -18,8 +18,7 @@ All coordinates below are in Godot space (metres, Y up, the figure faces +Z and
 
 Every bone points straight up with no roll, which makes each bone's rest
 orientation the identity in Godot. scripts/character_rig.gd and
-scripts/hound_rig.gd rely on that and on the joint positions here matching
-their constants.
+scripts/hound_rig.gd rely on that.
 """
 
 import math
@@ -84,11 +83,16 @@ class Builder:
 
     def __init__(self):
         self.bm = bmesh.new()
+        self.uv = self.bm.loops.layers.uv.verify()
         self.place = None  # optional function applied to every point
         self.settle = None  # optional last step, bringing a figure to its final proportions
 
     def tube(self, rings, segments=16, floor=None):
-        """Skins a closed surface over rings of (centre, u, v) and caps both ends."""
+        """Skins a closed surface over rings of (centre, u, v) and caps both ends.
+
+        Its texture coordinates run (along it from first ring to last, round it),
+        which is what tells the hair shader which way a lock lies.
+        """
         if LOW:
             segments = 8 if segments >= 20 else 6 if segments >= 16 else 5 if segments >= 12 else 4
             if len(rings) > 7:
@@ -101,14 +105,22 @@ class Builder:
                 loop.append(self._vert(centre + u * math.cos(angle) + v * math.sin(angle), floor))
             loops.append(loop)
         faces = []
-        for a, b in zip(loops, loops[1:]):
+        last = max(len(loops) - 1, 1)
+
+        def face(verts, coords):
+            made = self.bm.faces.new(verts)
+            for loop, (along, around) in zip(made.loops, coords):
+                loop[self.uv].uv = (along / last, around / segments)
+            faces.append(made)
+
+        for r, (a, b) in enumerate(zip(loops, loops[1:])):
             for i in range(segments):
                 j = (i + 1) % segments
-                faces.append(self.bm.faces.new((a[i], a[j], b[j], b[i])))
-        for loop, (centre, _, _) in ((loops[0], rings[0]), (loops[-1], rings[-1])):
+                face((a[i], a[j], b[j], b[i]), ((r, i), (r, i + 1), (r + 1, i + 1), (r + 1, i)))
+        for r, loop, (centre, _, _) in ((0, loops[0], rings[0]), (last, loops[-1], rings[-1])):
             pole = self._vert(centre, floor)
             for i in range(segments):
-                faces.append(self.bm.faces.new((loop[i], loop[(i + 1) % segments], pole)))
+                face((loop[i], loop[(i + 1) % segments], pole), ((r, i), (r, i + 1), (r, i + 0.5)))
         bmesh.ops.recalc_face_normals(self.bm, faces=faces)
 
     def ellipsoid(self, centre, radii, tilt=None, segments=12, rings=7):
@@ -448,130 +460,7 @@ BOY_PARTS = [
 BOY_PARTS_LOW = [(part, material, shapes, None) for part, material, shapes, _fuse in BOY_PARTS]
 
 
-# --- The hound. Joints: keep in step with hound_rig.gd. ---
-
-HOUND_BODY = Vector((0.0, 0.54, 0.0))
-HOUND_CHEST = Vector((0.0, 0.56, 0.20))
-HOUND_PELVIS = Vector((0.0, 0.55, -0.22))
-HOUND_HEAD = Vector((0.0, 0.74, 0.44))
-HOUND_TAIL = Vector((0.0, 0.60, -0.36))
-HOUND_LEG = 0.24  # each of the two leg segments
-HOUND_HIPS = {
-    "_fl": Vector((0.075, 0.50, 0.24)), "_fr": Vector((-0.075, 0.50, 0.24)),
-    "_rl": Vector((0.065, 0.50, -0.26)), "_rr": Vector((-0.065, 0.50, -0.26)),
-}
-HOUND_NECK = (Vector((0.0, 0.60, 0.29)), HOUND_HEAD + Vector((0.0, -0.01, -0.01)))
-HOUND_TAIL_TIP = HOUND_TAIL + Vector((0.0, -0.125, -0.35))
-HOUND_MATERIALS = [("coat", (0.085, 0.075, 0.07))]
-
-
-def hound_coat(b):
-    # (along the body, centre height, half width, half height): deep ribs, tucked loin, strong hips
-    profile = [
-        (-0.34, 0.590, 0.050, 0.060), (-0.29, 0.572, 0.078, 0.092), (-0.20, 0.560, 0.090, 0.108),
-        (-0.10, 0.566, 0.080, 0.094), (-0.02, 0.560, 0.080, 0.100), (0.06, 0.540, 0.092, 0.126),
-        (0.16, 0.516, 0.104, 0.154), (0.25, 0.522, 0.102, 0.146), (0.31, 0.548, 0.086, 0.116),
-        (0.35, 0.575, 0.064, 0.085),
-    ]
-    rings = [lengthwise(*ring) for ring in profile]
-    b.tube(dome(rings[0], -Z, 0.04)[::-1] + rings + dome(rings[-1], Z, 0.04), 18)
-    # Withers, the point of the chest, and the muscle over each shoulder and haunch
-    b.ellipsoid(Vector((0.0, 0.646, 0.19)), Vector((0.050, 0.030, 0.110)))
-    b.ellipsoid(Vector((0.0, 0.525, 0.335)), Vector((0.060, 0.075, 0.055)))
-    for side in (() if LOW else (1.0, -1.0)):
-        b.ellipsoid(Vector((side * 0.088, 0.535, 0.225)), Vector((0.034, 0.105, 0.072)), Matrix.Rotation(0.25, 3, "X"))
-        b.ellipsoid(Vector((side * 0.078, 0.540, -0.235)), Vector((0.044, 0.110, 0.105)), Matrix.Rotation(-0.3, 3, "X"))
-
-    # Neck, rising forward out of the chest, with a throat under it
-    base, top = HOUND_NECK
-    along = (top - base).normalized()
-    across = along.cross(X).normalized()
-    b.tube([(base.lerp(top, t) - across * sag, X * r, across * (r * 1.2))
-            for t, r, sag in ((-0.3, 0.080, 0.0), (0.0, 0.076, 0.006), (0.35, 0.066, 0.008), (0.7, 0.057, 0.006),
-                              (1.0, 0.052, 0.0), (1.15, 0.044, 0.0))], 14)
-
-    skull = HOUND_HEAD + Vector((0.0, 0.024, 0.035))
-    b.ellipsoid(skull, Vector((0.060, 0.061, 0.078)), None, 16, 9)
-    if not LOW:
-        b.ellipsoid(skull + Vector((0.0, 0.030, 0.045)), Vector((0.046, 0.022, 0.030)))  # brow
-    # A long square muzzle over a lighter lower jaw, with the hanging lips of a hound
-    muzzle = [(skull + Vector((0.0, y, z)), X * rx, Y * ry) for z, y, rx, ry in
-              ((0.03, 0.000, 0.048, 0.044), (0.09, -0.004, 0.039, 0.034), (0.15, -0.007, 0.034, 0.029), (0.205, -0.009, 0.031, 0.026))]
-    b.tube(muzzle + dome(muzzle[-1], Z, 0.018, 3), 14)
-    jaw = [(skull + Vector((0.0, y, z)), X * rx, Y * ry) for z, y, rx, ry in
-           ((0.00, -0.034, 0.040, 0.022), (0.08, -0.040, 0.030, 0.015), (0.16, -0.040, 0.023, 0.012))]
-    b.tube(jaw + dome(jaw[-1], Z, 0.018, 3), 12)
-    b.ellipsoid(skull + Vector((0.0, 0.002, 0.226)), Vector((0.020, 0.016, 0.016)), None, 8, 5)  # nose
-    for side in (1.0, -1.0):
-        b.ellipsoid(skull + Vector((side * 0.026, -0.030, 0.125)), Vector((0.015, 0.026, 0.060)), None, 8, 5)
-        # Ears: long, low-set, hanging past the jaw
-        flop = Matrix.Rotation(-side * 0.22, 3, "Z") @ Matrix.Rotation(0.3, 3, "X")
-        b.ellipsoid(skull + Vector((side * 0.066, -0.048, -0.006)), Vector((0.014, 0.088, 0.046)), flop, 10, 7)
-
-    # Tail: carried low with an upward curve at the tip
-    tail = [Vector((0.0, 0.03, 0.05)), Vector((0.0, 0.0, 0.0)), Vector((0.0, -0.05, -0.10)), Vector((0.0, -0.11, -0.19)),
-            Vector((0.0, -0.14, -0.28)), Vector((0.0, -0.125, -0.35))]
-    b.strand([HOUND_TAIL + offset for offset in tail], [0.030, 0.029, 0.024, 0.019, 0.015, 0.012], 10)
-
-    for suffix, hip in HOUND_HIPS.items():
-        # (distance below the hip, half width, half depth, forward offset)
-        if suffix[1] == "r":
-            # Hind leg: broad thigh, the hock standing out behind, a thin shank
-            profile = [(0.00, 0.044, 0.105, 0.0), (0.07, 0.044, 0.092, 0.004), (0.14, 0.038, 0.066, 0.004),
-                       (0.19, 0.031, 0.046, -0.004), (0.24, 0.027, 0.036, -0.012), (0.27, 0.025, 0.030, -0.006)]
-        else:
-            # Foreleg: the elbow tucked back under the chest, a straight forearm
-            profile = [(0.00, 0.036, 0.058, 0.0), (0.07, 0.036, 0.050, -0.004), (0.14, 0.032, 0.040, -0.010),
-                       (0.19, 0.028, 0.034, -0.004), (0.24, 0.027, 0.031, 0.0), (0.27, 0.026, 0.029, 0.002)]
-        profile += [(0.34, 0.023, 0.025, 0.001), (0.41, 0.022, 0.024, 0.001), (0.455, 0.024, 0.027, 0.004)]
-        rings = [upright(hip.x, hip.y - d, hip.z + z, rx, rz) for d, rx, rz, z in profile]
-        b.tube(dome(rings[0], Y, 0.04)[::-1] + rings, 12)
-        wrist = hip - Y * (2 * HOUND_LEG)
-        b.ellipsoid(wrist + Vector((0.0, 0.012, 0.022)), Vector((0.030, 0.028, 0.050)), None, 10, 6)
-        for toe in (() if LOW else (-0.018, -0.006, 0.006, 0.018)):
-            b.ellipsoid(wrist + Vector((toe, 0.006, 0.060 - abs(toe) * 0.5)), Vector((0.009, 0.015, 0.020)), None, 8, 5)
-
-
-def hound_weights(_part, p):
-    if p.z < HOUND_TAIL.z:
-        out = blend(HOUND_TAIL.z, HOUND_TAIL.z - 0.07, p.z)
-        return {"pelvis": 1.0 - out, "tail": out}
-    front = blend(-0.12, 0.08, p.z)
-    trunk = {"chest": front, "pelvis": 1.0 - front}
-    base, top = HOUND_NECK
-    reach = (p - base).dot((top - base).normalized()) / (top - base).length
-    if reach > 0.0 and p.z > base.z - 0.04:
-        upper = blend(0.15, 0.85, reach)
-        return {"chest": 1.0 - upper, "head": upper}
-    suffix = ("_f" if p.z > 0.0 else "_r") + ("l" if p.x >= 0.0 else "r")
-    hip = HOUND_HIPS[suffix]
-    # Only what hangs under a hip belongs to that leg, not the belly beside it
-    leg = blend(0.53, 0.42, p.y) * blend(0.085, 0.05, math.hypot(p.x - hip.x, (p.z - hip.z) / 1.8))
-    knee_y = HOUND_HIPS[suffix].y - HOUND_LEG
-    low = blend(knee_y + 0.04, knee_y - 0.04, p.y)
-    paw = blend(0.075, 0.04, p.y)
-    weights = {bone: weight * (1.0 - leg) for bone, weight in trunk.items()}
-    weights["upper" + suffix] = leg * (1.0 - low)
-    weights["lower" + suffix] = leg * low * (1.0 - paw)
-    weights["paw" + suffix] = leg * low * paw
-    return weights
-
-
-def hound_bones():
-    bones = [
-        ("body", HOUND_BODY, None), ("chest", HOUND_CHEST, "body"), ("pelvis", HOUND_PELVIS, "body"),
-        ("head", HOUND_HEAD, "chest"), ("tail", HOUND_TAIL, "pelvis"),
-    ]
-    for suffix, hip in HOUND_HIPS.items():
-        # Siblings under the body, placed directly by the rig's IK.
-        bones.append(("upper" + suffix, hip, "body"))
-        bones.append(("lower" + suffix, hip - Y * HOUND_LEG, "body"))
-        bones.append(("paw" + suffix, hip - Y * (2 * HOUND_LEG), "body"))
-    return bones
-
-
-HOUND_PARTS = [("coat", 0, hound_coat, (0.004, 5, 9000))]
-HOUND_PARTS_LOW = [("coat", 0, hound_coat, None)]
+# (The hounds are built by tools/build_hound.py.)
 
 
 # --- The mummy. Laid out like the boy (same bone names, so the same rig animates it) but with its own proportions. ---
@@ -730,7 +619,9 @@ def linear(c):
     return ((c + 0.055) / 1.055) ** 2.4 if c > 0.04045 else c / 12.92
 
 
-def export(name, bones, parts, weigh, materials, settle=False):
+def export(name, bones, parts, weigh, materials, settle=False, apart=()):
+    """Builds a figure and writes it out. Parts named in `apart` are each made an
+    object of their own (on the same skeleton) instead of part of the body."""
     if ONLY and name not in ONLY:
         return
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -739,13 +630,20 @@ def export(name, bones, parts, weigh, materials, settle=False):
         bones = [(bone, settled("trousers" if bone.split("_")[0] in legs else "shirt", at), parent) for bone, at, parent in bones]
     armature = make_armature(bones)
 
-    whole = bmesh.new()
-    part_of = []
+    # (object name -> its mesh so far, and which part each of its points came from)
+    wholes = {}
     for part, material, shapes, fuse in parts:
         builder = Builder()
         if settle:
             builder.settle = lambda p, part=part: settled(part, p)
         ready = shapes(builder)  # most parts fill the builder; one may hand back a finished mesh
+        # (not named for the part alone: a bone may have that name)
+        label = "%s_%s" % (name, part) if part in apart else name
+        if label not in wholes:
+            made = bmesh.new()
+            made.loops.layers.uv.verify()
+            wholes[label] = (made, [])
+        whole, part_of = wholes[label]
         first = len(whole.faces)
         mesh = ready if ready is not None else fused(builder, fuse)
         whole.from_mesh(mesh)
@@ -758,9 +656,7 @@ def export(name, bones, parts, weigh, materials, settle=False):
             face.smooth = not LOW
         part_of += [part] * (len(whole.verts) - len(part_of))
 
-    mesh = bpy.data.meshes.new(name)
-    body = bpy.data.objects.new(name, mesh)
-    bpy.context.collection.objects.link(body)
+    made_materials = []
     for label, srgb in materials:
         material = bpy.data.materials.new(label)
         material.use_nodes = True
@@ -769,19 +665,27 @@ def export(name, bones, parts, weigh, materials, settle=False):
         shader.inputs["Base Color"].default_value = color
         shader.inputs["Roughness"].default_value = 1.0
         material.diffuse_color = color
-        mesh.materials.append(material)
+        made_materials.append(material)
 
-    groups = {bone.name: body.vertex_groups.new(name=bone.name).index for bone in armature.data.bones}
-    layer = whole.verts.layers.deform.verify()
-    for vert, part in zip(whole.verts, part_of):
-        for bone, weight in weigh(part, unsettled(part, from_blender(vert.co)) if settle else from_blender(vert.co)).items():
-            if weight > 0.001:
-                vert[layer][groups[bone]] = weight
-    whole.to_mesh(mesh)
-    whole.free()
-
-    body.parent = armature
-    body.modifiers.new("Armature", "ARMATURE").object = armature
+    vertices = triangles = 0
+    for label, (whole, part_of) in wholes.items():
+        mesh = bpy.data.meshes.new(label)
+        body = bpy.data.objects.new(label, mesh)
+        bpy.context.collection.objects.link(body)
+        for material in made_materials:
+            mesh.materials.append(material)
+        groups = {bone.name: body.vertex_groups.new(name=bone.name).index for bone in armature.data.bones}
+        layer = whole.verts.layers.deform.verify()
+        for vert, part in zip(whole.verts, part_of):
+            for bone, weight in weigh(part, unsettled(part, from_blender(vert.co)) if settle else from_blender(vert.co)).items():
+                if weight > 0.001:
+                    vert[layer][groups[bone]] = weight
+        whole.to_mesh(mesh)
+        whole.free()
+        body.parent = armature
+        body.modifiers.new("Armature", "ARMATURE").object = armature
+        vertices += len(mesh.vertices)
+        triangles += triangle_count(mesh)
 
     os.makedirs(os.path.join(ROOT, "models"), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT, "tools", name + ".blend"))
@@ -792,7 +696,7 @@ def export(name, bones, parts, weigh, materials, settle=False):
         export_animations=False,
         export_skins=True,
     )
-    print("BUILT %s verts=%d tris=%d" % (name, len(mesh.vertices), triangle_count(mesh)))
+    print("BUILT %s verts=%d tris=%d" % (name, vertices, triangles))
     if PREVIEW_DIR:
         render_previews(PREVIEW_DIR, name)
 
@@ -812,6 +716,11 @@ def render_previews(folder, name):
     scene.camera = camera
     # (view, direction to the camera, what it looks at, how much it frames)
     views = [("side", (1, 0, 0), (0.0, 0.0, 0.67), 1.5), ("quarter", (0.7, -0.7, 0.25), (0.0, 0.0, 0.67), 1.5)]
+    if name == "boy":
+        views.append(("front", (0, -1, 0.05), (0.0, 0.0, 0.67), 1.5))
+        views.append(("back", (0.25, 1, 0.15), (0.0, 0.0, 0.67), 1.5))
+        views.append(("head", (0.6, -0.8, 0.15), (0.0, 0.0, 1.12), 0.5))
+        views.append(("headback", (-0.5, 0.85, 0.2), (0.0, 0.0, 1.12), 0.5))
     if name in ("boy", "mummy"):
         views.append(("hand", (-0.6, -0.7, 0.1), (0.22, 0.0, 0.57), 0.22))
         views.append(("chest", (0.5, -0.8, 0.2), (0.0, 0.0, 0.95), 0.6))
@@ -826,13 +735,9 @@ def render_previews(folder, name):
 
 
 if __name__ == "__main__":
-    export("hound", hound_bones(), HOUND_PARTS, hound_weights, HOUND_MATERIALS)
     # The mummy keeps the long legs it is modelled with: its skeleton is its own.
     # (It is laid out with the measurements above headed "the boy", which were
     # the first boy's; the boy himself is now built by build_boy.py.)
-    export("mummy", boy_bones(), MUMMY_PARTS, boy_weights, MUMMY_MATERIALS)
-
-    # The demade versions: the same shapes lofted coarsely, left unfused and flat shaded.
-    LOW = True
-    export("hound_lo", hound_bones(), HOUND_PARTS_LOW, hound_weights, HOUND_MATERIALS)
-    export("mummy_lo", boy_bones(), [(part, material, shapes, None) for part, material, shapes, _fuse in MUMMY_PARTS], boy_weights, MUMMY_MATERIALS)
+    # (That was the first mummy. The mummy is now built by build_mummy.py, which
+    # writes models/mummy.glb and mummy_lo.glb; nothing is built from here.)
+    pass

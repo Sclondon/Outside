@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/breakable.gd" id="1_qgehx"]
+[ext_resource type="PackedScene" path="res://models/guns/bottle.glb" id="2_x4mei"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_hm4ch"]
+height = 0.24
+radius = 0.038
+
+[node name="Bottle" type="RigidBody3D" unique_id=662398846 groups=["interest", "throwable"]]
+mass = 0.8
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_qgehx")
+pieces = 5
+break_speed = 6.0
+made_of = &"glass"
+
+[node name="Model" parent="." unique_id=1326336410 instance=ExtResource("2_x4mei")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=707295357]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.03, 0)
+shape = SubResource("CylinderShape3D_hm4ch")

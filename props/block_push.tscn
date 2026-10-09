@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_85eag"]
+[ext_resource type="PackedScene" path="res://models/props/block_push.glb" id="2_fd6mo"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_3ed7w"]
+friction = 0.6
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hxpuc"]
+size = Vector3(0.9, 0.9, 0.9)
+
+[node name="BlockPush" type="RigidBody3D" unique_id=1891735875 groups=["interest"]]
+mass = 20.0
+physics_material_override = SubResource("PhysicsMaterial_3ed7w")
+lock_rotation = true
+script = ExtResource("1_85eag")
+
+[node name="Model" parent="." unique_id=216790628 instance=ExtResource("2_fd6mo")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=939117290]
+shape = SubResource("BoxShape3D_hxpuc")

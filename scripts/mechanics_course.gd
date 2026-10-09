@@ -39,6 +39,8 @@ func _ready() -> void:
 	_build_hounds(Vector3(-14.0, 0.0, 0.0))
 	_build_mummy(Vector3(0.0, 0.0, -18.0))
 	_build_stairs(Vector3(-28.0, 0.0, 18.0))
+	_build_pool(Vector3(24.0, 0.0, -26.0))
+	_build_bat(Vector3(-16.0, 0.0, 12.0))
 	_settle_in.call_deferred()
 
 
@@ -103,7 +105,7 @@ func _build_push(at: Vector3) -> void:
 
 ## 2 and 3. Duck under the first bar; the second is lower and needs a slide.
 func _build_low(at: Vector3) -> void:
-	_station_here(at + Vector3(-4.0, 0.0, 0.0), "DUCK, then SLIDE\nhold duck (C)  ·  run, then duck", 3.4)
+	_station_here(at + Vector3(-4.0, 0.0, 0.0), "DUCK, then SLIDE or CRAWL\nhold duck (C)  ·  run, then duck\nor duck and keep on under the low one", 3.4)
 	for step: Array in [[0.0, 3.0, 0.95], [7.0, 1.6, 0.7]]:
 		var middle: Vector3 = at + Vector3(step[0], 0.0, 0.0)
 		_solid(middle + Vector3(0.0, step[2] + 0.6, 0.0), Vector3(step[1], 1.2, 6.0), PROP)
@@ -174,11 +176,72 @@ func _build_stairs(at: Vector3) -> void:
 	ramp.rotation.z = -atan2(1.6, 5.0)
 
 
+## A ladder up to a deck, and a tank of water to dive into off it.
+func _build_pool(at: Vector3) -> void:
+	_station_here(at + Vector3(-9.5, 0.0, 0.0), "LADDER\nwalk into it  ·  up and down  ·  jump off", 3.0)
+	_solid(at + Vector3(-5.0, 1.6, 0.0), Vector3(3.0, 3.2, 7.0), PROP)
+	var ladder := Ladder.new()
+	ladder.height = 3.2
+	ladder.position = at + Vector3(-6.56, 0.0, 0.0)
+	ladder.rotation.y = -PI * 0.5
+	add_child(ladder)
+	# The board, out over the water
+	_solid(at + Vector3(-3.0, 3.26, 0.0), Vector3(3.0, 0.12, 0.8), MARK.darkened(0.2))
+	_sign(at + Vector3(-5.0, 5.6, 0.0), "SWIM\na gentle push is breast stroke, a full one a crawl\nduck dives  ·  jump comes up, and out at the side")
+	# The tank: four walls, the yard for a floor
+	for edge: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+		var along := Vector3(absf(edge.z), 0.0, absf(edge.x))
+		_solid(at + edge * 3.25 + Vector3.UP * 1.6, along * 7.0 + (Vector3.ONE - along) * Vector3(0.5, 3.2, 0.5), DARK)
+	var pool := Pool.new()
+	pool.size = Vector3(6.0, 2.9, 6.0)
+	pool.position = at + Vector3(0.0, 2.9, 0.0)
+	add_child(pool)
+
+
+## A bat, and something to hit with it.
+func _build_bat(at: Vector3) -> void:
+	_station_here(at, "BAT\nact (E) picks it up, act again swings\nduck and act puts it down", 3.0)
+	var bat := RigidBody3D.new()
+	bat.add_to_group(&"interest")
+	bat.add_to_group(&"throwable")
+	bat.add_to_group(&"bats")
+	bat.mass = 1.0
+	# (it lies where it is put down, and does not roll off)
+	bat.angular_damp = 8.0
+	var shape := CapsuleShape3D.new()
+	shape.radius = 0.035
+	shape.height = 0.75
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	collider.position.y = 0.375
+	bat.add_child(collider)
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.036
+	mesh.bottom_radius = 0.017
+	mesh.height = 0.75
+	mesh.radial_segments = 8
+	var visual := MeshInstance3D.new()
+	visual.mesh = mesh
+	visual.position.y = 0.375
+	visual.material_override = Toon.surface(Color(0.72, 0.58, 0.38))
+	bat.add_child(visual)
+	bat.position = at + Vector3(1.2, 0.1, 0.0)
+	bat.rotation.z = PI * 0.5
+	add_child(bat)
+	for z: float in [-0.8, 0.0, 0.8]:
+		_rock(at + Vector3(2.4, 0.15, z))
+
+
 func _settle_in() -> void:
 	_player = get_parent().get_node_or_null("Player") as Player
 	if _player == null:
 		return
 	_player.respawned.connect(_restore_rocks)
+	# His older brother tags along.
+	var brother := Brother.new()
+	brother.position = _player.position + Vector3(-2.0, 0.0, 1.0)
+	add_child(brother)
+	brother.follow(_player)
 	_player.respawned.connect(_call_off)
 	_mummy.target = _player
 	for hound in _hounds:
@@ -281,6 +344,7 @@ func _plate(at: Vector3, span: Vector3, latches: bool, player_only := false) -> 
 
 func _block(at: Vector3) -> void:
 	var block := RigidBody3D.new()
+	block.add_to_group(&"interest")
 	block.mass = 20.0
 	block.lock_rotation = true
 	var surface := PhysicsMaterial.new()
@@ -292,6 +356,7 @@ func _block(at: Vector3) -> void:
 ## Something to pick up and throw: any RigidBody3D in the group "throwable".
 func _rock(at: Vector3) -> void:
 	var rock := RigidBody3D.new()
+	rock.add_to_group(&"interest")
 	rock.add_to_group(&"throwable")
 	rock.mass = 2.0
 	# Falls briskly, to match how the player jumps.

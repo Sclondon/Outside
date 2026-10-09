@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_8kwkb"]
+[ext_resource type="PackedScene" path="res://models/props/palm_c.glb" id="2_lqy24"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_xh3lj"]
+size = Vector3(0.4, 0.9838496, 0.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_fve75"]
+size = Vector3(0.4, 1.0686355, 0.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wf1uo"]
+size = Vector3(0.4, 1.3477019, 0.4)
+
+[node name="PalmC" type="StaticBody3D" unique_id=81667829]
+script = ExtResource("1_8kwkb")
+draw_distance = 210.0
+
+[node name="Model" parent="." unique_id=1664332951 instance=ExtResource("2_lqy24")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=133142410]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.10347316, 0.48, 0.029720517)
+shape = SubResource("BoxShape3D_xh3lj")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1034520102]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.28754604, 1.488, 0.04477532)
+shape = SubResource("BoxShape3D_fve75")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=1466461311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.39020002, 2.688, -0.014665714)
+shape = SubResource("BoxShape3D_wf1uo")

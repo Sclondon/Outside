@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_hhvmb"]
+[ext_resource type="PackedScene" path="res://models/props/tent.glb" id="2_v2w5x"]
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_t10k3"]
+points = PackedVector3Array(-1.5, 0, -1.7, 1.5, 0, -1.7, -1.5, 0.55, -1.7, 1.5, 0.55, -1.7, 0, 2.1, -1.7, -1.5, 0, -1.2, 1.5, 0, -1.2, 0, 2.1, -1.2)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_4gp0y"]
+points = PackedVector3Array(1.5, 0, -1.7, 1.5, 0, 1.7, 1.5, 0.55, -1.7, 1.5, 0.55, 1.7, 1, 0.85, -1.7, 1, 0.85, 1.7, 1.2, 0, -1.7, 1.2, 0, 1.7)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_45jbg"]
+points = PackedVector3Array(-1.5, 0, -1.7, -1.5, 0, 1.7, -1.5, 0.55, -1.7, -1.5, 0.55, 1.7, -1, 0.85, -1.7, -1, 0.85, 1.7, -1.2, 0, -1.7, -1.2, 0, 1.7)
+
+[node name="Tent" type="StaticBody3D" unique_id=273803150]
+script = ExtResource("1_hhvmb")
+draw_distance = 170.0
+
+[node name="Model" parent="." unique_id=2119632200 instance=ExtResource("2_v2w5x")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=739201016]
+shape = SubResource("ConvexPolygonShape3D_t10k3")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=172228046]
+shape = SubResource("ConvexPolygonShape3D_4gp0y")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=2085742140]
+shape = SubResource("ConvexPolygonShape3D_45jbg")

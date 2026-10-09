@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_dllch"]
+[ext_resource type="PackedScene" path="res://models/props/wall_ruin.glb" id="2_ygudo"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_p7eh0"]
+size = Vector3(1.6, 3.3, 0.95)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_43mke"]
+size = Vector3(1.3, 2.4, 0.95)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ct11f"]
+size = Vector3(1.5, 1.4, 0.95)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bjcjg"]
+size = Vector3(1.6, 0.7, 0.95)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_l1re5"]
+size = Vector3(0.9, 0.4, 0.7)
+
+[node name="WallRuin" type="StaticBody3D" unique_id=556672079]
+script = ExtResource("1_dllch")
+draw_distance = 200.0
+
+[node name="Model" parent="." unique_id=565610645 instance=ExtResource("2_ygudo")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=136454571]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 1.65, 0)
+shape = SubResource("BoxShape3D_p7eh0")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=449418358]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 1.2, 0)
+shape = SubResource("BoxShape3D_43mke")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=1110737712]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.65, 0.7, 0)
+shape = SubResource("BoxShape3D_ct11f")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=525999874]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, 0.35, 0)
+shape = SubResource("BoxShape3D_bjcjg")
+
+[node name="Solid5" type="CollisionShape3D" parent="." unique_id=672909189]
+transform = Transform3D(0.87758255, 0, 0.47942555, 0, 1, 0, -0.47942555, 0, 0.87758255, 3.4, 0.2, 0.5)
+shape = SubResource("BoxShape3D_l1re5")

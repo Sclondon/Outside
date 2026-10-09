@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_wtnf0"]
+[ext_resource type="PackedScene" path="res://models/props/torch_stand.glb" id="2_i57do"]
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_jmply"]
+points = PackedVector3Array(-0.25, 0, -0.25, 0.25, 0, -0.25, 0.25, 0, 0.25, -0.25, 0, 0.25, -0.2, 0.4, -0.2, 0.2, 0.4, -0.2, 0.2, 0.4, 0.2, -0.2, 0.4, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_n45p7"]
+size = Vector3(0.16, 2, 0.16)
+
+[node name="TorchStand" type="StaticBody3D" unique_id=1970504756]
+script = ExtResource("1_wtnf0")
+draw_distance = 120.0
+
+[node name="Model" parent="." unique_id=580131869 instance=ExtResource("2_i57do")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=142343486]
+shape = SubResource("ConvexPolygonShape3D_jmply")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1961229475]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("BoxShape3D_n45p7")
+
+[node name="Flame" type="Marker3D" parent="." unique_id=536326960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.02, 0)

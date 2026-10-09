@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_h4owi"]
+[ext_resource type="PackedScene" path="res://models/props/crate.glb" id="2_xegln"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_oqpc6"]
+size = Vector3(0.9, 0.9, 0.9)
+
+[node name="Crate" type="StaticBody3D" unique_id=1327653348]
+script = ExtResource("1_h4owi")
+draw_distance = 120.0
+
+[node name="Model" parent="." unique_id=1889715951 instance=ExtResource("2_xegln")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=163317385]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("BoxShape3D_oqpc6")

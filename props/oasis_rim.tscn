@@ -1,0 +1,47 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_7hdlv"]
+[ext_resource type="PackedScene" path="res://models/props/oasis_rim.glb" id="2_5kdmp"]
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_bkg1m"]
+points = PackedVector3Array(5.693708, -0.018248677, -4.831329e-05, 6.388318, -0.018248677, 0.086648375, 6.20363, -0.018248677, 1.5663626, 5.50902, -0.018248677, 1.479666, 5.723821, 0.29824868, 0.041279368, 6.3489704, 0.29824868, 0.11930639, 6.1735168, 0.29824868, 1.525035, 5.5483675, 0.29824868, 1.4470079)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_1l02j"]
+points = PackedVector3Array(5.4861603, -0.06753883, 1.5445305, 6.1289644, -0.06753883, 1.8216634, 5.6003942, -0.06753883, 3.0476708, 4.95759, -0.06753883, 2.7705379, 5.505086, 0.34753883, 1.5890373, 6.08361, 0.34753883, 1.838457, 5.5814686, 0.34753883, 3.0031638, 5.0029445, 0.34753883, 2.7537444)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_5fwcn"]
+points = PackedVector3Array(4.895214, -0.04464324, 2.91699, 5.444477, -0.04464324, 3.3509376, 4.6250257, -0.04464324, 4.388147, 4.0757627, -0.04464324, 3.9541996, 4.902191, 0.32464325, 2.9646177, 5.396528, 0.32464325, 3.3551705, 4.6180487, 0.32464325, 4.3405194, 4.123712, 0.32464325, 3.9499667)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_7ng2f"]
+points = PackedVector3Array(4.011004, -0.062713414, 4.0188575, 4.4518924, -0.062713414, 4.562565, 3.294133, -0.062713414, 5.5013824, 2.853245, -0.062713414, 4.957675, 4.0041046, 0.34271342, 4.0695133, 4.4009037, 0.34271342, 4.55885, 3.3010325, 0.34271342, 5.4507265, 2.9042335, 0.34271342, 4.96139)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_4jm6d"]
+points = PackedVector3Array(2.7041605, -0.069385275, 4.9916744, 2.975829, -0.069385275, 5.636807, 1.8880409, -0.069385275, 6.09488, 1.6163722, -0.069385275, 5.4497476, 2.6905491, 0.34938526, 5.0353827, 2.935051, 0.34938526, 5.616002, 1.9016521, 0.34938526, 6.051172, 1.6571503, 0.34938526, 5.4705524)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_bead0"]
+points = PackedVector3Array(1.4190884, -0.04252699, 5.510615, 1.5117685, -0.04252699, 6.2044525, 0.14722602, -0.04252699, 6.386723, 0.05454584, -0.04252699, 5.6928854, 1.3896087, 0.322527, 5.549864, 1.4730209, 0.322527, 6.1743174, 0.1767056, 0.322527, 6.347474, 0.09329343, 0.322527, 5.7230206)
+
+[node name="OasisRim" type="StaticBody3D" unique_id=489147688]
+script = ExtResource("1_7hdlv")
+draw_distance = 150.0
+casts_shadow = false
+
+[node name="Model" parent="." unique_id=1304706053 instance=ExtResource("2_5kdmp")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=526898306]
+shape = SubResource("ConvexPolygonShape3D_bkg1m")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1117146482]
+shape = SubResource("ConvexPolygonShape3D_1l02j")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=41402109]
+shape = SubResource("ConvexPolygonShape3D_5fwcn")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=127055735]
+shape = SubResource("ConvexPolygonShape3D_7ng2f")
+
+[node name="Solid5" type="CollisionShape3D" parent="." unique_id=1047177638]
+shape = SubResource("ConvexPolygonShape3D_4jm6d")
+
+[node name="Solid6" type="CollisionShape3D" parent="." unique_id=1354551428]
+shape = SubResource("ConvexPolygonShape3D_bead0")

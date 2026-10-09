@@ -130,6 +130,7 @@ func _ramp(from: Vector2, to: Vector2) -> void:
 
 func _crate(at: Vector3) -> void:
 	var crate := RigidBody3D.new()
+	crate.add_to_group(&"interest")
 	crate.mass = 20.0
 	# Crates slide rather than tumble, so they stay usable as steps.
 	crate.lock_rotation = true

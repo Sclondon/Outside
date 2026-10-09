@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_gr2m4"]
+[ext_resource type="PackedScene" path="res://models/props/block.glb" id="2_l0e4y"]
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_4mw8t"]
+points = PackedVector3Array(-0.75, 0, -0.475, 0.75, 0, -0.475, 0.75, 0, 0.475, -0.75, 0, 0.475, -0.73875, 0.9, -0.4655, 0.73875, 0.9, -0.4655, 0.73875, 0.9, 0.4655, -0.73875, 0.9, 0.4655)
+
+[node name="Block" type="StaticBody3D" unique_id=158425590]
+script = ExtResource("1_gr2m4")
+draw_distance = 140.0
+
+[node name="Model" parent="." unique_id=1509851411 instance=ExtResource("2_l0e4y")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=6943583]
+shape = SubResource("ConvexPolygonShape3D_4mw8t")

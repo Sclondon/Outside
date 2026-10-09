@@ -1,0 +1,38 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_010nt"]
+[ext_resource type="PackedScene" path="res://models/props/block_stack.glb" id="2_adfh1"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_usk7f"]
+size = Vector3(1.5, 0.9, 0.95)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yt3eg"]
+size = Vector3(1.5, 0.9, 0.95)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_eflvg"]
+size = Vector3(1.4999999, 0.9, 0.9499999)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_v54uy"]
+size = Vector3(1.1, 0.6, 0.8)
+
+[node name="BlockStack" type="StaticBody3D" unique_id=1178058748]
+script = ExtResource("1_010nt")
+draw_distance = 160.0
+
+[node name="Model" parent="." unique_id=806449942 instance=ExtResource("2_adfh1")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=380499567]
+transform = Transform3D(0.99875027, 0, 0.04997912, 0, 1, 0, -0.04997912, 0, 0.99875027, -0.8, 0.45, 0)
+shape = SubResource("BoxShape3D_usk7f")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=565069886]
+transform = Transform3D(0.9992001, 0, -0.039989296, 0, 1, 0, 0.039989296, 0, 0.9992001, 0.78, 0.45, 0.06)
+shape = SubResource("BoxShape3D_yt3eg")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=1610527037]
+transform = Transform3D(0.990216, 0, 0.13954324, 0, 1, 0, -0.13954324, 0, 0.990216, 0.1, 1.35, 0)
+shape = SubResource("BoxShape3D_eflvg")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=1007828124]
+transform = Transform3D(0.87758255, 0, 0.47942555, 0, 1, 0, -0.47942555, 0, 0.87758255, 0.3, 0.3, 1.25)
+shape = SubResource("BoxShape3D_v54uy")

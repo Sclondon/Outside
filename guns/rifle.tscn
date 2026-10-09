@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gun.gd" id="1_xh375"]
+[ext_resource type="PackedScene" path="res://models/guns/rifle.glb" id="2_tw7eh"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kc63r"]
+size = Vector3(0.044, 0.076, 0.775)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_frslb"]
+size = Vector3(0.04, 0.13, 0.36)
+
+[node name="Rifle" type="RigidBody3D" unique_id=1708950644 groups=["guns", "interest", "throwable"]]
+mass = 3.9
+gravity_scale = 2.0
+angular_damp = 6.0
+script = ExtResource("1_xh375")
+kind = &"rifle"
+two_handed = true
+kick = 1.0
+rounds = 10
+capacity = 10
+reserve = 30
+ammo = &"rifle"
+cycle_time = 1.1
+reload_time = 3.2
+damage = 80.0
+range = 300.0
+spread = 0.25
+force = 9.0
+eject = 1
+shell_size = Vector2(0.0058, 0.056)
+
+[node name="Model" parent="." unique_id=559701077 instance=ExtResource("2_tw7eh")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1001925773]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, -0.385)
+shape = SubResource("BoxShape3D_kc63r")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1700426795]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.04, 0.18)
+shape = SubResource("BoxShape3D_frslb")
+
+[node name="Muzzle" type="Marker3D" parent="." unique_id=364732418]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.047, -0.772)
+
+[node name="Support" type="Marker3D" parent="." unique_id=1332531430]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.004, -0.34)
+
+[node name="Eject" type="Marker3D" parent="." unique_id=876937779]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.016, 0.066, -0.07)

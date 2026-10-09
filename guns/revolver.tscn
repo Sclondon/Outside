@@ -1,0 +1,36 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gun.gd" id="1_cc5py"]
+[ext_resource type="PackedScene" path="res://models/guns/revolver.glb" id="2_llevq"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_3f6vd"]
+size = Vector3(0.03, 0.09, 0.25)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_xll6b"]
+size = Vector3(0.03, 0.11, 0.07)
+
+[node name="Revolver" type="RigidBody3D" unique_id=1357153368 groups=["guns", "interest", "throwable"]]
+mass = 1.1
+gravity_scale = 2.0
+angular_damp = 6.0
+script = ExtResource("1_cc5py")
+flash = 0.7
+smoke = 0.8
+eject = 2
+break_angle = 70.0
+
+[node name="Model" parent="." unique_id=2106914898 instance=ExtResource("2_llevq")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1143777544]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.045, -0.105)
+shape = SubResource("BoxShape3D_3f6vd")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=1245921975]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 0.015)
+shape = SubResource("BoxShape3D_xll6b")
+
+[node name="Muzzle" type="Marker3D" parent="." unique_id=64213252]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.071, -0.226)
+
+[node name="Eject" type="Marker3D" parent="." unique_id=374548559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.062, -0.006)

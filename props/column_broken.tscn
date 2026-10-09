@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_rt67n"]
+[ext_resource type="PackedScene" path="res://models/props/column_broken.glb" id="2_u5wth"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_dhjxi"]
+height = 0.34
+radius = 0.78
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_vxmmw"]
+height = 3.2
+radius = 0.55
+
+[node name="ColumnBroken" type="StaticBody3D" unique_id=355828902]
+script = ExtResource("1_rt67n")
+draw_distance = 190.0
+
+[node name="Model" parent="." unique_id=2111799333 instance=ExtResource("2_u5wth")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=684003546]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)
+shape = SubResource("CylinderShape3D_dhjxi")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=603862020]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+shape = SubResource("CylinderShape3D_vxmmw")

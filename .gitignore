@@ -4,3 +4,6 @@
 
 # Blender backup saves
 *.blend1
+
+# Downloaded reference pictures: private, and not ours to publish
+/inspirationArt/reference/

@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_kt5mo"]
+[ext_resource type="PackedScene" path="res://models/props/wall_glyphs.glb" id="2_kv80g"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ehcgq"]
+size = Vector3(4.7, 0.4, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yke0d"]
+size = Vector3(4.4, 2.8, 0.7)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_wwrws"]
+points = PackedVector3Array(-2.2, 3.38, -0.35, 2.2, 3.38, -0.35, 2.2, 3.38, 0.35, -2.2, 3.38, 0.35, -2.332, 3.88, -0.455, 2.332, 3.88, -0.455, 2.332, 3.88, 0.455, -2.332, 3.88, 0.455)
+
+[node name="WallGlyphs" type="StaticBody3D" unique_id=841604153]
+script = ExtResource("1_kt5mo")
+draw_distance = 200.0
+
+[node name="Model" parent="." unique_id=2069400515 instance=ExtResource("2_kv80g")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1118891168]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+shape = SubResource("BoxShape3D_ehcgq")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=590870918]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
+shape = SubResource("BoxShape3D_yke0d")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=1981103744]
+shape = SubResource("ConvexPolygonShape3D_wwrws")

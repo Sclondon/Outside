@@ -1,0 +1,52 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_1m0fe"]
+[ext_resource type="PackedScene" path="res://models/props/awning.glb" id="2_3m03s"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_0mkmm"]
+size = Vector3(0.1, 2.5, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_dw654"]
+size = Vector3(0.1, 2.1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_a1xp5"]
+size = Vector3(0.1, 2.5, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_62akq"]
+size = Vector3(0.1, 2.1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_sjyk1"]
+size = Vector3(2.4, 0.08, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_mqtr0"]
+size = Vector3(2.4, 0.74, 1)
+
+[node name="Awning" type="StaticBody3D" unique_id=1472979851]
+script = ExtResource("1_1m0fe")
+draw_distance = 150.0
+
+[node name="Model" parent="." unique_id=589798752 instance=ExtResource("2_3m03s")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1068332699]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 1.25, 1.1)
+shape = SubResource("BoxShape3D_0mkmm")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=2102419229]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 1.05, -1.1)
+shape = SubResource("BoxShape3D_dw654")
+
+[node name="Solid3" type="CollisionShape3D" parent="." unique_id=266005386]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 1.25, 1.1)
+shape = SubResource("BoxShape3D_a1xp5")
+
+[node name="Solid4" type="CollisionShape3D" parent="." unique_id=1470755104]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 1.05, -1.1)
+shape = SubResource("BoxShape3D_62akq")
+
+[node name="Solid5" type="CollisionShape3D" parent="." unique_id=182613904]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.74, -0.3)
+shape = SubResource("BoxShape3D_sjyk1")
+
+[node name="Solid6" type="CollisionShape3D" parent="." unique_id=1846943412]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.37, -0.3)
+shape = SubResource("BoxShape3D_mqtr0")
