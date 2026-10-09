@@ -839,12 +839,14 @@ func _show_level() -> void:
 		layout["weather"] = index
 		_save_in = 1.2)
 	_inspector.add_child(weather)
+	_number("Heat mirage (0: none)", layout, "mirage", 0.0, 1.0, 0.05, "mirage")
 	_inspector.add_child(_caption("%d things in the level. Touch one to change it; the pages at the left have more to put in." % (layout["items"] as Array).size()))
 
 
 # A number to change: what it is and what it stands at, and under that a
 # slider with a step down and a step up at its ends. `what` is "" for a thing
-# of an item's own, "terrain" for the ground's, "wind" for the way it blows.
+# of an item's own, "terrain" for the ground's, "wind" for the way it blows,
+# "mirage" for the heat.
 func _number(title: String, holder: Dictionary, key: String, least: float, most: float, step: float, what := "") -> void:
 	var caption := _caption("")
 	_inspector.add_child(caption)
@@ -873,6 +875,9 @@ func _number(title: String, holder: Dictionary, key: String, least: float, most:
 			"wind":
 				layout["terrain"]["wind"] = [snappedf(cos(deg_to_rad(value)), 0.001), snappedf(sin(deg_to_rad(value)), 0.001)]
 				_shape_in = 0.6
+				_save_in = 1.2
+			"mirage":
+				level.heat(value)
 				_save_in = 1.2
 			_:
 				_changed(holder, key)

@@ -38,11 +38,17 @@ static var play_from := Vector3.INF
 @export var checkpoint_radius := 5.0
 
 ## What the level is made from.
-var layout: Dictionary
+var layout: Dictionary:
+	set(value):
+		layout = value
+		if mirage:
+			heat(float(layout.get("mirage", HeatMirage.USUAL)))
 ## The ground.
 var terrain: DesertTerrain
 ## The wind over the level.
 var wind: SandWind
+## The heat over the level: how much the distance swims is the layout's `mirage`.
+var mirage: HeatMirage
 ## What each item was made into, by its id. (Pads and dunes are only ground: they have none.)
 var nodes := {}
 
@@ -85,8 +91,16 @@ func _ready() -> void:
 	add_child(_items)
 	for item: Dictionary in layout["items"]:
 		make(item)
+	mirage = HeatMirage.new()
+	add_child(mirage)
+	heat(float(layout.get("mirage", HeatMirage.USUAL)))
 	_weather()
 	_settle_in.call_deferred()
+
+
+## Sets how much the heat makes the distance swim, 0..1 (0: not at all).
+func heat(strength: float) -> void:
+	mirage.strength = clampf(strength, 0.0, 1.0)
 
 
 ## How high the ground is at a place.
@@ -174,6 +188,8 @@ func _made(item: Dictionary) -> Node3D:
 			for marker in prop.find_children("Flame*", "Marker3D", true, false):
 				marker.add_child(Fire.brazier())
 			return prop
+		"pyramid":
+			return Pyramid.from_item(item)
 		"pond", "river":
 			for water: Dictionary in terrain.waters():
 				if water["id"] == item["id"]:
@@ -314,6 +330,7 @@ func _weather() -> void:
 	wind.weather = int(layout.get("weather", 1)) as SandWind.Weather
 	wind.direction = terrain.wind
 	add_child(wind)
+	mirage.wind = wind
 	var sand := terrain.ground as SandGround
 	if sand == null:
 		return
@@ -334,6 +351,7 @@ func _settle_in() -> void:
 	_player = get_parent().get_node_or_null(^"Player") as Player
 	if _player == null:
 		return
+	mirage.subject = _player
 	# He starts where the layout says, or where the editor left off.
 	var start := play_from
 	play_from = Vector3.INF

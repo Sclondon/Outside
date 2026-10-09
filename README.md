@@ -91,6 +91,12 @@ In the desert, Menu, then "Edit this level". The game stands still and the view 
 - **The ground**: "Level" has the desert's size, the height and number of its dunes, the wind and the weather.
   Level ground, dunes and ridges placed by hand, ponds and rivers are things like any other: a river is a line of
   points to drag and add to, and the ground is cut away under water and made again a moment after any change.
+- **Pyramids**: on the Stone page, "Stepped pyramid", "Finished pyramid" and "Fallen pyramid" are one thing made from
+  numbers (`scripts/pyramid.gd`), set out three ways: its width, steepness and the height of a course, how much of
+  its smooth casing is left, a gold cap, how ruined it is and which ruin, a doorway, and its stone. Move a slider and
+  it is built again. (The Great and Ruined pyramids beside them are fixed models.)
+- **Heat**: "Level" also has the heat mirage: how much the distance swims, and whether pools of sky lie on the far
+  sand. 0 is none.
 - **People**: townspeople (who, and how far they wander), his brother, a cat, hounds (which give chase when he comes
   within their distance, or when something sets them on) and the mummy.
 - **Puzzles**: pressure plates, targets and things that smash are either on or off; a door, a bridge or lift, a sand
@@ -159,6 +165,9 @@ and restarts. Colours last until the game is closed.
 | `scripts/desert.gd` | The desert (`desert.tscn`): makes the level from its layout, and runs its puzzles, checkpoints and people |
 | `scripts/level_layout.gd`, `scripts/level_editor.gd` | What a level is made of, as data; and the editor inside the game that changes it |
 | `scripts/desert_terrain.gd` | The desert's ground: dunes, level ground, and water cut into it |
+| `scripts/pyramid.gd` | A pyramid made from numbers: stepped core, smooth casing, gold cap, ruin (fallen corners, rubble, missing and slipped blocks), a doorway; its mesh and what is solid |
+| `scripts/sandstone.gd` | Stone drawn by a shader: blocks in courses, strata, weathering, cracks, rubble; and gold (`Toon.sandstone`, `Toon.gold`) |
+| `scripts/heat_mirage.gd` | Heat over the desert: far things near the level of the eye swim, and pools of sky lie on the far sand |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
 | `scripts/test_yard.gd` | The test yard (`test_yard.tscn`) |
 | `scripts/rope.gd` | A rope to climb and swing on, simulated as a chain |
