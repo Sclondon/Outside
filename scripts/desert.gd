@@ -345,6 +345,18 @@ func _person(item: Dictionary, who: String) -> Node3D:
 			beetles.roam = item.get("roam", 2.5)
 			beetles.dung_ball = item.get("ball", true)
 			return beetles
+		"jackal_mummy":
+			var jackal := JackalMummy.new()
+			jackal.rest = int(item.get("rest", 0)) as JackalMummy.Rest
+			jackal.finery = int(item.get("finery", 0)) as JackalMummy.Finery
+			# (it wakes itself when he comes near; what it is linked to wakes it too: see `_physics_process`)
+			jackal.wake_within = item.get("alert", 5.0)
+			return jackal
+		"hyena":
+			var hyena := Hyena.new()
+			hyena.bold = item.get("bold", 0.4)
+			hyena.roam = item.get("roam", 12.0)
+			return hyena
 	return null
 
 
@@ -371,6 +383,10 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as Hound).caught.connect(_on_caught.bind(made))
 	elif made is Mummy:
 		(made as Mummy).caught.connect(_on_caught.bind(made))
+	elif made is JackalMummy:
+		(made as JackalMummy).caught.connect(_on_caught.bind(made))
+	elif made is Hyena:
+		(made as Hyena).caught.connect(_on_caught.bind(made))
 	if made is RigidBody3D and made.is_in_group(&"throwable"):
 		_loose.append(made)
 		_loose_starts.append(made.global_transform)
@@ -379,6 +395,9 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as ScarabSwarm).caught.connect(_on_caught.bind((made as ScarabSwarm).front))
 	if item.has("links") or item["kind"] in ["door", "mover", "sandfall"] or made is Hound or made is Mummy:
 		made.set_meta(&"home", made.position)
+		_worked.append([item, made])
+	# (a mummified jackal and a hyena are put back when he starts again, as a hound is, whether or not anything works them)
+	if (made is JackalMummy or made is Hyena) and not item.has("links"):
 		_worked.append([item, made])
 	if _player:
 		_introduce(made)
@@ -445,6 +464,10 @@ func _introduce(node: Node3D) -> void:
 		(node as Hound).target = _player
 	elif node is Mummy:
 		(node as Mummy).target = _player
+	elif node is JackalMummy:
+		(node as JackalMummy).target = _player
+	elif node is Hyena:
+		(node as Hyena).target = _player
 
 
 func _physics_process(delta: float) -> void:
@@ -490,6 +513,9 @@ func _physics_process(delta: float) -> void:
 		elif node is Mummy:
 			if (worked or near) and not (node as Mummy).is_awake():
 				(node as Mummy).wake()
+		elif node is JackalMummy:
+			if worked and not (node as JackalMummy).is_awake():
+				(node as JackalMummy).wake()
 		elif node is AnimatableBody3D:
 			var home: Vector3 = node.get_meta(&"home")
 			var way: Vector3 = [node.basis.z, Vector3.UP, node.basis.x][int(item.get("way", 0))].normalized()
@@ -518,3 +544,7 @@ func _call_off() -> void:
 			(entry[1] as Hound).reset()
 		elif entry[1] is Mummy:
 			(entry[1] as Mummy).reset()
+		elif entry[1] is JackalMummy:
+			(entry[1] as JackalMummy).reset()
+		elif entry[1] is Hyena:
+			(entry[1] as Hyena).reset()

@@ -490,6 +490,100 @@ Add `lo` for the demade model or `bare` for no tack. Under each gait it prints w
 (at a pace the fore foot lands 0.02 to 0.05 of a stride after the hind foot of its own side, and the two sides half a
 stride apart), how far a planted foot slid, and how far it rolled; and after each `m_` strip, any bone that shook or jumped.
 
+## The mummified jackals
+
+`JackalMummy.new()` is a whole one (`scripts/jackal_mummy.gd`): one of the dogs and jackals that were given to Anubis,
+dried, bound in linen and stacked in his catacombs at Saqqara, set to guard a tomb. The level editor places one
+("Mummified jackal" on the People page: how it waits, what it wears, how near he may come, and what wakes it), and two
+lie on plinths in the test yard. To put one in by hand:
+
+```gdscript
+var jackal := JackalMummy.new()
+jackal.rest = JackalMummy.Rest.SPHINX        # lying like the jackal on a shrine; STANDING, as it was propped in a niche
+jackal.finery = JackalMummy.Finery.MASK      # a gilded mask and a broad collar; COLLAR; PLAIN
+jackal.wake_within = 5.0                     # it wakes when he comes this near (0: only when `wake()` is called)
+jackal.position = Vector3(x, y, z)
+add_child(jackal)
+jackal.caught.connect(...)                   # as a hound's
+```
+
+It lies dormant until then, its eyes dark. Woken, it gets up forequarters first, in jerks, its eyes come alight, and it
+comes after him. It is not a hound and does not move like one:
+
+| | A hound | A mummified jackal |
+| --- | --- | --- |
+| Speed | 5.4 m/s, faster than he runs | 3.8 m/s, slower than he runs (4.4), and it never tires or gives up |
+| Gait | Walk, trot, and a gallop with its back gathering and stretching | A stalk and a short, quick, stilted trot on legs that hardly bend; its back is a plank; no gallop |
+| Head | Up, watching him | Low, on a neck stretched out in front, weaving from side to side in starts, jaw hanging and clacking |
+| Catches him | By reaching him | Only by springing: it sinks back with its jaw wide for 0.4 s (the warning), and springs straight at where he was. Step aside |
+| Obstacles | Jumps 1.3 m, leaps 2.8 m | Hops a kerb of 0.5 m, crosses a gap of 1.5 m, will not enter water. Up on something he is safe, and it prowls beneath |
+| Hurt | Yelps, circles, loses its nerve and runs | A blow knocks it aside; enough gunfire (`toughness`) knocks it down for `down_time`, and it gets up again |
+| Left alone | Plays, sits, sleeps | Nothing: it lies where it was put |
+| Voice | Barks and bays | None (see below) |
+
+Several together come at him from different sides, keep apart, and spring in turn.
+
+The model is built by `tools/build_jackal_mummy.py` (`models/jackal_mummy.glb`, and a demade `jackal_mummy_lo.glb`) with
+the hounds' tools on the hounds' bones: a body dried onto its bones, bound in strips that cross at a slant in two tones
+of linen (the lozenge pattern the embalmers put on animals), its limbs wound round and round, hollow eyes with a point of
+light in each, a bare jaw, and loose ends of bandage, each on a chain of bones. `JackalMummyRig`
+(`scripts/jackal_mummy_rig.gd`) extends `CanineRig` (`scripts/canine_rig.gd`), which extends `HoundRig` and uses its leg
+solver, springs and the places it works out for a dog to sit and lie; the loose ends swing as the human mummies' do.
+
+It is silent. `voice = true` gives it a dry rasp made from the recordings of hounds panting played at half their pitch,
+which was made without being heard and is off until someone has listened to it.
+
+## The hyenas
+
+`Hyena.new()` is a whole striped hyena (`scripts/hyena.gd`): the hyena of Egypt, a scavenger of the dusk. The level
+editor places one ("Hyena" on the People page: how bold it is, and how far it roams), and a pair hang about in the dunes
+beyond the jackals in the test yard. To put one in by hand:
+
+```gdscript
+var hyena := Hyena.new()
+hyena.bold = 0.4                 # 0..1: under a quarter it never rushes him; a very bold one may bring him down
+hyena.roam = 12.0                # how far it wanders from where it was put while no one is about
+hyena.position = Vector3(x, y, z)
+add_child(hyena)
+```
+
+It does not hunt him. It hangs about him at a distance (`keep_distance` at its most wary, `near_distance` at its
+boldest), standing and watching, then going round him at a walk or a lope. Now and then it makes a rush at him with its
+mane up, breaks off short, and makes away. How near, how often and how close all go by its nerve: its own `bold`, more
+when he is down (limp, crawling or crouched) or alone, less when he is near a fire, a lit torch or a flare. It gives
+ground to anyone who runs at it. A thrown stone that lands by it, a blow, a gunshot it hears, or fire brought up to it
+sends it off at a gallop, and it keeps well away for `shy_time`. Only one whose nerve is very high carries a rush
+through and emits `caught`. With no one about it wanders and noses at the ground. Put two or three together: they keep
+apart, go round him different ways, and do not rush at once. There is no clock in the game, so "at dusk" is where and
+when the level puts them.
+
+The model is built by `tools/build_hyena.py` (`models/hyena.glb` and a demade `hyena_lo.glb`) as the hounds are: 77 cm
+at the withers on long forelegs, a back that slopes to low hindquarters, a heavy neck and a big blunt head, large
+pointed ears, a short brush. Its stripes are not a texture: as on the cat, the fur shader draws the bars on its flanks,
+the bands on its legs and its dark muzzle and throat where the model says each goes. Its mane is a mesh of its own in
+locks, whose tips three bones lift to stand it on end. `HyenaRig` (`scripts/hyena_rig.gd`) extends `CanineRig`: it
+walks shuffling, with its head low, and faster it does not trot but lopes, a rolling three-beat canter that rocks it
+like a rocking horse with its rump tucked under; flat out the lope opens into a gallop. What that follows is in the
+comments at the top of the file.
+
+Its voice is recordings (`audio/hyenas/`, credited in `CREDITS.md` there, which must be kept: they are CC BY). They are
+of the spotted hyena, no free recording of a striped one having been found: giggles when it rushes and breaks off,
+and a whoop from a way off. `voice = false` makes it silent.
+
+To see both animals:
+
+```
+blender --background --python tools/build_jackal_mummy.py [-- <folder for renders>]
+blender --background --python tools/build_hyena.py [-- <folder for renders>]
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/canine_sheets.gd -- <folder> [turnaround finery dormant stalk trot pack prowl felled m_rise m_stand m_trot m_stalk m_lunge m_strips h_turnaround h_coat h_walk h_lope h_run h_loiter h_crest h_flee m_h_walk m_h_lope m_h_run m_h_crest m_h_dart m_h_idle] [lo]
+godot --headless --path . --fixed-fps 60 --script tools/canine_test.gd
+```
+
+The names beginning `m_` are strips of consecutive frames. Under each gait it prints when each paw came down in the
+stride and how far a planted paw slid (`SLIDE`), and after each `m_` strip any bone that shook or jumped (`SHAKE`) and
+the fastest any bone turned in one frame. In the fast gaits the leg bones are listed: they swing back and forth four
+or five times a second, which is what it counts; none turns more than about 35 degrees in a frame.
+
 ## Demade models
 
 The same scripts also build low-poly, flat-shaded versions (`models/boy_lo.glb`, `models/hound_lo.glb`,
