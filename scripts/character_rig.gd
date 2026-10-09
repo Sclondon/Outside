@@ -358,6 +358,8 @@ var _crawl := 0.0
 ## Holding a bat, 0..1; swinging it, and how far through the swing he is; and
 ## where the bat is held and which way it points, in the rig's own space.
 var _bat := 0.0
+## How far he is holding a torch up (anything he carries that is in the group `torches`).
+var _torch := 0.0
 var _swinging := 0.0
 var _swing_at := 1.0
 var _bat_grip := Vector3(-0.16, 0.95, 0.1)
@@ -724,7 +726,8 @@ func _process(delta: float) -> void:
 	var swinging_now := smoothstep(0.0, 0.08, _swing_at) if _swing_at < 1.0 else 0.0
 	_swinging = _approach(_swinging, swinging_now, 30.0 if swinging_now > _swinging else 5.5, delta)
 	# With something in his hand and nothing to do, he tosses it and catches it.
-	if holding and _bat < 0.5 and _gun < 0.5 and _casual > 0.8 and _carry > 0.95:
+	_torch = _approach(_torch, 1.0 if holding and _player.carried.is_in_group(&"torches") else 0.0, 8.0, delta)
+	if holding and _bat < 0.5 and _gun < 0.5 and _torch < 0.5 and _casual > 0.8 and _carry > 0.95:
 		_juggle = fposmod(_juggle + delta / 2.1, 1.0)
 	else:
 		_juggle = 0.4 if _juggle > 0.34 or _juggle < 0.001 else minf(_juggle + delta / 2.1, 0.4)
@@ -2166,6 +2169,10 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 			pitch = lerpf(lerpf(pitch, -0.3 + swing * 0.3, _carry), -0.9, _stoop)
 			roll = lerpf(roll, side * 0.34, _carry)
 			elbow = lerpf(elbow, -1.3 + flick, _carry)
+			# (a torch is held up and out in front of him, clear of his face and his cap)
+			pitch = lerpf(pitch, -1.15 + swing * 0.12, _torch * (1.0 - _stoop))
+			roll = lerpf(roll, side * 0.5, _torch)
+			elbow = lerpf(elbow, -0.75, _torch)
 			curl = lerpf(lerpf(curl, 0.95, _carry), lerpf(0.1, 0.95, smoothstep(Player.PICKUP_TAKES - 0.12, Player.PICKUP_TAKES, _picking)), _stoop)
 			splay = lerpf(splay, 0.9, _stoop)
 		else:

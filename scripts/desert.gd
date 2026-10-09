@@ -233,6 +233,10 @@ func _made(item: Dictionary) -> Node3D:
 			visual.material_override = Toon.surface(WOOD)
 			mover.add_child(visual)
 			return mover
+		"torch":
+			var torch := HandTorch.new()
+			torch.lit = item.get("lit", true)
+			return torch
 		"rope":
 			var rope := Rope.new()
 			rope.length = item.get("length", 5.5)

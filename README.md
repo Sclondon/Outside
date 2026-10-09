@@ -459,3 +459,14 @@ godot --headless --path . --export-release Web build/index.html
 ```
 
 `build/` is committed and served by GitHub Pages at https://sclondon.github.io/Outside/build/index.html
+
+## Fire and the torch
+
+`Fire` (`scripts/fire.gd`) is restless: each tongue leaps and sinks in its own time and throws off licks that go up alone;
+sparks stream up and wink, and now and then it spits a handful of embers that fall (`sparks`, `spits`); it glows (`glow`,
+`glow_reach`: a soft light drawn in the air round it); and the light it casts gutters (`flicker`) and reaches now further
+and now less far (`breathing`). `tools/fire_sheets.gd -- <folder>` draws each kind by day and in the dark, a few frames apart.
+
+A `HandTorch` (`scripts/torch.gd`) is a burning torch to carry: act picks it up, and he holds it up in front of him as he
+goes; act throws it, duck and act puts it down, and it goes on burning where it lies. There is one by the fire in the test
+yard, and "Torch to carry" is on the level editor's Puzzle page.

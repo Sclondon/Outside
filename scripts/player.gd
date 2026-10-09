@@ -702,6 +702,11 @@ func _place_carried() -> void:
 	if carried.is_in_group(&"bats"):
 		# (a bat is held by its handle, and points where his hands point it)
 		carried.global_basis = _rig.bat_basis()
+	elif carried.is_in_group(&"torches"):
+		# (a torch is held upright a little way up its handle, its head tipped forward and away from him)
+		var upright := Basis(Vector3.UP, facing_yaw) * Basis(Vector3.RIGHT, 0.3) * Basis(Vector3.BACK, 0.18)
+		carried.global_basis = carried.global_basis.orthonormalized().slerp(upright, come) if come < 1.0 else upright
+		carried.global_position -= carried.global_basis.y * 0.14 * come
 
 
 func respawn() -> void:

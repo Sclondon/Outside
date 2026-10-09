@@ -62,7 +62,7 @@ const PALETTE := {
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
-		["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
+		["Torch to carry", "torch", ""], ["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
 	],
 	"Guns": [
 		["Revolver", "thing", "revolver"], ["Rifle", "thing", "rifle"], ["Shotgun", "thing", "shotgun"], ["Flare pistol", "thing", "flare_pistol"],
@@ -115,6 +115,7 @@ const FIELDS := {
 	"mover": [["wide", "Width", "n", 0.6, 16.0, 0.1, 2.4], ["long", "Length", "n", 0.6, 20.0, 0.1, 4.0], ["thick", "Thickness", "n", 0.1, 3.0, 0.05, 0.3],
 		["travel", "Travels", "n", 0.5, 30.0, 0.25, 4.0], ["way", "Which way", "c", ["Forward", "Up", "Sideways"], 0], ["speed", "Speed", "n", 0.3, 8.0, 0.1, 2.0],
 		["links", "Worked by", "links"], ["needs_all", "Needs every one", "b", false], ["inverted", "Out until then", "b", false]],
+	"torch": [["lit", "Burning", "b", true]],
 	"rope": [["length", "Length", "n", 2.0, 16.0, 0.25, 5.5]],
 	"ladder": [["height", "Height", "n", 1.0, 16.0, 0.25, 4.0]],
 	"sandfall": [["width", "Width", "n", 0.0, 8.0, 0.25, 0.0], ["running", "Running", "b", true], ["links", "Turned by", "links"]],

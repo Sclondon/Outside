@@ -407,7 +407,15 @@ func _build_fire(at: Vector3) -> void:
 	add_child(hearth)
 	var flame := hearth.find_child("Flame*", true, false) as Node3D
 	(flame if flame else hearth).add_child(Fire.brazier())
-	_sign(at + Vector3(0.0, 2.4, 0.0), "FIRE")
+	_sign(at + Vector3(0.0, 2.6, 0.0), "FIRE
+act picks the torch up: it lights his way")
+	# A torch to carry, stuck in the sand beside it
+	var torch := HandTorch.new()
+	torch.position = at + Vector3(1.6, 0.02, 0.4)
+	torch.rotation.z = 0.12
+	torch.freeze = true
+	add_child(torch)
+	_keep(torch)
 
 
 ## Hounds: the plate lets them loose, and calls them off again.

@@ -1,16 +1,22 @@
 class_name Fire
 extends Node3D
 ## A fire, drawn flat: tongues of flame cut out of noise that streams upwards,
-## in three tones (a pale core, orange, dark red at the tips), with sparks
-## going up from it, a little smoke, and a warm light that wavers. This node is
-## at its foot.
+## in three tones (a pale core, orange, dark red at the tips). It is restless,
+## as a fire is: each tongue leaps and sinks in its own time, is torn by the
+## air, and throws off licks that go up alone and go out. Sparks stream up
+## from it in the hot air, wandering and winking; now and then it spits, and a
+## handful of embers are thrown out and fall. It glows (a soft light in the air
+## round it, drawn, since a phone has no bloom), and the light it casts gutters
+## and reaches now further and now less far. A little smoke. This node is at
+## its foot.
 ##
 ##     add_child(Fire.torch())        # or candle(), brazier(), bonfire()
 ##
 ## or `Fire.new()` and set `size` (the height of the flame, in metres) and the
-## rest. A fire is two draw calls (its flames; its sparks and smoke) and one
-## light. Everything that moves in the flame is worked out in its shader; the
-## sparks and smoke are moved here, a dozen or two of them, and drawn at once.
+## rest. A fire is three draw calls (its flames; its sparks and smoke; its
+## glow) and one light. Everything that moves in the flame is worked out in its
+## shader; the sparks and smoke are moved here, a few dozen of them, and drawn
+## at once.
 
 ## How tall the flame is, in metres: 0.07 a candle, 0.3 a torch, 0.7 a brazier, 2 a bonfire.
 @export var size := 0.3: set = _set_size
@@ -30,6 +36,10 @@ extends Node3D
 @export var intensity := 1.0: set = _set_intensity
 ## A faint haze of its own colour round the flame (0: none).
 @export_range(0.0, 1.0) var halo := 0.22: set = _set_halo
+## The glow in the air round the whole fire (0: none), and how far out it
+## reaches, as a multiple of the height of the flame.
+@export_range(0.0, 1.0) var glow := 0.5
+@export var glow_reach := 2.6
 
 @export_group("Motion")
 ## How fast the flame streams (1: as suits its size; a small flame is quicker).
@@ -41,6 +51,10 @@ extends Node3D
 ## Sparks going up from it, and smoke.
 @export var embers := true
 @export var smoke := true
+## How many sparks (1: as suits its size), and how often it spits a handful of
+## embers out (times a second, for a fire a metre tall; 0: never).
+@export var sparks := 1.0
+@export var spits := 0.35
 
 @export_group("Light")
 @export var light := true: set = _set_light
@@ -51,11 +65,13 @@ extends Node3D
 ## Where the light is, from the foot of the flame (it is put a little above the
 ## middle of the flame as well). A torch on a wall wants its light out from the wall.
 @export var light_offset := Vector3.ZERO: set = _set_light_offset
-## How much the light wavers, as a share of its strength. It wavers slowly:
-## nothing in it comes round more than twice a second.
-@export_range(0.0, 0.5) var flicker := 0.13
+## How much the light gutters, as a share of its strength: quick, uneven
+## shudders on top of a slower heave, and never the same twice.
+@export_range(0.0, 0.6) var flicker := 0.3
+## How much further and less far the light reaches as it does, as a share of its range.
+@export_range(0.0, 0.5) var breathing := 0.16
 
-const MOTES := 24
+const MOTES := 72
 const FLAME := """
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled, skip_vertex_transform;
@@ -71,6 +87,8 @@ uniform float clock = 0.0;
 uniform float lean = 0.0;
 // How torn the flame is by the noise (a candle: hardly).
 uniform float ragged = 1.0;
+// The fire as a whole flaring up (above nought) or sinking, from the script.
+uniform float flare = 0.0;
 
 varying float seed;
 varying float tall;
@@ -120,21 +138,32 @@ void fragment() {
 	// Across the card from -0.5 to 0.5, and up it from 0 to 1.
 	vec2 at = vec2(UV.x - 0.5, clamp(1.0 - UV.y, 0.0, 1.0));
 	float t = clock + seed * 17.0;
+	// It leaps and sinks: each tongue in its own time, by a third of its
+	// height and more, in quick uneven starts; and all of them with the fire.
+	float leap = 0.8 + 0.34 * vnoise(vec2(t * 2.6, seed * 51.0)) + 0.16 * vnoise(vec2(t * 6.3, seed * 77.0 + 3.0)) + 0.14 * flare;
+	at.y /= mix(1.0, leap, min(ragged, 1.0));
 	// The whole tongue wags, the top of it most.
-	float wag = (vnoise(vec2(t * 0.8, seed * 91.0)) - 0.5) * 0.3 + (vnoise(vec2(t * 2.1, seed * 37.0 + 5.0)) - 0.5) * 0.1 + lean;
+	float wag = (vnoise(vec2(t * 1.1, seed * 91.0)) - 0.5) * 0.34 + (vnoise(vec2(t * 3.4, seed * 37.0 + 5.0)) - 0.5) * 0.16 + lean;
 	at.x -= wag * at.y * at.y;
-	// (and it snakes: each height of it is pushed its own way, and the push travels up)
-	at.x += (vnoise(vec2(at.y * 2.6 - t * 1.3, seed * 13.0)) - 0.5) * 0.24 * at.y * ragged;
-	// Noise streaming up through it: big licks, and small ones going faster.
-	float big = vnoise(vec2(at.x * 4.2 + seed * 31.0, at.y * 2.6 * tall - t * 1.5));
-	float fine = vnoise(vec2(at.x * 9.5 + seed * 57.0, at.y * 5.4 * tall - t * 2.7));
-	float n = big * 0.65 + fine * 0.35;
+	// (and it snakes: each height of it is pushed its own way, and the push
+	// travels up; a slow push, and a quick small one that shivers its edge)
+	at.x += (vnoise(vec2(at.y * 2.6 - t * 1.7, seed * 13.0)) - 0.5) * 0.26 * at.y * ragged;
+	at.x += (vnoise(vec2(at.y * 7.0 - t * 4.3, seed * 29.0)) - 0.5) * 0.1 * at.y * ragged;
+	// Noise streaming up through it: big licks, small ones going faster, and a shiver.
+	float big = vnoise(vec2(at.x * 4.2 + seed * 31.0, at.y * 2.6 * tall - t * 1.9));
+	float fine = vnoise(vec2(at.x * 9.5 + seed * 57.0, at.y * 5.4 * tall - t * 3.6));
+	float tiny = vnoise(vec2(at.x * 21.0 + seed * 83.0, at.y * 11.0 * tall - t * 6.2));
+	float n = big * 0.52 + fine * 0.32 + tiny * 0.16;
 	// The shape it is cut from: round at the foot, drawn in to a point at the top.
 	float wide = 0.36 * (0.1 + 0.9 * pow(1.0 - at.y, 1.1)) * sqrt(smoothstep(-0.02, 0.16, at.y));
 	float bell = 1.0 - abs(at.x) / max(wide, 0.0001);
 	// How hot: hottest low down in the middle; the noise eats at it more the higher it is.
-	float heat = bell * (1.1 - at.y * 0.55) + (n - 0.5) * (0.5 + at.y * 1.6) * ragged - at.y * 0.38;
+	// (high up it eats right through, and what is left above the gap is a
+	// lick of flame going up by itself)
+	float heat = bell * (1.1 - at.y * 0.55) + (n - 0.5) * (0.55 + at.y * 2.5) * ragged - at.y * 0.34;
 	heat = min(heat, bell * 2.5 + 0.2);
+	// (nothing of it reaches the top of the card it is drawn on)
+	heat -= smoothstep(0.84, 1.0, at.y) * 2.0;
 	float flame;
 	vec3 colour;
 	if (banded > 0.5) {
@@ -149,13 +178,16 @@ void fragment() {
 	float haze = (1.0 - smoothstep(0.0, 1.0, from_middle)) * halo;
 	haze *= haze * 3.0 * (0.85 + 0.3 * big);
 	ALBEDO = mix(body, colour, flame) * intensity;
-	ALPHA = max(flame, haze);
+	// (and nothing of it shows at the edges of its card)
+	float inside = smoothstep(0.0, 0.05, UV.y) * smoothstep(0.0, 0.05, UV.x) * smoothstep(0.0, 0.05, 1.0 - UV.x);
+	ALPHA = max(flame, haze) * inside;
 }
 """
 
 ## Sparks and smoke: flat shapes turned to the camera. A spark is a small
-## bright fleck that does not need lighting; a puff of smoke is a dark, ragged
-## cloud in two tones that is lit by what is about, and thins to a ring.
+## bright fleck with a glow round it, that winks as it goes and does not need
+## lighting; a puff of smoke is a dark, ragged cloud in two tones that is lit
+## by what is about, and thins to a ring.
 const MOTE := """
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
@@ -188,12 +220,17 @@ void fragment() {
 	vec2 at = UV * 2.0 - 1.0;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
-	if (kind < 0.5) {
-		// A spark: a diamond, pale while it is new, then orange, then gone.
-		float fleck = cut(1.0 - (abs(at.x) + abs(at.y)), 0.0);
+	if (kind < 0.5 || kind > 1.5) {
+		// A spark: a small diamond in the middle of its card, pale while it is
+		// new, then orange, then a dull red and gone; and a glow round it. It
+		// winks: brighter and dimmer many times a second, each in its own time.
+		float fleck = cut(0.36 - (abs(at.x) + abs(at.y)), 0.0);
+		float wink = 0.6 + 0.4 * sin(TIME * (17.0 + seed * 23.0) + seed * 90.0) * sin(TIME * (7.0 + seed * 11.0));
+		float round_it = 1.0 - smoothstep(0.0, 1.0, length(at));
 		ALBEDO = vec3(0.0);
-		EMISSION = mix(hot, spark, smoothstep(0.0, 0.4, age)) * intensity * (1.0 - smoothstep(0.6, 1.0, age) * 0.6);
-		ALPHA = fleck * (1.0 - smoothstep(0.75, 1.0, age));
+		vec3 colour = mix(mix(hot, spark, smoothstep(0.0, 0.35, age)), spark * vec3(0.8, 0.35, 0.2), smoothstep(0.6, 1.0, age));
+		EMISSION = colour * intensity * wink * (1.0 + fleck);
+		ALPHA = max(fleck, round_it * round_it * 0.45) * wink * (1.0 - smoothstep(0.7, 1.0, age));
 	} else {
 		float around = atan(at.y, at.x);
 		float rim = 0.84 + 0.11 * sin(around * 5.0 + seed * 40.0) + 0.05 * sin(around * 9.0 - seed * 23.0);
@@ -211,12 +248,39 @@ void light() {
 }
 """
 
+## The glow: light in the air round the fire, drawn as one soft round card
+## turned to the camera and added to what is behind it.
+const GLOW := """
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
+
+uniform vec3 colour : source_color = vec3(1.0, 0.56, 0.12);
+uniform float power = 0.5;
+
+void vertex() {
+	float big = length(MODEL_MATRIX[0].xyz);
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0] * big, INV_VIEW_MATRIX[1] * big, INV_VIEW_MATRIX[2] * big, MODEL_MATRIX[3]);
+}
+
+void fragment() {
+	float out_from = length(UV * 2.0 - 1.0);
+	float soft = 1.0 - smoothstep(0.0, 1.0, out_from);
+	// (bright close in to the flame, and a long faint skirt)
+	ALBEDO = colour * (soft * soft * 0.55 + pow(soft, 5.0) * 0.6) * power;
+}
+"""
+
 static var _flame_shader: Shader
 static var _mote_shader: Shader
+static var _glow_shader: Shader
 
 var _flames: MultiMeshInstance3D
 var _motes: MultiMeshInstance3D
 var _lamp: OmniLight3D
+var _glow: MeshInstance3D
+var _glow_material: ShaderMaterial
+var _reach_now := 0.0
+var _spit_due := 1.0
 var _flame_material: ShaderMaterial
 var _mote_material: ShaderMaterial
 var _time := 0.0
@@ -278,12 +342,36 @@ func _process(delta: float) -> void:
 	# (a small flame streams faster than a big one: about as the root of its height)
 	_clock += delta * speed * 1.15 / pow(maxf(size, 0.02), 0.4)
 	_flame_material.set_shader_parameter(&"clock", _clock)
-	# Three slow wavers that never quite line up.
-	var waver := 0.55 * sin(_time * 2.9) + 0.3 * sin(_time * 5.3 + 1.0) + 0.15 * sin(_time * 11.7 + 2.0)
+	# It gutters: a slow heave, and on it quick shudders that come unevenly
+	# and are never the same twice (noise, not waves: nothing in it comes round).
+	var heave := _wander(_time * 1.3) * 2.0 - 1.0
+	var shudder := (_wander(_time * 7.5 + 40.0) * 2.0 - 1.0) * 0.6 + (_wander(_time * 19.0 + 90.0) * 2.0 - 1.0) * 0.4
+	var waver := clampf(0.45 * heave + 0.75 * shudder, -1.0, 1.0)
+	_flame_material.set_shader_parameter(&"flare", waver)
 	if _lamp:
 		_lamp.light_energy = light_energy * intensity * (1.0 + flicker * waver)
-	_flames.scale = Vector3(1.0, 1.0 + 0.35 * flicker * waver, 1.0)
+		# (and the light it throws reaches further and less far: slowly, with a little of the shudder in it)
+		_lamp.omni_range = _reach_now * (1.0 + breathing * (0.75 * heave + 0.25 * shudder))
+	if _glow:
+		var swell := 1.0 + 0.22 * heave + 0.12 * shudder
+		_glow.scale = Vector3.ONE * size * glow_reach * swell
+		_glow_material.set_shader_parameter(&"power", glow * intensity * (1.0 + 0.7 * flicker * waver))
+	_flames.scale = Vector3(1.0, 1.0 + 0.3 * flicker * waver, 1.0)
 	_move_motes(delta)
+
+
+# A number that wanders smoothly between 0 and 1 as `along` goes on.
+static func _wander(along: float) -> float:
+	var whole := floorf(along)
+	var part := along - whole
+	part = part * part * (3.0 - 2.0 * part)
+	return lerpf(_chance(int(whole)), _chance(int(whole) + 1), part)
+
+
+static func _chance(n: int) -> float:
+	n = (n * 374761393 + 668265263) & 0x7fffffff
+	n = ((n ^ (n >> 13)) * 1274126177) & 0x7fffffff
+	return float((n ^ (n >> 16)) & 0xffff) / 65535.0
 
 
 ## The height of the card a tongue of flame is drawn on: the flame itself
@@ -293,15 +381,18 @@ func _reach() -> float:
 
 
 func _build() -> void:
-	for child in [_flames, _motes, _lamp]:
+	for child in [_flames, _motes, _lamp, _glow]:
 		if child:
 			child.queue_free()
 	_lamp = null
+	_glow = null
 	if _flame_shader == null:
 		_flame_shader = Shader.new()
 		_flame_shader.code = FLAME
 		_mote_shader = Shader.new()
 		_mote_shader.code = MOTE
+		_glow_shader = Shader.new()
+		_glow_shader.code = GLOW
 
 	_flame_material = ShaderMaterial.new()
 	_flame_material.shader = _flame_shader
@@ -362,6 +453,19 @@ func _build() -> void:
 	add_child(_motes)
 	_motes.global_transform = Transform3D.IDENTITY
 
+	if glow > 0.0:
+		_glow_material = ShaderMaterial.new()
+		_glow_material.shader = _glow_shader
+		var round_card := QuadMesh.new()
+		round_card.size = Vector2(2.0, 2.0)
+		round_card.material = _glow_material
+		_glow = MeshInstance3D.new()
+		_glow.mesh = round_card
+		_glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_glow.extra_cull_margin = size * glow_reach * 2.0
+		_glow.position = Vector3(0.0, size * 0.45, 0.0)
+		add_child(_glow)
+
 	if light:
 		_lamp = OmniLight3D.new()
 		_lamp.omni_attenuation = 1.3
@@ -379,10 +483,13 @@ func _dress() -> void:
 	_mote_material.set_shader_parameter(&"spark", body)
 	_mote_material.set_shader_parameter(&"hot", core)
 	_mote_material.set_shader_parameter(&"intensity", intensity)
+	if _glow_material:
+		_glow_material.set_shader_parameter(&"colour", body.lerp(tip, 0.25))
 	if _lamp:
 		# (the colour of the body of the flame, a little towards its core)
 		_lamp.light_color = body.lerp(core, 0.3)
-		_lamp.omni_range = light_range if light_range > 0.0 else 4.0 + 10.0 * sqrt(size)
+		_reach_now = light_range if light_range > 0.0 else 4.0 + 10.0 * sqrt(size)
+		_lamp.omni_range = _reach_now
 		_lamp.shadow_enabled = light_shadows
 		_lamp.position = Vector3(0.0, size * 0.55, 0.0) + light_offset
 
@@ -393,11 +500,20 @@ func _move_motes(delta: float) -> void:
 	if embers and size >= 0.15:
 		_spark_due -= delta
 		if _spark_due <= 0.0:
-			# (a torch throws one every half second or so; a bonfire several a second)
-			_spark_due = randf_range(0.5, 1.5) * 0.28 / sqrt(size)
+			# (a torch sends up five or six a second; a bonfire a stream of them)
+			_spark_due = randf_range(0.3, 1.7) * 0.09 / (sqrt(size) * maxf(sparks, 0.05))
 			var out := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0))
-			_emit(top + out * foot * 0.3, out * 0.25 * sqrt(size) + Vector3.UP * randf_range(1.0, 2.2) * sqrt(size),
-					randf_range(0.012, 0.024) * (0.6 + 0.7 * sqrt(size)), randf_range(0.7, 1.5), 0.0)
+			_emit(top + out * foot * 0.35 + Vector3.UP * randf_range(-0.3, 0.3) * size, out * 0.3 * sqrt(size) + Vector3.UP * randf_range(0.9, 2.6) * sqrt(size),
+					randf_range(0.03, 0.06) * (0.6 + 0.7 * sqrt(size)), randf_range(0.6, 1.8), 0.0)
+		# Now and then it spits: a handful of embers thrown out, that fall.
+		if spits > 0.0:
+			_spit_due -= delta
+			if _spit_due <= 0.0:
+				_spit_due = randf_range(0.4, 1.6) / (spits * maxf(size, 0.2))
+				for i in randi_range(3, 7):
+					var way := Vector3(randf_range(-1.0, 1.0), randf_range(0.6, 1.8), randf_range(-1.0, 1.0)).normalized()
+					_emit(global_position + global_basis.y * size * randf_range(0.15, 0.5), way * randf_range(1.4, 3.4) * sqrt(size),
+							randf_range(0.035, 0.07) * (0.6 + 0.7 * sqrt(size)), randf_range(0.5, 1.1), 2.0)
 	if smoke and size >= 0.15:
 		_smoke_due -= delta
 		if _smoke_due <= 0.0:
@@ -416,9 +532,15 @@ func _move_motes(delta: float) -> void:
 		var age := _age[i]
 		var grown := _big[i]
 		if _kind[i] < 0.5:
-			# A spark wanders as it rises, and slows.
-			_going[i] += Vector3(sin(_time * 7.0 + _seed[i] * 40.0), 0.0, cos(_time * 6.0 + _seed[i] * 23.0)) * delta * 1.2 * sqrt(size)
-			_going[i] *= exp(-0.9 * delta)
+			# A spark is carried up in the hot air, jinking about as it goes, and slows.
+			var jink := Vector3(sin(_time * 11.0 + _seed[i] * 40.0) + sin(_time * 4.3 + _seed[i] * 71.0), 0.3 * sin(_time * 9.0 + _seed[i] * 13.0), cos(_time * 9.5 + _seed[i] * 23.0) + cos(_time * 3.7 + _seed[i] * 57.0))
+			_going[i] += jink * delta * 1.7 * sqrt(size)
+			_going[i].x += lean * delta * 1.5
+			_going[i] *= exp(-0.8 * delta)
+		elif _kind[i] > 1.5:
+			# An ember that was spat out falls.
+			_going[i].y -= 6.5 * delta
+			_going[i] *= exp(-0.6 * delta)
 		else:
 			# Smoke swells as it goes up, and drifts off the way the fire leans.
 			_going[i].x += lean * delta * 0.6
