@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gear_prop.gd" id="1_4rs81"]
+[ext_resource type="PackedScene" path="res://models/props/camp_table.glb" id="2_6bomu"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rq6xo"]
+size = Vector3(1.3, 0.74, 0.7)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_0xovt"]
+size = Vector3(0.38, 0.42, 0.3)
+
+[node name="CampTable" type="StaticBody3D" unique_id=1840013155]
+script = ExtResource("1_4rs81")
+draw_distance = 120.0
+
+[node name="Model" parent="." unique_id=2043855500 instance=ExtResource("2_6bomu")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1680782371]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.37, 0)
+shape = SubResource("BoxShape3D_rq6xo")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=2028752187]
+transform = Transform3D(0.9553365, 0, 0.29552016, 0, 1, 0, -0.29552016, 0, 0.9553365, 0.2, 0.21, 0.75)
+shape = SubResource("BoxShape3D_0xovt")

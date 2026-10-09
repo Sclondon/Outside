@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_dmel4"]
+[ext_resource type="PackedScene" path="res://models/props/measuring_staff.glb" id="2_1a4yv"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yjaxe"]
+size = Vector3(0.08, 2.5, 0.04)
+
+[node name="MeasuringStaff" type="StaticBody3D" unique_id=875787528]
+script = ExtResource("1_dmel4")
+draw_distance = 140.0
+
+[node name="Model" parent="." unique_id=951418558 instance=ExtResource("2_1a4yv")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1898827838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+shape = SubResource("BoxShape3D_yjaxe")

@@ -39,6 +39,14 @@ static var colours := {}
 static var parts := {}
 
 
+## What he wears that is not part of his model (see Worn, scripts/worn.gd): a
+## helmet, by name (one of Worn.HELMETS; "" is none), which takes the place of
+## his cap while it is on, and whether he has the backpack on his back.
+## `Worn.dress_boy(rig)` puts them on him.
+static var helmet := ""
+static var backpack := false
+
+
 ## Works out `parts` from what has been chosen.
 static func dress() -> void:
 	parts = CharacterLook.parts_for(hair, cap, face, outfit)

@@ -50,6 +50,8 @@ orbits there: drag the upper right of the screen, hold the right mouse button, o
   wind-up, stride and follow-through (`pickup_time`, `throw_time`).
 - **Swing a bat**: anything also in the group `bats` is held in both hands and swung instead, and sends flying
   whatever loose thing is in front of him; duck and act puts it down.
+  The pickaxe, the shovel, the turia and the khopesh (`props/`) are swung the same way; there is no one-handed
+  cut for the khopesh yet.
 - **Shoot**: anything also in the group `guns` (`scripts/gun.gd`, the scenes in `guns/`) is carried as a gun: a pistol
   low at his side, muzzle down; a rifle or shotgun across his body in both hands. Act brings it up and fires it (the
   pistol at the end of a straight arm, his other fist on his hip; a long gun from the shoulder, his off hand at the
@@ -75,7 +77,7 @@ Each of the newer moves has a switch on the Player (`dive_enabled`, `flip_enable
 
 The yard also has everything sand does (footprints, sand running down steep faces, wind and its weather plate, sand
 pouring into heaps, two lumps of wet sand), water as a tank and as a pond lying in the sand, a fire, the guns on a
-bench with things to shoot, his brother, a cat, and a pen each for the hounds and the mummy, with a plate that lets
+bench with things to shoot, a dig (tools to pick up, the helmets on stands, someone wearing one), his brother, a cat, and a pen each for the hounds and the mummy, with a plate that lets
 them loose and calls them off. North of the start the kinds of ground are laid side by side in a row to walk along.
 
 ## Sand, and the other kinds of ground
@@ -109,7 +111,7 @@ In the desert, Menu, then "Edit this level". The game stands still and the view 
 
 - **Looking about**: one finger drags the ground; two pinch to come nearer and turn to turn; the slider at the left
   tips the view. (Mouse: drag, wheel, right button.)
-- **Putting things in**: the pages down the left (Ground, Water, Stone, Camp, People, Puzzle, Guns) fill the strip
+- **Putting things in**: the pages down the left (Ground, Water, Stone, Camp, Dig, People, Puzzle, Guns) fill the strip
   along the bottom. Touch one, then touch the ground.
 - **Changing them**: touch a thing to choose it; its sliders come up at the right, with Move to, Copy, Remove. Drag it
   by its mark to move it.
@@ -186,7 +188,7 @@ Nothing is a clip; `scripts/character_rig.gd` poses him every frame.
 
 The Menu button (top right, or Esc) swaps every figure between its full and demade model, switches the world between
 smooth and banded light, dresses the boy (his face, hair, skin, eyes and clothes, a colour for each thing he wears,
-and his cap on or off), changes level,
+his cap on or off, a helmet in its place, and a backpack), changes level,
 and restarts. Colours last until the game is closed.
 
 ## Layout
@@ -210,6 +212,9 @@ and restarts. Colours last until the game is closed.
 | `scripts/dust.gd` | Puffs of dust, drawn all at once as one MultiMesh |
 | `scripts/toon.gd` | Cel shading: two flat tones for the figures, and optionally the world; a shader for hair; the pinstripe in his shirt |
 | `scripts/menu.gd`, `scripts/settings.gd` | The in-game menu and what it remembers |
+| `scripts/worn.gd` | What a figure wears that is not part of its model: the backpack and the helmets (`Worn.put_on(figure, &"helmet_anubis")`) |
+| `scripts/gear_prop.gd` | A prop whose gold, bronze and brass shine |
+| `tools/worn_sheets.gd` | Not part of the game: draws what is worn on everyone who can wear it, and the boy moving in it |
 | `scripts/mummy.gd` | The mummy: dormant until disturbed, then lurches after the player; within reach it rears back and swipes an arm at him, and catches him only if the arm finds him |
 | `scripts/mummy_rig.gd` | Its own way of moving, laid over the boy's rig: a step and a dragged leg, the swipe, and its loose bandages swinging as chains |
 | `tools/build_mummy.py` | Builds the mummy in Blender: its proportions, the face under its wrappings, and a chain of bones down each loose end |
@@ -470,3 +475,14 @@ and now less far (`breathing`). `tools/fire_sheets.gd -- <folder>` draws each ki
 A `HandTorch` (`scripts/torch.gd`) is a burning torch to carry: act picks it up, and he holds it up in front of him as he
 goes; act throws it, duck and act puts it down, and it goes on burning where it lies. There is one by the fire in the test
 yard, and "Torch to carry" is on the level editor's Puzzle page.
+
+## The dig, the backpack and the helmets
+
+The tools and furniture of an excavation of the 1910s are props (PROPS.md lists them; the level editor's Dig page places
+them): a pick, a shovel, a turia and a khopesh to swing, a trowel, brush, tape, lantern and basket to pick up, and a
+sieve, barrow, level, plumb line, poles, crates and a camp table to dress a site.
+
+A backpack with a bedroll, and six helmets (Anubis the jackal, Horus the falcon, Sobek the crocodile, Bastet the cat,
+Thoth the ibis, Khnum the ram), are worn: `Worn` (`scripts/worn.gd`) puts one on anything that stands on the boy's rig,
+in one line, `Worn.put_on(figure, &"helmet_sobek")`, and the dresser has a row for each on the boy. See "What is worn"
+in PROPS.md.

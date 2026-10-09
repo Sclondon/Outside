@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_5ij1u"]
+[ext_resource type="PackedScene" path="res://models/props/pickaxe.glb" id="2_d7xa5"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_m3r56"]
+size = Vector3(0.05, 0.82, 0.05)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1b72m"]
+size = Vector3(0.05, 0.1, 0.5)
+
+[node name="Pickaxe" type="RigidBody3D" unique_id=1783568656 groups=["bats", "interest", "throwable"]]
+mass = 1.6
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_5ij1u")
+draw_distance = 80.0
+
+[node name="Model" parent="." unique_id=1892341272 instance=ExtResource("2_d7xa5")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1804371493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.41, 0)
+shape = SubResource("BoxShape3D_m3r56")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=245663213]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.77, 0)
+shape = SubResource("BoxShape3D_1b72m")

@@ -31,13 +31,49 @@ their middle.
 | `scaffold` | A wooden scaffold with a deck 3.5 m up, open at both ends, and a `Ladder` up one side. |
 | `awning`, `tent` | A market stall under striped cloth; an expedition's ridge tent. |
 | `wall_glyphs`, `wall_ruin` | A wall carved with hieroglyphs on both faces; a broken wall that steps down and can be climbed. |
+| `pickaxe`, `shovel`, `turia`, `khopesh` | RigidBody3D in the groups `throwable`, `interest` and `bats`: he picks one up and swings it in both hands, as he does the bat. A navvy's pick, a round-mouthed shovel with a D grip, the broad Egyptian hoe a dig was worked with, and the bronze sickle sword (0.6 m: a hilt, a straight shank, the blade curving out with its edge on the outside, a hooked tip). The origin is the end he holds and the thing lies along its own Y, so one put into a level stands on end and falls over: tip it on its side. |
+| `trowel`, `brush`, `tape_measure`, `lantern`, `dig_basket` | RigidBody3D, `throwable`: a pointing trowel, a hand brush, a tape in its leather case, a hurricane lantern (it gives no light), a palm-leaf basket of spoil. |
+| `brushes`, `dig_baskets`, `dig_tools` | Fixed: a tin of brushes with a hand brush and a trowel on a cloth; a stack of empty baskets, a full one and one tipped over; a pick, a shovel and a turia stood against a box, with a basket and a coil of rope. |
+| `sieve`, `wheelbarrow` | A screen on legs with the heaps under and below it, and a round hand sieve; a wooden barrow loaded with spoil, its wheel towards +Z. |
+| `surveyor_level`, `plumb_tripod`, `ranging_pole`, `measuring_staff` | A brass dumpy level on its tripod, looking along +Z; three poles with a plumb line hung over a peg; a 2 m pole in red and white; a 2.5 m levelling staff, its marked face towards +Z. |
+| `crate_finds`, `camp_table` | A packing case of finds in straw, its lid leaning on it; the table a dig is run from (a map, notebooks, ink, a lens, a lantern) with a folding stool. |
+| `backpack`, `bedroll` | A canvas rucksack with leather straps and a blanket rolled on top, set down; a rolled blanket lying by itself. (Worn, the backpack is another model: see "What is worn".) |
+| `khopesh_stand` | A khopesh on a rack, to stand on the ground or against a wall. |
+| `helmet_anubis`, `helmet_horus`, `helmet_sobek`, `helmet_bastet`, `helmet_thoth`, `helmet_khnum` | A god's head to wear (jackal, falcon, crocodile, cat, ibis, ram), shown on a post with a wooden head, at the height of the boy's. |
 
 On the root of each: `draw_distance` (metres beyond which it is not drawn; 0 is always) and `casts_shadow`. Change them
 on any one you have placed.
 
+A prop with gold, bronze or brass in it (the materials `gilt`, `bronze_bright`, `brass`) has `scripts/gear_prop.gd` on its root
+instead, which is `prop.gd` and makes those shine as a pyramid's gold cap does.
+
 `prop.gd` gives every surface the world's material for its colour (`Toon.surface`), so props follow the menu's banded or smooth
 light. In the editor you see the model's own plain materials instead, and a `Ladder` or `Pool` shows nothing: those draw
 themselves only when the game runs.
+
+### What is worn
+
+The backpack and the six helmets are also models of their own in `models/worn/`, with no scene: `scripts/worn.gd` puts one
+on a figure, following a bone of its skeleton (`chest` for the pack, `head` for a helmet).
+
+```gdscript
+Worn.put_on(figure, &"helmet_anubis")   # a CharacterRig, a Figure, the Player, or a Skeleton3D
+Worn.put_on(figure, &"backpack")
+Worn.take_off(figure, &"head")          # a thing by name, a slot (&"head", &"back"), or nothing for all of it
+```
+
+A helmet is a striped headcloth open at the face, from chin to brow, with the animal's head on top of it: the face shows
+under the muzzle. While one is on, the figure's cap and hair are not drawn. They are modelled to fit the boy; `Worn.FITS`
+says how each is fitted to a figure built otherwise (the brother, the mummy), by the name of its model, and `put_on` takes
+a fit of its own (`{"scale": ..., "offset": ...}`). What the boy has on is `Settings.helmet` and `Settings.backpack`, set in
+the dresser. They are built with the props (`WORN` in `tools/build_props.py`), each in the space of the bone it follows.
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/worn_sheets.gd -- <folder> [heads figures moves swing] [anubis ...] [nopack]
+```
+
+draws them on the boy, his brother, townspeople and the mummy, the boy doing what he does in them, and the swing of the
+khopesh, the pick and the shovel.
 
 ### Plants
 
@@ -59,7 +95,7 @@ They are made in Blender from code, in `tools/build_props.py`: one function per 
 glyphs, and it says there what is solid. Then:
 
 ```
-blender --background --python tools/build_props.py [-- name ...]     # models/props/*.glb and props.json
+blender --background --python tools/build_props.py [-- name ...]     # models/props/*.glb and props.json, and models/worn/*.glb
 godot --headless --path . --import
 godot --headless --path . --script tools/build_prop_scenes.gd [-- name ...]   # props/*.tscn
 godot --path . --resolution 960x960 --script tools/prop_sheets.gd -- <folder> [four] [banded] [sky] [backlit] [crown] [sway] [name ...]   # pictures of them
@@ -73,7 +109,7 @@ are instances and pick the change up.
 The desert is not laid out in the Godot editor any more. It is made from a layout (`levels/desert.json`, or the one saved on
 the device) by `scripts/desert.gd`, and changed with the level editor inside the game: see "The level editor" in README.md.
 The scene holds only `Sky` and `Sun` (ordinary nodes: change the light there), the `Terrain`, the player, the camera and the
-controls. Every prop below is on the editor's Stone and Camp pages.
+controls. Every prop below is on the editor's Stone and Camp pages, and the dig's are on its Dig page.
 
 A new prop is offered by the editor once it is added to `PALETTE` in `scripts/level_layout.gd`.
 

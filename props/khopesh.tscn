@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gear_prop.gd" id="1_jr1gs"]
+[ext_resource type="PackedScene" path="res://models/props/khopesh.glb" id="2_6xev2"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_er6hy"]
+size = Vector3(0.03, 0.6, 0.13)
+
+[node name="Khopesh" type="RigidBody3D" unique_id=1279659465 groups=["bats", "interest", "throwable"]]
+mass = 1.1
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_jr1gs")
+draw_distance = 80.0
+
+[node name="Model" parent="." unique_id=823881749 instance=ExtResource("2_6xev2")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=870159445]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0.03)
+shape = SubResource("BoxShape3D_er6hy")

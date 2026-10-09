@@ -33,7 +33,7 @@ const FLATS: Array[Rect2] = [
 	Rect2(0, 0, 9, 9), Rect2(15, -12, 9, 6), Rect2(29.5, 6, 10, 9), Rect2(2, 25, 15, 9),
 	Rect2(-16, 8, 5, 5), Rect2(-26, -8, 9, 8), Rect2(-2, -25, 16, 8), Rect2(32, -26, 7, 7),
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
-	Rect2(-44, 6, 7, 6),
+	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6),
 ]
 const EASE := 9.0
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
@@ -91,6 +91,7 @@ func _ready() -> void:
 	_build_mummy(Vector3(-42.0, 0.0, -32.0))
 	_build_range(Vector3(40.0, 0.0, 36.0))
 	_build_camels(Vector3(-44.0, 0.0, 6.0))
+	_build_dig(Vector3(24.5, 0.0, 27.0))
 	_build_kinds()
 	_settle_in.call_deferred()
 
@@ -483,6 +484,54 @@ func _build_range(at: Vector3) -> void:
 		shelf += 0.55
 	# Something behind it all to stop what misses
 	_solid(at + Vector3(0.0, 1.6, 12.5), Vector3(15.0, 3.2, 1.0), DARK)
+
+
+## A dig: the tools of one set out to pick up (the pick, the shovel, the turia
+## and the khopesh are swung as the bat is), what a site is dressed with, the
+## helmets on their stands, and somebody wearing one and a pack (see Worn).
+func _build_dig(at: Vector3) -> void:
+	_mark_here(at + Vector3(0.0, 0.0, -5.0), "THE DIG
+act picks a tool up, act again swings it
+helmets and the backpack: Menu, Dress him", 3.4)
+	# What he can pick up, lying in a row: the long things on their sides
+	var along := -3.0
+	for tool: String in ["khopesh", "pickaxe", "shovel", "turia"]:
+		var lying := _set_down("res://props/%s.tscn" % tool, at + Vector3(along, 0.06, -2.6)) as RigidBody3D
+		lying.rotation.z = PI * 0.5
+		_keep(lying)
+		along += 1.5
+	along = -2.6
+	for thing: String in ["trowel", "brush", "tape_measure", "lantern", "dig_basket"]:
+		_keep(_set_down("res://props/%s.tscn" % thing, at + Vector3(along, 0.2, -1.4), along) as RigidBody3D)
+		along += 1.1
+	# The site
+	_set_down("res://props/camp_table.tscn", at + Vector3(-4.6, 0.0, 1.0), PI * 0.5)
+	_set_down("res://props/backpack.tscn", at + Vector3(-4.4, 0.0, 2.6), 2.2)
+	_set_down("res://props/bedroll.tscn", at + Vector3(-5.2, 0.0, 3.3), 0.4)
+	_set_down("res://props/crate_finds.tscn", at + Vector3(-4.8, 0.0, -1.6), 0.3)
+	_set_down("res://props/khopesh_stand.tscn", at + Vector3(-5.6, 0.0, -3.4), 0.7)
+	_set_down("res://props/sieve.tscn", at + Vector3(4.6, 0.0, -1.0), -0.5)
+	_set_down("res://props/dig_baskets.tscn", at + Vector3(5.4, 0.0, 1.4), 0.8)
+	_set_down("res://props/wheelbarrow.tscn", at + Vector3(3.4, 0.0, 2.0), 2.4)
+	_set_down("res://props/dig_tools.tscn", at + Vector3(5.6, 0.0, -3.6), -0.7)
+	_set_down("res://props/brushes.tscn", at + Vector3(2.6, 0.0, -0.2), 0.3)
+	_set_down("res://props/surveyor_level.tscn", at + Vector3(0.0, 0.0, 1.6), 0.0)
+	_set_down("res://props/measuring_staff.tscn", at + Vector3(0.0, 0.0, 6.4), PI)
+	_set_down("res://props/plumb_tripod.tscn", at + Vector3(-2.0, 0.0, 2.6))
+	for x: float in [-6.4, 6.4]:
+		_set_down("res://props/ranging_pole.tscn", at + Vector3(x, 0.0, 5.6))
+	# The helmets, and someone to show how they are worn
+	along = -3.75
+	for god: String in ["anubis", "horus", "sobek", "bastet", "thoth", "khnum"]:
+		_set_down("res://props/helmet_%s.tscn" % god, at + Vector3(along, 0.0, 4.6), PI)
+		along += 1.5
+	var digger := Townsperson.new()
+	digger.seed = 12
+	digger.wander = 1.5
+	digger.position = at + Vector3(2.0, 0.1, 3.0)
+	add_child(digger)
+	Worn.put_on(digger, &"helmet_horus")
+	Worn.put_on(digger, &"backpack")
 
 
 func _set_down(scene: String, at: Vector3, yaw := 0.0) -> Node3D:

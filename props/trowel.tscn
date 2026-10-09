@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_146bf"]
+[ext_resource type="PackedScene" path="res://models/props/trowel.glb" id="2_jhi0x"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_iw7st"]
+size = Vector3(0.08, 0.03, 0.27)
+
+[node name="Trowel" type="RigidBody3D" unique_id=1347169422 groups=["interest", "throwable"]]
+mass = 0.4
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_146bf")
+draw_distance = 40.0
+casts_shadow = false
+
+[node name="Model" parent="." unique_id=379684900 instance=ExtResource("2_jhi0x")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1663100197]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, 0)
+shape = SubResource("BoxShape3D_iw7st")
