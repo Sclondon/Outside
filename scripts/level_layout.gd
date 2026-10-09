@@ -54,7 +54,7 @@ const PALETTE := {
 	],
 	"People": [
 		["Townsperson", "person", "townsperson"], ["Brother", "person", "brother"], ["Cat", "person", "cat"],
-		["Hound", "person", "hound"], ["Mummy", "person", "mummy"],
+		["Hound", "person", "hound"], ["Mummy", "person", "mummy"], ["Camel", "person", "camel"],
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
@@ -93,6 +93,8 @@ const FIELDS := {
 	"person:cat": [["coat", "Coat", "c", ["Bronze", "Silver", "Black", "Ruddy", "Tabby", "Ginger"], 0], ["tame", "Tame", "n", 0.0, 1.0, 0.05, 0.6], ["curiosity", "Curious", "n", 0.0, 1.0, 0.05, 0.6]],
 	"person:hound": [["breed", "Breed", "c", ["Either", "Bloodhound", "Pharaoh hound"], 0], ["alert", "Gives chase within", "n", 0.0, 60.0, 1.0, 14.0], ["links", "Set on by", "links"]],
 	"person:mummy": [["alert", "Wakes within", "n", 0.0, 40.0, 0.5, 6.0], ["links", "Woken by", "links"]],
+	"person:camel": [["saddled", "Saddled", "b", false], ["packed", "Carries packs", "b", false], ["tethered", "Tethered", "b", false], ["couched", "Couched", "b", false],
+		["roam", "Roams", "n", 0.0, 30.0, 0.5, 6.0]],
 	"plate": [["span_x", "Width", "n", 0.6, 8.0, 0.1, 1.6], ["span_z", "Length", "n", 0.6, 8.0, 0.1, 1.6], ["latches", "Stays down", "b", false], ["only_him", "Only he presses it", "b", false]],
 	"door": [["wide", "Width", "n", 0.6, 12.0, 0.1, 3.0], ["tall", "Height", "n", 1.0, 12.0, 0.1, 2.6], ["thick", "Thickness", "n", 0.2, 3.0, 0.05, 0.4],
 		["links", "Opened by", "links"], ["needs_all", "Needs every one", "b", false], ["inverted", "Open until then", "b", false]],

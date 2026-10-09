@@ -270,6 +270,16 @@ func _person(item: Dictionary, who: String) -> Node3D:
 			return hound
 		"mummy":
 			return Mummy.new()
+		"camel":
+			var camel := Camel.new()
+			camel.saddled = item.get("saddled", false)
+			camel.packed = item.get("packed", false)
+			camel.couched = item.get("couched", false)
+			camel.roam = item.get("roam", 6.0)
+			if item.get("tethered", false):
+				# (to a peg a little way from where it is put)
+				camel.tether = place_of(item) + Vector3(1.2, 0.0, 0.0)
+			return camel
 	return null
 
 

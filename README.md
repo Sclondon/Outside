@@ -311,6 +311,50 @@ godot --headless --path . --fixed-fps 60 --script tools/cat_test.gd
 Add a coat's name (`silver`, `black`, `tabby`...) or `lo` to the first. Under each gait it prints how far ahead of the
 fore paw's print the hind paw of that side came down.
 
+## The camels
+
+`Camel.new()` is a whole camel (`scripts/camel.gd`): a dromedary, about 1.7 m at the withers and 2 m at the top of its
+hump. The level editor places one ("Camel" on the People page: saddled, carrying packs, tethered, couched, and how far it
+roams), and there are two in the test yard. To put one in by hand:
+
+```gdscript
+var camel := Camel.new()
+camel.saddled = true                     # a riding saddle on a blanket; `packed` for saddlebags, `haltered` for a rope halter
+camel.couched = true                     # it starts couched, and stays so for `rest_for` seconds
+camel.tether = Vector3(x, y, z)          # tied to a peg there, on `tether_length` of rope (and so haltered)
+camel.position = Vector3(x, y, z)
+add_child(camel)
+camel.follow(someone)                    # led on its rope at a walk; `follow(another_camel)` puts it in a string behind that one
+```
+
+Left alone it stands, shifting its weight and resting one hind leg and then the other, chews the cud (the jaw goes round
+sideways), wanders within `roam` of where it was put, puts its head down to browse (on anything in the group `fodder`
+that is in reach, or else at its feet), and after `rest_after` seconds on its feet kneels and couches for `rest_for`,
+dozing if no one is near. It turns its head to the boy within `notice_distance`, and shies from anything in the group
+`pursuers` within `fear_distance`: up, groaning, and away. A caravan is a string: lead the first, and have each of the
+others `follow` the one in front.
+
+It walks and it paces: both legs of one side go forward together, so it rolls from side to side as it goes, and its
+neck pumps. Flat out it gallops. It gets down forelegs first (onto its knees, rump in the air, then its hind legs fold,
+then it settles onto its chest) and gets up hindquarters first. The sources for all this, and what is measured and what
+is only chosen to look right, are in the comments at the top of `scripts/camel_rig.gd`; `CamelRig` extends `HoundRig`
+and uses its leg solver, foot path, springs and ears unchanged. The model is built by `tools/build_camel.py`
+(`models/camel.glb` and a demade `camel_lo.glb`) on the hound's bones plus a neck in four pieces and eyelids; its tack
+is separate meshes on the same skeleton. Its voice is two recordings of a camel groaning (`audio/camels/`, credited in
+`CREDITS.md` there); `voice = false` makes it silent.
+
+It is not ridden yet. `camel.seat()` is where a rider would sit, and `mount()` / `dismount()` are there to be written.
+Like the hounds and the cat, it and the player pass through each other.
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/camel_sheets.gd -- <folder> [turnaround tack walk pace gallop couch browse look led tethered shy fur m_walk m_pace m_gallop m_kneel m_rise m_chew m_idle m_turn ...]
+godot --headless --path . --fixed-fps 60 --script tools/camel_test.gd
+```
+
+Add `lo` for the demade model or `bare` for no tack. Under each gait it prints when each foot came down in the stride
+(at a pace the fore foot lands 0.02 to 0.05 of a stride after the hind foot of its own side, and the two sides half a
+stride apart), how far a planted foot slid, and how far it rolled; and after each `m_` strip, any bone that shook or jumped.
+
 ## Demade models
 
 The same scripts also build low-poly, flat-shaded versions (`models/boy_lo.glb`, `models/hound_lo.glb`,
