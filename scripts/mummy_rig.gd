@@ -22,6 +22,13 @@ extends CharacterRig
 ##   the bones named `drape_<name>_<k>`: each link hangs from the one above,
 ##   is pulled down, held back by the air, kept off the ground, and (those at
 ##   the waist and shoulders) kept out of its body and legs.
+##
+## The other kinds of mummy (see `Mummy.Kind`) each have a rig that extends this
+## one and poses the figure its own way (scripts/mummy_priest_rig.gd and the
+## rest). What they share is here: the stages of a swipe, whose lengths are
+## each rig's own (`swipe_wind_up`, `swipe_strike` and so on); steps taken by two
+## legs in turn, on feet that stay where they are put (`_tread`); hands on
+## springs; and the loose ends.
 
 enum Stage { NONE, WIND_UP, STRIKE, HOLD, RECOVER }
 
@@ -38,6 +45,17 @@ const DRAG := Vector2(0.44, 0.95)
 ## The leg that steps and the leg that is dragged.
 const GOOD := 0
 const BAD := 1
+
+## Seconds each part of a swipe takes for this rig: the first mummy's, unless a kind sets its own.
+var swipe_wind_up := WIND_UP
+var swipe_strike := STRIKE
+var swipe_hold := HOLD
+var swipe_recover := RECOVER
+## How thick it is, for what hangs on it to lie against (see _body_shapes): its
+## trunk, the top of its back, and its thighs.
+var trunk_round := 0.058
+var back_round := 0.098
+var thigh_round := 0.05
 
 
 ## A loose strip: joints from where it is rooted to its tip, in the world.
@@ -93,6 +111,15 @@ var _swipe_arm := 0
 var _chains: Array[Chain] = []
 var _own_dust: Dust
 var _scuff := 0.0
+## For the kinds that step with each leg in turn (see _tread): how far through
+## its step each foot is, or -1 while it stands.
+var _foot_swing: Array[float] = [-1.0, -1.0]
+var _foot_began: Array[float] = [0.0, 0.0]
+var _trod := false
+## Where it was a frame ago (see _gone), and whether its arms are turned by the
+## hinge of the elbow (see _hinge_arm), which the other kinds' are.
+var _was_at := Vector3.INF
+var _hinged := false
 
 
 func _build() -> void:
@@ -118,6 +145,7 @@ func settle() -> void:
 	_loll = Vector2.ZERO
 	_wake = awake
 	_posed = false
+	_was_at = Vector3.INF
 	for i in 2:
 		_foot_at[i] = _standing(i)
 		_foot_moving[i] = false
@@ -132,18 +160,18 @@ func swipe(arm: int) -> void:
 
 
 func stage() -> Stage:
-	if _swipe_time >= WIND_UP + STRIKE + HOLD + RECOVER:
+	if _swipe_time >= swipe_wind_up + swipe_strike + swipe_hold + swipe_recover:
 		return Stage.NONE
-	if _swipe_time < WIND_UP:
+	if _swipe_time < swipe_wind_up:
 		return Stage.WIND_UP
-	if _swipe_time < WIND_UP + STRIKE:
+	if _swipe_time < swipe_wind_up + swipe_strike:
 		return Stage.STRIKE
-	return Stage.HOLD if _swipe_time < WIND_UP + STRIKE + HOLD else Stage.RECOVER
+	return Stage.HOLD if _swipe_time < swipe_wind_up + swipe_strike + swipe_hold else Stage.RECOVER
 
 
 ## How long until the arm comes down, while it is winding up.
 func strikes_in() -> float:
-	return WIND_UP - _swipe_time
+	return swipe_wind_up - _swipe_time
 
 
 ## The arms that are sweeping now, each as the line from its elbow to its fingertips, in the world.
@@ -193,7 +221,7 @@ func _pose_extra(delta: float) -> void:
 
 	# Where it is in a swipe. `wound`: reared back, 0..1. `struck`: thrown
 	# forward after the arm, 0..1. `sweep`: how far the arm is through its stroke.
-	var total := WIND_UP + STRIKE + HOLD + RECOVER
+	var total := swipe_wind_up + swipe_strike + swipe_hold + swipe_recover
 	if _swipe_time < total:
 		_swipe_time += delta
 	var swiping := _swipe_time < total
@@ -202,9 +230,9 @@ func _pose_extra(delta: float) -> void:
 	var sweep := 0.0
 	if swiping:
 		# (it goes back slowly and hangs there a moment before it comes down)
-		wound = smoothstep(0.0, WIND_UP * 0.7, _swipe_time) * (1.0 - smoothstep(WIND_UP, WIND_UP + STRIKE * 0.5, _swipe_time))
-		sweep = clampf((_swipe_time - WIND_UP) / STRIKE, 0.0, 1.0)
-		struck = smoothstep(WIND_UP, WIND_UP + STRIKE, _swipe_time) * (1.0 - smoothstep(WIND_UP + STRIKE + HOLD, total, _swipe_time))
+		wound = smoothstep(0.0, swipe_wind_up * 0.7, _swipe_time) * (1.0 - smoothstep(swipe_wind_up, swipe_wind_up + swipe_strike * 0.5, _swipe_time))
+		sweep = clampf((_swipe_time - swipe_wind_up) / swipe_strike, 0.0, 1.0)
+		struck = smoothstep(swipe_wind_up, swipe_wind_up + swipe_strike, _swipe_time) * (1.0 - smoothstep(swipe_wind_up + swipe_strike + swipe_hold, total, _swipe_time))
 	# Which way the swipe turns it: its left arm comes across to its right.
 	var across := 0.0 if _swipe_arm == 2 else (1.0 if _swipe_arm == 0 else -1.0)
 
@@ -348,6 +376,10 @@ func _hand_to(i: int, point: Vector3, pole: Vector3) -> void:
 	var side := 1.0 if i == 0 else -1.0
 	var from := _shoulders[i].global_position
 	var to := to_global(point) - from
+	if _hinged:
+		# (the other kinds' hands go to the very place: see _hinge_arm)
+		_hinge_arm(i, to_global(point), (global_basis * pole).normalized())
+		return
 	_solve_arm(i, side, from + to / global_basis.get_scale().y, _forearm, 1.0, (global_basis * pole).normalized())
 
 
@@ -360,7 +392,7 @@ func _arms(wound: float, struck: float, sweep: float, across: float, swiping: bo
 	var level := clampf(mark.y, 0.4, 1.05)
 	var chest := to_local(_chest.global_position)
 	var chest_basis := (global_basis.inverse() * _chest.global_basis).orthonormalized()
-	var total := WIND_UP + STRIKE + HOLD + RECOVER
+	var total := swipe_wind_up + swipe_strike + swipe_hold + swipe_recover
 	for i in 2:
 		var side := 1.0 if i == 0 else -1.0
 		var shoulder := to_local(_shoulders[i].global_position)
@@ -404,7 +436,7 @@ func _arms(wound: float, struck: float, sweep: float, across: float, swiping: bo
 				var bend := through * 2.0 - (back + done) * 0.5
 				var u := sweep * sweep * (3.0 - 2.0 * sweep)
 				var stroke := back.lerp(bend, u).lerp(bend.lerp(done, u), u)
-				place = goal.lerp(back, smoothstep(0.0, WIND_UP * 0.75, _swipe_time)) if _swipe_time < WIND_UP else stroke
+				place = goal.lerp(back, smoothstep(0.0, swipe_wind_up * 0.75, _swipe_time)) if _swipe_time < swipe_wind_up else stroke
 				pole = pole.lerp(Vector3(side, 0.35, -0.6), wound)
 				# Its fingers are spread wide to take him, and close on what they find.
 				curl = lerpf(curl, lerpf(0.12, 1.15, smoothstep(0.75, 1.0, sweep)), maxf(wound, struck))
@@ -413,7 +445,7 @@ func _arms(wound: float, struck: float, sweep: float, across: float, swiping: bo
 			else:
 				# The other arm goes out behind it, for balance.
 				place = goal + Vector3(side * 0.12, -0.1, -0.3) * wound + Vector3(side * 0.2, -0.2, -0.5) * struck
-			var over := smoothstep(0.0, 0.1, _swipe_time) * (1.0 - smoothstep(total - RECOVER * 0.8, total, _swipe_time))
+			var over := smoothstep(0.0, 0.1, _swipe_time) * (1.0 - smoothstep(total - swipe_recover * 0.8, total, _swipe_time))
 			_hand_at[i] = _hand_at[i].lerp(place, over)
 			_hand_speed[i] *= 1.0 - over
 
@@ -452,7 +484,7 @@ func _find_chains() -> void:
 		chain.was.resize(chain.bones.size() + 1)
 		if "waist" in called:
 			chain.shapes = PackedInt32Array([0, 2, 3])
-		elif "shoulder" in called:
+		elif "shoulder" in called or "stole" in called or "lappet" in called:
 			chain.shapes = PackedInt32Array([0, 1])
 		_chains.append(chain)
 
@@ -464,8 +496,8 @@ func _body_shapes(size: float) -> Array[Vector4]:
 	var up := _hips.global_basis.y.normalized()
 	var back := _chest.global_basis.orthonormalized()
 	var lines: Array[Vector4] = []
-	for line: Array in [[hips, chest, 0.058], [chest + back * Vector3(0.0, 0.03, -0.02) * size, chest + back * Vector3(0.0, 0.15, -0.01) * size, 0.098],
-			[_thighs[0].global_position, _shins[0].global_position, 0.05], [_thighs[1].global_position, _shins[1].global_position, 0.05]]:
+	for line: Array in [[hips, chest, trunk_round], [chest + back * Vector3(0.0, 0.03, -0.02) * size, chest + back * Vector3(0.0, 0.15, -0.01) * size, back_round],
+			[_thighs[0].global_position, _shins[0].global_position, thigh_round], [_thighs[1].global_position, _shins[1].global_position, thigh_round]]:
 		lines.append(Vector4(line[0].x, line[0].y, line[0].z, line[2] * size))
 		lines.append(Vector4(line[1].x, line[1].y, line[1].z, 0.0))
 	return lines
@@ -536,3 +568,156 @@ func _hang_chains(size: float, delta: float) -> void:
 			var now := (turn * above).orthonormalized()
 			_skeleton.set_bone_pose(chain.bones[k], Transform3D(above.inverse() * now, chain.origin if k == 0 else chain.links[k - 1]))
 			above = now
+
+
+# --- What the other kinds share ---
+
+## Runs the swipe on, and says where it is in it: how far it is drawn back
+## (x, 0..1), how far thrown forward after the blow (y, 0..1), and how far the
+## blow itself is through (z, 0..1).
+func _swipe_levels(delta: float) -> Vector3:
+	var total := swipe_wind_up + swipe_strike + swipe_hold + swipe_recover
+	if _swipe_time < total:
+		_swipe_time += delta
+	if _swipe_time >= total:
+		return Vector3.ZERO
+	var wound := smoothstep(0.0, swipe_wind_up * 0.7, _swipe_time) * (1.0 - smoothstep(swipe_wind_up, swipe_wind_up + swipe_strike * 0.5, _swipe_time))
+	var struck := smoothstep(swipe_wind_up, swipe_wind_up + swipe_strike, _swipe_time) * (1.0 - smoothstep(swipe_wind_up + swipe_strike + swipe_hold, total, _swipe_time))
+	return Vector3(wound, struck, clampf((_swipe_time - swipe_wind_up) / swipe_strike, 0.0, 1.0))
+
+
+## Steps with each leg in turn. A whole cycle (two steps) is `stride` long, and
+## each foot is off the ground for `swing` of it; `width` is how far out from
+## the middle it is put down. A foot that stands stays where it is on the
+## ground (the body going forward carries it back under it), and one that
+## steps is brought down already going back with the ground, so that neither
+## slides. Leaves `_foot_at`, `_foot_moving` and `_foot_swing` for the kind to
+## shape the step from; `stepped` is called with each foot that has just come down.
+func _tread(going: Vector3, turned: float, go: float, delta: float, stride: float, swing: float, width: float, stepped := Callable()) -> void:
+	var speed := going.length()
+	_cycle = fposmod(_cycle + speed / stride * delta, 1.0)
+	# (it is walking as soon as it is really moving, though the body it is on has not yet said so)
+	var walking := (go > 0.15 or speed > 0.3) and speed > 0.02
+	if walking and not _trod:
+		# (setting off, it steps at once, with whichever foot is further behind)
+		_cycle = 0.0 if _foot_at[0].dot(ahead_of(going)) <= _foot_at[1].dot(ahead_of(going)) else 0.5
+	_trod = walking
+	var ahead := going / maxf(speed, 0.0001)
+	# (a foot the body has been thrown clear of, by a lunge, is drawn along after it)
+	var tether := stride * (1.0 - swing) * 0.5 + 0.22
+	for i in 2:
+		var side := 1.0 if i == 0 else -1.0
+		_foot_at[i] = (_foot_at[i] - going * delta).rotated(Vector3.UP, -turned)
+		var home := Vector3(side * width, 0.0, 0.0)
+		if _foot_at[i].distance_to(home) > tether:
+			_foot_at[i] = home + (_foot_at[i] - home).normalized() * tether
+		var p := fposmod(_cycle - 0.5 * i, 1.0)
+		# (it does not begin a step that is all but over, as it may be when it starts off: it waits for its next)
+		var stepping := walking and p < swing and (_foot_moving[i] or p < swing * 0.8)
+		if stepping and not _foot_moving[i]:
+			_foot_began[i] = p
+			_foot_from[i] = _foot_at[i]
+			_foot_to[i] = Vector3(side * width, 0.0, 0.0) + ahead * stride * (1.0 - swing) * 0.5
+		if _foot_moving[i] and not stepping and stepped.is_valid():
+			stepped.call(i)
+		_foot_moving[i] = stepping
+		var t := (p - _foot_began[i]) / (swing - _foot_began[i])
+		_foot_swing[i] = t if stepping else -1.0
+		if stepping:
+			# (where it is making for is still ahead of where it will come down by as far as the body has yet to go)
+			_foot_at[i] = _foot_from[i].lerp(_foot_to[i] + ahead * (swing - p) * stride, t * t * (3.0 - 2.0 * t))
+	if not walking:
+		_feet_home(delta)
+
+
+static func ahead_of(going: Vector3) -> Vector3:
+	return going / maxf(going.length(), 0.0001)
+
+
+## Going nowhere, each foot is shuffled back to where it stands.
+func _feet_home(delta: float) -> void:
+	for i in 2:
+		var home := _standing(i)
+		var off := _foot_at[i].distance_to(home)
+		_foot_at[i] = _foot_at[i].lerp(home, 1.0 - exp(-(4.0 if off > 0.04 else 0.0) * delta)) if _posed else home
+		_foot_lift[i] = lerpf(_foot_lift[i], minf(off * 0.25, 0.02), 1.0 - exp(-18.0 * delta))
+		_foot_swing[i] = -1.0
+		_foot_moving[i] = false
+
+
+## Puts each leg to its foot, as `_foot_at`, `_foot_lift`, `_foot_toes` and
+## `_foot_turn` have it; the knees `spread` apart from the way the feet point.
+func _stand_legs(spread: float) -> void:
+	var to_hips := _hips.transform.affine_inverse()
+	for i in 2:
+		var side := 1.0 if i == 0 else -1.0
+		var toes := _foot_toes[i]
+		var target := Vector3(_foot_at[i].x, _foot_lift[i], _foot_at[i].z) + _ankle_offset(toes)
+		var foot := Basis(Vector3.UP, _foot_turn[i]) * Basis(Vector3.RIGHT, toes)
+		# (the toes lie flat while the ball of the foot is down, and hang a little once it is up)
+		_toes[i].rotation.x = lerpf(-maxf(toes, 0.0), 0.15, smoothstep(0.0, 0.035, _foot_lift[i]))
+		_solve_leg(i, side, to_hips * target, (to_hips.basis * foot).orthonormalized(), _foot_turn[i] * 0.8 + side * spread)
+
+
+## How fast it is really going, in its own space: from where it was a frame ago
+## and not from what its body says its speed is, which the picture of it runs a
+## step behind. Feet that are moved by this stay exactly where they stand.
+func _gone(delta: float) -> Vector3:
+	var here := global_position
+	var moved := here - _was_at if _was_at.is_finite() else Vector3.ZERO
+	_was_at = here
+	moved.y = 0.0
+	if moved.length() > 0.5:
+		# (it has been put somewhere else)
+		moved = Vector3.ZERO
+	return global_basis.inverse() * moved / maxf(delta, 0.0001)
+
+
+## Turns an arm to put its wrist at `point` (in the world), the elbow towards
+## `pole`. As CharacterRig._solve_arm, but each bone is turned about the hinge
+## of the elbow and not towards the way it faces: an arm held straight out in
+## front, or brought down through there, does not turn over on itself.
+func _hinge_arm(i: int, point: Vector3, pole: Vector3) -> void:
+	var shoulder := _shoulders[i]
+	var from := shoulder.global_position
+	var to := point - from
+	var size := global_basis.get_scale().y
+	var upper_length := _upper_arm * size
+	var fore_length := _forearm * size
+	var reach := clampf(to.length(), 0.1 * size, upper_length + fore_length - 0.005 * size)
+	var direction := to.normalized() if to.length_squared() > 0.000001 else Vector3.DOWN
+	var hinge := direction.cross(pole)
+	hinge = hinge.normalized() if hinge.length_squared() > 0.0001 else global_basis.x.normalized()
+	var angle := acos(clampf((upper_length * upper_length + reach * reach - fore_length * fore_length) / (2.0 * upper_length * reach), -1.0, 1.0))
+	var upper_direction := direction.rotated(hinge, angle)
+	var fore_direction := (from + direction * reach - (from + upper_direction * upper_length)).normalized()
+	var parent := (shoulder.get_parent() as Node3D).global_basis.orthonormalized()
+	shoulder.basis = parent.inverse() * Basis(hinge, -upper_direction, hinge.cross(-upper_direction))
+	var upper := shoulder.global_basis.orthonormalized()
+	_elbows[i].basis = upper.inverse() * Basis(hinge, -fore_direction, hinge.cross(-fore_direction))
+
+
+## A hand as a weight on a spring, drawn to `goal` (in the rig's own space).
+func _hand_follow(i: int, goal: Vector3, stiffness: float, damping: float, delta: float) -> void:
+	_hand_speed[i] += ((goal - _hand_at[i]) * stiffness - _hand_speed[i] * damping) * delta
+	_hand_at[i] += _hand_speed[i] * delta
+	if not _posed or _wake < 0.03:
+		_hand_at[i] = goal
+		_hand_speed[i] = Vector3.ZERO
+
+
+## Turns `_gaze` towards what it is after, seen from `height` up it: (to the side, down), within `most`.
+func _watch_him(height: float, most: Vector2, rate: float, delta: float) -> void:
+	var look := Vector2.ZERO
+	if aim.is_finite() and _wake > 0.5:
+		var to := to_local(aim) - Vector3(0.0, height, 0.0)
+		look = Vector2(clampf(atan2(to.x, to.z), -most.x, most.x), clampf(-atan2(to.y, Vector2(to.x, to.z).length()), -most.y, most.y))
+	_gaze = _gaze.lerp(look, 1.0 - exp(-rate * delta))
+
+
+## A hand's fingers and wrist: how far closed, how far spread, and the wrist bent.
+func _set_hand(i: int, curl: float, splay: float, wrist: float) -> void:
+	_hands[i].rotation = Vector3(wrist, 0.0, 0.0)
+	_curl[i] = curl
+	_splay[i] = splay
+	_pose_fingers(i, 1.0 if i == 0 else -1.0)
