@@ -299,7 +299,9 @@ func _person(item: Dictionary, who: String) -> Node3D:
 			hound.breed = int(item.get("breed", 0)) as Hound.Breed
 			return hound
 		"mummy":
-			return Mummy.new()
+			var mummy := Mummy.new()
+			mummy.kind = int(item.get("sort", 0)) as Mummy.Kind
+			return mummy
 		"camel":
 			var camel := Camel.new()
 			camel.saddled = item.get("saddled", false)

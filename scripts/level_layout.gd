@@ -119,7 +119,8 @@ const FIELDS := {
 	"person:brother": [],
 	"person:cat": [["coat", "Coat", "c", ["Bronze", "Silver", "Black", "Ruddy", "Tabby", "Ginger"], 0], ["tame", "Tame", "n", 0.0, 1.0, 0.05, 0.6], ["curiosity", "Curious", "n", 0.0, 1.0, 0.05, 0.6]],
 	"person:hound": [["breed", "Breed", "c", ["Either", "Bloodhound", "Pharaoh hound"], 0], ["alert", "Gives chase within", "n", 0.0, 60.0, 1.0, 14.0], ["links", "Set on by", "links"]],
-	"person:mummy": [["alert", "Wakes within", "n", 0.0, 40.0, 0.5, 6.0], ["links", "Woken by", "links"]],
+	# (`sort` is which kind of mummy, in the order of `Mummy.Kind`; "kind" is already what sort of thing an item is)
+	"person:mummy": [["sort", "Kind", "c", ["Shambler", "Priest", "Brute", "Crawler", "Child", "Royal"], 0], ["alert", "Wakes within", "n", 0.0, 40.0, 0.5, 6.0], ["links", "Woken by", "links"]],
 	"person:camel": [["saddled", "Saddled", "b", false], ["packed", "Carries packs", "b", false], ["tethered", "Tethered", "b", false], ["couched", "Couched", "b", false],
 		["roam", "Roams", "n", 0.0, 30.0, 0.5, 6.0]],
 	"plate": [["span_x", "Width", "n", 0.6, 8.0, 0.1, 1.6], ["span_z", "Length", "n", 0.6, 8.0, 0.1, 1.6], ["latches", "Stays down", "b", false], ["only_him", "Only he presses it", "b", false]],

@@ -466,16 +466,39 @@ func _build_hounds(at: Vector3) -> void:
 		_hounds.append(hound)
 
 
-## The mummy: the plate wakes it, and puts it back.
+## The mummies, one of each kind in a row: the plate wakes them all, and puts them back.
 func _build_mummy(at: Vector3) -> void:
-	_mark_here(at + Vector3(6.0, 0.0, 0.0), "MUMMY\nthe plate wakes it,\nand puts it back", 3.6)
-	_switch(at + Vector3(3.0, 0.0, 0.0), _toggle_mummy)
+	_mark_here(at + Vector3(6.0, 0.0, 0.0), "MUMMIES\none of each kind:\nthe plate wakes them,\nand puts them back", 3.6)
 	_block(at + Vector3(0.0, 0.45, 3.0))
 	_solid(at + Vector3(-2.0, 0.125, 0.0), Vector3(0.24, 0.25, 8.0), DARK)
 	_mummy = Mummy.new()
 	_mummy.position = at + Vector3(-5.0, 0.05, 0.0)
 	add_child(_mummy)
 	_mummy.caught.connect(_on_caught.bind(_mummy))
+	# The other kinds stand in a row either side of the first.
+	var others: Array[Mummy] = []
+	var places: Array[float] = [-2.2, 2.2, -4.4, 4.4, -6.6]
+	for kind: Mummy.Kind in [Mummy.Kind.PRIEST, Mummy.Kind.BRUTE, Mummy.Kind.CRAWLER, Mummy.Kind.CHILD, Mummy.Kind.ROYAL]:
+		var other := Mummy.new()
+		other.kind = kind
+		other.position = at + Vector3(-5.0, 0.05, places[others.size()])
+		add_child(other)
+		other.caught.connect(_on_caught.bind(other))
+		others.append(other)
+	# (the first is woken, put back and called off as it always was; the rest do whatever it has just done)
+	var put_back := func() -> void:
+		for other in others:
+			other.reset()
+	_switch(at + Vector3(3.0, 0.0, 0.0), func() -> void:
+		_toggle_mummy()
+		for other in others:
+			other.target = _mummy.target
+			if _mummy.is_awake():
+				other.wake()
+			else:
+				other.reset()
+		if _player and not _player.respawned.is_connected(put_back):
+			_player.respawned.connect(put_back))
 
 
 ## Camels: one saddled and tethered to a peg, and one couched with its packs on.
