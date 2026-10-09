@@ -30,7 +30,7 @@ their middle.
 | `well`, `oasis_rim` | A well with its frame and bucket; a quarter-ring of kerb stones, 6 m in radius, to set round water (scale it to fit). |
 | `scaffold` | A wooden scaffold with a deck 3.5 m up, open at both ends, and a `Ladder` up one side. |
 | `awning`, `tent` | A market stall under striped cloth; an expedition's ridge tent. |
-| `wall_glyphs`, `wall_ruin` | A wall carved with hieroglyphs on both faces; a broken wall that steps down and can be climbed. |
+| `wall_glyphs`, `wall_ruin` | A wall carved with hieroglyphs on both faces (real ones: an offering formula on the front, a tomb owner's curse on the back; see "Hieroglyphs" in README.md); a broken wall that steps down and can be climbed. |
 | `pickaxe`, `shovel`, `turia`, `khopesh` | RigidBody3D in the groups `throwable`, `interest` and `bats`: he picks one up and swings it in both hands, as he does the bat. A navvy's pick, a round-mouthed shovel with a D grip, the broad Egyptian hoe a dig was worked with, and the bronze sickle sword (0.6 m: a hilt, a straight shank, the blade curving out with its edge on the outside, a hooked tip). The origin is the end he holds and the thing lies along its own Y, so one put into a level stands on end and falls over: tip it on its side. |
 | `trowel`, `brush`, `tape_measure`, `lantern`, `dig_basket` | RigidBody3D, `throwable`: a pointing trowel, a hand brush, a tape in its leather case, a hurricane lantern (it gives no light), a palm-leaf basket of spoil. |
 | `brushes`, `dig_baskets`, `dig_tools` | Fixed: a tin of brushes with a hand brush and a trowel on a cloth; a stack of empty baskets, a full one and one tipped over; a pick, a shovel and a turia stood against a box, with a basket and a coil of rope. |
@@ -214,3 +214,10 @@ Not scenes in `props/`: each is made whole in code, and placed by the level edit
 | `ScarabAmulet` | RigidBody3D, in the groups `throwable`, `interest` and `scarab_amulets`: a gold and lapis scarab, 14 cm, its origin its middle and its head towards +Z. |
 | `ScarabSocket` | A stone 0.5 by 0.3 by 0.6 m with a hollow for the amulet, its foot at the origin. A `TombParts.Plate` that only the amulet presses (`changed`). |
 | `Cobweb` | `kind` `CORNER` (the corner is at the origin, `height` above it; one edge runs towards +X along the roof and the other down the wall), `SHEET` (stands on the origin, across X, facing along Z), `HANGING` (hangs from `height` above the origin, spread along X), `DRAPE` (stands on the origin, over something `over` in size). In the group `cobwebs`. |
+
+## Inscriptions
+
+Writing in hieroglyphs is not a prop but a thing made in code (`scripts/inscription.gd`, and "Hieroglyphs" in README.md):
+"Inscription" on the editor's Stone page is a slab with a text carved in it, or the bare carving to stand against a wall.
+The `wall_glyphs` prop, being a model, has its signs as flat shapes instead: `tools/glyph_sheets.gd` with `prop` sets
+its two texts out and writes them to `tools/wall_glyphs_signs.json`, which `tools/build_props.py` reads.

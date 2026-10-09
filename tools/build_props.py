@@ -1448,11 +1448,19 @@ def wall_glyphs(p):
     p.box((0, 0.4 + (h - 0.4) * 0.5, 0), (w, h - 0.4, d), "stone", True)
     p.box((0, h + 0.09, 0), (w + 0.16, 0.18, d + 0.16), "stone_dark")
     p.box((0, h + 0.43, 0), (w, 0.5, d), "stone_b", True, top=(1.06, 1.3))
-    rng = random.Random(50)
-    with p.at((0, 1.85, d * 0.5 + 0.015)):
-        glyph_grid(p, 8, 5, 0.5, "shade", rng)
-    with p.at((0, 1.85, -d * 0.5 - 0.015), math.pi):
-        glyph_grid(p, 8, 5, 0.5, "shade", rng)
+    # Real writing: an offering formula on the front and a tomb owner's curse on the back, set out by the game's
+    # own writer (scripts/hieroglyphs.gd) and written out as flat triangles, in metres from the middle of the face, by
+    #     godot --path . --script tools/glyph_sheets.gd -- <outdir> prop
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "wall_glyphs_signs.json")) as file:
+        faces = json.load(file)
+    for face, z, yaw in (("front", d * 0.5 + 0.015, 0.0), ("back", -d * 0.5 - 0.015, math.pi)):
+        with p.at((0, 1.85, z), yaw):
+            flat = faces[face]
+            for k in range(0, len(flat), 6):
+                a, b, c = (flat[k], flat[k + 1], 0.0), (flat[k + 2], flat[k + 3], 0.0), (flat[k + 4], flat[k + 5], 0.0)
+                turns = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+                if abs(turns) > 1e-7:
+                    p.poly([a, b, c] if turns > 0 else [a, c, b], "shade")
     p.far = 200.0
 
 

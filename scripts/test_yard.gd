@@ -35,6 +35,7 @@ const FLATS: Array[Rect2] = [
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
 	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6), Rect2(17, -47, 14, 6),
 	Rect2(-18, -46, 6, 5),
+	Rect2(44, -44, 6, 5),
 ]
 const EASE := 9.0
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
@@ -95,6 +96,7 @@ func _ready() -> void:
 	_build_dig(Vector3(24.5, 0.0, 27.0))
 	_build_grapple(Vector3(6.0, 0.0, -47.0))
 	_build_scarabs(Vector3(-18.0, 0.0, -46.0))
+	_build_glyphs(Vector3(44.0, 0.0, -44.0))
 	_build_kinds()
 	_settle_in.call_deferred()
 
@@ -753,6 +755,49 @@ func _restore_loose() -> void:
 		_loose[i].linear_velocity = Vector3.ZERO
 		_loose[i].angular_velocity = Vector3.ZERO
 		_loose[i].global_transform = _loose_starts[i]
+
+
+## Writing in hieroglyphs, carved into slabs (`Inscription`): a long wall in rows,
+## a slab in columns read from the right, a king's names painted in their
+## cartouches, a hint that is only painted on, and a plain English message with
+## a name in it. Each has what it says on a sign over it.
+func _build_glyphs(at: Vector3) -> void:
+	_mark_here(at, "HIEROGLYPHS\nreal signs, and what each wall says", 5.6)
+	for slab: Array in [
+			["@offering", Vector3(0.0, 0.0, -4.0), 0.0, Vector2(8.0, 2.6), {"wear": 0.2}],
+			["@curse", Vector3(-5.2, 0.0, -1.0), 90.0, Vector2(2.6, 2.4), {"columns": true, "right_to_left": true, "wear": 0.35}],
+			["@king", Vector3(5.2, 0.0, -1.0), -90.0, Vector2(4.6, 1.5), {"painted": true, "wear": 0.1, "colour": Color(0.78, 0.72, 0.6)}],
+			["@door_light", Vector3(-3.4, 0.0, 3.4), 150.0, Vector2(2.0, 0.9), {"carved": false, "painted": true, "wear": 0.3, "colour": Color(0.8, 0.75, 0.64)}],
+			["(Stewart) came to this tomb in 1912", Vector3(3.4, 0.0, 3.4), -150.0, Vector2(2.4, 1.2), {"wear": 0.05}]]:
+		var made := Inscription.slab(slab[0], slab[3], 0.35, slab[4])
+		made.position = at + slab[1]
+		made.rotation_degrees.y = slab[2]
+		add_child(made)
+		# (what it says, small, over it)
+		var label := Label3D.new()
+		label.text = _folded(Hieroglyphs.read(slab[0]), 44)
+		label.font_size = 40
+		label.pixel_size = 0.004
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.modulate = Color(1.0, 1.0, 1.0, 0.85)
+		label.outline_size = 8
+		label.outline_modulate = Color(0.0, 0.0, 0.0, 0.5)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		label.position = made.position + Vector3.UP * (float(slab[3].y) + 0.45)
+		add_child(label)
+
+
+# Text broken into lines of about `wide` letters.
+func _folded(text: String, wide: int) -> String:
+	var lines := PackedStringArray()
+	var line := ""
+	for word in text.split(" ", false):
+		if line != "" and line.length() + word.length() >= wide:
+			lines.append(line)
+			line = ""
+		line += ("" if line == "" else " ") + word
+	lines.append(line)
+	return "\n".join(lines)
 
 
 ## Somewhere to come back to, and a sign over it saying what is here.

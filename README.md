@@ -667,3 +667,61 @@ whatever light there is, so a torch carried past picks it out.
 
 The level editor has "Cobweb: corner", "Cobweb: across a passage", "Cobweb: hanging" and "Cobweb: draped" on its Stone
 page, each sized by sliders. The test yard has a short stone passage hung with them at the scarabs' station.
+
+## Hieroglyphs
+
+The writing on the walls is real. `scripts/hieroglyph_signs.gd` has 97 signs, each drawn in code as an outline (nothing
+comes from a font): the 28 of the Egyptian "alphabet" (one consonant each: the vulture, the reed, the owl, the ripple of
+water...), 44 that are two or three consonants or a whole word (the ankh, the scarab, the eye of Horus, the sedge and bee
+of the king's title), 21 determinatives (the seated man, woman and god, the walking legs, the pyramid) and the numerals,
+each with its number in Gardiner's sign list, how it is typed and what it stands for. `docs/hieroglyph_signs.png` is a
+chart of them all.
+
+`Hieroglyphs.write(text)` (`scripts/hieroglyphs.gd`) sets a text out in signs, and `Hieroglyphs.read(text)` gives back
+what it says in plain words, for a translation:
+
+- **English**, or anything in Latin letters. A word in its dictionary (king, god, life, sun, water, house, gold, death,
+  door, tomb, Anubis, Osiris, Ra, Horus, Isis, Thoth... about 170) is written as the Egyptians wrote it, with its
+  determinative. Any other is spelled out sound by sound with the alphabet, as a name is in a museum shop: sh, ch, kh,
+  th, ph and qu are one sound, a doubled letter is written once, a silent final e is dropped, "the" and "a" are not
+  written. Figures become numerals (1912 is a lotus, nine coils of rope, a hobble and two strokes).
+- `<Tut>` is a king's name in a cartouche (Tut, Khufu, Ramesses, Cleopatra and a dozen more are spelled as they were;
+  any other name is spelled out). `[Name]` stands it in a serekh, and `(Name)` puts the seated man after it.
+- `{...}` is signs given outright, in the Manuel de Codage: Gardiner numbers or the usual letters and names, `-` or a
+  space between one square and the next, `:` to put a sign over another, `*` to put them side by side, and after a `|`
+  what it means: `{Htp:t*p-nb|every offering}`. A text that is all Gardiner numbers (`G17 D21 N35`) needs no braces.
+- `@name` is one of the texts in `scripts/inscription_texts.gd`: `offering` (the offering formula), `curse` (the threat
+  Old Kingdom tomb owners carved at their doors), `king` and `khufu` (titles, the names in cartouches), `hymn` and
+  `praise` (to the sun), `door_light`, `follow_water`, `dead_live`, `sun_pyramid` (plain statements to hang a puzzle
+  on) and `filler` (the stock phrases of every temple wall, for dressing long ones). Each has its translation.
+
+The signs are packed as the Egyptians packed them, into squares: flat ones over each other, small ones together, tall
+ones alone; in rows or in columns; read from the left, or from the right with every sign turned to face the other way;
+with ruled lines between. The same text always comes out the same.
+
+An `Inscription` (`scripts/inscription.gd`) is a panel carrying a text, carved: sunk into the stone (or `raised` out
+of it), `painted` in the old colours or bare, as `wear`-worn as you like. It is one flat rectangle and one small
+picture, made once: the picture holds how far each point is from the edge of a sign, and the shader reads the slope of
+the cut from it, so the sun and a passing torch light the side of each cut that faces them. See the top of the file.
+
+```gdscript
+Inscription.on_box(wall, Vector3(4, 3, 0.6), Vector3.BACK, "@offering")          # on the front of a box-shaped wall
+add_child(Inscription.slab("<Khufu> lives forever", Vector2(2.4, 1.2)))           # a slab of its own
+for carved: Inscription in get_tree().get_nodes_in_group(&"inscriptions"):       # what each one says
+	print(carved.translation())
+```
+
+In the level editor it is "Inscription" on the Stone page: type what it should say, or pick one of the texts; its width
+and height, rows or columns, carved, painted, weathered, and whether it is a slab of its own or bare writing to stand
+against a wall that is already there. The test yard has a station of them (east of the grappling hook), and the
+"Carved wall" prop now carries the offering formula on its front and the curse on its back.
+
+```
+godot --path . --resolution 1280x720 --script tools/glyph_sheets.gd -- <folder> [chart] [stone] [torch] [yard] [prop] [banded]
+```
+
+draws the chart and the pictures: slabs near and far, in raking light, in shade, painted, worn, and by torchlight.
+
+How true it is: the signs, their sounds, the dictionary words, the formulas and the way they are packed are real, and
+someone who reads hieroglyphs can read the named texts. English spelled out letter by letter is the modern game of
+writing a name in hieroglyphs, not Egyptian. The hints are composed for the game, in Egyptian words and word order.

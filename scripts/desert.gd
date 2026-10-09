@@ -292,6 +292,8 @@ func _made(item: Dictionary) -> Node3D:
 			label.outline_size = 8
 			label.outline_modulate = Color(0.0, 0.0, 0.0, 0.5)
 			return label
+		"inscription":
+			return Inscription.from_item(item)
 	return null
 
 
