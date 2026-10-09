@@ -17,6 +17,15 @@ class_name Sand
 ##   faces in the lee of a crest; and, where a `SandGround` has been painted,
 ##   damp dark sand and hard-packed paths. Which is where comes from broad
 ##   patches, from the slope and which way it faces the wind, and from paint.
+## - Other ground, where it has been painted (`Kind`): white, red and black
+##   sand, which are sand in every way but their colour and their glitter;
+##   hard dirt, dull and mottled and cracked as dried mud is; and sandstone,
+##   bare rock in bands of colour with a joint here and there. Each fades into
+##   the next, and sand lies over the edge of the hard kinds in ragged drifts.
+## - Snow: the same stuff seen cold. `snow_surface()`, a `SandGround` with
+##   `snow` on, or `Kind.SNOW` painted: pale and blue in its hollows, with no
+##   ripples and no kinds of grain, and (on a `SandGround`) prints that keep
+##   the whole shape of the boot.
 ## - Light: the same hard cut between light and shadow as `Toon.surface` when
 ##   the menu's world shading is banded, and smooth when it is not.
 ##
@@ -32,8 +41,23 @@ const COLOUR := Color(0.83, 0.68, 0.45)
 ## Wet sand is darker, and shows fewer glints.
 const WET := Color(0.66, 0.52, 0.33)
 
+## The other colours sand comes in, hard ground, and snow (see `Kind`).
+const WHITE := Color(0.87, 0.83, 0.73)
+const RED := Color(0.72, 0.34, 0.19)
+const BLACK := Color(0.15, 0.14, 0.145)
+const DIRT := Color(0.5, 0.38, 0.26)
+const SANDSTONE := Color(0.74, 0.55, 0.38)
+const SNOW := Color(0.8, 0.85, 0.93)
+
 ## What may be painted on a `SandGround` (see `SandGround.paint`).
-enum Kind { COARSE, DAMP, PACKED, PALE }
+## - COARSE, DAMP, PACKED, PALE: sand as it was: pebbly; wet and dark; trodden
+##   hard (shallow prints, and he hardly sinks); fine and light.
+## - DIRT: hard dirt. It takes no prints, nobody sinks into it, and it does
+##   not run on a slope. SANDSTONE: rock, the same and more so.
+## - WHITE, RED, BLACK: sand of another colour, and sand in every other way.
+## - SNOW: prints in it are crisp, and it does not run.
+## (New ones go on the end: levels keep these as numbers.)
+enum Kind { COARSE, DAMP, PACKED, PALE, DIRT, SANDSTONE, WHITE, RED, BLACK, SNOW }
 
 const SHADER := """
 shader_type spatial;
@@ -69,6 +93,16 @@ uniform vec3 coarse_tint = vec3(0.8, 0.755, 0.71);
 uniform vec3 pale_tint = vec3(1.09, 1.09, 1.08);
 uniform vec3 damp_tint = vec3(0.6, 0.57, 0.53);
 uniform vec3 packed_tint = vec3(0.87, 0.845, 0.8);
+// The other things the ground can be: sand of three more colours, hard dirt,
+// sandstone and snow. `snow` is how much of everything is snow (a `SandGround`
+// adds what has been painted).
+uniform vec3 white_sand : source_color = vec3(0.87, 0.83, 0.73);
+uniform vec3 red_sand : source_color = vec3(0.72, 0.34, 0.19);
+uniform vec3 black_sand : source_color = vec3(0.15, 0.14, 0.145);
+uniform vec3 dirt_colour : source_color = vec3(0.5, 0.38, 0.26);
+uniform vec3 stone_colour : source_color = vec3(0.74, 0.55, 0.38);
+uniform vec3 snow_colour : source_color = vec3(0.8, 0.85, 0.93);
+uniform float snow = 0.0;
 // The wind: which way it blows over the ground (x, z), how hard (0..1), and
 // how far it has carried the sand it is moving, metres.
 uniform vec4 wind = vec4(1.0, 0.0, 0.0, 0.0);
@@ -89,6 +123,9 @@ uniform float sun_gain = 1.0;
 uniform sampler2D height_map : filter_nearest, repeat_disable;
 uniform sampler2D form_map : filter_linear, repeat_disable;
 uniform sampler2D kind_map : filter_linear, repeat_disable, hint_default_black;
+// (dirt, sandstone, white sand, red sand; and black sand, snow)
+uniform sampler2D kind_map2 : filter_linear, repeat_disable, hint_default_black;
+uniform sampler2D kind_map3 : filter_linear, repeat_disable, hint_default_black;
 uniform sampler2D dent_map : filter_linear, repeat_enable;
 // One corner of the grid (x, z), the side of a square, and how high zero is.
 uniform vec4 field = vec4(-60.0, -60.0, 1.0, 0.0);
@@ -155,6 +192,29 @@ float patches(vec2 p) {
 			mix(hash2(whole + vec2(0.0, 1.0)), hash2(whole + vec2(1.0, 1.0)), part.x), part.y);
 }
 
+// Ground that has dried and split, or rock and its joints: how far a place is
+// from the nearest crack, in a net of them about one apart (0: on a crack).
+float cracks(vec2 p) {
+	vec2 whole = floor(p);
+	vec2 part = fract(p);
+	float first = 8.0;
+	float second = 8.0;
+	for (int j = -1; j <= 1; j++) {
+		for (int i = -1; i <= 1; i++) {
+			vec2 square = vec2(float(i), float(j));
+			vec2 point = square + vec2(hash2(whole + square), hash2(whole + square + 71.3)) - part;
+			float far = dot(point, point);
+			if (far < first) {
+				second = first;
+				first = far;
+			} else if (far < second) {
+				second = far;
+			}
+		}
+	}
+	return sqrt(second) - sqrt(first);
+}
+
 void vertex() {
 #ifdef GROUND
 	// The mesh is rings of squares, each ring twice as coarse as the one
@@ -199,7 +259,11 @@ void fragment() {
 	float crest = 0.0;
 	float hollow = 0.0;
 	vec4 painted = vec4(0.0);
+	vec4 laid = vec4(0.0);
+	vec4 more = vec4(0.0);
 	float pressed = 0.0;
+	// (how steeply sand that stands above the rest falls away at its edge)
+	float brink = 0.0;
 #ifdef GROUND
 	vec2 where = ((at.xz - field.xy) / field.z + 0.5) / (field_cells + 1.0);
 	vec4 form = texture(form_map, where);
@@ -210,6 +274,8 @@ void fragment() {
 	crest = max(form.z, 0.0);
 	hollow = max(form.w, 0.0) + max(-form.z, 0.0) * 0.5;
 	painted = texture(kind_map, where);
+	laid = texture(kind_map2, where);
+	more = texture(kind_map3, where);
 	float shows = dented(at.xz);
 	if (shows > 0.0) {
 		// What has been pressed in: darker in the hollow, and lit as the
@@ -223,22 +289,36 @@ void fragment() {
 		// (too far off to tell one dent from the next, they are left unlit)
 		float sharp = shows * clamp(2.0 - reach / (dent.x * 2.0), 0.0, 1.0);
 		vec2 slope = vec2(east - here, south - here) * dent.z / dent.x * sharp;
+		brink = length(slope) * step(0.0, pressed);
 		up = normalize(up + vec3(-slope.x, 0.0, -slope.y) * up.y);
 	}
 #endif
 	vec2 blows = wind.xy;
 	float steep = 1.0 - up.y;
 	float lee = dot(up.xz, blows) / max(length(up.xz), 0.001);
+	// Hard ground, where it has been laid: dirt and sandstone. Sand lies over
+	// their edges in drifts, so the line between them is a ragged one.
+	float dirt = 0.0;
+	float stone = 0.0;
+	if (laid.r + laid.g > 0.0) {
+		float ragged = (patches(at.xz * 1.7 + 5.0) - 0.5) * 0.5 + (patches(at.xz * 6.0 - 2.0) - 0.5) * 0.14;
+		dirt = smoothstep(0.36, 0.64, laid.r + ragged);
+		stone = smoothstep(0.36, 0.64, laid.g - ragged);
+		dirt *= 1.0 - stone;
+	}
+	float hard = max(dirt, stone);
+	float snowy = clamp(snow + more.g, 0.0, 1.0) * (1.0 - hard);
+	float black = more.r;
 	// A slip face: steep, and turned away from the wind.
-	float slip = smoothstep(0.075, 0.125, steep) * smoothstep(-0.1, 0.5, lee) * step(soft, 0.0);
+	float slip = smoothstep(0.075, 0.125, steep) * smoothstep(-0.1, 0.5, lee) * step(soft, 0.0) * (1.0 - hard) * (1.0 - snowy);
 
 	// Which kind of sand lies here.
 	float region = patches(at.xz / 41.0 + 3.7);
 	float lesser = patches(at.xz / 15.0 - 9.1);
 	float coarse = variety * smoothstep(0.56, 0.74, region * 0.7 + lesser * 0.3 + hollow * 0.45 - crest * 0.5);
-	coarse = clamp(coarse + painted.r, 0.0, 1.0) * (1.0 - slip);
+	coarse = clamp(coarse * (1.0 - snowy) + painted.r, 0.0, 1.0) * (1.0 - slip) * (1.0 - hard);
 	float pale = variety * smoothstep(0.5, 0.72, (1.0 - region) * 0.6 + lesser * 0.4 + crest * 0.5 - hollow * 0.3);
-	pale = clamp(pale + painted.a, 0.0, 1.0) * (1.0 - coarse);
+	pale = clamp(pale * (1.0 - snowy) + painted.a, 0.0, 1.0) * (1.0 - coarse) * (1.0 - hard);
 	float damp = painted.g;
 	float packed = painted.b * (1.0 - damp * 0.5);
 
@@ -265,13 +345,18 @@ void fragment() {
 		float big_keep = (1.0 - smoothstep(3.0, 7.0, thin)) / (1.0 + 0.5 * big_level);
 		fine = mix(fine, fine * 0.6 + ((pebble - 0.5) * 1.5 - smoothstep(0.86, 0.9, pebble) * 0.55) * big_keep, coarse);
 	}
-	fine *= (1.0 - 0.45 * slip) * (1.0 - 0.4 * packed);
+	fine *= (1.0 - 0.45 * slip) * (1.0 - 0.4 * packed) * (1.0 - 0.45 * hard) * (1.0 - 0.5 * snowy) * (1.0 + 1.6 * black);
+	// Sand that has just moved, and stands heaped above the rest: it is the
+	// fine dry sand from underneath, smoother and paler than what it lies on.
+	float heaped = smoothstep(0.006, 0.04, pressed);
+	fine *= 1.0 - 0.6 * heaped;
 	// Patches a metre or two across (gone before they are too small to draw).
 	float broad = (patches(at.xz * 0.7) - 0.5) * clamp(1.5 - reach * 1.4, 0.0, 1.0);
 
 	// Ripples: waves lying across the wind, steeper on the side away from it,
 	// their lines bent by the rise of the ground and a little by chance.
 	float rippled = (1.0 - slip) * (1.0 - packed) * (1.0 - 0.75 * coarse) * (1.0 - 0.6 * damp) * (1.0 - smoothstep(0.1, 0.2, steep)) * step(soft, 0.0);
+	rippled *= (1.0 - hard) * (1.0 - snowy);
 	rippled *= clamp(ripple_gap * 0.22 / reach - 0.5, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.25, 0.6, lesser + pale * 0.4));
 	float wave = 0.0;
 	if (rippled > 0.0) {
@@ -296,19 +381,47 @@ void fragment() {
 		float streak = patches(vec2(lie.x * 0.11, lie.y * 0.8 + snake));
 		float gusting = patches(vec2(lie.x * 0.035 + 7.0, lie.y * 0.05));
 		wisps = smoothstep(0.52, 0.9, streak) * smoothstep(0.25, 0.75, gusting) * wind.z;
-		wisps *= (1.0 - slip) * (0.45 + crest * 2.5) * clamp(1.6 - reach * 1.5, 0.0, 1.0) * step(soft, 0.0);
+		wisps *= (1.0 - slip) * (0.45 + crest * 2.5) * clamp(1.6 - reach * 1.5, 0.0, 1.0) * step(soft, 0.0) * (1.0 - hard);
 	}
 
+	// Sand of whatever colour was laid here, or snow.
 	vec3 colour = albedo;
+	colour = mix(colour, white_sand, laid.b);
+	colour = mix(colour, red_sand, laid.a);
+	colour = mix(colour, black_sand, black);
+	colour = mix(colour, snow_colour, snowy);
 	colour *= mix(vec3(1.0), coarse_tint, coarse);
 	colour *= mix(vec3(1.0), pale_tint, pale);
 	colour *= mix(vec3(1.0), vec3(1.04, 1.03, 1.0), slip);
+	// (snow in a hollow is blue: it is lit there by the sky)
+	colour *= mix(vec3(1.0), vec3(0.8, 0.88, 1.03), snowy * clamp(-pressed * 60.0, 0.0, 1.0));
+	if (hard > 0.01) {
+		// Its cracks, which are too fine to draw from far off.
+		float rock = step(dirt, stone);
+		float gap = 1.0;
+		if (detail > 0.5) {
+			gap = cracks(at.xz * mix(2.9, 0.85, rock) + 13.0);
+		}
+		float split = (1.0 - smoothstep(mix(0.015, 0.004, rock), mix(0.07, 0.02, rock), gap)) * clamp(1.6 - reach * 24.0, 0.0, 1.0);
+		// (rock is not jointed everywhere: here and there, and faintly)
+		split *= mix(1.0, 0.7 * smoothstep(0.35, 0.6, patches(at.xz * 0.45 + 21.0)), rock);
+		// Dirt: mottled, a clod here lighter and there darker.
+		vec3 ground_colour = dirt_colour * (1.0 + (patches(at.xz * 4.3 + 1.0) - 0.5) * 0.3 * clamp(1.5 - reach * 3.0, 0.0, 1.0) + (lesser - 0.5) * 0.16);
+		// Sandstone: laid down in beds, which show as bands that follow the
+		// height of the ground and wander over it where it is level.
+		float bed = at.y * 5.0 + patches(at.xz * 0.21 + 3.0) * 9.0 + patches(at.xz * 0.9 + 8.0) * 1.2;
+		float band = patches(vec2(bed * 2.3, 7.3)) * 0.6 + patches(vec2(bed * 7.9, 1.1)) * 0.4 * clamp(1.5 - reach * 6.0, 0.0, 1.0);
+		vec3 rock_colour = stone_colour * mix(vec3(0.66, 0.58, 0.55), vec3(1.2, 1.17, 1.08), smoothstep(0.2, 0.8, band));
+		ground_colour = mix(ground_colour, rock_colour, rock) * (1.0 - 0.5 * split);
+		colour = mix(colour, ground_colour, hard);
+	}
 	colour *= mix(vec3(1.0), damp_tint, damp);
 	colour *= mix(vec3(1.0), packed_tint, packed);
 	float tone = 1.0 + fine * grain * 2.0 + broad * patch * 2.0 + wave * ripple;
 	// (far off these are all there is to see: crests catch the light, hollows keep less of it)
 	tone += crest * 0.16 - hollow * 0.09;
-	tone *= 1.0 + clamp(pressed * 13.0, -0.45, 0.2);
+	// (and a heap is dark under its edge, where it overhangs the ground it is crossing)
+	tone *= 1.0 + clamp(pressed * 13.0, -0.45, 0.1) + 0.16 * heaped - 0.28 * clamp(brink * 0.9 - 0.15, 0.0, 1.0);
 	colour = colour * tone + glint * wisps * 0.22;
 	float distance_off = length(VERTEX);
 	float veil = 1.0 - exp(-haze.a * distance_off);
@@ -320,7 +433,9 @@ void fragment() {
 	NORMAL = normalize(mat3(VIEW_MATRIX) * up);
 	// Which way this grain's mirror faces, and a round spot in the middle of it.
 	facet = normalize(NORMAL + mat3(VIEW_MATRIX) * (near * 2.0 - 1.0) * scatter);
+	// (dirt and rock have none; black sand and white, and snow, more than most)
 	spot = (1.0 - smoothstep(0.28, 0.5, length(fract(cell) - 0.5))) * (1.0 - 0.85 * damp) * (1.0 - veil)
+			* (1.0 - 0.92 * hard) * (1.0 + 1.4 * black + 0.5 * laid.b + 0.7 * snowy)
 			* (1.0 - smoothstep(4.0, 9.0, thin)) / (1.0 + 0.6 * level * level);
 }
 
@@ -400,6 +515,14 @@ static func ground_surface(colour := COLOUR) -> ShaderMaterial:
 	return _dress(_ground_shader, colour)
 
 
+## Snow: the same material, pale, with no ripples and no kinds of grain. (For
+## ground that takes crisp prints, see `SandGround.snow`.)
+static func snow_surface(colour := SNOW, soft := 0.0) -> ShaderMaterial:
+	var material := surface(colour, soft)
+	material.set_shader_parameter(&"snow", 1.0)
+	return material
+
+
 ## Tells every sand material which way the wind blows and how hard. `SandWind`
 ## calls this each frame.
 static func blow(way: Vector2, force: float, travel: float, air: Color) -> void:
@@ -431,6 +554,12 @@ static func _dress(shader: Shader, colour: Color) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	material.set_shader_parameter(&"albedo", colour)
+	material.set_shader_parameter(&"white_sand", WHITE)
+	material.set_shader_parameter(&"red_sand", RED)
+	material.set_shader_parameter(&"black_sand", BLACK)
+	material.set_shader_parameter(&"dirt_colour", DIRT)
+	material.set_shader_parameter(&"stone_colour", SANDSTONE)
+	material.set_shader_parameter(&"snow_colour", SNOW)
 	material.set_shader_parameter(&"banded", 1.0 if Settings.world_banded else 0.0)
 	material.set_shader_parameter(&"sun_gain", sun_gain)
 	material.set_shader_parameter(&"sky", Vector3(sky.r, sky.g, sky.b))

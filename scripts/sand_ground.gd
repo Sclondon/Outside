@@ -21,16 +21,35 @@ extends StaticBody3D
 ##   slides are stamped into it (`footprint`, `press`, ...); the shader pushes
 ##   the mesh down by it and lights its slopes. It softens and fills by itself,
 ##   slowly in still air and quickly in wind, and is forgotten beyond the patch.
-## - Paint: damp sand, packed paths, coarse and pale patches (`paint`).
+## - Paint (`paint`, with a `Sand.Kind`): damp sand, packed paths, coarse and
+##   pale patches; white, red and black sand; hard dirt and sandstone, which
+##   take no prints, which nobody sinks into and which do not run; and snow.
+##   Where two meet, each fades into the other. `give_at` is how soft the
+##   ground is at a place.
+## - Sand on the move (`ooze`): a lobe of it, a thick rounded mass that creeps
+##   over the ground as lava does, front first, spreading and slowing, with a
+##   low tongue left behind it. It is the dents that move: the ground itself
+##   swells and travels, and is lit and coloured as ground.
 ##
 ## And what it does for whoever walks on it. Every figure on a `CharacterRig`
 ## (the group "figures") is watched: on this ground its own dust is silenced
-## and sand is thrown up from its feet instead (`spray`), each footfall leaves
-## a boot print, a slide or a roll a trough, a sprawl the shape of a body;
-## standing still it sinks a little; and on a steep face the sand under it
-## gives way and runs downhill, and carries it a little. Hounds leave paw
+## and sand is thrown up from its feet instead (`spray`); each footfall leaves
+## a soft dent, and in loose sand a collar of it is pushed out and slumps
+## round the foot; a slide or a roll leaves a trough, a sprawl the shape of a
+## body; standing still it sinks a little; and on a steep face the sand under
+## it gives way and oozes downhill, and carries it a little. Hounds leave paw
 ## prints. Anything in the group "throwable" or "sand_denting" dents it where
 ## it lands and furrows it where it rolls.
+##
+## Snow. A footprint in sand is a shallow rounded dent, with nothing of the
+## boot in it: sand does not hold a shape. The crisp print, with its heel and
+## sole and the lip round them, is kept for snow: set `snow` (the whole ground
+## is snow: pale, crisp prints, nothing runs or is pushed out), or
+## `crisp_prints` alone (sand that holds a print), or paint `Sand.Kind.SNOW`
+## where it lies.
+##
+##     var ground := SandGround.new()
+##     ground.snow = true
 ##
 ## `cost_usec` is what a frame of all that takes here.
 
@@ -38,10 +57,17 @@ signal built
 
 ## The dents are kept as whole numbers: this one is "not pressed", and each
 ## step up or down from it is `UNIT` metres.
-const NEUTRAL := 170
+const NEUTRAL := 128
 const UNIT := 0.0005
 ## Steeper than this, sand that is trodden on starts to run (a slope, as rise over run).
 const RUNS_AT := 0.3
+## How many lobes of sand may be creeping at once, and how many of them down
+## slopes at each `Sand.quality` (the rest are the small ones round his feet).
+const LOBES := 16
+const SLOPE_LOBES: Array[int] = [3, 4, 6]
+## How many squares of the dents the lobes may be pressed into in one frame,
+## at each `Sand.quality`: what bounds what they cost.
+const LOBE_SQUARES: Array[int] = [300, 700, 2000]
 
 ## How far it runs each way from this node, along x and along z, metres.
 @export var half := Vector2(60.0, 60.0)
@@ -58,6 +84,12 @@ const RUNS_AT := 0.3
 ## How fast a steep face carries whoever is on it downhill, metres a second
 ## at the angle sand lies at. 0: not at all.
 @export var slope_carry := 0.6
+## Snow, all of it: pale (unless `colour` has been set), prints that keep the
+## shape of the boot, and nothing runs downhill or is pushed out round a foot.
+@export var snow := false: set = _set_snow
+## Footprints with a heel, a sole and a lip round them, as snow takes them.
+## Off, a print is a soft shallow dent. (`snow` turns them on by itself.)
+@export var crisp_prints := false
 ## How far the desert is drawn past the edge of the ground (nothing can be
 ## stood on there), and how high that plain lies above this node: left at
 ## INF, as high as the edge is on the whole.
@@ -80,10 +112,12 @@ var cost_usec := 0.0
 var _columns := 0
 var _rows := 0
 var _heights := PackedFloat32Array()
-var _kinds := PackedByteArray()
-var _kinds_stale := false
-var _kind_image: Image
-var _kind_map: ImageTexture
+# What has been painted: three pictures of four kinds each, in the order of
+# `Sand.Kind`, a share of each at every corner of the grid.
+var _kinds: Array[PackedByteArray] = [PackedByteArray(), PackedByteArray(), PackedByteArray()]
+var _kinds_stale := 0
+var _kind_images: Array[Image] = []
+var _kind_maps: Array[ImageTexture] = []
 var _height_map: ImageTexture
 var _form_map: ImageTexture
 var _material: ShaderMaterial
@@ -113,10 +147,13 @@ var _filled := 0.0
 var _figures := {}
 var _bodies := {}
 var _hounds := {}
-var _later: Array = []
 var _census := 0.0
+# The lobes of sand that are creeping (see `ooze`), and whose turn it is.
+var _lobes: Array[Dictionary] = []
+var _lobe_turn := 0
 
 static var _boot: Array
+static var _tread: Array
 static var _paw: Array
 static var _bowl: Array
 static var _heap: Array
@@ -157,15 +194,18 @@ func build(heights := PackedFloat32Array()) -> void:
 				_heights[row * wide + column] = height.call(column * cell - half.x, row * cell - half.y)
 	_height_map = ImageTexture.create_from_image(Image.create_from_data(wide, long, false, Image.FORMAT_RF, _heights.to_byte_array()))
 	_make_form()
-	if _kinds.size() != wide * long * 4:
-		_kinds.resize(wide * long * 4)
-		_kinds.fill(0)
-	_kind_image = Image.create_from_data(wide, long, false, Image.FORMAT_RGBA8, _kinds)
-	_kind_map = ImageTexture.create_from_image(_kind_image)
-	_material = Sand.ground_surface(colour)
+	_size_kinds()
+	_kind_images.clear()
+	_kind_maps.clear()
+	_material = Sand.ground_surface(Sand.SNOW if snow and colour == Sand.COLOUR else colour)
 	lend(_material)
 	_material.set_shader_parameter(&"form_map", _form_map)
-	_material.set_shader_parameter(&"kind_map", _kind_map)
+	_material.set_shader_parameter(&"snow", 1.0 if snow else 0.0)
+	for i in 3:
+		_kind_images.append(Image.create_from_data(wide, long, false, Image.FORMAT_RGBA8, _kinds[i]))
+		_kind_maps.append(ImageTexture.create_from_image(_kind_images[i]))
+		_material.set_shader_parameter([&"kind_map", &"kind_map2", &"kind_map3"][i], _kind_maps[i])
+	_kinds_stale = 0
 	var plain := apron
 	if plain == INF:
 		plain = 0.0
@@ -198,6 +238,25 @@ func lend(material: ShaderMaterial) -> void:
 ## The material it is drawn with.
 func material() -> ShaderMaterial:
 	return _material
+
+
+func _set_snow(value: bool) -> void:
+	snow = value
+	if _material:
+		_material.set_shader_parameter(&"snow", 1.0 if snow else 0.0)
+		if colour == Sand.COLOUR:
+			_material.set_shader_parameter(&"albedo", Sand.SNOW if snow else colour)
+
+
+# Room for what is painted: a share of each kind at every corner of the grid.
+func _size_kinds() -> void:
+	_columns = maxi(int(round(half.x * 2.0 / cell)), 2) if _columns == 0 else _columns
+	_rows = maxi(int(round(half.y * 2.0 / cell)), 2) if _rows == 0 else _rows
+	var size := (_columns + 1) * (_rows + 1) * 4
+	for kinds in _kinds:
+		if kinds.size() != size:
+			kinds.resize(size)
+			kinds.fill(0)
 
 
 # Which way each corner faces, how sharply the ground bends there (a crest
@@ -437,21 +496,70 @@ func covers(point: Vector3, slack := 0.15) -> bool:
 	return absf(point.y - height_at(point.x, point.z)) <= slack
 
 
-## What has been painted at a place: a share of each `Sand.Kind`, in that
-## order, as r, g, b, a.
+## What has been painted at a place: a share of each of the first four of
+## `Sand.Kind` (coarse, damp, packed, pale), in that order, as r, g, b, a.
+## (For the others, `share_at`.)
 func kind_at(x: float, z: float) -> Color:
-	if _kinds.is_empty() or _heights.is_empty():
+	if _kinds[0].is_empty() or _heights.is_empty():
 		return Color(0.0, 0.0, 0.0, 0.0)
+	var at := _corner(x, z)
+	var kinds := _kinds[0]
+	return Color(kinds[at] / 255.0, kinds[at + 1] / 255.0, kinds[at + 2] / 255.0, kinds[at + 3] / 255.0)
+
+
+## How much of one `Sand.Kind` has been painted at a place, 0 to 1.
+func share_at(kind: int, x: float, z: float) -> float:
+	if kind == Sand.Kind.SNOW and snow:
+		return 1.0
+	@warning_ignore("integer_division")
+	var kinds := _kinds[kind / 4]
+	if kinds.is_empty() or _heights.is_empty():
+		return 0.0
+	return _between(kinds, kind % 4, x, z)
+
+
+## How readily the ground gives at a place: 1 is loose sand, a quarter a path
+## trodden hard, and 0 hard dirt or rock, which takes no print, lets nobody
+## sink into it and does not run.
+func give_at(x: float, z: float) -> float:
+	if _kinds[0].is_empty() or _heights.is_empty():
+		return 1.0
+	var hard := maxf(_between(_kinds[1], 0, x, z), _between(_kinds[1], 1, x, z))
+	return (1.0 - 0.75 * _between(_kinds[0], 2, x, z)) * (1.0 - smoothstep(0.36, 0.64, hard))
+
+
+## About the colour of the ground at a place, for whatever is thrown up from it.
+func colour_at(x: float, z: float) -> Color:
+	var here := Sand.SNOW if snow and colour == Sand.COLOUR else colour
+	if _kinds[0].is_empty() or _heights.is_empty():
+		return here
+	var at := _corner(x, z)
+	here = here.lerp(Sand.WHITE, _kinds[1][at + 2] / 255.0).lerp(Sand.RED, _kinds[1][at + 3] / 255.0)
+	here = here.lerp(Sand.BLACK, _kinds[2][at] / 255.0).lerp(Sand.SNOW, _kinds[2][at + 1] / 255.0)
+	here = here.lerp(here * Color(0.8, 0.755, 0.71), _kinds[0][at] / 255.0)
+	here = here.lerp(Sand.DIRT, _kinds[1][at] / 255.0).lerp(Sand.SANDSTONE, _kinds[1][at + 1] / 255.0)
+	return here.lerp(here * Color(0.6, 0.57, 0.53), _kinds[0][at + 1] / 255.0)
+
+
+# Where in a picture of kinds the corner of the grid nearest a place is.
+func _corner(x: float, z: float) -> int:
 	var column := clampi(int(round((x - _origin.x + half.x) / cell)), 0, _columns)
 	var row := clampi(int(round((z - _origin.z + half.y) / cell)), 0, _rows)
-	var at := (row * (_columns + 1) + column) * 4
-	return Color(_kinds[at] / 255.0, _kinds[at + 1] / 255.0, _kinds[at + 2] / 255.0, _kinds[at + 3] / 255.0)
+	return (row * (_columns + 1) + column) * 4
 
 
-## About the colour of the sand at a place, for whatever is thrown up from it.
-func colour_at(x: float, z: float) -> Color:
-	var kind := kind_at(x, z)
-	return colour.lerp(colour * Color(0.8, 0.755, 0.71), kind.r).lerp(colour * Color(0.6, 0.57, 0.53), kind.g)
+# One kind's share at a place, taken from the four corners round it (as the
+# shader takes it: what is done to him matches what he sees).
+func _between(kinds: PackedByteArray, channel: int, x: float, z: float) -> float:
+	var across := clampf((x - _origin.x + half.x) / cell, 0.0, _columns - 0.0001)
+	var along := clampf((z - _origin.z + half.y) / cell, 0.0, _rows - 0.0001)
+	var column := int(across)
+	var row := int(along)
+	across -= column
+	along -= row
+	var at := (row * (_columns + 1) + column) * 4 + channel
+	var below := at + (_columns + 1) * 4
+	return (lerpf(lerpf(kinds[at], kinds[at + 4], across), lerpf(kinds[below], kinds[below + 4], across), along)) / 255.0
 
 
 ## Paints a kind of sand (`Sand.Kind`) round a place in the world (x, z): all
@@ -463,12 +571,10 @@ func paint(kind: int, at: Vector2, radius: float, amount := 1.0, feather := 2.0)
 
 ## The same along a line: `width` is how far to each side of it.
 func paint_line(kind: int, from: Vector2, to: Vector2, width: float, amount := 1.0, feather := 2.0) -> void:
-	_columns = maxi(int(round(half.x * 2.0 / cell)), 2) if _columns == 0 else _columns
-	_rows = maxi(int(round(half.y * 2.0 / cell)), 2) if _rows == 0 else _rows
+	_size_kinds()
 	var wide := _columns + 1
-	if _kinds.size() != wide * (_rows + 1) * 4:
-		_kinds.resize(wide * (_rows + 1) * 4)
-		_kinds.fill(0)
+	@warning_ignore("integer_division")
+	var kinds := _kinds[kind / 4]
 	var corner := Vector2(position.x - half.x, position.z - half.y) if not is_built() else Vector2(_origin.x - half.x, _origin.z - half.y)
 	var reach := width + feather
 	var low := (from.min(to) - Vector2.ONE * reach - corner) / cell
@@ -480,18 +586,24 @@ func paint_line(kind: int, from: Vector2, to: Vector2, width: float, amount := 1
 			var share := clampf((place - from).dot(along) / maxf(along.length_squared(), 0.0001), 0.0, 1.0)
 			var far := place.distance_to(from + along * share)
 			var value := int(255.0 * amount * (1.0 - smoothstep(width, reach, far)))
-			var at := (row * wide + column) * 4 + kind
-			if value > _kinds[at]:
-				_kinds[at] = value
-	_kinds_stale = true
+			var at := (row * wide + column) * 4 + kind % 4
+			if value > kinds[at]:
+				kinds[at] = value
+	@warning_ignore("integer_division")
+	_kinds_stale |= 1 << (kind / 4)
 
 
 # --- Pressing into it ---
 
-## A boot print at a point in the world: `yaw` is which way the toe points
-## (as `rotation.y`), `depth` how deep the heel goes, metres.
+## A footprint at a point in the world: `yaw` is which way the toe points
+## (as `rotation.y`), `depth` how deep the heel goes, metres. In sand it is a
+## soft dent, longer than it is wide and shallower than that; in snow (or with
+## `crisp_prints`) it is the print of the boot.
 func footprint(at: Vector3, yaw: float, depth: float, left: bool) -> void:
-	_stamp(_boot, Vector2(at.x, at.z), yaw, depth, 1.0, not left)
+	if crisp_prints or share_at(Sand.Kind.SNOW, at.x, at.z) > 0.5:
+		_stamp(_boot, Vector2(at.x, at.z), yaw, depth, 1.0, not left)
+	else:
+		_stamp(_tread, Vector2(at.x, at.z), yaw, depth * 1.15)
 
 
 ## A paw print.
@@ -515,34 +627,166 @@ func body_print(at: Vector3, yaw: float, depth: float) -> void:
 	_stamp(_lying, Vector2(at.x, at.z), yaw, depth)
 
 
-## Sets the sand at a place running downhill, if it lies steeply enough:
-## sheets of it slide away, and more trickles after. `amount` is how hard it
-## was disturbed (a walking step is about half, a slide 1 or more).
+## Sets the sand at a place moving downhill, if it lies steeply enough: a
+## lobe of it lets go and oozes away, and one or two more after it. `amount`
+## is how hard it was disturbed (a walking step is about half, a slide 1 or
+## more). Hard ground and snow do not run.
 func disturb(at: Vector3, amount: float) -> void:
 	var facing := normal_at(at.x, at.z)
 	var steep := sqrt(maxf(1.0 - facing.y * facing.y, 0.0)) / maxf(facing.y, 0.01)
-	if steep < RUNS_AT:
+	var give := give_at(at.x, at.z)
+	if steep < RUNS_AT or give < 0.2 or share_at(Sand.Kind.SNOW, at.x, at.z) > 0.5:
 		return
-	var much := smoothstep(RUNS_AT, 0.62, steep) * clampf(amount, 0.2, 2.0)
+	var much := smoothstep(RUNS_AT, 0.62, steep) * clampf(amount, 0.2, 2.0) * give
 	var downhill := Vector3(facing.x, 0.0, facing.z).normalized()
-	downhill = (downhill - facing * downhill.dot(facing)).normalized()
-	var across := facing.cross(downhill)
-	var pale := colour_at(at.x, at.z).lightened(0.12).srgb_to_linear()
-	var ground_at := Vector3(at.x, height_at(at.x, at.z), at.z)
-	# One sheet away at once, and one or two that let go a moment later.
-	for k in 1 + int(much * 2.0 + randf()):
-		var delay := 0.0 if k == 0 else randf_range(0.25, 1.4) * (0.6 + much)
-		var from := ground_at + across * randf_range(-0.22, 0.22) * (1.0 if k > 0 else 0.3) + downhill * randf_range(0.0, 0.25)
-		from.y = height_at(from.x, from.z)
-		var length := randf_range(0.5, 0.9) + much * 0.9
-		var pace := 0.9 + much * 1.5
-		var life := randf_range(1.3, 1.9) + much * 0.6
-		spray.run(from, downhill, facing, length, randf_range(0.2, 0.32) + 0.2 * much, pace, life, pale, delay)
-		# Where it comes to rest it leaves a little heap; where it left, a scoop.
-		var rests := from + downhill * (pace * life * 0.5 + length * 0.3)
-		_later.append([_clock + delay + life * 0.8, rests, 0.16 + 0.1 * much, 0.008 + 0.008 * much])
-		if k == 0:
-			press(from + downhill * 0.12, 0.1 + 0.05 * much, 0.008 + 0.006 * much)
+	var across := Vector3(downhill.z, 0.0, -downhill.x)
+	# Where it leaves from, a scoop.
+	press(at + downhill * 0.1, 0.1 + 0.05 * much, 0.008 + 0.006 * much)
+	# One lobe away at once, and one or two that let go a moment later, each
+	# a little to one side of the last and not quite the same way.
+	for k in 1 + int(much * 1.5 + randf()):
+		var delay := 0.0 if k == 0 else randf_range(0.2, 1.1)
+		var from := at + across * randf_range(-0.3, 0.3) * (1.0 if k > 0 else 0.3) + downhill * randf_range(0.12, 0.35)
+		ooze(from, downhill.rotated(Vector3.UP, randf_range(-0.4, 0.4)), randf_range(0.22, 0.34) + 0.16 * much,
+				minf(randf_range(0.12, 0.19) + 0.06 * much, 0.28), minf(0.032 + 0.012 * much, 0.055), randf_range(2.6, 3.6) + 0.8 * much, true, delay)
+
+
+## Sets a lobe of loose sand creeping over the ground from `at`, the way
+## `way` points: a thick rounded mass, `radius` from its middle to its edge
+## and `tall` high (6 cm at the most), that sets off at `speed` metres a
+## second, spreads and slows, and has stopped after `life` seconds, leaving a
+## low tongue where it has been and itself where it ends. If it `runs` it
+## follows the fall of the ground, goes only as fast as the slope is steep,
+## and buries the prints it goes over; if not it is pushed straight out and
+## comes to rest (the collar round a foot). `delay` holds it back.
+func ooze(at: Vector3, way: Vector3, speed: float, radius: float, tall: float, life: float, runs := true, delay := 0.0) -> void:
+	if _lobes.size() >= LOBES:
+		return
+	if runs:
+		var running := 0
+		for lobe in _lobes:
+			running += 1 if lobe.runs else 0
+		if running >= SLOPE_LOBES[maxi(_quality, 0)]:
+			return
+	var heading := Vector2(way.x, way.z)
+	if heading.length() < 0.001:
+		return
+	_lobes.append({at = Vector2(at.x, at.z), way = heading.normalized(), speed = speed, radius = radius, tall = tall, life = life, runs = runs,
+			wait = delay, age = 0.0, last = Vector2.INF, seen = 0.0, high = 0.0})
+
+
+# Moves the lobes on, and presses them into the dents where they have got to.
+# Each is pressed in again only when it has moved some part of a square, and
+# only so many squares are pressed in a frame, the lobes taking it in turns.
+func _creep(delta: float) -> void:
+	var squares := LOBE_SQUARES[_quality]
+	var count := _lobes.size()
+	_lobe_turn += 1
+	var done := false
+	for k in count:
+		var lobe := _lobes[(k + _lobe_turn) % count]
+		if lobe.wait > 0.0:
+			lobe.wait -= delta
+			continue
+		lobe.age += delta
+		var through: float = minf(lobe.age / lobe.life, 1.0)
+		var at: Vector2 = lobe.at
+		var pace: float = lobe.speed
+		if lobe.runs:
+			# It follows the fall of the ground, and stops where that levels out.
+			var facing := normal_at(at.x, at.y)
+			var downhill := Vector2(facing.x, facing.z)
+			var steep := downhill.length() / maxf(facing.y, 0.01)
+			if steep > 0.001:
+				lobe.way = (lobe.way as Vector2).lerp(downhill.normalized(), minf(3.0 * delta, 1.0)).normalized()
+			pace *= (1.0 - through) * smoothstep(0.08, 0.4, steep) * give_at(at.x, at.y)
+		else:
+			pace *= (1.0 - through) * (1.0 - through)
+		at += (lobe.way as Vector2) * pace * delta
+		lobe.at = at
+		var last: Vector2 = lobe.last
+		var moved := at.distance_to(last) if last != Vector2.INF else 0.0
+		# (pressed in again when it has moved, and as it slumps at the end)
+		if (last == Vector2.INF or moved >= _fine * (0.35 if lobe.runs else 0.6) or through - lobe.seen > 0.07) and squares > 0:
+			# It swells up out of the ground as it starts; it spreads as it
+			# goes, and is lower for it; and as it stops it slumps, wide and low.
+			var swell := smoothstep(0.0, 0.12, through)
+			var radius: float = lobe.radius * (0.6 + 0.4 * swell + 0.4 * through * through)
+			var tall: float = lobe.tall * swell * (1.0 - 0.6 * through * through)
+			var sunk: float = maxf(lobe.high - tall, 0.0)
+			squares -= _press_lobe(at, lobe.way, radius, tall, maxi(int(round((moved * 0.2 + sunk) / UNIT)), 1), lobe.runs)
+			lobe.last = at
+			lobe.seen = through
+			lobe.high = tall
+		if through >= 1.0 or (lobe.age > 0.5 and pace < 0.01):
+			lobe.life = 0.0
+			done = true
+	if done:
+		for k in range(count - 1, -1, -1):
+			if _lobes[k].life <= 0.0:
+				_lobes.remove_at(k)
+
+
+# Presses a lobe into the dents: a round-backed mound, longer the way it is
+# going than it is wide, that stands up steeply at its edge, raised wherever
+# the ground is lower than it. Behind it, where it has been, and wherever it
+# has sunk, the ground is let down again by `wear` steps, to a low tongue: so
+# the mass travels, and is not drawn out. If it `fills` it buries whatever is
+# pressed in under it; if not, it leaves a print alone. Gives back how many
+# squares it looked at.
+func _press_lobe(at: Vector2, way: Vector2, radius: float, tall: float, wear: int, fills: bool) -> int:
+	var long := radius * 1.3
+	var reach := long * (1.25 if fills else 1.12) + _fine
+	var room := (_span >> 1) - _tile
+	var low_x := _middle.x - room
+	var high_x := _middle.x + room - 1
+	var first_z := maxi(floori((at.y - reach) / _fine), _middle.y - room)
+	var last_z := mini(ceili((at.y + reach) / _fine), _middle.y + room - 1)
+	if first_z > last_z or at.x + reach < low_x * _fine or at.x - reach > (high_x + 1) * _fine:
+		return 0
+	var levels := minf(tall / UNIT, 255.0 - NEUTRAL)
+	var tongue := int(levels * 0.12)
+	var along_x := way.x / long
+	var along_z := way.y / long
+	var across_x := -way.y / radius
+	var across_z := way.x / radius
+	var mask := _span - 1
+	var looked := 0
+	for z in range(first_z, last_z + 1):
+		var off_z := (z + 0.5) * _fine - at.y
+		var row := (z & mask) * _span
+		# (only as much of each row as lies within its reach)
+		var wide := sqrt(maxf(reach * reach - off_z * off_z, 0.0))
+		var first_x := maxi(floori((at.x - wide) / _fine), low_x)
+		var last_x := mini(ceili((at.x + wide) / _fine), high_x)
+		looked += last_x - first_x + 1
+		for x in range(first_x, last_x + 1):
+			var off_x := (x + 0.5) * _fine - at.x
+			var along := off_x * along_x + off_z * along_z
+			var across := off_x * across_x + off_z * across_z
+			var out := along * along + across * across
+			var index := row + (x & mask)
+			var now := _dent[index] - NEUTRAL
+			var wanted := int(levels * (1.0 - out) * (1.0 + 0.7 * out)) if out < 1.0 else 0
+			if wanted > now:
+				if fills or now > -3:
+					_dent[index] = wanted + NEUTRAL
+			elif now > tongue and now > wanted:
+				_dent[index] = maxi(maxi(wanted, tongue), now - wear) + NEUTRAL
+	_wake(floori((at.x - reach) / _fine), ceili((at.x + reach) / _fine), first_z, last_z)
+	return looked
+
+
+# Notes that there is something in the dents between these squares, to be
+# softened and filled in time.
+func _wake(first_x: int, last_x: int, first_z: int, last_z: int) -> void:
+	for tile_z in range(floori(float(first_z) / _tile), floori(float(last_z) / _tile) + 1):
+		for tile_x in range(floori(float(first_x) / _tile), floori(float(last_x) / _tile) + 1):
+			var tile := Vector2i(tile_x, tile_z)
+			if not _live.has(tile):
+				_live[tile] = _filled
+				_live_list.append(tile)
+	_dent_stale = true
 
 
 # Presses a brush into the dents: a small picture of a shape, -1 where it is
@@ -550,6 +794,10 @@ func disturb(at: Vector3, amount: float) -> void:
 # the picture, `depth` is how far -1 goes down, metres.
 func _stamp(brush: Array, at: Vector2, yaw: float, depth: float, size := 1.0, mirrored := false) -> void:
 	if _span == 0:
+		return
+	# (hard ground takes nothing; a packed path less)
+	depth *= give_at(at.x, at.y)
+	if depth < UNIT:
 		return
 	var picture: PackedFloat32Array = brush[0]
 	var wide: int = brush[1]
@@ -595,13 +843,7 @@ func _stamp(brush: Array, at: Vector2, yaw: float, depth: float, size := 1.0, mi
 					_dent[index] = maxi(wanted + NEUTRAL, 0)
 			elif now > -3 and wanted > now:
 				_dent[index] = mini(wanted + NEUTRAL, 255)
-	for tile_z in range(floori(float(first_z) / _tile), floori(float(last_z) / _tile) + 1):
-		for tile_x in range(floori(float(first_x) / _tile), floori(float(last_x) / _tile) + 1):
-			var tile := Vector2i(tile_x, tile_z)
-			if not _live.has(tile):
-				_live[tile] = _filled
-				_live_list.append(tile)
-	_dent_stale = true
+	_wake(first_x, last_x, first_z, last_z)
 
 
 # Moves the patch of dents to keep the focus in the middle of it, a tile at a
@@ -689,6 +931,23 @@ func _smooth_over(tile: Vector2i, levels: int, flatten: bool) -> bool:
 static func _make_brushes() -> void:
 	if not _boot.is_empty():
 		return
+	# What a foot leaves in sand, which holds no shape: a shallow dent, round
+	# at both ends and deepest in the middle, 15 cm by 30, toe towards +z, and
+	# the sand that came out of it lying low and wide round it.
+	var soft_grain := 0.0125
+	var soft_wide := 28
+	var soft_long := 40
+	var soft := PackedFloat32Array()
+	soft.resize(soft_wide * soft_long)
+	for line in soft_long:
+		for column in soft_wide:
+			var place := Vector2(((column + 0.5) - soft_wide * 0.5) * soft_grain / 0.078, ((line + 0.5) - soft_long * 0.5) * soft_grain / 0.15)
+			var out := place.length()
+			if out < 1.0:
+				soft[line * soft_wide + column] = -pow(1.0 - out * out, 1.3)
+			elif out < 1.6:
+				soft[line * soft_wide + column] = 0.13 * sin(PI * (out - 1.0) / 0.6)
+	_tread = [soft, soft_wide, soft_long, soft_grain]
 	# A left boot, toe towards +z, 27 cm long: a round heel, a waist, the ball
 	# of the foot and a round toe; deepest under the heel and the ball, with
 	# the front edge of the heel standing across it; and a lip pushed up round it.
@@ -824,25 +1083,20 @@ func _process(delta: float) -> void:
 		if is_instance_valid(hound):
 			_watch_hound(hound)
 
-	# What was set going a while ago and comes to rest now.
-	var i := 0
-	while i < _later.size():
-		if _later[i][0] <= _clock:
-			heap(_later[i][1], _later[i][2], _later[i][3])
-			_later[i] = _later[-1]
-			_later.pop_back()
-		else:
-			i += 1
+	if not _lobes.is_empty():
+		_creep(delta)
 	if not _live_list.is_empty():
 		_fill(delta)
 	if _dent_stale:
 		_dent_stale = false
 		_dent_image.set_data(_span, _span, false, Image.FORMAT_R8, _dent)
 		_dent_map.update(_dent_image)
-	if _kinds_stale:
-		_kinds_stale = false
-		_kind_image.set_data(_columns + 1, _rows + 1, false, Image.FORMAT_RGBA8, _kinds)
-		_kind_map.update(_kind_image)
+	if _kinds_stale != 0:
+		for i in 3:
+			if _kinds_stale & (1 << i):
+				_kind_images[i].set_data(_columns + 1, _rows + 1, false, Image.FORMAT_RGBA8, _kinds[i])
+				_kind_maps[i].update(_kind_images[i])
+		_kinds_stale = 0
 	cost_usec = lerpf(cost_usec, float(Time.get_ticks_usec() - began), 0.1)
 
 
@@ -920,8 +1174,10 @@ func _watch(figure: Node3D, delta: float) -> void:
 	var on := body.is_on_floor() and not limp and covers(at, 0.14 + known.sink)
 	var lump := _lump_under(at) if not limp else false
 	known.on = on
-	# On sand it raises sand, not dust (nor as it comes down onto it).
-	var sandy := on or lump or (not body.is_on_floor() and covers(at + Vector3.DOWN * 0.35, 0.5))
+	# On sand it raises sand, not dust (nor as it comes down onto it). On hard
+	# ground it raises dust as it does anywhere.
+	var give := give_at(at.x, at.z)
+	var sandy := (on or lump or (not body.is_on_floor() and covers(at + Vector3.DOWN * 0.35, 0.5))) and give > 0.2
 	if &"dust_scale" in figure:
 		figure.set(&"dust_scale", 0.0 if sandy else 1.0)
 	elif known.dust:
@@ -930,10 +1186,9 @@ func _watch(figure: Node3D, delta: float) -> void:
 	# Standing still he settles into it, and comes out as he moves off.
 	var speed := Vector3(body.velocity.x, 0.0, body.velocity.z).length()
 	var still := speed < 0.25 and (on or lump) and body.is_on_floor()
-	var packed := kind_at(at.x, at.z).b
 	var want := 0.0
 	if still:
-		want = sink_depth * 3.0 if lump else sink_depth * (1.0 - 0.8 * packed)
+		want = sink_depth * 3.0 if lump else sink_depth * give
 	if want > known.sink:
 		known.sink = lerpf(known.sink, want, 1.0 - exp(-3.0 * delta / sink_time))
 	else:
@@ -985,25 +1240,42 @@ func _on_footfall(at: Vector3, foot: int, weight: float, figure: Node3D) -> void
 		return
 	var body := figure.get_parent() as CharacterBody3D
 	var kind := kind_at(at.x, at.z)
-	var loose := (1.0 - 0.75 * kind.b)
+	# (hard ground gives nothing up, and takes nothing: see `_stamp`)
+	var loose := give_at(at.x, at.z)
+	if loose < 0.05:
+		return
 	if body and body.get(&"is_crawling") == true:
 		# (a knee or a hand)
-		press(at, 0.05, 0.014 * loose)
+		press(at, 0.05, 0.014)
 		return
-	footprint(at, _foot_yaw(figure, foot), clampf(0.009 + 0.015 * weight, 0.01, 0.05) * loose * (1.0 + 0.4 * kind.g), foot == 0)
+	var yaw := _foot_yaw(figure, foot)
+	footprint(at, yaw, clampf(0.009 + 0.015 * weight, 0.01, 0.05) * (1.0 + 0.4 * kind.g), foot == 0)
 	var ground_at := Vector3(at.x, height_at(at.x, at.z), at.z)
+	var facing := normal_at(at.x, at.z)
 	var tint := colour_at(at.x, at.z).srgb_to_linear()
 	var going := Vector3(body.velocity.x, 0.0, body.velocity.z) if body else Vector3.ZERO
 	var dry := loose * (1.0 - 0.5 * kind.g)
+	var snowy := share_at(Sand.Kind.SNOW, at.x, at.z) > 0.5
 	if weight > 1.5:
 		# A landing: a ring of it.
-		spray.ring(ground_at, 1.2 + 0.6 * weight, int((8.0 + 6.0 * weight) * dry), tint, 0.22 + 0.06 * weight)
+		spray.ring(ground_at, 1.3 + 0.6 * weight, int((8.0 + 6.0 * weight) * dry), tint, 0.2 + 0.03 * weight, facing)
 	elif weight > 0.4:
 		# A step throws it back and up: a run more than a walk.
 		var back := -going.normalized() if going.length() > 0.3 else Vector3.ZERO
-		spray.kick(ground_at, back * (0.35 + 0.3 * going.length()) + Vector3.UP * (0.6 + 0.9 * weight), int((2.0 + 9.0 * (weight - 0.3)) * dry), 0.4, tint, 0.16 + 0.1 * weight)
+		spray.kick(ground_at, back * (0.4 + 0.3 * going.length()) + Vector3.UP * (1.1 + 1.2 * weight), int((2.0 + 9.0 * (weight - 0.3)) * dry), 0.4, tint, 0.15 + 0.04 * weight, 0.0, facing)
 	elif dry > 0.5:
-		spray.kick(ground_at, Vector3.UP * 0.4, 1, 0.6, tint, 0.08)
+		spray.kick(ground_at, Vector3.UP * 0.7, 1, 0.6, tint, 0.12, 0.0, facing)
+	# In loose sand what the foot pushes aside swells out round it in a
+	# collar, in three or four lumps, and slumps there.
+	if loose > 0.6 and weight > 0.35 and not snowy and not crisp_prints:
+		var soft := loose * (1.0 - 0.6 * kind.g)
+		var heavy := minf(weight, 2.5)
+		for k in 2 + int(heavy + randf()):
+			# (most of it goes out to the sides, where the foot is longest)
+			var turn := (PI * 0.5 if k % 2 == 0 else -PI * 0.5) + randf_range(-1.0, 1.0)
+			var out := Vector3(sin(yaw + turn), 0.0, cos(yaw + turn))
+			var edge := 1.0 / Vector2(sin(turn) / 0.078, cos(turn) / 0.15).length()
+			ooze(at + out * edge * 1.05, out, (0.3 + 0.14 * heavy) * soft, randf_range(0.05, 0.07) * (0.85 + 0.25 * heavy), (0.012 + 0.007 * heavy) * soft, randf_range(0.5, 0.8), false)
 	disturb(at, weight)
 
 
@@ -1014,14 +1286,15 @@ func _on_scraped(at: Vector3, velocity: Vector3, amount: float, figure: Node3D) 
 		return
 	known.scrape = 0.05
 	var ground_at := Vector3(at.x, height_at(at.x, at.z), at.z)
-	var kind := kind_at(at.x, at.z)
-	var loose := (1.0 - 0.75 * kind.b)
-	press(ground_at, 0.15 + 0.07 * amount, (0.016 + 0.014 * amount) * loose)
+	var loose := give_at(at.x, at.z)
+	if loose < 0.05:
+		return
+	press(ground_at, 0.15 + 0.07 * amount, 0.016 + 0.014 * amount)
 	var tint := colour_at(at.x, at.z).srgb_to_linear()
 	var pace := Vector3(velocity.x, 0.0, velocity.z).length()
 	if pace > 0.6:
 		# A sheet of it, thrown out ahead and to the sides.
-		spray.kick(ground_at, velocity * 0.45 + Vector3.UP * (0.5 + 0.25 * pace * amount), int(1.0 + 2.0 * amount * loose), 0.55, tint, 0.2)
+		spray.kick(ground_at, velocity * 0.45 + Vector3.UP * (0.8 + 0.25 * pace * amount), int(1.0 + 2.0 * amount * loose), 0.55, tint, 0.2, 0.0, normal_at(at.x, at.z))
 	if known.run <= 0.0:
 		known.run = 0.14
 		disturb(at, 0.6 + amount)
@@ -1063,7 +1336,9 @@ func _carry(figure: Node3D, known: Dictionary, delta: float) -> void:
 	var at := body.global_position
 	var facing := normal_at(at.x, at.z)
 	var steep := sqrt(maxf(1.0 - facing.y * facing.y, 0.0)) / maxf(facing.y, 0.01)
-	var gives := smoothstep(0.47, 0.62, steep) * (1.0 - kind_at(at.x, at.z).b)
+	var gives := smoothstep(0.47, 0.62, steep) * maxf(give_at(at.x, at.z) * 1.33 - 0.33, 0.0)
+	if share_at(Sand.Kind.SNOW, at.x, at.z) > 0.5:
+		gives = 0.0
 	if gives <= 0.01:
 		return
 	var downhill := Vector3(facing.x, 0.0, facing.z).normalized()
