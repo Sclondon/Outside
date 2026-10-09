@@ -47,6 +47,7 @@ const PALETTE := {
 		["Sarcophagus", "prop", "sarcophagus"], ["Carved wall", "prop", "wall_glyphs"], ["Ruined wall", "prop", "wall_ruin"],
 		["Block", "prop", "block"], ["Stack of blocks", "prop", "block_stack"], ["Rubble", "prop", "rubble"],
 		["Boulder", "prop", "rock_a"], ["Rock", "prop", "rock_b"],
+		["Inscription", "inscription", ""],
 	],
 	"Camp": [
 		["Palm", "prop", "palm_a"], ["Bent palm", "prop", "palm_b"], ["Small palm", "prop", "palm_c"],
@@ -138,6 +139,12 @@ const FIELDS := {
 	"checkpoint": [],
 	"start": [],
 	"sign": [["text", "Says", "t", "A SIGN"]],
+	# Writing carved in hieroglyphs (`scripts/inscription.gd`): what is typed, or one of the texts in `InscriptionTexts`.
+	"inscription": [["text", "Says", "t", "The king lives forever"], ["named", "Or a text", "c", InscriptionTexts.TITLES, 0],
+		["width", "Width", "n", 0.4, 24.0, 0.1, 2.4], ["height", "Height", "n", 0.3, 8.0, 0.1, 1.2], ["columns", "In columns", "b", false], ["rtl", "Read from the right", "b", false],
+		["sign", "Size of a sign (0: to fit)", "n", 0.0, 1.0, 0.05, 0.0], ["fill", "Repeats to fill it", "b", false], ["carved", "Carved", "b", true], ["painted", "Painted", "b", false],
+		["wear", "Weathered", "n", 0.0, 1.0, 0.05, 0.2], ["slab", "On a slab of its own", "b", true], ["both", "On both faces", "b", false],
+		["stone", "Stone", "c", ["Sandstone", "Pale limestone", "Red sandstone", "Dark stone"], 0]],
 }
 
 ## How far above the ground each kind is put when it is first set down.

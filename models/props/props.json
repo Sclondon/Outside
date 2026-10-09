@@ -6400,8 +6400,9 @@
   "ladders": [],
   "far": 200.0,
   "shadow": true,
-  "triangles": 714,
-  "materials": 4
+  "triangles": 2112,
+  "materials": 4,
+  "shiny": false
  },
  "wall_ruin": {
   "body": "static",
