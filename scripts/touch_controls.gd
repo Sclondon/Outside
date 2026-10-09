@@ -171,17 +171,29 @@ func _draw() -> void:
 	_draw_button(_duck_centre(), _button_radius(), _duck_alpha)
 	_draw_button(_act_centre(), _button_radius(), _act_alpha)
 	var mark := Color(tint, 0.9)
-	# Jump: a chevron pointing up. Duck: one pointing down. Act: a hand, drawn as a ring and a dot.
+	# Jump: a chevron pointing up. Duck: one pointing down. Grab: an open hand.
 	draw_polyline([jump_centre + Vector2(-17.0, 8.0), jump_centre + Vector2(0.0, -11.0), jump_centre + Vector2(17.0, 8.0)], mark, 3.5, true)
 	var duck := _duck_centre()
 	draw_polyline([duck + Vector2(-13.0, -6.0), duck + Vector2(0.0, 8.0), duck + Vector2(13.0, -6.0)], mark, 3.5, true)
-	draw_arc(_act_centre(), 13.0, 0.0, TAU, 24, mark, 3.0, true)
-	draw_circle(_act_centre(), 5.0, mark)
-	var font := get_theme_default_font()
-	for label: Array in [[jump_centre, stick_radius * 0.62, "JUMP"], [duck, _button_radius(), "DUCK"], [_act_centre(), _button_radius(), "GRAB"]]:
-		var wide := font.get_string_size(label[2], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13).x
-		draw_string_outline(font, (label[0] as Vector2) + Vector2(-wide * 0.5, -float(label[1]) - 7.0), label[2], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13, 4, Color(0.0, 0.0, 0.0, 0.6))
-		draw_string(font, (label[0] as Vector2) + Vector2(-wide * 0.5, -float(label[1]) - 7.0), label[2], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13, Color(tint, 0.9))
+	_draw_hand(_act_centre(), _button_radius() * 0.5, mark)
+
+
+# An open hand, palm towards the eye, about `reach` from its middle to a fingertip.
+func _draw_hand(centre: Vector2, reach: float, colour: Color) -> void:
+	var palm := centre + Vector2(0.0, reach * 0.34)
+	var thick := reach * 0.25
+	# The palm, then four fingers fanned a little, the middle one longest, and the thumb out to the side.
+	draw_circle(palm, reach * 0.5, colour)
+	draw_rect(Rect2(palm + Vector2(-reach * 0.5, -reach * 0.42), Vector2(reach, reach * 0.5)), colour)
+	for finger: Array in [[-0.37, -0.12, 0.84], [-0.125, -0.04, 1.0], [0.125, 0.04, 0.95], [0.37, 0.13, 0.76]]:
+		var root := palm + Vector2(float(finger[0]) * reach, -reach * 0.36)
+		var tip := root + Vector2(float(finger[1]), -1.0).normalized() * reach * float(finger[2])
+		draw_line(root, tip, colour, thick, true)
+		draw_circle(tip, thick * 0.5, colour)
+	var thumb_root := palm + Vector2(-reach * 0.42, reach * 0.02)
+	var thumb_tip := thumb_root + Vector2(-0.8, -0.6).normalized() * reach * 0.62
+	draw_line(thumb_root, thumb_tip, colour, thick * 1.1, true)
+	draw_circle(thumb_tip, thick * 0.55, colour)
 
 
 func _draw_button(centre: Vector2, radius: float, pressed: float) -> void:
