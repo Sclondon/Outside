@@ -26,6 +26,17 @@ func make(name: String, about: Dictionary) -> void:
 			loose.add_to_group(&"interest", true)
 			loose.add_to_group(&"throwable", true)
 			root = loose
+		"swing":
+			# Something to pick up and swing in both hands, as the bat in the test yard is:
+			# its origin is the end he holds it by, and it lies along its own Y.
+			var tool := RigidBody3D.new()
+			tool.mass = about.mass
+			tool.gravity_scale = 2.0
+			tool.angular_damp = 2.0
+			tool.add_to_group(&"interest", true)
+			tool.add_to_group(&"throwable", true)
+			tool.add_to_group(&"bats", true)
+			root = tool
 		"push":
 			var block := RigidBody3D.new()
 			block.mass = about.mass
@@ -38,7 +49,8 @@ func make(name: String, about: Dictionary) -> void:
 		_:
 			root = StaticBody3D.new()
 	root.name = name.to_pascal_case()
-	root.set_script(load("res://scripts/prop.gd"))
+	# (one with gold, bronze or brass in it is a GearProp, which makes them shine)
+	root.set_script(load("res://scripts/gear_prop.gd" if about.get("shiny", false) else "res://scripts/prop.gd"))
 	root.set(&"draw_distance", about.far)
 	root.set(&"casts_shadow", about.get("shadow", true))
 	var model: Node3D = (load("res://models/props/%s.glb" % name) as PackedScene).instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)

@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gear_prop.gd" id="1_hfivg"]
+[ext_resource type="PackedScene" path="res://models/props/helmet_thoth.glb" id="2_f507i"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_hagde"]
+height = 1.24
+radius = 0.15
+
+[node name="HelmetThoth" type="StaticBody3D" unique_id=906389162]
+script = ExtResource("1_hfivg")
+draw_distance = 120.0
+
+[node name="Model" parent="." unique_id=1314864793 instance=ExtResource("2_f507i")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=888837370]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, 0)
+shape = SubResource("CylinderShape3D_hagde")

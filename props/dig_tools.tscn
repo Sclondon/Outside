@@ -1,0 +1,25 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_lv8bb"]
+[ext_resource type="PackedScene" path="res://models/props/dig_tools.glb" id="2_asv5j"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_psdsr"]
+size = Vector3(0.8, 0.52, 0.45)
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_4nuhe"]
+height = 0.2
+radius = 0.2
+
+[node name="DigTools" type="StaticBody3D" unique_id=1807125250]
+script = ExtResource("1_lv8bb")
+draw_distance = 110.0
+
+[node name="Model" parent="." unique_id=249648793 instance=ExtResource("2_asv5j")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=608918810]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.26, 0)
+shape = SubResource("BoxShape3D_psdsr")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=439767314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.72, 0.1, 0.1)
+shape = SubResource("CylinderShape3D_4nuhe")

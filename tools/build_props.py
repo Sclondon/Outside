@@ -30,6 +30,7 @@ from mathutils import Matrix, Vector
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "models", "props")
+WORN_OUT = os.path.join(ROOT, "models", "worn")
 ONLY = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
@@ -65,7 +66,35 @@ PALETTE = {
     "bronze": (0.50, 0.36, 0.20),
     "water": (0.13, 0.27, 0.33),
     "rock": (0.62, 0.52, 0.40),
+    # The dig, and what is carried and worn
+    "canvas": (0.64, 0.58, 0.40),
+    "canvas_dark": (0.50, 0.45, 0.31),
+    "leather": (0.40, 0.25, 0.14),
+    "leather_dark": (0.26, 0.16, 0.10),
+    "brass": (0.76, 0.60, 0.26),
+    "blanket": (0.45, 0.47, 0.50),
+    "blanket_stripe": (0.62, 0.22, 0.17),
+    "straw": (0.83, 0.71, 0.40),
+    "basket": (0.74, 0.62, 0.38),
+    "basket_dark": (0.56, 0.45, 0.27),
+    "paper": (0.91, 0.87, 0.74),
+    "ink": (0.16, 0.14, 0.20),
+    "red": (0.70, 0.20, 0.15),
+    "white": (0.93, 0.91, 0.85),
+    "spoil": (0.66, 0.55, 0.40),
+    "mesh": (0.47, 0.44, 0.38),
+    "glass": (0.96, 0.86, 0.55),
+    "gilt": (0.93, 0.70, 0.22),
+    "bronze_bright": (0.66, 0.42, 0.18),
+    "lapis": (0.13, 0.22, 0.52),
+    "turquoise": (0.20, 0.60, 0.58),
+    "carnelian": (0.68, 0.22, 0.14),
+    "ivory": (0.90, 0.85, 0.72),
+    "croc": (0.30, 0.42, 0.24),
+    "cat": (0.20, 0.17, 0.15),
 }
+# Materials that shine: scripts/worn.gd (`Worn.shine`) draws these as gold is drawn.
+SHINY = ("gilt", "bronze_bright", "brass")
 DOUBLE_SIDED = ("plant",)
 
 
@@ -88,7 +117,8 @@ class Placed:
 
 class Prop:
     """What one prop is made of. `body`: "static", "throw" (a RigidBody3D he can pick up),
-    "push" (a block he can push) or "none"."""
+    "swing" (one he holds in both hands by its end and swings, as he does a bat: its origin is
+    the end he holds, and it lies along its own Y), "push" (a block he can push) or "none"."""
 
     def __init__(self, name, body="static"):
         self.name = name
@@ -1450,11 +1480,773 @@ def oasis_rim(p):
     p.far = 150.0
 
 
+# ---------------------------------------------------------------- the dig, and what is carried and worn
+
+def band(p, points, width, thick, material, about=None, side=X):
+    """A flat strap through `points`, `width` across and `thick` deep. It lies flat on
+    whatever is round `about` (a point: its face looks away from there), or else its
+    width runs along `side`."""
+    points = [Vector(q) for q in points]
+    rings = []
+    for i, q in enumerate(points):
+        ahead = (points[min(i + 1, len(points) - 1)] - points[max(i - 1, 0)]).normalized()
+        if about is not None:
+            out = q - Vector(about)
+            out = (out - ahead * out.dot(ahead)).normalized()
+            u = out.cross(ahead).normalized()
+        else:
+            u = (Vector(side) - ahead * Vector(side).dot(ahead)).normalized()
+        v = ahead.cross(u)
+        rings.append((q, u * width * 0.5 + v * thick * 0.5, v * thick * 0.5 - u * width * 0.5))
+    p.tube(rings, material, 4, 2.0, True, False)
+
+
+def lathe_in(p, profile, material, segments=10, centre=(0, 0, 0)):
+    """The inside of something turned on a lathe: as p.lathe, but its faces look inward."""
+    c = Vector(centre)
+    made = [[p.v(c + Vector((r * math.cos(TAU * k / segments), y, r * math.sin(TAU * k / segments)))) for k in range(segments)] for r, y in profile]
+    for j in range(len(made) - 1):
+        for k in range(segments):
+            n = (k + 1) % segments
+            quad = (made[j][k], made[j][n], made[j + 1][n], made[j + 1][k])
+            p.face(quad if profile[j + 1][1] > profile[j][1] else quad[::-1], material, True)
+
+
+def both(p, points, material):
+    """A flat face seen from both sides."""
+    p.poly(points, material)
+    p.poly(points[::-1], material)
+
+
+def flat(p, at, yaw=0.0):
+    """Places what is drawn on the X-Y plane (rect, stroke, disc, glyph) lying flat, face up."""
+    return p.at(at, yaw, 1.0, -math.pi * 0.5)
+
+
+def heap(p, centre, radii, material, rng, rough=0.02):
+    made = p.ellipsoid(centre, radii, material, 8, 4, smooth=False)
+    p.jitter(made, rough, rng)
+
+
+def blade(p, stations, half, material):
+    """A blade lying in the Y-Z plane. `stations` are pairs of points (y, z) along it: its
+    back, where it is `half` thick each way, and its edge, where it is sharp."""
+    made = []
+    for (by, bz), (ey, ez) in stations:
+        made.append((p.v((half, by, bz)), p.v((-half, by, bz)), p.v((0.0, ey, ez))))
+    for a, b in zip(made, made[1:]):
+        p.face((a[0], b[0], b[2], a[2]), material)
+        p.face((a[2], b[2], b[1], a[1]), material)
+        p.face((a[1], b[1], b[0], a[0]), material)
+    p.face((made[0][0], made[0][2], made[0][1]), material)
+    p.face((made[-1][0], made[-1][1], made[-1][2]), material)
+
+
+# Tools. Each `_shape` is drawn standing on the end it is held by, along Y, so that it
+# can be a thing he swings (see "swing" in Prop) and can also be leant against
+# something in a prop that only dresses a site.
+
+def pickaxe_shape(p):
+    p.strand([(0, 0, 0), (0, 0.4, 0), (0, 0.83, 0)], [0.017, 0.016, 0.021], "wood", 6)
+    p.box((0, 0.80, 0), (0.05, 0.06, 0.07), "iron")
+    p.strand([(0, 0.69, -0.28), (0, 0.775, -0.14), (0, 0.80, 0), (0, 0.775, 0.14), (0, 0.69, 0.28)], [0.004, 0.015, 0.021, 0.015, 0.004], "iron", 5)
+
+
+def pickaxe(p):
+    """A navvy's pick. He swings it."""
+    pickaxe_shape(p)
+    p.body = "swing"
+    p.mass = 1.6
+    p.solid_box((0, 0.41, 0), (0.05, 0.82, 0.05))
+    p.solid_box((0, 0.77, 0), (0.05, 0.1, 0.5))
+    p.far = 80.0
+
+
+def shovel_shape(p):
+    p.strand([(0, 0.05, 0), (0, 0.66, 0)], [0.015, 0.016], "wood", 6)
+    # The grip, a D of wood and iron
+    p.strand([(-0.045, 0.0, 0), (0.045, 0.0, 0)], 0.013, "wood", 5)
+    for side in (1.0, -1.0):
+        p.strand([(side * 0.045, 0.0, 0), (side * 0.04, 0.05, 0), (0, 0.1, 0)], 0.008, "iron", 4)
+    # The socket and the blade, a little dished
+    p.strand([(0, 0.62, 0), (0, 0.72, 0.012)], [0.02, 0.024], "iron", 6)
+    p.tube([((0, 0.70, 0.012), X * 0.03, Z * 0.012), ((0, 0.74, 0.016), X * 0.085, Z * 0.01), ((0, 0.88, 0.012), X * 0.085, Z * 0.008),
+            ((0, 0.95, 0.0), X * 0.05, Z * 0.006)], "iron", 8, 2.6, True, True, tip1=(0, 0.99, -0.004))
+
+
+def shovel(p):
+    """A round-mouthed shovel with a D grip. He swings it."""
+    shovel_shape(p)
+    p.body = "swing"
+    p.mass = 1.3
+    p.solid_box((0, 0.36, 0), (0.05, 0.72, 0.05))
+    p.solid_box((0, 0.85, 0), (0.17, 0.28, 0.04))
+    p.far = 80.0
+
+
+def turia_shape(p):
+    p.strand([(0, 0, 0), (0, 0.76, 0)], [0.016, 0.02], "wood", 6)
+    p.box((0, 0.73, 0.0), (0.05, 0.05, 0.06), "iron")
+    p.box((0, 0.645, 0.045), (0.16, 0.2, 0.012), "iron", pitch=-0.5, top=(0.7, 1.0))
+
+
+def turia(p):
+    """A turia: the broad Egyptian hoe that the digging was done with, its blade set back
+    towards the hand to scrape spoil into a basket. He swings it."""
+    turia_shape(p)
+    p.body = "swing"
+    p.mass = 1.3
+    p.solid_box((0, 0.38, 0), (0.05, 0.76, 0.05))
+    p.solid_box((0, 0.65, 0.05), (0.16, 0.2, 0.12))
+    p.far = 80.0
+
+
+def trowel_shape(p):
+    """Lying flat, its middle at the origin, its point towards +Z."""
+    p.strand([(0, 0.018, -0.13), (0, 0.018, -0.045)], [0.013, 0.01], "wood", 6)
+    p.strand([(0, 0.018, -0.045), (0, 0.016, -0.02), (0, 0.004, 0.0)], 0.004, "iron", 4)
+    both(p, [(0, 0.004, -0.008), (-0.038, 0.004, 0.035), (0, 0.004, 0.14), (0.038, 0.004, 0.035)], "iron")
+
+
+def trowel(p):
+    """A pointing trowel. To pick up."""
+    trowel_shape(p)
+    p.body = "throw"
+    p.mass = 0.4
+    p.solid_box((0, 0.012, 0.0), (0.08, 0.03, 0.27))
+    p.far = 40.0
+
+
+def brush_shape(p):
+    """A hand brush, lying on its bristles."""
+    p.box((0, 0.045, 0.0), (0.046, 0.016, 0.16), "wood")
+    p.strand([(0, 0.045, -0.08), (0, 0.05, -0.17)], [0.012, 0.009], "wood", 5)
+    p.box((0, 0.02, 0.005), (0.05, 0.036, 0.15), "straw", top=(0.8, 0.92))
+
+
+def brush(p):
+    """A hand brush. To pick up."""
+    with p.at((0, -0.025, 0)):
+        brush_shape(p)
+    p.body = "throw"
+    p.mass = 0.3
+    p.solid_box((0, 0.0, -0.01), (0.06, 0.05, 0.33))
+    p.far = 40.0
+
+
+def paint_brush(p, at, lean, length=0.2, yaw=0.0):
+    with p.at(at, yaw, 1.0, lean):
+        p.strand([(0, 0, 0), (0, length * 0.7, 0)], [0.005, 0.007], "wood_dark", 4)
+        p.strand([(0, length * 0.68, 0), (0, length * 0.8, 0)], 0.009, "brass", 5)
+        p.strand([(0, length * 0.8, 0), (0, length * 0.92, 0), (0, length, 0)], [0.01, 0.009, 0.002], "ivory", 5)
+
+
+def brushes(p):
+    """What the fine work is done with: a tin of brushes, a hand brush and a trowel, set out on a cloth."""
+    with flat(p, (0, 0.004, 0), 0.2):
+        rect(p, 0, 0, 0.62, 0.42, "canvas")
+    p.lathe([(0.05, 0.005), (0.05, 0.12)], "iron", 8)
+    lathe_in(p, [(0.045, 0.12), (0.045, 0.02)], "black", 8)
+    for i in range(4):
+        paint_brush(p, (0.02 * math.cos(i * 1.7), 0.02, 0.02 * math.sin(i * 1.7)), 0.16 * math.cos(i * 2.1), 0.2 + 0.02 * i, i * 1.7)
+    with p.at((0.18, 0.005, 0.05), 0.7):
+        brush_shape(p)
+    with p.at((-0.17, 0.005, 0.04), -0.5):
+        trowel_shape(p)
+    with p.at((-0.05, 0.012, 0.14), 1.3, 1.0, math.pi * 0.5):
+        paint_brush(p, (0, 0, 0), 0.0, 0.2)
+    p.far = 40.0
+
+
+def sieve(p):
+    """A screen on legs, one end high: spoil is thrown at it, what is fine falls through and
+    what is not runs down it to be picked over. Beside it a round hand sieve."""
+    rng = random.Random(61)
+    w, l, tilt = 0.72, 1.0, 0.42
+    with p.at((0, 0.72, 0), 0.0, 1.0, tilt):
+        for x in (-1.0, 1.0):
+            p.box((x * w * 0.5, 0, 0), (0.04, 0.08, l + 0.04), "wood")
+        for z in (-1.0, 1.0):
+            p.box((0, 0, z * l * 0.5), (w, 0.08, 0.04), "wood")
+        both(p, [(-w * 0.5, -0.012, -l * 0.5), (-w * 0.5, -0.012, l * 0.5), (w * 0.5, -0.012, l * 0.5), (w * 0.5, -0.012, -l * 0.5)], "mesh")
+        for i in range(1, 6):
+            p.box((-w * 0.5 + i * w / 6, -0.008, 0), (0.006, 0.006, l), "iron")
+        for i in range(1, 8):
+            p.box((0, -0.008, -l * 0.5 + i * l / 8), (w, 0.006, 0.006), "iron")
+        # (a little spoil lying on it)
+        heap(p, (0.05, 0.0, 0.3), (0.2, 0.04, 0.14), "spoil", rng, 0.012)
+    high, low = 0.72 + 0.5 * l * math.sin(tilt), 0.72 - 0.5 * l * math.sin(tilt)
+    reach = 0.5 * l * math.cos(tilt)
+    for x in (-1.0, 1.0):
+        p.strand([(x * (w * 0.5 + 0.06), 0, -reach - 0.12), (x * w * 0.5, high, -reach)], 0.022, "wood_dark", 4)
+        p.strand([(x * (w * 0.5 + 0.04), 0, reach + 0.02), (x * w * 0.5, low, reach)], 0.022, "wood_dark", 4)
+        p.strand([(x * (w * 0.5 + 0.05), 0.25, -reach - 0.08), (x * (w * 0.5 + 0.03), 0.25, reach + 0.01)], 0.014, "wood_dark", 4)
+    # What has gone through, under it, and what has run off its foot
+    heap(p, (0, 0.05, -0.05), (0.3, 0.13, 0.36), "stone", rng, 0.02)
+    heap(p, (0.05, 0.05, 0.78), (0.34, 0.14, 0.28), "spoil", rng, 0.03)
+    # The hand sieve, leaning on a leg
+    with p.at((0.62, 0.21, 0.35), 0.5, 1.0, 0.0, 1.2):
+        p.lathe([(0.2, -0.035), (0.2, 0.035)], "basket", 12, caps=False)
+        lathe_in(p, [(0.19, 0.035), (0.19, -0.03)], "basket_dark", 12)
+        both(p, [(0.19 * math.cos(TAU * k / 12), -0.03, 0.19 * math.sin(TAU * k / 12)) for k in range(12)], "mesh")
+    p.solid_box((0, 0.46, 0), (0.8, 0.92, 1.05))
+    p.far = 110.0
+
+
+def basket_shape(p, full=True):
+    """A dig basket (a maqtaf: plaited palm leaf, two rope handles), standing at the origin."""
+    p.lathe([(0.12, 0.0), (0.165, 0.07), (0.195, 0.17), (0.2, 0.2)], "basket", 10, caps=False, bands=("basket", "basket_dark", "basket"))
+    lathe_in(p, [(0.2, 0.2), (0.186, 0.196), (0.18, 0.17), (0.15, 0.07), (0.11, 0.025)], "basket_dark", 10)
+    p.poly([(0.12 * math.cos(TAU * k / 10), 0.0, 0.12 * math.sin(TAU * k / 10)) for k in range(10)], "basket_dark")
+    p.poly([(0.11 * math.cos(-TAU * k / 10), 0.025, 0.11 * math.sin(-TAU * k / 10)) for k in range(10)], "basket_dark")
+    for side in (1.0, -1.0):
+        p.strand([(side * (0.2 + 0.05 * math.sin(a)), 0.19 + 0.035 * math.sin(a), 0.07 * math.cos(a)) for a in (0.0, 0.8, 1.57, 2.34, 3.14)], 0.008, "rope", 4)
+    if full:
+        p.ellipsoid((0, 0.17, 0), (0.185, 0.08, 0.185), "spoil", 8, 4, smooth=False)
+
+
+def dig_basket(p):
+    """A basket of spoil. To pick up: the spoil of a dig went away a basket at a time."""
+    with p.at((0, -0.1, 0)):
+        basket_shape(p, True)
+    p.body = "throw"
+    p.mass = 1.5
+    p.solid_cyl((0, 0.0, 0), 0.18, 0.2)
+    p.far = 70.0
+
+
+def dig_baskets(p):
+    """Baskets where the basket boys left them: a stack of empties, a full one, one tipped over."""
+    rng = random.Random(62)
+    for i in range(3):
+        with p.at((-0.3, i * 0.055, -0.1), i * 0.7):
+            basket_shape(p, False)
+    with p.at((0.25, 0.0, -0.2), 0.4):
+        basket_shape(p, True)
+    with p.at((0.12, 0.19, 0.3), 0.3, 1.0, 1.35):
+        basket_shape(p, False)
+    heap(p, (0.2, 0.03, 0.62), (0.26, 0.08, 0.2), "spoil", rng, 0.02)
+    p.solid_cyl((-0.3, 0.16, -0.1), 0.2, 0.32)
+    p.solid_cyl((0.25, 0.1, -0.2), 0.2, 0.2)
+    p.far = 90.0
+
+
+def wheelbarrow(p):
+    """A wooden navvy's barrow with an iron-tyred wheel, loaded with spoil. Its wheel is towards +Z."""
+    rng = random.Random(63)
+    # The tray: narrower at the bottom and at the wheel
+    p.box((0, 0.48, -0.05), (0.42, 0.26, 0.7), "wood", top=(1.4, 1.2), sides="wood")
+    p.box((0, 0.615, -0.05), (0.60, 0.02, 0.86), "wood_dark")
+    heap(p, (0, 0.6, -0.05), (0.26, 0.16, 0.38), "spoil", rng, 0.025)
+    # The wheel
+    p.tube([((-0.03, 0.21, 0.62), Y * 0.19, Z * 0.19), ((0.03, 0.21, 0.62), Y * 0.19, Z * 0.19)], "wood", 12, smooth=False)
+    p.tube([((-0.022, 0.21, 0.62), Y * 0.21, Z * 0.21), ((0.022, 0.21, 0.62), Y * 0.21, Z * 0.21)], "iron", 12, smooth=False)
+    p.strand([(-0.09, 0.21, 0.62), (0.09, 0.21, 0.62)], 0.018, "iron", 5)
+    # The shafts, from the handles to the axle, and the legs
+    for side in (1.0, -1.0):
+        p.strand([(side * 0.3, 0.52, -1.05), (side * 0.26, 0.4, -0.3), (side * 0.085, 0.21, 0.62)], [0.02, 0.026, 0.022], "wood_dark", 5)
+        p.box((side * 0.25, 0.19, -0.38), (0.045, 0.38, 0.045), "wood_dark")
+        p.strand([(side * 0.25, 0.1, -0.38), (side * 0.2, 0.36, -0.05)], 0.014, "iron", 4)
+    p.solid_box((0, 0.38, -0.05), (0.6, 0.76, 0.9))
+    p.solid_box((0, 0.21, 0.62), (0.2, 0.42, 0.42))
+    p.far = 120.0
+
+
+def tripod(p, apex, spread, material="wood", thick=0.018, start=0.5, gather=0.04):
+    for i in range(3):
+        a = TAU * i / 3 + start
+        p.strand([(math.cos(a) * spread, 0, math.sin(a) * spread), (math.cos(a) * gather, apex, math.sin(a) * gather)], thick, material, 5)
+
+
+def surveyor_level(p):
+    """A dumpy level on its tripod: a brass telescope with a spirit level along it, for
+    taking the heights of a site. It looks along +Z."""
+    tripod(p, 1.1, 0.42)
+    p.lathe([(0.06, 1.08), (0.07, 1.1), (0.07, 1.12), (0.035, 1.13), (0.035, 1.17), (0.05, 1.18), (0.05, 1.19)], "brass", 8)
+    p.strand([(0, 1.225, -0.17), (0, 1.225, 0.13)], 0.02, "brass", 8)
+    p.strand([(0, 1.225, 0.13), (0, 1.225, 0.19)], 0.027, "brass", 8)
+    p.strand([(0, 1.225, -0.21), (0, 1.225, -0.17)], 0.013, "black", 6)
+    for z in (-0.09, 0.09):
+        p.box((0, 1.2, z), (0.02, 0.05, 0.02), "brass")
+    p.strand([(0, 1.257, -0.06), (0, 1.257, 0.06)], 0.008, "glass", 5)
+    p.solid_box((0, 0.63, 0), (0.3, 1.26, 0.3))
+    p.far = 120.0
+
+
+def plumb_tripod(p):
+    """Three poles lashed at the top with a plumb line hung from them over a peg: how a
+    point was carried down into a trench."""
+    tripod(p, 1.75, 0.5, "wood_dark", 0.016, 0.2, 0.025)
+    p.lathe([(0.04, 1.66), (0.045, 1.7), (0.04, 1.74)], "rope", 6)
+    p.strand([(0, 1.7, 0), (0, 0.24, 0)], 0.004, "rope", 3)
+    p.lathe([(0.012, 0.24), (0.03, 0.22), (0.03, 0.19)], "brass", 8)
+    p.tube([((0, 0.19, 0), X * 0.03, Z * 0.03), ((0, 0.16, 0), X * 0.02, Z * 0.02)], "brass", 8, tip1=(0, 0.09, 0))
+    p.box((0, 0.03, 0), (0.04, 0.06, 0.04), "wood", top=(0.8, 0.8))
+    p.solid_box((0, 0.87, 0), (0.2, 1.74, 0.2))
+    p.far = 120.0
+
+
+def ranging_pole(p):
+    """A surveyor's ranging pole, two metres, in bands of red and white, stuck in the ground."""
+    p.tube([((0, 0.1, 0), X * 0.015, Z * 0.015), ((0, 0.04, 0), X * 0.01, Z * 0.01)], "iron", 6, tip1=(0, -0.06, 0))
+    p.lathe([(0.015, 0.1 + i * 0.25) for i in range(9)], "red", 6, bands=("red", "white"), split=True)
+    p.poly([(0.015 * math.cos(-TAU * k / 6), 2.1, 0.015 * math.sin(-TAU * k / 6)) for k in range(6)], "white")
+    p.solid_box((0, 1.05, 0), (0.06, 2.1, 0.06))
+    p.far = 140.0
+
+
+def measuring_staff(p):
+    """A levelling staff: a white board two and a half metres tall marked off in black, read
+    through the level. Its face is towards +Z."""
+    p.box((0, 1.25, 0), (0.075, 2.5, 0.022), "white", sides="white")
+    p.box((0, 0.02, 0), (0.085, 0.04, 0.03), "iron")
+    with p.at((0, 0, 0.0125)):
+        for i in range(48):
+            y = 0.075 + i * 0.05
+            rect(p, -0.017 if i % 2 else 0.017, y, 0.034, 0.025, "black")
+        for i in range(1, 5):
+            rect(p, 0.0, i * 0.5 + 0.0125, 0.075, 0.012, "red")
+    p.solid_box((0, 1.25, 0), (0.08, 2.5, 0.04))
+    p.far = 140.0
+
+
+def tape_shape(p):
+    """A measuring tape in its round leather case, lying flat, a length of it drawn out."""
+    p.lathe([(0.052, 0.0), (0.06, 0.007), (0.06, 0.023), (0.052, 0.03)], "leather", 10)
+    p.lathe([(0.02, 0.03), (0.02, 0.034)], "brass", 8)
+    p.strand([(0, 0.036, 0), (0.03, 0.036, 0.0)], 0.004, "brass", 4)
+    p.strand([(0.03, 0.034, 0), (0.03, 0.05, 0.0)], 0.005, "brass", 4)
+    band(p, [(0.0, 0.015, 0.058), (0.08, 0.012, 0.062), (0.2, 0.01, 0.05), (0.3, 0.01, 0.07)], 0.012, 0.002, "paper", side=Y)
+    p.box((0.305, 0.01, 0.071), (0.014, 0.016, 0.004), "brass", yaw=-0.2)
+
+
+def tape_measure(p):
+    """A tape in its leather case. To pick up."""
+    with p.at((0, -0.015, 0)):
+        tape_shape(p)
+    p.body = "throw"
+    p.mass = 0.3
+    p.solid_cyl((0, 0.0, 0), 0.06, 0.03)
+    p.far = 40.0
+
+
+def lantern_shape(p):
+    """A hurricane lantern, standing at the origin."""
+    p.lathe([(0.055, 0.0), (0.06, 0.01), (0.06, 0.05), (0.035, 0.065), (0.03, 0.08)], "iron", 8)
+    p.lathe([(0.03, 0.08), (0.055, 0.12), (0.05, 0.17), (0.03, 0.2)], "glass", 8, caps=False)
+    p.lathe([(0.03, 0.2), (0.042, 0.21), (0.035, 0.24), (0.015, 0.25)], "iron", 8)
+    for side in (1.0, -1.0):
+        p.strand([(side * 0.058, 0.04, 0), (side * 0.07, 0.12, 0), (side * 0.062, 0.2, 0), (side * 0.03, 0.238, 0)], 0.006, "iron", 4)
+    p.strand([(0.064 * math.cos(a), 0.2 + 0.1 * math.sin(a), 0.01) for a in (0.0, 0.7, 1.57, 2.44, 3.14)], 0.003, "iron", 3)
+
+
+def lantern(p):
+    """A hurricane lantern. To pick up. (It gives no light: stand a fire by it.)"""
+    with p.at((0, -0.14, 0)):
+        lantern_shape(p)
+    p.body = "throw"
+    p.mass = 0.8
+    p.solid_cyl((0, -0.01, 0), 0.065, 0.26)
+    p.far = 70.0
+
+
+def crate_finds(p):
+    """A packing case of finds bedded in straw, its lid leaning against it."""
+    rng = random.Random(64)
+    w, h, d = 0.9, 0.5, 0.6
+    p.box((0, 0.02, 0), (w, 0.04, d), "wood")
+    for z in (-1.0, 1.0):
+        p.box((0, h * 0.5, z * (d * 0.5 - 0.015)), (w, h, 0.03), "wood")
+        for x in (-1.0, 1.0):
+            p.box((x * (w * 0.5 - 0.05), h * 0.5, z * (d * 0.5 + 0.008)), (0.08, h, 0.02), "wood_dark")
+    for x in (-1.0, 1.0):
+        p.box((x * (w * 0.5 - 0.015), h * 0.5, 0), (0.03, h, d - 0.06), "wood")
+    # The straw, and wisps of it over the sides
+    heap(p, (0, h - 0.12, 0), (w * 0.5 - 0.035, 0.13, d * 0.5 - 0.035), "straw", rng, 0.022)
+    for i in range(12):
+        a = rng.uniform(0, TAU)
+        x, z = math.cos(a) * (w * 0.5 - 0.06), math.sin(a) * (d * 0.5 - 0.06)
+        dx, dz = math.cos(a) * 0.07, math.sin(a) * 0.07
+        p.strand([(x, h - 0.04, z), (x + dx * 0.7, h + rng.uniform(0.015, 0.04), z + dz * 0.7), (x + dx * 1.3, h - rng.uniform(0.0, 0.04), z + dz * 1.3)], 0.004, "straw", 3)
+    # The finds: a painted pot, an alabaster jar, a blue shabti, a gilded face
+    p.lathe([(0.05, h - 0.06), (0.1, h + 0.0), (0.11, h + 0.08), (0.06, h + 0.14), (0.07, h + 0.17)], "clay", 8, centre=(-0.22, 0, 0.05),
+            bands=("clay", "clay_dark", "clay", "clay"))
+    with p.at((0.02, h - 0.01, -0.1), 0.4, 1.0, 0.0, 1.2):
+        p.lathe([(0.04, 0.0), (0.06, 0.06), (0.055, 0.14), (0.035, 0.17)], "alabaster", 8)
+    with p.at((0.24, h + 0.0, 0.08), -0.5, 1.0, -1.25):
+        p.box((0, 0.09, 0), (0.07, 0.18, 0.04), "turquoise", top=(0.7, 0.8))
+        p.ellipsoid((0, 0.21, 0), (0.035, 0.04, 0.03), "turquoise", 6, 4)
+    p.ellipsoid((0.2, h - 0.0, -0.13), (0.07, 0.03, 0.09), "gilt", 8, 4)
+    # The lid
+    p.box((w * 0.5 + 0.1, 0.29, 0), (0.03, 0.6, d + 0.04), "wood", roll=0.22)
+    for z in (-1.0, 1.0):
+        p.box((w * 0.5 + 0.125, 0.29, z * 0.2), (0.02, 0.6, 0.08), "wood_dark", roll=0.22)
+    p.solid_box((0, h * 0.5 + 0.03, 0), (w, h + 0.06, d))
+    p.solid_box((w * 0.5 + 0.1, 0.29, 0), (0.12, 0.58, d))
+    p.far = 110.0
+
+
+def camp_table(p):
+    """The table the dig is run from: a map of the site, notebooks, ink, a lens, a lantern,
+    and a folding stool beside it. Its long side is along X."""
+    top = 0.74
+    p.box((0, top - 0.018, 0), (1.3, 0.036, 0.7), "wood", sides="wood_dark")
+    for x in (-0.52, 0.52):
+        p.strand([(x, 0, -0.3), (x, top - 0.03, 0.28)], 0.02, "wood_dark", 4)
+        p.strand([(x, 0, 0.3), (x, top - 0.03, -0.28)], 0.02, "wood_dark", 4)
+    p.strand([(-0.52, top * 0.5, 0), (0.52, top * 0.5, 0)], 0.016, "wood_dark", 4)
+    p.solid_box((0, top * 0.5, 0), (1.3, top, 0.7))
+    # The map: the plan of a tomb, a north arrow, a cross where to dig
+    with flat(p, (-0.2, top + 0.003, 0.02), 0.12):
+        rect(p, 0, 0, 0.62, 0.44, "paper")
+        stroke(p, [(-0.22, -0.14), (-0.22, 0.1), (-0.05, 0.1), (-0.05, 0.02), (0.1, 0.02), (0.1, -0.14), (-0.22, -0.14)], 0.008, "ink", 0.002)
+        stroke(p, [(-0.05, 0.06), (0.16, 0.14), (0.24, 0.14)], 0.006, "ink", 0.002)
+        stroke(p, [(0.22, -0.16), (0.22, -0.04), (0.2, -0.08)], 0.006, "ink", 0.002)
+        stroke(p, [(0.14, 0.1), (0.2, 0.18)], 0.01, "red", 0.003)
+        stroke(p, [(0.2, 0.1), (0.14, 0.18)], 0.01, "red", 0.003)
+    # (held down at two corners: a potsherd and the ink)
+    p.lathe([(0.03, top), (0.035, top + 0.045), (0.015, top + 0.055), (0.015, top + 0.07)], "black", 6, centre=(-0.47, 0, 0.19))
+    p.box((0.07, top + 0.012, -0.15), (0.09, 0.02, 0.06), "clay", yaw=0.5)
+    # Notebooks: one shut, one open with a pencil across it
+    p.box((0.42, top + 0.014, 0.16), (0.16, 0.028, 0.22), "leather", yaw=-0.2)
+    p.box((0.425, top + 0.014, 0.16), (0.15, 0.02, 0.21), "paper", yaw=-0.2)
+    with flat(p, (0.36, top + 0.004, -0.14), 0.25):
+        rect(p, 0, 0, 0.34, 0.24, "leather")
+        for side in (1.0, -1.0):
+            rect(p, side * 0.082, 0, 0.15, 0.22, "paper", 0.004)
+            for row in range(5):
+                rect(p, side * 0.082, 0.08 - row * 0.035, 0.11, 0.006, "ink", 0.006)
+    p.strand([(0.3, top + 0.014, -0.2), (0.45, top + 0.014, -0.09)], 0.005, "red", 4)
+    # A lens, a brush, and a lantern at the corner
+    p.strand([(-0.02 + 0.045 * math.cos(TAU * k / 8), top + 0.008, 0.25 + 0.045 * math.sin(TAU * k / 8)) for k in range(9)], 0.005, "brass", 4)
+    p.strand([(0.03, top + 0.008, 0.27), (0.1, top + 0.008, 0.3)], 0.007, "wood_dark", 4)
+    with p.at((0.18, top + 0.008, 0.26), 1.2, 1.0, math.pi * 0.5):
+        paint_brush(p, (0, 0, 0), 0.0, 0.2)
+    with p.at((-0.54, top, -0.24)):
+        lantern_shape(p)
+    # The stool: canvas on crossed legs
+    with p.at((0.2, 0, 0.75), 0.3):
+        p.box((0, 0.41, 0), (0.38, 0.02, 0.3), "canvas")
+        for x in (-0.17, 0.17):
+            p.strand([(x, 0, -0.15), (x, 0.4, 0.14)], 0.014, "wood_dark", 4)
+            p.strand([(x, 0, 0.15), (x, 0.4, -0.14)], 0.014, "wood_dark", 4)
+        p.solid_box((0, 0.21, 0), (0.38, 0.42, 0.3))
+    p.far = 120.0
+
+
+def dig_tools(p):
+    """Tools stood against a box at the edge of a trench: a pick, a shovel and a turia, a
+    basket and a coil of rope. These are fixed; the ones he can pick up are props of their own."""
+    p.box((0, 0.26, 0), (0.8, 0.52, 0.45), "wood", True, sides="wood")
+    for x in (-0.34, 0.34):
+        p.box((x, 0.26, 0.23), (0.07, 0.52, 0.02), "wood_dark")
+    lean = 0.3
+    for x, shape, long, yaw in ((-0.24, pickaxe_shape, 0.83, 1.57), (0.0, shovel_shape, 0.99, 0.0), (0.24, turia_shape, 0.76, 0.0)):
+        # (each stands on its head, its handle against the box)
+        with p.at((x, long * math.cos(lean), 0.25), 0.0, 1.0, math.pi - lean):
+            with p.at((0, 0, 0), yaw):
+                shape(p)
+    with p.at((0.72, 0.0, 0.1), 0.6):
+        basket_shape(p, False)
+    for i in range(3):
+        p.strand([(-0.7 + (0.17 - i * 0.01) * math.cos(TAU * k / 10), 0.02 + i * 0.03, 0.15 + (0.17 - i * 0.01) * math.sin(TAU * k / 10)) for k in range(11)], 0.016, "rope", 4)
+    p.solid_cyl((0.72, 0.1, 0.1), 0.2, 0.2)
+    p.far = 110.0
+
+
+def khopesh_shape(p):
+    """A khopesh, standing on its pommel along Y: a hilt, a straight shank, and then the
+    blade, which swings back and comes round in a deep curve towards +Z with its edge on
+    the outside of the curve, to a hooked tip. About 0.6 long, as those found are."""
+    p.tube([((0, 0.0, 0), X * 0.02, Z * 0.024), ((0, 0.014, 0), X * 0.018, Z * 0.022), ((0, 0.03, 0), X * 0.012, Z * 0.015),
+            ((0, 0.105, 0), X * 0.012, Z * 0.016), ((0, 0.118, 0), X * 0.014, Z * 0.024), ((0, 0.13, 0), X * 0.01, Z * 0.022)],
+           "gilt", 8, 2.6, True, True, bands=("gilt", "gilt", "leather_dark", "gilt", "gilt"), split=True)
+    # (how high, where its back is, where its edge is)
+    stations = []
+    for y, back, edge in ((0.125, -0.013, 0.013), (0.245, -0.012, 0.012), (0.275, -0.026, 0.004), (0.305, -0.022, 0.02), (0.345, -0.002, 0.05),
+                          (0.39, 0.02, 0.076), (0.44, 0.036, 0.09), (0.49, 0.04, 0.092), (0.53, 0.034, 0.08), (0.565, 0.02, 0.058), (0.59, 0.0, 0.03)):
+        stations.append(((y, back), (y, edge)))
+    # The tip: cut off slantwise, and hooked back at its inner corner
+    stations.append(((0.603, -0.028), (0.603, -0.028)))
+    blade(p, stations, 0.006, "bronze_bright")
+
+
+def khopesh(p):
+    """A khopesh, the sickle sword. He swings it in both hands, as he does a bat."""
+    khopesh_shape(p)
+    p.body = "swing"
+    p.mass = 1.1
+    p.solid_box((0, 0.3, 0.03), (0.03, 0.6, 0.13))
+    p.far = 80.0
+
+
+def khopesh_stand(p):
+    """A khopesh shown on a rack: stand it on the ground, or its back against a wall."""
+    p.box((0, 0.04, 0), (0.9, 0.08, 0.26), "wood_dark", True)
+    for x in (-0.36, 0.36):
+        p.box((x, 0.5, -0.08), (0.05, 0.86, 0.05), "wood_dark")
+    p.box((0, 0.72, -0.08), (0.8, 0.4, 0.03), "wood", True)
+    p.box((0, 0.72, -0.062), (0.72, 0.32, 0.01), "cloth_red")
+    for x in (-0.19, 0.2):
+        p.strand([(x, 0.665, -0.06), (x, 0.665, 0.0), (x, 0.7, 0.02)], 0.008, "brass", 4)
+    # (it lies along the rack, its edge uppermost and its flat to the front)
+    with p.at((-0.3, 0.685, -0.04), 0.0, 1.0, 0.0, -math.pi * 0.5):
+        with p.at((0, 0, 0), -math.pi * 0.5):
+            khopesh_shape(p)
+    p.far = 100.0
+
+
+# The backpack, in the space of the bone it is worn on: the boy's `chest`, which is at
+# the bottom of his ribs (0.79 up), his back about 0.08 behind it there and 0.055 behind
+# it at the top of his shoulders, 0.16 above. It faces as he does: the pack is at -Z.
+
+def backpack_shape(p, worn=True):
+    def back(y):
+        # (where the pack lies against him)
+        return -0.089 + (y + 0.07) * 0.127
+    rings = []
+    for y, hw, hd in ((-0.085, 0.066, 0.028), (-0.07, 0.088, 0.042), (0.0, 0.092, 0.048), (0.08, 0.09, 0.044), (0.118, 0.076, 0.034)):
+        rings.append(((0, y, back(y) - hd), X * hw, Z * hd))
+    p.tube(rings, "canvas", 10, 3.5, True, True)
+
+    def outer(y):
+        return back(y) - (0.096 if y < 0.08 else 0.076)
+    # The flap, over the top and down the outside, and the two straps that buckle it
+    band(p, [(0, 0.112, back(0.11) - 0.012), (0, 0.128, back(0.12) - 0.04), (0, 0.112, outer(0.11) - 0.004), (0, 0.06, outer(0.06) - 0.006), (0, -0.005, outer(0.0) - 0.006)],
+         0.176, 0.01, "canvas_dark")
+    for x in (-0.045, 0.045):
+        band(p, [(x, 0.125, back(0.12) - 0.03), (x, 0.118, outer(0.11) - 0.008), (x, 0.06, outer(0.06) - 0.011), (x, -0.045, outer(0.0) - 0.008)], 0.02, 0.008, "leather")
+        p.box((x, -0.02, outer(0.0) - 0.014), (0.03, 0.024, 0.008), "brass")
+    # A pocket low on the outside
+    p.box((0, -0.045, outer(0.0) - 0.006), (0.1, 0.05, 0.02), "canvas_dark")
+    # The blanket, rolled and strapped on top
+    roll = Vector((0, 0.146, back(0.12) - 0.08))
+    p.tube([(roll + X * x, Y * 0.042, Z * 0.042) for x in (-0.135, -0.1, -0.082, 0.082, 0.1, 0.135)], "blanket", 10,
+           bands=("blanket", "blanket_stripe", "blanket", "blanket_stripe", "blanket"), split=True, caps=False)
+    for side in (1.0, -1.0):
+        both(p, [roll + X * side * 0.135 + Y * 0.042 * math.cos(TAU * k / 10) + Z * 0.042 * math.sin(TAU * k / 10) for k in range(10)], "blanket")
+        both(p, [roll + X * side * 0.137 + Y * 0.022 * math.cos(TAU * k / 8) + Z * 0.022 * math.sin(TAU * k / 8) for k in range(8)], "blanket_stripe")
+    for x in (-0.045, 0.045):
+        p.tube([(roll + X * (x - 0.01), Y * 0.045, Z * 0.045), (roll + X * (x + 0.01), Y * 0.045, Z * 0.045)], "leather", 10, caps=True, smooth=False)
+        p.box((x, roll.y + 0.03, roll.z - 0.036), (0.026, 0.02, 0.008), "brass", pitch=-0.7)
+    for side in (1.0, -1.0):
+        if worn:
+            # Over the shoulder, down the chest, and back under the arm to the foot of the pack
+            band(p, [(side * 0.058, 0.1, -0.078), (side * 0.058, 0.158, -0.042), (side * 0.06, 0.176, 0.0), (side * 0.064, 0.158, 0.042),
+                     (side * 0.07, 0.11, 0.066), (side * 0.078, 0.04, 0.078), (side * 0.09, -0.02, 0.072), (side * 0.11, -0.05, 0.03),
+                     (side * 0.108, -0.06, -0.03), (side * 0.085, -0.066, -0.09)], 0.024, 0.008, "leather", about=(side * 0.02, 0.04, 0.0))
+            p.box((side * 0.074, 0.075, 0.078), (0.03, 0.022, 0.008), "brass", pitch=-0.12)
+        else:
+            # Set down, its shoulder straps hang slack down the side that was against him
+            band(p, [(side * 0.055, 0.112, back(0.11) + 0.004), (side * 0.07, 0.04, back(0.04) + 0.012), (side * 0.085, -0.04, back(-0.04) + 0.02),
+                     (side * 0.08, -0.08, back(-0.08) + 0.004)], 0.024, 0.008, "leather")
+
+
+def backpack(p):
+    """A canvas rucksack with leather straps and a blanket rolled on top, set down. (Worn,
+    it is models/worn/backpack.glb: see scripts/worn.gd.)"""
+    with p.at((0, 0.086, 0.0), math.pi, 1.0, -0.12):
+        with p.at((0, 0, 0.13)):
+            backpack_shape(p, False)
+    p.solid_box((0, 0.14, 0), (0.28, 0.28, 0.16))
+    p.far = 80.0
+
+
+def backpack_worn(p):
+    backpack_shape(p, True)
+
+
+backpack_worn.__name__ = "backpack"
+
+
+def bedroll(p):
+    """A blanket rolled and strapped, lying on the ground."""
+    p.tube([((x, 0.11, 0), Y * 0.11, Z * 0.11) for x in (-0.36, -0.27, -0.22, 0.22, 0.27, 0.36)], "blanket", 10,
+           bands=("blanket", "blanket_stripe", "blanket", "blanket_stripe", "blanket"), split=True)
+    for side in (1.0, -1.0):
+        both(p, [(side * 0.36, 0.11 + 0.11 * math.cos(TAU * k / 10), 0.11 * math.sin(TAU * k / 10)) for k in range(10)], "blanket")
+        both(p, [(side * 0.364, 0.11 + 0.055 * math.cos(TAU * k / 8), 0.055 * math.sin(TAU * k / 8)) for k in range(8)], "blanket_stripe")
+    for x in (-0.12, 0.12):
+        p.tube([((x - 0.018, 0.11, 0), Y * 0.117, Z * 0.117), ((x + 0.018, 0.11, 0), Y * 0.117, Z * 0.117)], "leather", 10, smooth=False)
+        p.box((x, 0.2, 0.075), (0.045, 0.03, 0.012), "brass", pitch=0.7)
+    p.solid_box((0, 0.11, 0), (0.72, 0.22, 0.22))
+    p.far = 80.0
+
+
+# The helmets: a god's head worn as a hood, open at the face. Each is drawn in the space
+# of the `head` bone of the boy: the bone is at the top of his neck, his chin 0.03 below
+# it, his eyes 0.1 above it and 0.08 forward, his brow at 0.15, the top of his skull at
+# 0.23; his head is 0.11 across each way from its middle and 0.11 from back to front.
+# So the headcloth is a shell that clears all of that; the face is left open from chin
+# to brow; and the animal's head is on top, its muzzle going forward from above the brow.
+
+def helmet_eye(p, at, yaw, size=1.0, rim="gilt", ball="black"):
+    with p.at(at, yaw, size):
+        p.ellipsoid((0, 0, 0), (0.024, 0.012, 0.006), rim, 8, 4)
+        p.ellipsoid((0, 0, 0.004), (0.011, 0.008, 0.005), ball, 6, 4)
+
+
+def cowl(p, a, b):
+    """The headcloth: a dome over the skull that widens to wings at the jaw as a nemes
+    does, in stripes of `a` and `b`, open at the face, with a lappet hanging each side."""
+    n = 16
+    rows = [(-0.035, 0.166, 0.128), (0.0, 0.158, 0.13), (0.045, 0.145, 0.132), (0.095, 0.131, 0.132)]
+    for lat in (26.0, 48.0, 68.0):
+        rows.append((0.095 + 0.16 * math.sin(math.radians(lat)), 0.131 * math.cos(math.radians(lat)), 0.132 * math.cos(math.radians(lat))))
+    where = [[(rx * math.sin(TAU * k / n), y, rz * math.cos(TAU * k / n)) for k in range(n)] for y, rx, rz in rows]
+    made = [[p.v(point) for point in row] for row in where]
+    brow = 4
+    for j in range(len(rows) - 1):
+        for k in range(n):
+            if j < brow and (k >= n - 2 or k < 2):
+                continue
+            nx = (k + 1) % n
+            p.face((made[j][k], made[j][nx], made[j + 1][nx], made[j + 1][k]), b if j % 2 else a, True)
+    top = p.v((0, 0.257, 0.0))
+    for k in range(n):
+        p.face((made[-1][k], made[-1][(k + 1) % n], top), a, True)
+    # The edge of the opening, turned in to meet his face
+    round_it = [(j, 2) for j in range(brow + 1)] + [(brow, k % n) for k in (1, 0, n - 1, n - 2)] + [(j, n - 2) for j in range(brow - 1, -1, -1)]
+    edge = [made[j][k] for j, k in round_it]
+    inner = []
+    for j, k in round_it:
+        x, y, z = where[j][k]
+        inner.append(p.v((x * 0.84, y - (0.012 if y > 0.15 else 0.0), z * 0.84)))
+    for i in range(len(edge) - 1):
+        quad = (edge[i], edge[i + 1], inner[i + 1], inner[i])
+        p.face(quad, "gilt")
+        p.face(quad[::-1], "gilt")
+    # The lappets
+    for side in (1.0, -1.0):
+        for i in range(4):
+            p.box((side * (0.116 - i * 0.004), -0.024 - i * 0.022, 0.084), (0.076 - i * 0.004, 0.022, 0.036), b if i % 2 else a)
+        p.box((side * 0.102, -0.107, 0.084), (0.064, 0.012, 0.038), "gilt")
+
+
+def ear(p, side, foot, tip, wide, deep, skin, inside="gilt"):
+    foot, tip = Vector(foot), Vector(tip)
+    middle = foot.lerp(tip, 0.4)
+    p.tube([(foot, X * wide, Z * deep), (middle, X * wide * 0.82, Z * deep * 0.8)], skin, 6, 2.0, False, True, tip1=tip)
+    front = [foot + Vector((-wide * 0.6, 0.012, deep + 0.003)), foot + Vector((wide * 0.6, 0.012, deep + 0.003)), middle.lerp(tip, 0.6) + Vector((0, 0, deep * 0.5 + 0.003))]
+    both(p, front, inside)
+
+
+def helmet_shape(p, kind):
+    skin, a, b = HELMETS[kind]
+    cowl(p, a, b)
+    if kind == "anubis":
+        # The jackal: a long narrow muzzle, and tall ears that stand
+        p.long(0.0, [(0.05, 0.088, 0.168, 0.262), (0.14, 0.06, 0.172, 0.25), (0.23, 0.036, 0.178, 0.226), (0.31, 0.024, 0.182, 0.212)], skin, 8, 3.0)
+        p.ellipsoid((0, 0.2, 0.318), (0.02, 0.016, 0.018), "gilt", 6, 4)
+        for side in (1.0, -1.0):
+            ear(p, side, (side * 0.064, 0.235, -0.012), (side * 0.082, 0.43, -0.03), 0.036, 0.022, skin)
+            helmet_eye(p, (side * 0.068, 0.226, 0.112), side * 1.05)
+            band(p, [(side * 0.03, 0.262, 0.06), (side * 0.024, 0.248, 0.16), (side * 0.016, 0.224, 0.25)], 0.008, 0.004, "gilt")
+    elif kind == "horus":
+        # The falcon: a round head, a hooked beak, and the dark mark under each eye
+        p.ellipsoid((0, 0.215, 0.066), (0.098, 0.058, 0.078), skin, 10, 6)
+        p.strand([(0, 0.218, 0.12), (0, 0.214, 0.176), (0, 0.188, 0.206), (0, 0.155, 0.2)], [0.032, 0.025, 0.015, 0.004], "gilt", 6, tip=True)
+        for side in (1.0, -1.0):
+            helmet_eye(p, (side * 0.064, 0.228, 0.122), side * 0.75, 1.2, "black", "gilt")
+            p.box((side * 0.086, 0.19, 0.1), (0.014, 0.05, 0.022), "black", roll=side * 0.3)
+        p.box((0, 0.262, 0.05), (0.03, 0.012, 0.09), "gilt")
+    elif kind == "sobek":
+        # The crocodile: a long flat snout with its teeth showing, and eyes set up on top
+        widths = [(0.04, 0.092), (0.13, 0.072), (0.26, 0.05), (0.38, 0.056), (0.43, 0.042)]
+        p.long(0.0, [(0.04, 0.092, 0.168, 0.258), (0.13, 0.072, 0.172, 0.24), (0.26, 0.05, 0.178, 0.216), (0.38, 0.056, 0.18, 0.216),
+                     (0.43, 0.042, 0.184, 0.21)], skin, 8, 4.0)
+        for i in range(6):
+            z = 0.15 + i * 0.05
+            wide = 0.072 + (0.05 - 0.072) * min((z - 0.13) / 0.13, 1.0) + (0.006 if z > 0.3 else 0.0)
+            for side in (1.0, -1.0):
+                p.strand([(side * (wide - 0.006), 0.184, z), (side * (wide - 0.004), 0.168, z), (side * (wide - 0.004), 0.15, z)], [0.008, 0.007, 0.001], "white", 4, tip=True)
+        for side in (1.0, -1.0):
+            p.ellipsoid((side * 0.02, 0.216, 0.405), (0.012, 0.01, 0.014), skin, 5, 3)
+            p.ellipsoid((side * 0.054, 0.262, 0.066), (0.03, 0.026, 0.034), skin, 6, 4)
+            helmet_eye(p, (side * 0.074, 0.27, 0.082), side * 0.9, 0.9)
+        for i in range(5):
+            p.box((0, 0.262 - i * i * 0.006, -0.004 - i * 0.032), (0.03, 0.024, 0.02), skin, top=(0.4, 0.6))
+    elif kind == "bastet":
+        # The cat: a short muzzle, big ears, a ring in one of them
+        p.ellipsoid((0, 0.216, 0.066), (0.1, 0.058, 0.074), skin, 10, 6)
+        p.ellipsoid((0, 0.198, 0.122), (0.06, 0.042, 0.05), skin, 8, 5)
+        p.ellipsoid((0, 0.208, 0.17), (0.014, 0.01, 0.01), "gilt", 5, 3)
+        for side in (1.0, -1.0):
+            ear(p, side, (side * 0.07, 0.238, 0.0), (side * 0.092, 0.37, -0.008), 0.046, 0.02, skin)
+            helmet_eye(p, (side * 0.05, 0.236, 0.128), side * 0.4, 1.1, "gilt", "turquoise")
+        p.strand([(0.118 + 0.014 * math.cos(TAU * k / 6), 0.275 + 0.014 * math.sin(TAU * k / 6), 0.012) for k in range(7)], 0.004, "gilt", 4)
+        p.ellipsoid((0, 0.264, 0.066), (0.016, 0.008, 0.022), "gilt", 6, 3)
+    elif kind == "thoth":
+        # The ibis: a long thin bill that curves down, and the moon on its head
+        p.ellipsoid((0, 0.216, 0.07), (0.072, 0.052, 0.072), skin, 8, 5)
+        p.strand([(0, 0.216, 0.12), (0, 0.22, 0.21), (0, 0.204, 0.3), (0, 0.166, 0.37), (0, 0.112, 0.41)], [0.03, 0.021, 0.015, 0.01, 0.004], skin, 6, tip=True)
+        for side in (1.0, -1.0):
+            helmet_eye(p, (side * 0.056, 0.232, 0.108), side * 0.8, 0.9, "white", "black")
+        p.box((0, 0.27, -0.004), (0.022, 0.04, 0.022), "gilt")
+        p.strand([(0.082 * math.cos(math.radians(d)), 0.372 + 0.082 * math.sin(math.radians(d)), -0.004) for d in range(195, 346, 25)],
+                 [0.004, 0.011, 0.014, 0.015, 0.014, 0.011, 0.004], "gilt", 5)
+        p.ellipsoid((0, 0.368, -0.004), (0.054, 0.054, 0.012), "white", 10, 5)
+    elif kind == "khnum":
+        # The ram: a blunt arched muzzle, and horns that curl round beside the face
+        p.long(0.0, [(0.05, 0.085, 0.168, 0.262), (0.13, 0.06, 0.17, 0.256), (0.2, 0.046, 0.176, 0.238), (0.245, 0.036, 0.182, 0.216)], skin, 8, 3.0)
+        p.ellipsoid((0, 0.196, 0.244), (0.024, 0.014, 0.012), "black", 6, 3)
+        for side in (1.0, -1.0):
+            helmet_eye(p, (side * 0.064, 0.232, 0.112), side * 1.0)
+            points = [(side * 0.05, 0.252, 0.012)]
+            radii = [0.03]
+            for i in range(11):
+                angle = math.radians(105.0 + i * 38.0)
+                reach = 0.072 - i * 0.0046
+                points.append((side * (0.1 + i * 0.008), 0.2 + reach * math.sin(angle), -0.012 + reach * math.cos(angle)))
+                radii.append(0.028 - i * 0.0021)
+            p.strand(points, radii, "gilt", 6, tip=True)
+
+
+# What each god's head is made in: its hide, and the two colours of the headcloth.
+HELMETS = {
+    "anubis": ("black", "lapis", "gilt"),
+    "horus": ("ivory", "lapis", "gilt"),
+    "sobek": ("croc", "gilt", "turquoise"),
+    "bastet": ("cat", "carnelian", "gilt"),
+    "thoth": ("black", "white", "lapis"),
+    "khnum": ("ivory", "turquoise", "gilt"),
+}
+HELMET_STANDS = []
+HELMETS_WORN = []
+
+
+def _helmets():
+    for kind in HELMETS:
+        def stand(p, kind=kind):
+            # A post with a wooden head on it, the height of a boy, wearing the helmet
+            p.lathe([(0.17, 0.0), (0.17, 0.03), (0.04, 0.07), (0.028, 0.5), (0.028, 0.96)], "wood_dark", 8)
+            p.ellipsoid((0, 1.08, 0.004), (0.1, 0.125, 0.1), "wood", 8, 5)
+            with p.at((0, 0.98, 0)):
+                helmet_shape(p, kind)
+            p.solid_cyl((0, 0.62, 0), 0.15, 1.24)
+            p.far = 120.0
+
+        def worn(p, kind=kind):
+            helmet_shape(p, kind)
+        stand.__name__ = worn.__name__ = "helmet_" + kind
+        HELMET_STANDS.append(stand)
+        HELMETS_WORN.append(worn)
+
+
+_helmets()
+
+
 PROPS = [sphinx, pyramid_great, pyramid_ruined, pyramid_entrance, palm_a, palm_b, palm_c, palm_doum, palm_sucker, reeds, shrub_dry,
          grass_tuft, obelisk, column, column_broken, column_stump,
          column_fallen, lintel, statue_pharaoh, statue_anubis, sarcophagus, jar_canopic, jar_canopic_jackal, pot, pot_large, rock_small,
          rock_a, rock_b, block, block_stack, rubble, brazier, torch_stand, campfire, well, oasis_rim, scaffold, crate, block_push, awning,
-         tent, wall_glyphs, wall_ruin]
+         tent, wall_glyphs, wall_ruin,
+         pickaxe, shovel, turia, trowel, brush, brushes, sieve, dig_basket, dig_baskets, wheelbarrow, surveyor_level, plumb_tripod,
+         ranging_pole, measuring_staff, tape_measure, lantern, crate_finds, camp_table, dig_tools, khopesh, khopesh_stand, backpack,
+         bedroll] + HELMET_STANDS
+
+# What is worn: each a model of its own in models/worn, put on a figure's bones by scripts/worn.gd.
+WORN = [backpack_worn] + HELMETS_WORN
 
 
 # ---------------------------------------------------------------- writing them out
@@ -1462,7 +2254,8 @@ PROPS = [sphinx, pyramid_great, pyramid_ruined, pyramid_entrance, palm_a, palm_b
 # How far off each of these is still drawn, in metres (others say so themselves, or are
 # always drawn). Any one placed in a level can be given another `draw_distance` there.
 # Too small for a shadow to be worth drawing.
-NO_SHADOW = ("jar_canopic", "jar_canopic_jackal", "pot", "rock_small", "rubble", "campfire", "oasis_rim", "grass_tuft")
+NO_SHADOW = ("jar_canopic", "jar_canopic_jackal", "pot", "rock_small", "rubble", "campfire", "oasis_rim", "grass_tuft",
+             "trowel", "brush", "brushes", "tape_measure")
 FAR = {"column": 190.0, "column_broken": 190.0, "column_stump": 150.0, "column_fallen": 190.0, "lintel": 190.0, "statue_pharaoh": 230.0,
        "statue_anubis": 200.0, "sarcophagus": 130.0, "palm_a": 210.0, "palm_b": 210.0, "palm_c": 210.0,
        "palm_doum": 210.0, "palm_sucker": 150.0, "reeds": 120.0, "shrub_dry": 110.0, "grass_tuft": 70.0}
@@ -1484,7 +2277,7 @@ def material_for(name):
     return MADE_MATERIALS[name]
 
 
-def export(p):
+def export(p, folder=OUT):
     mesh = bpy.data.meshes.new(p.name)
     made = bmesh.new()
     layer = made.loops.layers.uv.verify()
@@ -1538,7 +2331,7 @@ def export(p):
     thing.select_set(True)
     bpy.context.view_layer.objects.active = thing
     bpy.ops.export_scene.gltf(
-        filepath=os.path.join(OUT, p.name + ".glb"),
+        filepath=os.path.join(folder, p.name + ".glb"),
         export_format="GLB",
         export_yup=True,
         export_animations=False,
@@ -1551,7 +2344,7 @@ def export(p):
     high = [max(v[i] for v in p.verts) for i in range(3)]
     print("BUILT %-20s tris=%5d materials=%d size=%.1f x %.1f x %.1f" % (p.name, triangles, len(slots), high[0] - low[0], high[1] - low[1], high[2] - low[2]))
     return {"body": p.body, "mass": p.mass, "solids": p.solids, "markers": p.markers, "ladders": p.ladders, "far": p.far, "shadow": p.shadow,
-            "triangles": triangles, "materials": len(slots)}
+            "triangles": triangles, "materials": len(slots), "shiny": any(name in SHINY for name in slots)}
 
 
 def main():
@@ -1575,6 +2368,14 @@ def main():
     with open(listing, "w") as file:
         json.dump(known, file, indent=1)
     print("BUILT: %d triangles in what was built; %d props listed" % (total, len(known)))
+    # What is worn has no scene and nothing solid: only its model.
+    os.makedirs(WORN_OUT, exist_ok=True)
+    for make in WORN:
+        if ONLY and make.__name__ not in ONLY:
+            continue
+        p = Prop(make.__name__, "none")
+        make(p)
+        export(p, WORN_OUT)
 
 
 main()

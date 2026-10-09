@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_nt1qk"]
+[ext_resource type="PackedScene" path="res://models/props/sieve.glb" id="2_b22wb"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_dr76o"]
+size = Vector3(0.8, 0.92, 1.05)
+
+[node name="Sieve" type="StaticBody3D" unique_id=1834067362]
+script = ExtResource("1_nt1qk")
+draw_distance = 110.0
+
+[node name="Model" parent="." unique_id=1088288854 instance=ExtResource("2_b22wb")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=768329442]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
+shape = SubResource("BoxShape3D_dr76o")

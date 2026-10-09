@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gear_prop.gd" id="1_jyx3l"]
+[ext_resource type="PackedScene" path="res://models/props/crate_finds.glb" id="2_isyyd"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_saist"]
+size = Vector3(0.9, 0.56, 0.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_g7x1n"]
+size = Vector3(0.12, 0.58, 0.6)
+
+[node name="CrateFinds" type="StaticBody3D" unique_id=874560944]
+script = ExtResource("1_jyx3l")
+draw_distance = 110.0
+
+[node name="Model" parent="." unique_id=1195968196 instance=ExtResource("2_isyyd")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1907265515]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 0)
+shape = SubResource("BoxShape3D_saist")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=452787490]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0.29, 0)
+shape = SubResource("BoxShape3D_g7x1n")

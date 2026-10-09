@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_abg20"]
+[ext_resource type="PackedScene" path="res://models/props/lantern.glb" id="2_ahnti"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_evlr8"]
+height = 0.26
+radius = 0.065
+
+[node name="Lantern" type="RigidBody3D" unique_id=581152445 groups=["interest", "throwable"]]
+mass = 0.8
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_abg20")
+draw_distance = 70.0
+
+[node name="Model" parent="." unique_id=387446798 instance=ExtResource("2_ahnti")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=158003941]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 0)
+shape = SubResource("CylinderShape3D_evlr8")

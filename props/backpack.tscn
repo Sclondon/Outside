@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gear_prop.gd" id="1_5qoj8"]
+[ext_resource type="PackedScene" path="res://models/props/backpack.glb" id="2_blrlv"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_2utay"]
+size = Vector3(0.28, 0.28, 0.16)
+
+[node name="Backpack" type="StaticBody3D" unique_id=662814496]
+script = ExtResource("1_5qoj8")
+draw_distance = 80.0
+
+[node name="Model" parent="." unique_id=679708368 instance=ExtResource("2_blrlv")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1317928630]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14, 0)
+shape = SubResource("BoxShape3D_2utay")

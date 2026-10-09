@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_aiwmw"]
+[ext_resource type="PackedScene" path="res://models/props/turia.glb" id="2_hue6m"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_830gk"]
+size = Vector3(0.05, 0.76, 0.05)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_lv4p5"]
+size = Vector3(0.16, 0.2, 0.12)
+
+[node name="Turia" type="RigidBody3D" unique_id=371839726 groups=["bats", "interest", "throwable"]]
+mass = 1.3
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_aiwmw")
+draw_distance = 80.0
+
+[node name="Model" parent="." unique_id=337946384 instance=ExtResource("2_hue6m")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=2023049585]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.38, 0)
+shape = SubResource("BoxShape3D_830gk")
+
+[node name="Solid2" type="CollisionShape3D" parent="." unique_id=172108216]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0.05)
+shape = SubResource("BoxShape3D_lv4p5")

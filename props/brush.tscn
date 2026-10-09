@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prop.gd" id="1_3cw3v"]
+[ext_resource type="PackedScene" path="res://models/props/brush.glb" id="2_l7mnk"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_xtqny"]
+size = Vector3(0.06, 0.05, 0.33)
+
+[node name="Brush" type="RigidBody3D" unique_id=1641222922 groups=["interest", "throwable"]]
+mass = 0.3
+gravity_scale = 2.0
+angular_damp = 2.0
+script = ExtResource("1_3cw3v")
+draw_distance = 40.0
+casts_shadow = false
+
+[node name="Model" parent="." unique_id=478582184 instance=ExtResource("2_l7mnk")]
+
+[node name="Solid1" type="CollisionShape3D" parent="." unique_id=1656300612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.01)
+shape = SubResource("BoxShape3D_xtqny")

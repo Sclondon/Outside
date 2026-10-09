@@ -56,6 +56,19 @@ const PALETTE := {
 		["Big jar", "prop", "pot_large"], ["Brazier", "prop", "brazier"], ["Torch", "prop", "torch_stand"], ["Campfire", "prop", "campfire"],
 		["Pot", "prop", "pot"], ["Canopic jar", "prop", "jar_canopic"], ["Jackal jar", "prop", "jar_canopic_jackal"], ["Stone to throw", "prop", "rock_small"],
 	],
+	# An excavation of the 1910s. The pick, the shovel, the turia and the khopesh are swung as a bat is;
+	# the trowel, brush, tape, lantern and basket of spoil are picked up; the rest is fixed.
+	"Dig": [
+		["Pickaxe", "prop", "pickaxe"], ["Shovel", "prop", "shovel"], ["Turia (hoe)", "prop", "turia"], ["Trowel", "prop", "trowel"],
+		["Hand brush", "prop", "brush"], ["Brushes", "prop", "brushes"], ["Tape measure", "prop", "tape_measure"], ["Lantern", "prop", "lantern"],
+		["Basket of spoil", "prop", "dig_basket"], ["Baskets", "prop", "dig_baskets"], ["Sieve", "prop", "sieve"], ["Wheelbarrow", "prop", "wheelbarrow"],
+		["Tools", "prop", "dig_tools"], ["Surveyor's level", "prop", "surveyor_level"], ["Plumb line", "prop", "plumb_tripod"],
+		["Ranging pole", "prop", "ranging_pole"], ["Levelling staff", "prop", "measuring_staff"], ["Crate of finds", "prop", "crate_finds"],
+		["Camp table", "prop", "camp_table"], ["Backpack", "prop", "backpack"], ["Bedroll", "prop", "bedroll"],
+		["Khopesh", "prop", "khopesh"], ["Khopesh on a rack", "prop", "khopesh_stand"],
+		["Helmet: Anubis", "prop", "helmet_anubis"], ["Helmet: Horus", "prop", "helmet_horus"], ["Helmet: Sobek", "prop", "helmet_sobek"],
+		["Helmet: Bastet", "prop", "helmet_bastet"], ["Helmet: Thoth", "prop", "helmet_thoth"], ["Helmet: Khnum", "prop", "helmet_khnum"],
+	],
 	"People": [
 		["Townsperson", "person", "townsperson"], ["Brother", "person", "brother"], ["Cat", "person", "cat"],
 		["Hound", "person", "hound"], ["Mummy", "person", "mummy"], ["Camel", "person", "camel"],

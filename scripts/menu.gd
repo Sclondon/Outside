@@ -3,7 +3,8 @@ extends Control
 ## A small menu behind a button in the top right corner (or Esc): swap between
 ## the full and demade models, change level, restart, and turn the boy out: his
 ## face, the cut and colour of his hair, his skin, what he wears and the colour
-## of each thing, his cap on or off, or all of it at random. The game pauses
+## of each thing, his cap on or off, a helmet and a backpack, or all of it at
+## random. The game pauses
 ## while it is open; it sits to one side, so he can be seen while he is dressed.
 ##
 ## What there is to choose from is in CharacterLook (scripts/character_look.gd);
@@ -25,6 +26,8 @@ var _face: Label
 var _hair: Label
 var _outfit: Label
 var _cap_button: Button
+var _helmet: Label
+var _pack_button: Button
 ## A swatch for each thing he has on that can be coloured; made again when he changes clothes.
 var _wardrobe: GridContainer
 var _swatches: Array[ColorPickerButton] = []
@@ -91,6 +94,10 @@ func _ready() -> void:
 	_outfit = _chooser("Clothes", _step_outfit)
 	_cap_button = _button("", _swap_cap)
 	_dresser.add_child(_cap_button)
+	# What he wears over all that (see Worn): a god's head in place of his cap, and a pack on his back
+	_helmet = _chooser("Helmet", _step_helmet)
+	_pack_button = _button("", _swap_pack)
+	_dresser.add_child(_pack_button)
 	_dresser.add_child(_heading("Skin"))
 	_dresser.add_child(_palette(CharacterLook.SKINS, "skin"))
 	_dresser.add_child(_heading("Hair colour"))
@@ -113,6 +120,8 @@ func _ready() -> void:
 	_dresser.add_child(_button("Back", _show_page.bind(false)))
 	_dresser.visible = false
 	get_viewport().size_changed.connect(_fit)
+	# (he comes into a level wearing what he had on in the last)
+	_wear.call_deferred()
 
 
 func _input(event: InputEvent) -> void:
@@ -161,6 +170,10 @@ func _show_clothes() -> void:
 	var worn := CharacterLook.outfit(Settings.outfit)
 	_outfit.text = worn["label"]
 	_cap_button.text = "Cap: on" if Settings.cap else "Cap: off"
+	for entry: Array in Worn.HELMETS:
+		if entry[0] == Settings.helmet:
+			_helmet.text = entry[1]
+	_pack_button.text = "Backpack: on" if Settings.backpack else "Backpack: off"
 	if _garments != worn["garments"]:
 		_garments = worn["garments"]
 		for cell in _wardrobe.get_children():
@@ -212,6 +225,24 @@ func _recolour(colour: Color, material: String) -> void:
 func _swap_cap() -> void:
 	Settings.cap = not Settings.cap
 	_restyle()
+
+
+func _step_helmet(by: int) -> void:
+	var names: Array = Worn.HELMETS.map(func(entry: Array) -> String: return entry[0])
+	Settings.helmet = names[posmod(names.find(Settings.helmet) + by, names.size())]
+	_wear()
+	_show_clothes()
+
+
+func _swap_pack() -> void:
+	Settings.backpack = not Settings.backpack
+	_wear()
+	_show_clothes()
+
+
+## Puts on the boy the helmet and the pack that have been chosen.
+func _wear() -> void:
+	Worn.dress_boy(_boy())
 
 
 func _step_face(by: int) -> void:

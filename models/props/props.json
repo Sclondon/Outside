@@ -6680,5 +6680,1455 @@
   "shadow": false,
   "triangles": 120,
   "materials": 1
+ },
+ "pickaxe": {
+  "body": "swing",
+  "mass": 1.6,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.05,
+     0.82,
+     0.05
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.4099999964237213,
+     0.0
+    ]
+   },
+   {
+    "type": "box",
+    "size": [
+     0.05,
+     0.1,
+     0.5
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.7699999809265137,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 80.0,
+  "shadow": true,
+  "triangles": 90,
+  "materials": 2,
+  "shiny": false
+ },
+ "shovel": {
+  "body": "swing",
+  "mass": 1.3,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.05,
+     0.72,
+     0.05
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.36000001430511475,
+     0.0
+    ]
+   },
+   {
+    "type": "box",
+    "size": [
+     0.17,
+     0.28,
+     0.04
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.8500000238418579,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 80.0,
+  "shadow": true,
+  "triangles": 158,
+  "materials": 2,
+  "shiny": false
+ },
+ "turia": {
+  "body": "swing",
+  "mass": 1.3,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.05,
+     0.76,
+     0.05
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.3799999952316284,
+     0.0
+    ]
+   },
+   {
+    "type": "box",
+    "size": [
+     0.16,
+     0.2,
+     0.12
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.6499999761581421,
+     0.05000000074505806
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 80.0,
+  "shadow": true,
+  "triangles": 44,
+  "materials": 2,
+  "shiny": false
+ },
+ "trowel": {
+  "body": "throw",
+  "mass": 0.4,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.08,
+     0.03,
+     0.27
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.012000000104308128,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 40.0,
+  "shadow": false,
+  "triangles": 44,
+  "materials": 2,
+  "shiny": false
+ },
+ "brush": {
+  "body": "throw",
+  "mass": 0.3,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.06,
+     0.05,
+     0.33
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.0,
+     -0.009999999776482582
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 40.0,
+  "shadow": false,
+  "triangles": 40,
+  "materials": 2,
+  "shiny": false
+ },
+ "brushes": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [],
+  "markers": {},
+  "ladders": [],
+  "far": 40.0,
+  "shadow": false,
+  "triangles": 400,
+  "materials": 8,
+  "shiny": true
+ },
+ "sieve": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.8,
+     0.92,
+     1.05
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.46000000834465027,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 110.0,
+  "shadow": true,
+  "triangles": 480,
+  "materials": 8,
+  "shiny": false
+ },
+ "dig_basket": {
+  "body": "throw",
+  "mass": 1.5,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.18,
+    "height": 0.2,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 70.0,
+  "shadow": true,
+  "triangles": 276,
+  "materials": 4,
+  "shiny": false
+ },
+ "dig_baskets": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.2,
+    "height": 0.32,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     -0.30000001192092896,
+     0.1599999964237213,
+     -0.10000000149011612
+    ]
+   },
+   {
+    "type": "cylinder",
+    "radius": 0.2,
+    "height": 0.2,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.25,
+     0.10000000149011612,
+     -0.20000000298023224
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 90.0,
+  "shadow": true,
+  "triangles": 1236,
+  "materials": 4,
+  "shiny": false
+ },
+ "wheelbarrow": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.6,
+     0.76,
+     0.9
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.3799999952316284,
+     -0.05000000074505806
+    ]
+   },
+   {
+    "type": "box",
+    "size": [
+     0.2,
+     0.42,
+     0.42
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.20999999344348907,
+     0.6200000047683716
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 276,
+  "materials": 4,
+  "shiny": false
+ },
+ "surveyor_level": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.3,
+     1.26,
+     0.3
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.6299999952316284,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 272,
+  "materials": 4,
+  "shiny": true
+ },
+ "plumb_tripod": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.2,
+     1.74,
+     0.2
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.8700000047683716,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 174,
+  "materials": 4,
+  "shiny": true
+ },
+ "ranging_pole": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.06,
+     2.1,
+     0.06
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     1.0499999523162842,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 140.0,
+  "shadow": true,
+  "triangles": 122,
+  "materials": 3,
+  "shiny": false
+ },
+ "measuring_staff": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.08,
+     2.5,
+     0.04
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     1.25,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 140.0,
+  "shadow": true,
+  "triangles": 128,
+  "materials": 4,
+  "shiny": false
+ },
+ "tape_measure": {
+  "body": "throw",
+  "mass": 0.3,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.06,
+    "height": 0.03,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 40.0,
+  "shadow": false,
+  "triangles": 168,
+  "materials": 3,
+  "shiny": true
+ },
+ "lantern": {
+  "body": "throw",
+  "mass": 0.8,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.065,
+    "height": 0.26,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     -0.009999999776482582,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 70.0,
+  "shadow": true,
+  "triangles": 266,
+  "materials": 2,
+  "shiny": false
+ },
+ "crate_finds": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.9,
+     0.56,
+     0.6
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.2800000011920929,
+     0.0
+    ]
+   },
+   {
+    "type": "box",
+    "size": [
+     0.12,
+     0.58,
+     0.6
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.550000011920929,
+     0.28999999165534973,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 110.0,
+  "shadow": true,
+  "triangles": 592,
+  "materials": 8,
+  "shiny": true
+ },
+ "camp_table": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     1.3,
+     0.74,
+     0.7
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.3700000047683716,
+     0.0
+    ]
+   },
+   {
+    "type": "box",
+    "size": [
+     0.38,
+     0.42,
+     0.3
+    ],
+    "basis": [
+     [
+      0.9553365111351013,
+      0.0,
+      -0.295520156621933
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.295520156621933,
+      0.0,
+      0.9553365111351013
+     ]
+    ],
+    "origin": [
+     0.20000000298023224,
+     0.20999999344348907,
+     0.75
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 676,
+  "materials": 13,
+  "shiny": true
+ },
+ "dig_tools": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.8,
+     0.52,
+     0.45
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.25999999046325684,
+     0.0
+    ]
+   },
+   {
+    "type": "cylinder",
+    "radius": 0.2,
+    "height": 0.2,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.7200000286102295,
+     0.10000000149011612,
+     0.10000000149011612
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 110.0,
+  "shadow": true,
+  "triangles": 808,
+  "materials": 6,
+  "shiny": false
+ },
+ "khopesh": {
+  "body": "swing",
+  "mass": 1.1,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.03,
+     0.6,
+     0.13
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.30000001192092896,
+     0.029999999329447746
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 80.0,
+  "shadow": true,
+  "triangles": 148,
+  "materials": 3,
+  "shiny": true
+ },
+ "khopesh_stand": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.9,
+     0.08,
+     0.26
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.03999999910593033,
+     0.0
+    ]
+   },
+   {
+    "type": "box",
+    "size": [
+     0.8,
+     0.4,
+     0.03
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.7200000286102295,
+     -0.07999999821186066
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 100.0,
+  "shadow": true,
+  "triangles": 248,
+  "materials": 7,
+  "shiny": true
+ },
+ "backpack": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.28,
+     0.28,
+     0.16
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.14000000059604645,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 80.0,
+  "shadow": true,
+  "triangles": 532,
+  "materials": 6,
+  "shiny": true
+ },
+ "bedroll": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "box",
+    "size": [
+     0.72,
+     0.22,
+     0.22
+    ],
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.10999999940395355,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 80.0,
+  "shadow": true,
+  "triangles": 252,
+  "materials": 4,
+  "shiny": true
+ },
+ "helmet_anubis": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.15,
+    "height": 1.24,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.6200000047683716,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 804,
+  "materials": 5,
+  "shiny": true
+ },
+ "helmet_horus": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.15,
+    "height": 1.24,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.6200000047683716,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 798,
+  "materials": 6,
+  "shiny": true
+ },
+ "helmet_sobek": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.15,
+    "height": 1.24,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.6200000047683716,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 1044,
+  "materials": 7,
+  "shiny": true
+ },
+ "helmet_bastet": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.15,
+    "height": 1.24,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.6200000047683716,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 928,
+  "materials": 6,
+  "shiny": true
+ },
+ "helmet_thoth": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.15,
+    "height": 1.24,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.6200000047683716,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 896,
+  "materials": 6,
+  "shiny": true
+ },
+ "helmet_khnum": {
+  "body": "static",
+  "mass": 2.0,
+  "solids": [
+   {
+    "type": "cylinder",
+    "radius": 0.15,
+    "height": 1.24,
+    "basis": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "origin": [
+     0.0,
+     0.6200000047683716,
+     0.0
+    ]
+   }
+  ],
+  "markers": {},
+  "ladders": [],
+  "far": 120.0,
+  "shadow": true,
+  "triangles": 972,
+  "materials": 6,
+  "shiny": true
  }
 }
