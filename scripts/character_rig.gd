@@ -450,6 +450,11 @@ var _puff := 0.0
 var _breath := 0.0
 ## Where he is looking, as (turn, tilt) away from straight ahead, radians.
 var _look := Vector2.ZERO
+## His eyes, if the model has bones for them (`eye_l`, `eye_r`), and how far
+## they are turned from straight ahead: they go to what he looks at before his
+## head does, and come back to the middle as it catches up.
+var _eye_joints: Array[Node3D] = []
+var _eye_turn := Vector2.ZERO
 ## What has caught his eye, how long he has looked at it, and what he has
 ## looked at enough for now (instance id -> when it becomes interesting again).
 var _interest: Node3D
@@ -2536,6 +2541,9 @@ func _build() -> void:
 	if _has(&"neck"):
 		_neck = _joint(back, &"neck", _rest(&"neck"))
 	_head = _joint(_neck if _neck else back, &"head", _rest(&"head"))
+	for bone: String in ["eye_l", "eye_r"]:
+		if _has(bone):
+			_eye_joints.append(_joint(_head, bone, _rest(bone)))
 	for suffix: String in ["_l", "_r"]:
 		var side := 1 if suffix == "_l" else -1
 		var shoulder := _joint(back, "upper_arm" + suffix, _rest("upper_arm" + suffix), side * 2)
@@ -2957,6 +2965,13 @@ func _look_about(delta: float) -> void:
 	# (asleep he looks at nothing; spinning, nothing stays put to be looked at)
 	target *= (1.0 - smoothstep(0.15, 0.6, _lie_at)) * (1.0 - _whirl)
 	_look = _look.lerp(target, 1.0 - exp(-rate * delta))
+	# His eyes make up what his head has not yet turned, as far as eyes can.
+	var ahead := target - _look
+	# (and at his ease they are never quite still)
+	ahead += Vector2(sin(_time * 0.61 + 1.3) + 0.5 * sin(_time * 1.37), 0.4 * sin(_time * 0.47)) * 0.07 * _casual
+	_eye_turn = _eye_turn.lerp(Vector2(clampf(ahead.x, -0.5, 0.5), clampf(ahead.y, -0.3, 0.3)), 1.0 - exp(-24.0 * delta))
+	for eye in _eye_joints:
+		eye.rotation = Vector3(_eye_turn.y, _eye_turn.x, 0.0)
 
 
 ## Picks what to look at. Anything after him comes first, and he keeps watching

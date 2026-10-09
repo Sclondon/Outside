@@ -95,6 +95,9 @@ func _ready() -> void:
 	_dresser.add_child(_palette(CharacterLook.SKINS, "skin"))
 	_dresser.add_child(_heading("Hair colour"))
 	_dresser.add_child(_palette(CharacterLook.HAIR_COLOURS, "hair"))
+	# (they show on the sculpted face, which is the one with eyes to colour)
+	_dresser.add_child(_heading("Eyes"))
+	_dresser.add_child(_palette(CharacterLook.EYE_COLOURS, "iris"))
 	_dresser.add_child(_heading("Colours"))
 	_wardrobe = GridContainer.new()
 	_wardrobe.columns = 3

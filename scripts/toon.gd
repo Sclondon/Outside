@@ -139,23 +139,119 @@ void light() {
 }
 """
 
+## Hair that is waved rather than curled: finger waves, a marcel wave, long
+## hair brushed out. Where the curls above are ringlets in the model, each a
+## little tube with its own small broken light, this is one smooth surface and
+## the wave is all in the shading. The strands swing from side to side in long
+## soft S-curves on their way from root to tip; the hair rises and falls with
+## them, so that light and shadow cut across it in ridges; and each ridge
+## carries a broad band of light, lying along the strands and following their
+## swing. A material named `hairwavy` is given this, in the colour of `hair`.
+const WAVY_HAIR_SHADER := """
+shader_type spatial;
+
+uniform vec3 albedo : source_color = vec3(1.0);
+uniform float wrap = 0.15;
+uniform float core_cut = 0.6;
+uniform float core_gain = 0.0;
+uniform float flatness = 0.65;
+uniform float rim_gain = 0.0;
+uniform float rim_width = 0.2;
+// How many strands show round the head, and how far their tones differ.
+uniform float strands = 5.0;
+uniform float streak = 0.13;
+uniform float root_shade = 0.14;
+uniform float tip_bleach = 0.06;
+// The wave: how many there are from root to tip, how far the strands swing to
+// either side (as a share of the way round a lock), and how steep the ridges
+// are (how far they tip the surface towards and away from the light).
+uniform float waves = 2.6;
+uniform float sway = 0.07;
+uniform float ridge = 0.4;
+// How much lighter the crest of each wave is than the hollow behind it.
+uniform float crest_light = 0.08;
+// The band of light on each crest: its colour, strength and breadth. It is
+// broad and soft where a curl has a small ragged one.
+uniform vec3 sheen : source_color = vec3(0.86, 0.78, 0.66);
+uniform float sheen_gain = 0.16;
+uniform float sheen_gloss = 9.0;
+
+varying vec3 lie;
+varying float strand;
+varying float lifted;
+
+float hash(float n) {
+	return fract(sin(n * 12.9898) * 43758.5453);
+}
+
+float cut(float value, float edge) {
+	float pixel = max(fwidth(value), 0.0005);
+	return smoothstep(edge - pixel, edge + pixel, value);
+}
+
+void fragment() {
+	// The waves run right round the head nearly in step, as hair set in waves does.
+	float turn = (UV.x * waves + 0.07 * sin(UV.y * 2.1)) * TAU;
+	float swing = sin(turn);
+	strand = hash(floor((UV.y + swing * sway) * strands));
+	lifted = cos(turn);
+	float tone = 1.0 + (strand - 0.6) * streak;
+	tone *= mix(1.0 - root_shade, 1.0 + tip_bleach, smoothstep(0.0, 0.9, UV.x));
+	// (the crest is a clean band of lighter hair, as the shadows are clean)
+	tone *= 1.0 + crest_light * (cut(lifted, 0.25) - 0.5);
+	ALBEDO = albedo * tone;
+	ROUGHNESS = 1.0;
+	SPECULAR = 0.0;
+	// The strands turn with the swing, and the surface tips with the ridge.
+	lie = normalize(TANGENT + BINORMAL * swing * sway * 9.0);
+	NORMAL = normalize(NORMAL + TANGENT * sin(turn) * ridge);
+}
+
+void light() {
+	float reach = clamp(ATTENUATION, 0.0, 1.0);
+	float facing = (dot(NORMAL, LIGHT) + wrap) / (1.0 + wrap);
+	float amount = facing * smoothstep(0.15, 0.6, reach);
+	float lit = cut(amount, 0.04);
+	float core = cut(amount, core_cut);
+	float strength = mix(reach, 1.0, flatness);
+	DIFFUSE_LIGHT += (lit * (1.0 - core_gain) + core * core_gain) * strength * LIGHT_COLOR / PI;
+
+	float graze = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+	float rim = cut(graze, 1.0 - rim_width) * lit;
+	vec3 along = normalize(normalize(lie) + NORMAL * (strand - 0.5) * 0.12);
+	float across = dot(along, normalize(LIGHT + VIEW));
+	// (only the crests catch it: one broad band to each wave)
+	float band = cut(pow(sqrt(max(1.0 - across * across, 0.0)), sheen_gloss) * smoothstep(-0.2, 0.6, lifted), 0.5) * lit;
+	SPECULAR_LIGHT += (rim * rim_gain * ALBEDO + band * sheen_gain * mix(ALBEDO, sheen, 0.5)) * strength * LIGHT_COLOR / PI;
+}
+"""
+
 static var _shader: Shader
 static var _hair_shader: Shader
+static var _wavy_shader: Shader
 
 
 ## Reshades every mesh under `model` as a figure. Its own materials are left
 ## untouched. `colours` gives other colours for any of them, by material name.
-## A material named `hair` is shaded as hair, and one named `shirt` is pinstriped.
+## A material named `hair` is shaded as hair, and one named `hairwavy` as waved
+## hair of the same colour; one named `shirt` is pinstriped; and the three an
+## eye is made of (`eyewhite`, `iris`, `pupil`) have a glint of light on them.
 static func apply(model: Node, colours := {}) -> void:
 	for part: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		for surface in part.mesh.get_surface_count():
 			var original := part.mesh.surface_get_material(surface) as StandardMaterial3D
 			if original == null:
 				continue
-			var colour: Color = colours.get(original.resource_name, original.albedo_color)
-			var material := _hair(colour) if original.resource_name == "hair" else _material(colour)
-			if original.resource_name == "shirt":
+			var named := original.resource_name
+			var colour: Color = colours.get("hair" if named == "hairwavy" else named, original.albedo_color)
+			var material := _hair(colour, named == "hairwavy") if named == "hair" or named == "hairwavy" else _material(colour)
+			if named == "shirt":
 				material.set_shader_parameter(&"stripe", 0.13)
+			elif named == "eyewhite" or named == "iris" or named == "pupil":
+				# (an eye is wet: it is never quite in shadow, and it has one small bright light on it)
+				material.set_shader_parameter(&"wrap", 0.6)
+				material.set_shader_parameter(&"highlight", 0.5)
+				material.set_shader_parameter(&"gloss", 90.0)
 			part.set_surface_override_material(surface, material)
 
 
@@ -199,11 +295,13 @@ static func _material(color: Color) -> ShaderMaterial:
 	return material
 
 
-static func _hair(color: Color) -> ShaderMaterial:
+static func _hair(color: Color, wavy := false) -> ShaderMaterial:
 	if _hair_shader == null:
 		_hair_shader = Shader.new()
 		_hair_shader.code = HAIR_SHADER
+		_wavy_shader = Shader.new()
+		_wavy_shader.code = WAVY_HAIR_SHADER
 	var material := ShaderMaterial.new()
-	material.shader = _hair_shader
+	material.shader = _wavy_shader if wavy else _hair_shader
 	material.set_shader_parameter(&"albedo", color)
 	return material
