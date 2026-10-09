@@ -585,3 +585,85 @@ hook" and "Grapple point" are on the editor's Puzzle page. `tools/grapple_test.g
 drawn (ends PASSED or FAILED); `tools/rope_numbers.gd` prints how a rope swings: how surely it is caught, how the swing
 grows when pumped and dies when left, what he carries off it at each point of the swing, and what climbing does to it.
 `rope` and `grapple` among the names given to `tools/pose_sheets.gd` draw both.
+
+## Scarabs
+
+`ScarabSwarm.new()` is a whole swarm (`scripts/scarab_swarm.gd`): a hundred or two beetles that pour out of a hole (the
+node is the hole), run over the ground as a carpet, up and over anything lower than `climb` (0.7 m), and go for the boy.
+They are film scarabs, 10 cm long (`beetle_size`), modelled on the sacred scarab (`scripts/scarab.gd`: domed wing cases,
+the shield over the thorax, the toothed head shield, six legs that scurry), black with a blue-green sheen.
+
+- **He gets away** by running (`speed`, 3.3 m/s, is between his walk and his run), by jumping over the front of them, or
+  by getting up onto something. When they have got no nearer for `give_up_after` seconds, or he is `chase_distance`
+  from the nest, they stream home and go back down the hole.
+- **Fire holds them off.** They will not come within `fire_reach` (2 m) of a `Fire`: a torch in his hand, a brazier
+  (which holds off more ground), a flare. They part round it and run round the edge of its light, so with a torch he
+  stands in a ring of them, or walks through them. They do not tire of waiting. `fears_fire = false` and they do not care.
+- **Water stops them**: they will not go into a `Pool`.
+- **Caught**: those that reach him run up his legs. A few are shaken off by running or jumping, and firelight drives
+  them off; `catch_count` (12) of them on him for `catch_time` and the swarm emits `caught`, as a Hound or a Mummy does.
+  When he starts again they are back in the nest.
+
+```gdscript
+var swarm := ScarabSwarm.new()
+swarm.count = 150
+swarm.alert_distance = 8.0      # they come out by themselves when he is this near (0: only when let out)
+swarm.position = the_hole
+add_child(swarm)
+swarm.caught.connect(...)
+swarm.chasing = true            # out; `false` calls them home; `reset()` puts them back at once
+```
+
+While they are out, `swarm.front` (the nearest of them to him) is in the group `pursuers`: the boy watches it and the
+cat and the camels keep away. With `harmless = true` it is a few beetles (`count`) that wander within `roam` of where
+they are put and run from his feet, and with `dung_ball` one of them rolls a ball backwards, head down.
+
+There is no body to a beetle. All of them are one MultiMesh (140 triangles each), moved in one loop and written to it
+in one piece; their legs are moved by the shader. The ground is found with a ray straight down, once for each 0.2 m
+square round the nest as a beetle first comes to it (28 a frame at most), and remembered; they keep apart by counting
+themselves into the same squares. Two hundred of them held in a ring by a torch cost about 0.5 ms a frame on a desk
+machine (50: 0.13 ms; 100: 0.26 ms; much the same running over new ground), and it is one draw call.
+
+A `ScarabAmulet` (`scripts/scarab_amulet.gd`) is a scarab of gold and lapis the size of a hand, picked up and thrown
+like a rock; a `ScarabSocket` (`scripts/scarab_socket.gd`) is a stone with a hollow for it, and is a pressure plate
+that only the amulet presses, so it opens whatever a plate opens.
+
+The level editor has "Scarab swarm" (how many, how far they chase, whether fire holds them off, how near he comes
+before they come out, and what lets them out) and "Scarabs (harmless)" on its People page, and "Scarab amulet" and
+"Scarab socket" on its Puzzle page. The test yard has a station for them, north-west of the grappling hook.
+
+`scripts/nearby.gd` (`Nearby.fires(tree)`, `Nearby.player(tree)`) is how the scarabs and the cobwebs find every fire
+that is burning, and the boy, without either having to say it is there.
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/scarab_sheets.gd -- <folder> [beetle pour step chase torch fire caught harmless webs far tear burn cost yard]
+godot --headless --path . --fixed-fps 60 --script tools/scarab_test.gd
+```
+
+The first draws all of it (strips are consecutive moments) and, with `cost`, prints what a frame of the swarm costs for
+50, 100 and 200 beetles. The second runs it with nothing drawn and ends PASSED or FAILED: they come out, go for him, are
+held off by a torch, catch him without one, give up when he is up on a block or across water or too far, go over a
+step, and come out when he comes near; and a web tears and a web burns.
+
+## Cobwebs
+
+`Cobweb` (`scripts/cobweb.gd`) is old web for tomb tunnels, in four sorts (`kind`):
+
+- `CORNER`: a quarter fan in the angle of a wall and the roof (tipped over, of two walls); `size` is the length of its edges.
+- `SHEET`: a web right across a passage, `wide` by `tall`. He walks or runs through it and it tears from top to bottom
+  where he went: the edges draw back, what is left is thrown forward and swings, shreds are left hanging either side, a
+  little dust comes off it, and some of it trails from him for a few seconds.
+- `HANGING`: strands and tatters hanging from the roof, swaying in the draught.
+- `DRAPE`: thick webbing over something `over` in size: a jar, a coffin.
+
+Fire burns them: a torch held within `catch_distance` (0.4 m), a brazier or a flare sets one alight where it touched,
+and it burns away from there in under a second behind a glowing edge, and sets light to any web that touches it.
+
+Each is a few dozen triangles and one draw call, with nothing to load: the threads (spokes out from a hub, finer
+threads sagging between them; for what hangs, threads running down) are drawn by the shader, with a veil of dust over
+them. A thread narrower than a dot of the screen is drawn fainter instead of thinner, and far enough off the threads
+give way to the even grey they average to, so a web does not shimmer in the distance. It is lit from both sides by
+whatever light there is, so a torch carried past picks it out.
+
+The level editor has "Cobweb: corner", "Cobweb: across a passage", "Cobweb: hanging" and "Cobweb: draped" on its Stone
+page, each sized by sliders. The test yard has a short stone passage hung with them at the scarabs' station.

@@ -34,6 +34,7 @@ const FLATS: Array[Rect2] = [
 	Rect2(-16, 8, 5, 5), Rect2(-26, -8, 9, 8), Rect2(-2, -25, 16, 8), Rect2(32, -26, 7, 7),
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
 	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6), Rect2(17, -47, 14, 6),
+	Rect2(-18, -46, 6, 5),
 ]
 const EASE := 9.0
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
@@ -93,6 +94,7 @@ func _ready() -> void:
 	_build_camels(Vector3(-44.0, 0.0, 6.0))
 	_build_dig(Vector3(24.5, 0.0, 27.0))
 	_build_grapple(Vector3(6.0, 0.0, -47.0))
+	_build_scarabs(Vector3(-18.0, 0.0, -46.0))
 	_build_kinds()
 	_settle_in.call_deferred()
 
@@ -588,6 +590,88 @@ helmets and the backpack: the notebook, Me", 3.4)
 	add_child(digger)
 	Worn.put_on(digger, &"helmet_horus")
 	Worn.put_on(digger, &"backpack")
+
+
+## Scarabs and cobwebs. A nest of scarabs that the plate lets out and calls
+## home: a torch to hold them off with and a brazier they will not come near, a
+## step they pour over, and a block to get up onto out of their reach. A few
+## harmless ones, one rolling its ball; a gold scarab to carry, and the stone it
+## is laid in, which also lets them out. And a short stone passage hung with
+## cobwebs, to walk through and to burn.
+func _build_scarabs(at: Vector3) -> void:
+	_mark_here(at + Vector3(5.0, 0.0, 0.8), "SCARABS  ·  COBWEBS
+the plate lets them out, and calls them home
+a torch holds them off  ·  climb the block, or run
+walk through the webs, or hold the torch to them", 3.8)
+	var swarm := ScarabSwarm.new()
+	swarm.count = 140
+	swarm.chase_distance = 26.0
+	swarm.position = at + Vector3(-4.6, 0.0, -3.0)
+	add_child(swarm)
+	swarm.caught.connect(_on_caught.bind(swarm.front))
+	_switch(at + Vector3(3.0, 0.0, -0.6), func() -> void: swarm.chasing = not swarm.chasing)
+	# A step for them to pour over, a block too high for them, and fire
+	_solid(at + Vector3(-2.6, 0.2, -2.6), Vector3(0.8, 0.4, 4.4), PROP.darkened(0.06))
+	_solid(at + Vector3(4.6, 0.6, -3.6), Vector3(2.0, 1.2, 2.0), PROP)
+	var brazier := _set_down("res://props/brazier.tscn", at + Vector3(0.6, 0.0, -3.4))
+	var flame := brazier.find_child("Flame*", true, false) as Node3D
+	(flame if flame else brazier).add_child(Fire.brazier())
+	var torch := HandTorch.new()
+	torch.position = at + Vector3(1.4, 0.02, 0.4)
+	torch.rotation.z = 0.12
+	torch.freeze = true
+	add_child(torch)
+	_keep(torch)
+	# The harmless ones, the gold one, and its stone
+	var few := ScarabSwarm.new()
+	few.harmless = true
+	few.dung_ball = true
+	few.count = 6
+	few.roam = 1.6
+	few.position = at + Vector3(3.6, 0.0, 3.4)
+	add_child(few)
+	var amulet := ScarabAmulet.new()
+	amulet.position = at + Vector3(2.4, 0.08, 2.2)
+	add_child(amulet)
+	_keep(amulet)
+	var socket := ScarabSocket.new()
+	socket.position = at + Vector3(4.6, 0.0, 2.2)
+	add_child(socket)
+	socket.changed.connect(func(filled: bool) -> void:
+		if filled:
+			swarm.chasing = true)
+	# The passage: two walls and a roof, six metres long and two wide, running east and west
+	var passage := at + Vector3(-2.5, 0.0, 3.4)
+	for z: float in [-1.15, 1.15]:
+		_solid(passage + Vector3(0.0, 1.3, z), Vector3(6.0, 2.6, 0.3), PROP.darkened(0.25))
+	_solid(passage + Vector3(0.0, 2.75, 0.0), Vector3(6.0, 0.3, 2.6), PROP.darkened(0.3))
+	var hang := func(kind: Cobweb.Kind, where: Vector3, yaw: float, tip := 0.0) -> Cobweb:
+		var web := Cobweb.new()
+		web.kind = kind
+		web.wide = 2.0
+		web.tall = 2.6
+		web.seed = get_child_count()
+		web.position = passage + where
+		web.rotation = Vector3(tip, yaw, 0.0)
+		add_child(web)
+		return web
+	hang.call(Cobweb.Kind.SHEET, Vector3(-1.2, 0.0, 0.0), PI * 0.5)
+	hang.call(Cobweb.Kind.SHEET, Vector3(1.6, 0.0, 0.0), PI * 0.5)
+	for corner: Array in [[-2.98, -1.0, PI], [-2.98, 1.0, 0.0], [2.98, 1.0, 0.0], [0.3, -1.0, PI]]:
+		# (in the angle of the roof and a wall, across the passage)
+		var web: Cobweb = hang.call(Cobweb.Kind.CORNER, Vector3(corner[0], 2.6, corner[1]), PI * 0.5 + corner[2])
+		web.size = 0.8
+	var strands: Cobweb = hang.call(Cobweb.Kind.HANGING, Vector3(0.2, 2.6, 0.0), PI * 0.5)
+	strands.size = 0.9
+	strands.wide = 1.8
+	var more: Cobweb = hang.call(Cobweb.Kind.HANGING, Vector3(-2.4, 2.6, 0.0), PI * 0.5)
+	more.size = 0.6
+	more.wide = 1.6
+	# (and a jar at its west end, under old webbing)
+	_set_down("res://props/pot_large.tscn", passage + Vector3(-4.2, 0.0, 0.0))
+	var drape: Cobweb = hang.call(Cobweb.Kind.DRAPE, Vector3(-4.2, 0.0, 0.0), 0.0)
+	drape.over = Vector3(0.95, 1.15, 0.95)
+	drape.dust = 0.7
 
 
 func _set_down(scene: String, at: Vector3, yaw := 0.0) -> Node3D:

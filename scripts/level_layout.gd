@@ -47,6 +47,7 @@ const PALETTE := {
 		["Sarcophagus", "prop", "sarcophagus"], ["Carved wall", "prop", "wall_glyphs"], ["Ruined wall", "prop", "wall_ruin"],
 		["Block", "prop", "block"], ["Stack of blocks", "prop", "block_stack"], ["Rubble", "prop", "rubble"],
 		["Boulder", "prop", "rock_a"], ["Rock", "prop", "rock_b"],
+		["Cobweb: corner", "cobweb", "corner"], ["Cobweb: across a passage", "cobweb", "sheet"], ["Cobweb: hanging", "cobweb", "hanging"], ["Cobweb: draped", "cobweb", "drape"],
 	],
 	"Camp": [
 		["Palm", "prop", "palm_a"], ["Bent palm", "prop", "palm_b"], ["Small palm", "prop", "palm_c"],
@@ -72,10 +73,12 @@ const PALETTE := {
 	"People": [
 		["Townsperson", "person", "townsperson"], ["Brother", "person", "brother"], ["Cat", "person", "cat"],
 		["Hound", "person", "hound"], ["Mummy", "person", "mummy"], ["Camel", "person", "camel"],
+		["Scarab swarm", "person", "scarabs"], ["Scarabs (harmless)", "person", "scarabs_harmless"],
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
 		["Torch to carry", "torch", ""], ["Grappling hook", "grapple", ""], ["Grapple point", "grapple_point", ""], ["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
+		["Scarab amulet", "amulet", ""], ["Scarab socket", "plate", "scarab"],
 	],
 	"Guns": [
 		["Revolver", "thing", "revolver"], ["Rifle", "thing", "rifle"], ["Shotgun", "thing", "shotgun"], ["Flare pistol", "thing", "flare_pistol"],
@@ -138,6 +141,20 @@ const FIELDS := {
 	"checkpoint": [],
 	"start": [],
 	"sign": [["text", "Says", "t", "A SIGN"]],
+	# Scarabs (`scripts/scarab_swarm.gd`): a swarm that comes out of its nest after him, and a few that only wander.
+	"person:scarabs": [["count", "How many", "n", 20.0, 300.0, 10.0, 120.0], ["chase", "How far they chase", "n", 5.0, 60.0, 1.0, 22.0], ["fire", "Fire holds them off", "b", true],
+		["alert", "Come out within", "n", 0.0, 40.0, 0.5, 8.0], ["links", "Let out by", "links"]],
+	"person:scarabs_harmless": [["count", "How many", "n", 1.0, 30.0, 1.0, 5.0], ["roam", "Wander", "n", 0.5, 10.0, 0.5, 2.5], ["ball", "One rolls a ball", "b", true]],
+	# A scarab of gold to carry, and the stone it is laid in, which is a plate that only it presses.
+	"amulet": [],
+	"plate:scarab": [["latches", "Stays on", "b", true]],
+	# Cobwebs (`scripts/cobweb.gd`).
+	"cobweb:corner": [["size", "Size", "n", 0.3, 3.0, 0.05, 1.0], ["height", "Height of the corner", "n", 0.0, 8.0, 0.05, 2.4], ["tilt_x", "Tip forward", "n", -180.0, 180.0, 1.0, 0.0],
+		["dust", "Dust", "n", 0.0, 1.0, 0.05, 0.45], ["seed", "Which web", "n", 0.0, 99.0, 1.0, 1.0]],
+	"cobweb:sheet": [["wide", "Width", "n", 0.8, 8.0, 0.1, 2.4], ["tall", "Height", "n", 1.0, 6.0, 0.1, 2.4], ["dust", "Dust", "n", 0.0, 1.0, 0.05, 0.45], ["seed", "Which web", "n", 0.0, 99.0, 1.0, 1.0]],
+	"cobweb:hanging": [["size", "Length", "n", 0.2, 3.0, 0.05, 0.9], ["wide", "Over a width of", "n", 0.2, 6.0, 0.1, 1.6], ["height", "Hangs from", "n", 0.0, 8.0, 0.05, 2.4],
+		["dust", "Dust", "n", 0.0, 1.0, 0.05, 0.45], ["seed", "Which web", "n", 0.0, 99.0, 1.0, 1.0]],
+	"cobweb:drape": [["size", "Size", "n", 0.3, 4.0, 0.05, 1.0], ["dust", "Dust", "n", 0.0, 1.0, 0.05, 0.6], ["seed", "Which web", "n", 0.0, 99.0, 1.0, 1.0]],
 }
 
 ## How far above the ground each kind is put when it is first set down.

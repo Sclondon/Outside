@@ -211,6 +211,23 @@ func _made(item: Dictionary) -> Node3D:
 			return tank
 		"person":
 			return _person(item, what)
+		"cobweb":
+			var web := Cobweb.new()
+			web.kind = {"corner": Cobweb.Kind.CORNER, "sheet": Cobweb.Kind.SHEET, "hanging": Cobweb.Kind.HANGING, "drape": Cobweb.Kind.DRAPE}.get(what, Cobweb.Kind.CORNER)
+			web.size = item.get("size", 1.0)
+			web.wide = item.get("wide", 2.4)
+			web.tall = item.get("tall", 2.4)
+			web.height = item.get("height", 0.0)
+			web.over = Vector3(0.8, 0.9, 0.8) * float(item.get("size", 1.0))
+			web.dust = item.get("dust", 0.45)
+			web.seed = int(item.get("seed", 1))
+			return web
+		"amulet":
+			return ScarabAmulet.new()
+		"plate" when what == "scarab":
+			var socket := ScarabSocket.new()
+			socket.latches = item.get("latches", true)
+			return socket
 		"plate":
 			var plate := Plate.new()
 			plate.span = Vector3(item.get("span_x", 1.6), 0.5, item.get("span_z", 1.6))
@@ -312,6 +329,20 @@ func _person(item: Dictionary, who: String) -> Node3D:
 				# (to a peg a little way from where it is put)
 				camel.tether = place_of(item) + Vector3(1.2, 0.0, 0.0)
 			return camel
+		"scarabs":
+			var swarm := ScarabSwarm.new()
+			swarm.count = int(item.get("count", 120))
+			swarm.chase_distance = item.get("chase", 22.0)
+			swarm.fears_fire = item.get("fire", true)
+			swarm.alert_distance = item.get("alert", 8.0)
+			return swarm
+		"scarabs_harmless":
+			var beetles := ScarabSwarm.new()
+			beetles.harmless = true
+			beetles.count = int(item.get("count", 5))
+			beetles.roam = item.get("roam", 2.5)
+			beetles.dung_ball = item.get("ball", true)
+			return beetles
 	return null
 
 
@@ -341,6 +372,9 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 	if made is RigidBody3D and made.is_in_group(&"throwable"):
 		_loose.append(made)
 		_loose_starts.append(made.global_transform)
+	if made is ScarabSwarm:
+		# (it finds him itself, and goes home itself when he starts again)
+		(made as ScarabSwarm).caught.connect(_on_caught.bind((made as ScarabSwarm).front))
 	if item.has("links") or item["kind"] in ["door", "mover", "sandfall"] or made is Hound or made is Mummy:
 		made.set_meta(&"home", made.position)
 		_worked.append([item, made])
@@ -442,6 +476,8 @@ func _physics_process(delta: float) -> void:
 		if item.get("inverted", false):
 			worked = not worked
 		var near := at.distance_to(node.global_position) < float(item.get("alert", 0.0))
+		if node is ScarabSwarm and worked and not _player.is_limp:
+			(node as ScarabSwarm).chasing = true
 		if node is Door:
 			(node as Door).is_open = worked
 		elif node is SandFall:
