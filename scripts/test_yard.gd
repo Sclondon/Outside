@@ -34,6 +34,7 @@ const FLATS: Array[Rect2] = [
 	Rect2(-16, 8, 5, 5), Rect2(-26, -8, 9, 8), Rect2(-2, -25, 16, 8), Rect2(32, -26, 7, 7),
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
 	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6), Rect2(17, -47, 14, 6),
+	Rect2(-12, 46, 6, 5),
 ]
 const EASE := 9.0
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
@@ -91,6 +92,7 @@ func _ready() -> void:
 	_build_mummy(Vector3(-42.0, 0.0, -32.0))
 	_build_range(Vector3(40.0, 0.0, 36.0))
 	_build_camels(Vector3(-44.0, 0.0, 6.0))
+	_build_birds(Vector3(-12.0, 0.0, 46.0))
 	_build_dig(Vector3(24.5, 0.0, 27.0))
 	_build_grapple(Vector3(6.0, 0.0, -47.0))
 	_build_kinds()
@@ -517,6 +519,41 @@ func _build_camels(at: Vector3) -> void:
 	resting.position = at + Vector3(0.5, 0.1, 2.5)
 	resting.rotation.y = 1.2
 	add_child(resting)
+
+
+## Birds (`scripts/birds.gd`): doves and sparrows on the ground to run at, with posts, a rail and a
+## broken column for them to go up onto; a hoopoe; a kestrel on the column; at the pond, ibis, a
+## heron, egrets, geese, a kingfisher on a post of its own, and swallows; and vultures and kites
+## over the whole yard.
+func _build_birds(at: Vector3) -> void:
+	_mark_here(at + Vector3(0.0, 0.0, 4.0), "BIRDS\nrun at them, or fire a gun: up they go,\nand down again when it is quiet", 3.4)
+	for post: Array in [[Vector3(-4.0, 0.0, -2.5), 1.6], [Vector3(-1.4, 0.0, -2.5), 1.6], [Vector3(3.0, 0.0, -3.0), 2.6], [Vector3(4.5, 0.0, 0.5), 3.4]]:
+		_solid(at + post[0] + Vector3.UP * post[1] * 0.5, Vector3(0.2, post[1], 0.2), WOOD)
+	_solid(at + Vector3(-2.7, 1.66, -2.5), Vector3(2.8, 0.12, 0.12), WOOD)
+	_set_down("res://props/column_broken.tscn", at + Vector3(-4.5, 0.0, 2.0))
+	var flocks := [
+		[Birds.Kind.DOVE, 14, at, 22.0], [Birds.Kind.SPARROW, 16, at + Vector3(2.5, 0.0, 1.5), 18.0], [Birds.Kind.HOOPOE, 2, at + Vector3(-2.0, 0.0, -4.0), 16.0],
+		[Birds.Kind.KESTREL, 1, at + Vector3(-4.5, 0.0, 2.0), 30.0],
+		[Birds.Kind.IBIS, 3, POND + Vector3(-5.0, 0.0, 3.0), 14.0], [Birds.Kind.HERON, 1, POND + Vector3(4.0, 0.0, -5.0), 14.0], [Birds.Kind.EGRET, 2, POND + Vector3(3.0, 0.0, 6.0), 14.0],
+		[Birds.Kind.GOOSE, 4, POND, 14.0], [Birds.Kind.KINGFISHER, 1, POND + Vector3(7.5, 0.0, 2.0), 14.0], [Birds.Kind.SWALLOW, 5, POND, 16.0],
+		[Birds.Kind.VULTURE, 3, Vector3(0.0, 0.0, 10.0), 50.0], [Birds.Kind.GRIFFON, 2, Vector3(10.0, 0.0, -10.0), 60.0], [Birds.Kind.KITE, 2, Vector3(-10.0, 0.0, 30.0), 40.0],
+	]
+	# (a post at the edge of the pond for the kingfisher, marked: any Marker3D in the group `bird_perches` is somewhere to land)
+	var post_at := Vector3(POND.x + POND_WIDE + 0.6, 0.0, POND.z + 2.0)
+	post_at.y = height_at(post_at.x, post_at.z)
+	_solid(post_at + Vector3.UP * 0.6, Vector3(0.14, 1.6, 0.14), WOOD)
+	var perch := Marker3D.new()
+	perch.position = post_at + Vector3.UP * 1.4
+	perch.add_to_group(&"bird_perches")
+	add_child(perch)
+	for flock: Array in flocks:
+		var birds := Birds.new()
+		birds.kind = flock[0]
+		birds.count = flock[1]
+		birds.roam = flock[3]
+		var where: Vector3 = flock[2]
+		birds.position = Vector3(where.x, height_at(where.x, where.z), where.z)
+		add_child(birds)
 
 
 ## The guns, laid out on a bench, a box of cartridges, and things to shoot at.

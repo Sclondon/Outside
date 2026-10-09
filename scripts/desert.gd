@@ -312,6 +312,12 @@ func _person(item: Dictionary, who: String) -> Node3D:
 				# (to a peg a little way from where it is put)
 				camel.tether = place_of(item) + Vector3(1.2, 0.0, 0.0)
 			return camel
+		"birds":
+			var birds := Birds.new()
+			birds.kind = int(item.get("bird", 1)) as Birds.Kind
+			birds.count = int(item.get("count", 8))
+			birds.roam = item.get("roam", 30.0)
+			return birds
 	return null
 
 
