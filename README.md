@@ -542,3 +542,83 @@ hook" and "Grapple point" are on the editor's Puzzle page. `tools/grapple_test.g
 drawn (ends PASSED or FAILED); `tools/rope_numbers.gd` prints how a rope swings: how surely it is caught, how the swing
 grows when pumped and dies when left, what he carries off it at each point of the swing, and what climbing does to it.
 `rope` and `grapple` among the names given to `tools/pose_sheets.gd` draw both.
+
+## Tombs
+
+`tomb.tscn` is a tomb made from a number: the **daily tomb**, the same for everyone on the same day, or one for practice
+from any number and at any of three difficulties. He goes in, takes the gold falcon from the burial chamber, and comes out
+again; the clock runs from his first step until he is out of the door with it. It is not in the menu's list of levels yet:
+add `["Tombs", "res://tomb.tscn"],` to `LEVELS` in `scripts/menu.gd`. Opened like that, or by itself
+(`godot res://tomb.tscn`), it is today's tomb, and a card comes up first that offers a random one instead. To open it on a
+tomb of your choosing, set `TombLevel.play` first (`{"mode": "daily"}` or `{"mode": "random", "seed": 12, "difficulty": 1}`),
+or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
+
+- **The view** is from the side, the tomb cut open towards the camera like the section drawings of the tombs in the
+  Valley of the Kings: its axis runs away to the right and down, he keeps to one line (`SIDE_SCROLL`), and nothing needs
+  steering but him. Rooms off the axis are above (a loft: jump at its lip and he takes hold; walk, and he goes under it)
+  and below (the chamber at the foot of the well).
+- **The plan** (`TombPlan`, made by `TombGenerator`) knows nothing of that view: rooms, the ways between them, what can be
+  carried, and what opens each door. The rooms are a royal tomb's in their order (entrance, corridors, a well, pillared
+  halls, a high gallery, antechamber, burial chamber). Locks are put in each with its key somewhere before it:
+
+  | The lock | What opens it |
+  | --- | --- |
+  | A plate | The block in the room, pushed onto it |
+  | A plate | A block that has to be pushed in from the room before |
+  | A plate and an offering table | The block, and a canopic jar (found earlier) set on the table: both |
+  | A seal stone | Trodden on: it is up in a loft, or at the foot of the well |
+  | A door that opens only from behind | Over the wall by the loft, and down a drop that cannot be climbed back |
+  | A cold brazier, in a room with no torches | A burning torch (found earlier) brought to it |
+  | A pit too wide to jump | The grappling hook (found earlier), thrown at the ring over it |
+
+  Between rooms: stairs down, a passage to duck through, water to swim (which makes him let go of what he carries), a
+  shaft with a ladder. A door, once open, stays open. He carries one thing at a time, and not up a ledge or a ladder.
+- **Mummies** are of a kind chosen with something in the room that kind cannot get past, between it and whatever he has
+  to stand still at: a trench for the shambler, the child and the royal one, a kerb for the priest and the crawler, two
+  piers too close together for the brute. Each wakes as he passes, loses him after a few seconds of not being able to get
+  at him, and stands where it is until he comes by again. The burial chamber's wakes when the falcon is taken.
+- **That it can be finished** is proved for every tomb before it is used (`TombSolver`): the plan is played as a board game
+  through every position that can be reached, and it passes only if the falcon can be brought out, every room can be
+  stood in, and there is no position at all from which it can no longer be finished. A plan that fails is thrown away and
+  the next sub-seed tried; after forty, a tomb of plain stairs. `TombReach` then holds every jump, ledge, kerb, crawl and
+  swing in the built tomb against what the Player can do, read from `player.tscn`.
+- **The same everywhere**: all the dice are `TombRandom` (whole numbers only, nothing from the engine or the clock), seeded
+  from the generator's `VERSION`, the seed, the difficulty and the sub-seed. A plan and its stone each have a fingerprint.
+- **The daily tomb** (`TombDaily`): the seed is made from the number of days since 1 January 1970 by the clock at
+  Greenwich; tomb #1 was 1 October 2026; the day of the week sets the difficulty. The time counts sixtieths of a second
+  of play, not of the wall clock. Dying puts him back at the last door he went through (each end of each room), with
+  what he carried back where he last had it at a door, and is counted; "Stuck" does the same when he asks. The best and
+  first time for each day and the run of days in a row are kept in `user://tombs.json` (on the web, the browser's
+  storage). At the end the result can be copied as a line, `Outside daily tomb #9  1:22.8  1 death`.
+- **A leaderboard** is not there, but the finished run is the record one would be sent (`TombDaily.submission`: day, seed,
+  difficulty, generator version, the two fingerprints, ticks, the time to the falcon, deaths, when each room was first
+  reached). As it stands nothing in it can be trusted: the game runs on the player's machine. To make times worth
+  ranking, a server would have to hand out the day's seed itself (so nobody plays tomorrow's tomb early), make the tomb
+  itself and check the fingerprints, and be sent the stick and buttons of every tick to play back; and that playback only
+  proves anything if the physics come out the same on its machine as on a phone, which Godot's do not promise, so in
+  practice it would check what it can (the time against the solver's shortest way at his top speed, the room times in
+  order and no faster than he can run between them) and keep a human eye on the top of the table.
+- **What others are making** goes in through `TombHooks`, which looks for each by its file and otherwise leaves a
+  `Marker3D` in the group `tomb_hooks`: scarab nests in dark rooms, cobwebs across crawls and lofts, a jackal mummy at
+  the burial chamber, an inscription over every locked door (until there are real ones, a panel of plain signs, and the
+  hint comes up as a caption when he stands under it), and the notebook, which is given each hint as it is read.
+
+| File | What it does |
+| --- | --- |
+| `scripts/tomb_plan.gd` | What a tomb is before it is built: rooms, ways, things, switches |
+| `scripts/tomb_generator.gd` | Makes a plan from a seed; never hands back one that fails |
+| `scripts/tomb_solver.gd` | Proves a plan can be finished, by trying everything |
+| `scripts/tomb_layout.gd` | Sets a plan out as a tomb seen from the side: every stone and part, as numbers |
+| `scripts/tomb_reach.gd` | What he can do, from the Player's own numbers, and a layout held against it |
+| `scripts/tomb_builder.gd` | Makes a layout into nodes |
+| `scripts/tomb_level.gd` | Runs a tomb: doors, mummies, checkpoints, the clock, the cards |
+| `scripts/tomb_daily.gd` | Which tomb a day has, and what is kept of how it went |
+| `scripts/tomb_hooks.gd` | Where scarabs, cobwebs, jackals, inscriptions and the notebook plug in |
+| `scripts/tomb_random.gd` | The dice |
+| `tools/tomb_test.gd` | Not part of the game: checks plans, geometry and sameness over hundreds of seeds, and plays tombs through with the real Player |
+| `tools/tomb_sheets.gd` | Not part of the game: draws a tomb's plan, the whole of it as built, and each room as he sees it |
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [drive] [seeds=500] [drive_seeds=1,2,3]
+godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_sheets.gd -- <folder> [seed:difficulty ...] [daily]
+```
