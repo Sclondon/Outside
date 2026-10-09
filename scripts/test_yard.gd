@@ -8,7 +8,7 @@ extends Node3D
 ## two wet lumps that slump and can be waded through); water, as a tank to swim
 ## in and as a pond lying in the sand to wade into; fire; the guns and things
 ## to shoot; and everyone else: his brother, a cat, and a pen each for the
-## hounds and the mummy. Run `test_yard.tscn`. The camera orbits; drag to turn it.
+## hounds and the mummy, and two camels. Run `test_yard.tscn`. The camera orbits; drag to turn it.
 ##
 ## The ground is a `SandGround`, made here from `height_at`: dunes from
 ## `SandDunes` (small ones among the stations, big ones all round), pressed
@@ -33,6 +33,7 @@ const FLATS: Array[Rect2] = [
 	Rect2(0, 0, 9, 9), Rect2(15, -12, 9, 6), Rect2(29.5, 6, 10, 9), Rect2(2, 25, 15, 9),
 	Rect2(-16, 8, 5, 5), Rect2(-26, -8, 9, 8), Rect2(-2, -25, 16, 8), Rect2(32, -26, 7, 7),
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
+	Rect2(-44, 6, 7, 6),
 ]
 const EASE := 9.0
 ## The hollow one lump of sand lies in: where, how wide, how deep.
@@ -84,6 +85,7 @@ func _ready() -> void:
 	_build_hounds(Vector3(-36.0, 0.0, 30.0))
 	_build_mummy(Vector3(-42.0, 0.0, -32.0))
 	_build_range(Vector3(40.0, 0.0, 36.0))
+	_build_camels(Vector3(-44.0, 0.0, 6.0))
 	_settle_in.call_deferred()
 
 
@@ -402,6 +404,24 @@ func _build_mummy(at: Vector3) -> void:
 	_mummy.position = at + Vector3(-5.0, 0.05, 0.0)
 	add_child(_mummy)
 	_mummy.caught.connect(_on_caught.bind(_mummy))
+
+
+## Camels: one saddled and tethered to a peg, and one couched with its packs on.
+func _build_camels(at: Vector3) -> void:
+	_mark_here(at + Vector3(5.0, 0.0, 0.0), "CAMELS", 3.6)
+	var saddled := Camel.new()
+	saddled.saddled = true
+	saddled.position = at + Vector3(-2.0, 0.1, -2.5)
+	saddled.tether = at + Vector3(-3.5, 0.0, -3.0)
+	add_child(saddled)
+	var resting := Camel.new()
+	resting.packed = true
+	resting.haltered = true
+	resting.couched = true
+	resting.rest_for = 100000.0
+	resting.position = at + Vector3(0.5, 0.1, 2.5)
+	resting.rotation.y = 1.2
+	add_child(resting)
 
 
 ## The guns, laid out on a bench, a box of cartridges, and things to shoot at.
