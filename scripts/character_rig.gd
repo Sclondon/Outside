@@ -180,6 +180,11 @@ const SIT_ARCH := [0.0, 0.0, 0.34, -0.3, 0.62, -0.42, 1.0, -0.46]
 ## Lying down from there, against Player.lie_progress: how far he has gone over
 ## onto his side (1: flat on it).
 const LIE_ROLL := [0.0, 0.0, 0.2, 0.1, 0.55, 0.62, 0.8, 0.96, 1.0, 1.0]
+## Coming down from a jump onto his feet, against the time since he landed (as a
+## part of LAND_TAKES): how far he has given at the knees. Down quickly, held a
+## moment, and up again more slowly.
+const LAND_GIVE := [0.0, 0.0, 0.2, 1.0, 0.42, 0.85, 1.0, 0.0]
+const LAND_TAKES := 0.42
 
 ## Use the demade, low-poly model (models/boy_lo.glb).
 @export var low_poly := false
@@ -527,6 +532,25 @@ var _arm_free := 0.0
 var _arm_at: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 var _arm_speed: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 var _jump_vary := Vector3.ZERO
+## A jump he made himself (not a fall off something), 0..1 until he is down
+## again; where he sprang from, which his legs are left reaching for; and the
+## three attitudes of it, each 0..1: driven up, gathered over the top, and
+## (what is left) reaching down for the ground.
+var _jumped := 0.0
+var _sprang_from: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
+## How far each foot was on the ground to drive him off it, 0..1.
+var _drove: Array[float] = [1.0, 1.0]
+var _leg_at: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
+var _rise := 0.0
+var _gather := 0.0
+## Landed on his feet: how hard, 0..1, and how far through taking it he is.
+var _give := 0.0
+var _give_at := 1.0
+## How far his legs are drawn up into the ball he is curled in, 0..1: a moment
+## behind the rest of him.
+var _legs_in := 0.0
+## Going over one shoulder out of a dive: how far, and which (his left positive).
+var _shouldered := 0.0
 ## Catching a ledge: the swing of his body in under it, which dies away.
 var _sway := 0.0
 var _sway_speed := 0.0
@@ -792,6 +816,8 @@ func _process(delta: float) -> void:
 	var rolling := _taking == Player.Landing.ROLL or (_taking == Player.Landing.STUMBLE and _recovery > STUMBLE_ROLLS)
 	_tumble = _recovery if _taking == Player.Landing.ROLL else clampf(inverse_lerp(STUMBLE_ROLLS, 1.0, _recovery), 0.0, 1.0)
 	_spinning = rolling and _recovery < 1.0
+	if not _spinning:
+		_shouldered = 0.0
 	_three = _approach(_three, 1.0 if taking == Player.Landing.THREE_POINT else 0.0, 40.0 if taking != 0 else 9.0, delta)
 	_sprawled = _approach(_sprawled, 1.0 if taking == Player.Landing.SPRAWL else 0.0, 40.0 if taking != 0 else 9.0, delta)
 	_scramble = _approach(_scramble, 1.0 if taking == Player.Landing.SPRAWL and _player.is_scrambling else 0.0, 9.0 if taking != 0 else 5.0, delta)
@@ -801,6 +827,11 @@ func _process(delta: float) -> void:
 	# (out of a dive he is over sooner, having started most of the way, and up and running the sooner)
 	_ball = _roll * smoothstep(0.0, 0.07, _tumble) * (1.0 - smoothstep(lerpf(0.74, 0.56, _dive_roll), lerpf(0.98, 0.84, _dive_roll), _tumble))
 	_curled = maxf(_ball, _tuck * _flip)
+	# (his legs are the last of him to be drawn in: going over off his feet they
+	# are still on the ground behind him for a moment, and out of a dive still
+	# coming over the top)
+	# (not in a back tuck, which is slow enough already to need no softening)
+	_legs_in = maxf(minf(_approach(_legs_in, _ball, 13.0, delta), _ball), _tuck * _flip)
 	if grounded:
 		_leap = clampf(speed / _player.run_speed, 0.0, 1.0)
 	var travel: float = _player.shimmy_travel if &"shimmy_travel" in _player else 0.0
@@ -821,6 +852,23 @@ func _process(delta: float) -> void:
 	_push = _approach(_push, 1.0 if _player.is_pushing else 0.0, 6.0, delta)
 	_launch = _approach(_launch, 0.0, 11.0, delta)
 	_land = _approach(_land, 0.0, 5.0, delta)
+	# A jump of his own has three attitudes, and which he is in goes with how
+	# fast he is going up or coming down: driven up off the ground, gathered
+	# over the top of it, and reaching down for the ground again. (A fall off
+	# something is only the last of them.)
+	if _player.is_on_floor() and _launch < 0.2:
+		_jumped = _approach(_jumped, 0.0, 16.0, delta)
+	_rise = smoothstep(0.8, 4.6, velocity.y)
+	_gather = (1.0 - _rise) * (1.0 - smoothstep(0.8, 5.0, -velocity.y)) * _jumped
+	_give_at = minf(_give_at + delta / LAND_TAKES, 1.0)
+	# Coming down out of a run, it is the leg he is reaching with that lands: his
+	# stride is taken up again from there.
+	if _air > 0.95 and _leap > 0.3 and velocity.y < 0.0:
+		_phase = 0.02 if _lead_leg == 0 else 0.52
+	# (and out of a roll he comes up onto one foot with the other coming through
+	# under him, which is how his legs lie in it: not flung out behind to push)
+	if _ball > 0.6:
+		_phase = 0.04 if _lead_leg == 0 else 0.54
 
 	_accel = _accel.lerp((flat - _prev_velocity) / delta, 1.0 - exp(-8.0 * delta))
 	_yaw_rate = lerpf(_yaw_rate, angle_difference(_prev_yaw, rotation.y) / delta, 1.0 - exp(-10.0 * delta))
@@ -871,7 +919,9 @@ func _process(delta: float) -> void:
 	# takes off, and it is the spring that carries them from the one to the other)
 	_arm_free = 1.0 if loose_armed else _approach(_arm_free, 0.0, 4.5, delta)
 	var stance := lerpf(lerpf(lerpf(lerpf(0.6, 0.34, _run), 0.3, _sprint), 0.68, _push), 0.57, _duck)
-	if grounded:
+	# (Once he has jumped his stride is over: the leg that was coming forward does
+	# not go on to be put down on nothing.)
+	if grounded and (_jumped < 0.5 or _player.is_on_floor()):
 		# (a figure scaled up covers more ground per stride)
 		_phase = fposmod(_phase + speed / (stride * global_basis.get_scale().y) * delta, 1.0)
 	# Braking hard against his own momentum, as when the stick is thrown the other way.
@@ -910,7 +960,7 @@ func _process(delta: float) -> void:
 
 	_track_steps(stance, gait)
 	_pose_body(speed, velocity.y, stance, gait)
-	_pose_legs(velocity.y, stride, stance, gait)
+	_pose_legs(stride, stance, gait)
 	_pose_arms(velocity.y, gait)
 	_reach_arms()
 	_hold_gun()
@@ -1034,7 +1084,7 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	# In the air he is in one of two attitudes, and goes from the one to the other
 	# over the top of the jump: stretched out going up, gathered coming down.
 	var rising := smoothstep(-1.8, 1.8, vertical_speed)
-	var arch := -_duck * 0.55 - _crouch * 2.2 + _launch * 0.4 + _air * lerpf(-0.12, 0.24, rising) - _skid * 0.25 - _slide * 0.3 - _sprint * 0.08
+	var arch := -_duck * 0.55 - _crouch * 2.2 + _launch * 0.4 + _air * (lerpf(-0.12, 0.24, rising) - 0.2 * _gather) - _skid * 0.25 - _slide * 0.3 - _sprint * 0.08
 	# (it opens as each leg drives off and closes as the next one lands)
 	arch -= cos(2.0 * step) * lerpf(0.02, 0.07, _run) * gait
 	arch += _push * (0.2 + heave * 0.12)
@@ -1069,6 +1119,15 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	var turned := _air * rising * _leap * (0.3 if _lead_leg == 0 else -0.3)
 	# Which way his head is tipped beyond all this, down positive.
 	var chin := -_duck * 0.3 + _sprint * 0.12
+	# Landed on his feet, he gives at the knees and his chest comes down over
+	# them, and he comes up out of it less quickly. (See LAND_GIVE. Out of a run
+	# he runs on through it, and gives less.)
+	var give := _keyed(LAND_GIVE, _give_at) * _give * (1.0 - 0.65 * _leap) * (1.0 - _air) * (1.0 - _launch)
+	at.y -= give * 0.085
+	at.z -= give * 0.03
+	lean += give * 0.3
+	arch -= give * 0.22
+	chin += give * 0.12
 	# How far his hips are listed to one side; how far they are tipped forward
 	# beyond their share of his lean, the rest of his back making up for it; how
 	# far his head is turned, his left positive, and tilted over, his right positive.
@@ -1137,7 +1196,9 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 		# shoulder rather than straight over his head)
 		spin = lerpf(_dive_pitch * _dive_roll, TAU, over)
 		var shouldered := sin(PI * over) * _dive_roll * _ball
-		turned += shouldered * 0.6 * away
+		_shouldered = shouldered * away
+		# (not so far that his head comes down on his knee)
+		turned += shouldered * 0.3 * away
 		listing += shouldered * 0.32 * away
 		head_turn -= shouldered * 0.5 * away
 	# A back tuck: up stretched, his head thrown back to lead him over; then
@@ -1149,9 +1210,10 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	arch += _flip * (0.35 * (1.0 - smoothstep(0.06, 0.24, _flip_at)) + 0.2 * smoothstep(0.76, 0.95, _flip_at)) - tucked * 0.95
 	chin += tucked * 0.5 - _flip * 0.55 * (1.0 - smoothstep(0.08, 0.3, _flip_at))
 	# (and stays on the ground all the way over: upside down he is on his shoulders)
-	at.y = lerpf(at.y, 0.17 - 0.15 * (0.5 - 0.5 * cos(spin)), _ball)
-	arch -= _ball * 1.15
-	chin += _ball * 0.75
+	# (and at either end of it he is on his feet, with his legs under him)
+	at.y = lerpf(at.y, 0.17 - 0.15 * (0.5 - 0.5 * cos(spin)) + 0.08 * pow(maxf(cos(spin), 0.0), 2.0), _ball)
+	arch -= _ball * 1.0
+	chin += _ball * 0.6
 	var middle := Vector3(0.0, 0.1, 0.1) * _ball + Vector3(0.0, 0.15, 0.05) * _flip
 	at += middle - Basis(Vector3.RIGHT, spin) * middle
 
@@ -1456,7 +1518,7 @@ static func _keyed(keys: Array, time: float) -> float:
 	return (2.0 * u3 - 3.0 * u2 + 1.0) * v0 + (u3 - 2.0 * u2 + u) * span * m0 + (-2.0 * u3 + 3.0 * u2) * v1 + (u3 - u2) * span * m1
 
 
-func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float) -> void:
+func _pose_legs(stride: float, stance: float, gait: float) -> void:
 	var to_hips := _hips.transform.affine_inverse()
 	var half_step := stance * stride * 0.5
 	# Running, his knees come well up; sneaking, each foot is lifted clear and
@@ -1468,8 +1530,6 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 	var seated := smoothstep(0.5, 0.96, _sit_at)
 	var lying := smoothstep(0.3, 0.9, _lie_at)
 	var levelled := _aiming * _gun * (1.0 - _move)
-	# (which of his two attitudes in the air he is in: see _pose_body)
-	var rising := smoothstep(-1.8, 1.8, vertical_speed)
 	var delta := minf(get_process_delta_time(), 1.0 / 30.0)
 	var loose := gait * looseness
 	# Now and then, at ease, the foot he is not standing on comes up onto its toes.
@@ -1571,18 +1631,35 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 			# would carry the foot up over his hip, and the leg right round with it)
 			target.y = lerpf(target.y, minf(target.y, _hips.position.y - 0.1), _stairs)
 
+		# (When he is low and going fast, stumbling or coming up out of a roll,
+		# a foot lifted as high as he lifts it running would be up at his hip
+		# or over it, which carries the leg right round: it stays below them.)
+		target.y = lerpf(target.y, minf(target.y, _hips.position.y - lerpf(0.12, 0.2, _stumble)), 1.0 - _stairs)
 		# Airborne, he holds a pose, and there are two of them. Going up out of a
 		# run it is a stride held: one knee driven high in front, the other leg
 		# stretched right out behind. Coming down, the front leg is reached out
 		# for the ground and the other gathered under him. Straight up, both knees
 		# come up together, and both feet go down together.
+		# (A jump of his own has a third between them, over the top of it: see
+		# _gather. Straight up, he goes up stretched out, his legs left hanging
+		# under him, and it is over the top that his knees come up. Out of a
+		# run, there the front leg swings out ahead and the back one folds up
+		# behind him, to come down reaching with the one and gathered on the other.)
 		var lead := i == _lead_leg
-		var tucked := Vector3(side * _hip_width, lerpf(0.3, 0.47, _leap) if lead else lerpf(0.26, 0.17, _leap), lerpf(0.1, 0.34, _leap) if lead else lerpf(0.0, -0.52, _leap))
-		var reaching := Vector3(side * (_hip_width + 0.03), 0.05 if lead else lerpf(0.06, 0.2, _leap), lerpf(0.06, 0.26, _leap) if lead else lerpf(-0.02, -0.16, _leap))
-		target = target.lerp(reaching.lerp(tucked, rising), _air)
+		var driven := Vector3(side * _hip_width, lerpf(0.0, 0.47, _leap) if lead else lerpf(0.015, 0.17, _leap), lerpf(-0.02, 0.34, _leap) if lead else lerpf(-0.1, -0.52, _leap))
+		var gathered := Vector3(side * (_hip_width + 0.02), lerpf(0.23, 0.3, _leap) if lead else lerpf(0.2, 0.31, _leap), lerpf(0.03, 0.42, _leap) if lead else lerpf(-0.05, -0.3, _leap))
+		var reaching := Vector3(side * (_hip_width + 0.03), lerpf(0.06, 0.1, _leap) if lead else lerpf(0.07, 0.24, _leap), lerpf(0.07, 0.28, _leap) if lead else lerpf(0.0, -0.2, _leap))
+		# (he is in the air, as far as his legs go, as soon as they have driven him off the ground)
+		var aloft := maxf(_air, _jumped * (1.0 - _launch))
+		# (Nor does a leg go from one of these to another all at once, when he
+		# kicks off a wall or is thrown upwards: it is a moment getting there.)
+		var wanted := reaching + (gathered - reaching) * _gather + (driven - reaching) * _rise
+		_leg_at[i] = wanted if aloft < 0.02 else _leg_at[i].lerp(wanted, 1.0 - exp(-24.0 * delta))
+		target = target.lerp(_leg_at[i], aloft)
 		# (toes pointed while he rises; as he falls the front foot is drawn up to land on)
-		pitch = lerpf(pitch, lerpf(0.1 if lead else 0.5, 0.9, rising), _air)
-		yaw = lerpf(yaw, side * 0.18, _air)
+		var falling := 0.1 if lead else lerpf(0.2, 0.5, _leap)
+		pitch = lerpf(pitch, falling + (0.6 - falling) * _gather + (1.0 - falling) * _rise, aloft)
+		yaw = lerpf(yaw, side * 0.18, aloft)
 		# Skidding: feet planted apart, the back one braking on its toes.
 		target = target.lerp(Vector3(side * (_hip_width + 0.03), ANKLE, -0.3 if i == 0 else 0.12) + _ankle_offset(0.6 if i == 0 else -0.25), _skid)
 		pitch = lerpf(pitch, 0.6 if i == 0 else -0.25, _skid)
@@ -1623,12 +1700,21 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 		knee = lerpf(knee, side * 0.55, _rope)
 		# Off a wall: the leg that pushed is left out behind him, at the wall.
 		if i == _kick_leg and _kick > 0.01:
-			target = target.lerp(to_local(_kick_point), _kick)
-			pitch = lerpf(pitch, 1.1, _kick)
+			# (it is there in a moment, not in no time at all)
+			var reached := _kick * smoothstep(1.0, 0.78, _kick)
+			target = target.lerp(to_local(_kick_point), reached)
+			pitch = lerpf(pitch, 1.1, reached)
 		tip = lerpf(tip, 0.15 * looseness, maxf(_air, _hang))
-		# Take-off: both legs drive down off the toes before the knees come up.
-		target = target.lerp(Vector3(side * _hip_width, 0.0, -0.04 if lead else -0.15) + _ankle_offset(1.05), _launch)
-		pitch = lerpf(pitch, 1.05, _launch)
+		# Take-off: he drives himself up off the ground, and the leg that does it
+		# is left straight out behind, reaching for where he sprang from, toes
+		# last, until he is clear of it. (Both legs from a standstill; out of a
+		# run the other knee is already on its way up.)
+		var spot := to_local(_sprang_from[i])
+		var pushing := _launch * _drove[i] * (1.0 - _leap if lead else 1.0)
+		# (up onto his toes as he goes: they are the last of him to leave it)
+		var toed := maxf(clampf(pitch, 0.0, 1.15), 1.15 * smoothstep(0.0, 0.22, -spot.y))
+		target = target.lerp(Vector3(side * _hip_width, clampf(spot.y, -0.25, 0.0), clampf(spot.z, -0.5, 0.1)) + _ankle_offset(toed), pushing)
+		pitch = lerpf(pitch, toed, pushing)
 		# Down on three points: one foot flat in front of him, the other leg
 		# behind on its toes, that knee to the ground.
 		var kneeling := i == _down
@@ -1746,7 +1832,7 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 			target += (_ankle_offset(0.8) - _ankle_offset(0.0)) * pivot
 
 		# On the ball of the foot, the toes stay flat on the ground while the heel comes up.
-		var on_ground := maxf(planted * (1.0 - _air), _launch) * (1.0 - maxf(_hang, _rope)) * (1.0 - _slide) * (1.0 - _curled) * (1.0 - _swim) * (1.0 - _ladder)
+		var on_ground := maxf(planted * (1.0 - aloft), pushing * (1.0 - smoothstep(0.0, 0.4, -spot.y))) * (1.0 - maxf(_hang, _rope)) * (1.0 - _slide) * (1.0 - _curled) * (1.0 - _swim) * (1.0 - _ladder)
 		on_ground *= (1.0 - _dive) * (1.0 - lying) * (1.0 if pivoting else 1.0 - _whirl * (1.0 - tap))
 		# The ankle is not a hinge held at an angle. Off the ground the foot is
 		# carried slack: it trails whatever the leg does and swings a little past
@@ -1763,18 +1849,30 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 		var toes_bent := -maxf(pitch, 0.0) * on_ground - maxf(-pitch, 0.0) * 0.5 * looseness * (1.0 - _hang) + clampf(-_foot_spin[i] * 0.02, -0.3, 0.4) * slack
 		# They bend no further down than the ground under them allows, so they
 		# stay flat on it for as long as the ball of the foot is near it.
-		var clear := (target + foot * _toe).y - SOLE - ground + maxf(maxf(_air, _slide), maxf(_hang, _rope)) + _curled + lying
+		var clear := (target + foot * _toe).y - SOLE - ground + maxf(maxf(aloft, _slide), maxf(_hang, _rope)) + _curled + lying + pushing
 		_foot_world[i] = to_global(target - _ankle_offset(pitch))
 		_toes[i].rotation.x = minf(toes_bent, asin(clampf(clear / 0.07, 0.0, 1.0)) - carried)
 		# Rolled up in a ball, his legs are placed from his hips, not from the
 		# ground: knees to his chest, turning over with the rest of him.
-		var placed := (to_hips * target).lerp(Vector3(side * _hip_width * 1.15, -0.15, 0.21), _curled)
-		var footing := (to_hips.basis * foot).orthonormalized().slerp(Basis(Vector3.RIGHT, 0.5), _curled)
-		# In a dive they trail out behind him, one a little bent, toes pointed.
+		var placed := to_hips * target
+		var footing := (to_hips.basis * foot).orthonormalized()
+		# In a dive they trail out behind him, one a little bent, toes pointed;
+		# and they are still out behind him as he goes over onto his hands.
 		var leading := i == _lead_leg
-		placed = placed.lerp(Vector3(side * (_hip_width + 0.025), _hip_drop - (_thigh + _shin) + (0.012 if leading else 0.085), -0.03 if leading else -0.17), _dive)
-		footing = footing.slerp(Basis(Vector3.RIGHT, 1.0), _dive)
-		knee = lerpf(knee, 0.0, _dive)
+		var trailing := maxf(_dive, _dive_roll * _roll * (1.0 - smoothstep(0.1, 0.4, _tumble)))
+		placed = placed.lerp(Vector3(side * (_hip_width + 0.025), _hip_drop - (_thigh + _shin) + (0.012 if leading else 0.085), -0.03 if leading else -0.17), trailing)
+		footing = footing.slerp(Basis(Vector3.RIGHT, 1.0), trailing)
+		knee = lerpf(knee, 0.0, trailing)
+		# Rolled up in a ball, his legs are placed from his hips, not from the
+		# ground, and turn over with the rest of him: knees drawn up and apart,
+		# one either side of his chest, heels in under his seat, feet drawn up
+		# out of the way of his head. (See _legs_in.)
+		# (Over one shoulder, his head is down on that side: that knee is out
+		# wider, to make room for it.)
+		var crowded := maxf(side * _shouldered, 0.0)
+		placed = placed.lerp(Vector3(side * (_hip_width + 0.015), -0.19, 0.12), _legs_in)
+		footing = footing.slerp(Basis(Vector3.UP, side * 0.25) * Basis(Vector3.RIGHT, 0.2), _legs_in)
+		knee = lerpf(knee, side * (0.5 + 0.4 * crowded), _legs_in)
 		# Lying curled on his side, they are drawn up: the one that is under less
 		# than the one on top, which lies forward over it. Asleep, a foot twitches now and then.
 		if _lie_at > 0.0:
@@ -1805,6 +1903,16 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 			var pointed := lerpf(lerpf(lerpf(0.75, 1.15 + cos(beat) * 0.2 * _swim_fast, _swim_go), 0.25, drawn * kicking), 1.2, _dive_in)
 			footing = footing.slerp(Basis(Vector3.UP, side * (0.25 + 0.5 * maxf(drawn, whipped) * kicking)) * Basis(Vector3.RIGHT, pointed), _swim)
 			knee = lerpf(knee, side * lerpf(0.5, 1.0 * drawn * (1.0 - _swim_fast), _swim_go) * (1.0 - _dive_in), _swim)
+		# Off the ground, a leg reaching for something further off than it is long
+		# comes straight by degrees, and bends again by degrees: without this the
+		# knee locks, and snaps as it lets go.
+		var unplanted := maxf(aloft, pushing) * (1.0 - _hang) * (1.0 - _swim)
+		var from_hip := placed - Vector3(side * _hip_width, _hip_drop, 0.0)
+		var full := _thigh + _shin
+		var far := from_hip.length()
+		if unplanted > 0.0 and far > full * 0.95:
+			var eased := full * (0.95 + 0.05 * (1.0 - exp(-(far - full * 0.95) / (full * 0.05))))
+			placed -= from_hip * (1.0 - eased / far) * unplanted
 		_planted[i] = on_ground > 0.5
 		_solve_leg(i, side, placed, footing, knee)
 
@@ -1984,10 +2092,11 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 		# Take-off throws the arms up and forward; landing spreads them for balance.
 		pitch = lerpf(pitch, -1.9, _launch * _launch)
 		elbow = lerpf(elbow, -0.6, _launch * _launch)
+		# (out and down in front of him, as his weight comes down onto his feet)
 		var landing := _land * (1.0 - _air)
-		pitch = lerpf(pitch, 0.35, landing)
-		roll = lerpf(roll, side * 0.7, landing)
-		elbow = lerpf(elbow, -0.7, landing)
+		pitch = lerpf(pitch, lerpf(-0.45, 0.2, _leap), landing)
+		roll = lerpf(roll, side * 0.62, landing)
+		elbow = lerpf(elbow, -0.85, landing)
 		curl = lerpf(curl, 0.1, landing)
 		splay = lerpf(splay, 1.0, landing)
 
@@ -2371,6 +2480,16 @@ func _on_jumped() -> void:
 	_jump_vary = Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0))
 	# Tuck whichever leg is already swinging forward.
 	_lead_leg = 1 if _phase < 0.5 else 0
+	_jumped = 1.0
+	# (each foot from where it is: out of a run, the one that drives him is behind him already)
+	for i in 2:
+		_sprang_from[i] = Vector3(_foot_world[i].x, global_position.y, _foot_world[i].z)
+		# (a foot already off the ground and on its way forward is not brought back to push)
+		_drove[i] = 1.0 - smoothstep(0.02, 0.12, _foot_world[i].y - global_position.y)
+	# (and his arms are thrown into it: both up together from a standstill; out
+	# of a run the one opposite that knee forward and the other back)
+	for i in 2:
+		_arm_speed[i].x += lerpf(-9.0, 5.0 if i == _lead_leg else -7.0, _leap)
 
 
 func _on_landed(impact_speed: float) -> void:
@@ -2394,6 +2513,8 @@ func _on_landed(impact_speed: float) -> void:
 	if _dust and impact_speed > 3.0 and dust_scale > 0.0:
 		_dust.puff(global_position + Vector3.UP * 0.03, Vector3.ZERO, clampf(impact_speed * 0.016, 0.1, 0.24) * dust_scale, 5 if hard else 3, 1.4)
 	_land = 0.0 if hard else clampf((impact_speed - 2.0) / 7.0, 0.25, 1.0)
+	_give = 0.0 if hard else clampf((impact_speed - 3.0) / 6.0, 0.0, 1.0)
+	_give_at = 0.0
 
 
 ## A foot went to the wall and he sprang off it. That leg is left stretched
@@ -2472,6 +2593,10 @@ func _on_respawned() -> void:
 	_air = 0.0
 	_launch = 0.0
 	_land = 0.0
+	_jumped = 0.0
+	_give = 0.0
+	_give_at = 1.0
+	_legs_in = 0.0
 	_skid = 0.0
 	_sprint = 0.0
 	_hat = 0.0
@@ -3232,10 +3357,16 @@ func _solve_arm(i: int, side: float, point: Vector3, fore_length: float, weight:
 	var fore_direction := (from + direction * reach - elbow_at).normalized()
 
 	var parent := (shoulder.get_parent() as Node3D).global_basis.orthonormalized()
-	shoulder.basis = shoulder.basis.orthonormalized().slerp(parent.inverse() * _aim(upper_direction, forward), weight)
+	# (Which way up an arm lies is taken from the way he faces, and so turns
+	# right over as the arm goes past pointing straight ahead: which the front
+	# arm does in a swing of the bat. With a bat it is taken from a line tipped
+	# well away from that: up while he swings, since the swing goes round him
+	# level, and out to the side while he only holds it, or stoops to take it.)
+	var ahead := (forward + Vector3.UP * 0.8 * _swinging * _bat + left * side * 0.8 * (1.0 - _swinging) * _bat).normalized()
+	shoulder.basis = shoulder.basis.orthonormalized().slerp(parent.inverse() * _aim(upper_direction, ahead), weight)
 	var elbow := _elbows[i]
 	var upper := shoulder.global_basis.orthonormalized()
-	elbow.basis = elbow.basis.orthonormalized().slerp(upper.inverse() * _aim(fore_direction, forward), weight)
+	elbow.basis = elbow.basis.orthonormalized().slerp(upper.inverse() * _aim(fore_direction, ahead), weight)
 
 
 ## Basis whose -Y axis points along `direction`, with +Z as near `ahead` as it can be.

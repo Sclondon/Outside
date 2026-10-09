@@ -164,7 +164,16 @@ Nothing is a clip; `scripts/character_rig.gd` poses him every frame.
 - **On stairs** his feet go on the treads. The Player looks along his way for a flight (two risers or more: a kerb
   or a ramp is not one) and says so in `on_stairs`, `stair_rise`, `stair_run`; the rig then steps one tread at a walk
   and two at a run, knee high going up, toes first coming down.
+- **A jump has a take-off, a top and a landing.** The leg that drives him off the ground is left stretched out behind,
+  reaching for where it stood, toes last; from a standstill that is both legs, and he goes up stretched out. Over the
+  top he gathers: knees up from a standstill; out of a run the front leg swings out ahead and the back one folds up
+  behind. Coming down he reaches for the ground, lands on the leg he is reaching with (his stride is taken up again
+  from there), and gives at the knees, coming up out of it more slowly than he went down (`LAND_GIVE` in the rig).
+  Which of the three he is in goes with how fast he is rising or falling, so a short hop and a long drop both work.
 - **In the air his arms are thrown, not posed**: each follows where it is wanted on a spring, forearm after upper arm.
+- **Rolled up in a ball** (a hard landing, a dive, a back tuck) his legs are placed from his hips and go round with
+  him: knees apart either side of his chest, heels under his seat. They are the last of him to be drawn in: off his
+  feet they are still on the ground for a moment, and out of a dive they come over the top after him.
 - **His cap** is an object of its own on a bone of its own (`cap`), and rides on his head on a spring: it lifts and
   tips with every jolt, unless he has a hand on it.
 - **Dust** (`scripts/dust.gd`) puffs up where his feet come down, where he lands, and along the ground as he slides,
@@ -278,7 +287,12 @@ A picture cannot show a joint that shakes, so the same run also watches every bo
 each sheet, a line `SHAKE <sheet>` and the bones that turned back on themselves from one frame to the next (`shakes`),
 or whose turning changed by more than a few degrees in one frame (`jump`, a flip if it is near 180), and the frame it
 was worst on. `SHAKE_TRACE=<bone>` in the environment prints that bone's turn on every frame. `jump` also draws
-`jump_close` and `jump_round`: the knee coming up, from close and from all round.
+`jump_close` and `jump_round`: the knee coming up, from close and from all round. `roll` draws the two rolls from
+close to, every other frame (`roll_land`, `roll_dive`, and each again from three quarters), and prints a line `LEGS`
+for every frame: how high each knee, ankle and toe is off the ground, how far each is from his chest and his head,
+and whether his ankles have crossed (`LEGS_WHERE=1` adds where his head and knees are from his hips). Whatever he
+does by chance (which knee goes down, how his arms fly) he does the same way each time a sheet is drawn, so two runs
+can be compared.
 The hounds' rig reads their joints from their skeletons too, so the two breeds can differ in any measurement.
 
 ## The hounds
