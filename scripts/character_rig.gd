@@ -163,6 +163,35 @@ const PITCH_KICK_Y := [0.0, 0.0, 0.24, 0.36, 0.34, 0.24, 0.46, 0.0, 1.0, 0.0]
 const PITCH_KICK_Z := [0.0, 0.0, 0.24, 0.1, 0.46, 0.52, 0.8, 0.52, 1.0, 0.12]
 const PITCH_DRIVE_Y := [0.0, 0.0, 0.56, 0.0, 0.7, 0.16, 0.86, 0.0]
 const PITCH_DRIVE_Z := [0.0, -0.04, 0.46, -0.24, 0.6, -0.3, 0.86, 0.1, 1.0, 0.0]
+## Swinging on a rope, against how it is carrying him: 0 is back as fast as it
+## goes, 0.5 the top of a swing (or hanging still), 1 forward as fast as it
+## goes. Where a foot is (up from the ground under him, and ahead), and how
+## far its toes point down.
+const ROPE_LEG_Y := [0.0, 0.36, 0.25, 0.2, 0.5, 0.08, 0.75, 0.13, 1.0, 0.27]
+const ROPE_LEG_Z := [0.0, -0.3, 0.25, -0.17, 0.5, 0.02, 0.75, 0.25, 1.0, 0.44]
+const ROPE_LEG_TOES := [0.0, 1.0, 0.5, 0.6, 1.0, -0.15]
+## Throwing a grappling hook, against how far through the throw he is (it
+## leaves his hand at Player.CAST_RELEASE): swung back and down beside him,
+## then forward and up, underarm, and let go as it rises; the arm follows it
+## up and stays up while the hook is out. His body: how far it is turned (the
+## shoulder of the throwing arm going back, then through), how far it leans,
+## and how far his hips sink. The throwing arm: swung forward (negative) or
+## back, out from his side, and the bend of its elbow. And the other arm,
+## which is put up towards what he throws at.
+const HOOK_TURN := [0.0, 0.0, 0.3, -0.55, 0.45, -0.5, 0.64, 0.3, 1.0, 0.1]
+const HOOK_LEAN := [0.0, 0.0, 0.3, 0.22, 0.45, 0.2, 0.64, -0.12, 1.0, -0.1]
+const HOOK_HIPS_Y := [0.0, 0.0, 0.3, -0.07, 0.45, -0.08, 0.66, 0.02, 1.0, 0.0]
+const HOOK_ARM := [0.0, -0.2, 0.22, 0.75, 0.4, 1.05, 0.52, -0.6, 0.62, -1.9, 0.78, -2.45, 1.0, -2.25]
+const HOOK_OUT := [0.0, 0.3, 0.3, 0.5, 0.6, 0.25, 1.0, 0.2]
+const HOOK_ELBOW := [0.0, -0.5, 0.3, -0.3, 0.52, -0.55, 0.64, -0.1, 1.0, -0.25]
+const HOOK_GUIDE := [0.0, -0.3, 0.3, -1.25, 0.5, -1.2, 0.7, -0.5, 1.0, -0.4]
+## Its rope coming taut in his hands, against how long ago it did: how far he is
+## stretched out under it, jerked off his feet, before he gathers himself.
+const TAUT_JOLT := [0.0, 0.0, 0.22, 1.0, 0.55, 0.35, 1.0, 0.0]
+## Winding the rope back in, against how far through one pull a hand is: it
+## reaches out up the line and is drawn back to his chest, the two hands turn about.
+const REEL_ARM := [0.0, -1.4, 0.5, -0.8, 1.0, -1.4]
+const REEL_ELBOW := [0.0, -0.85, 0.5, -1.8, 1.0, -0.85]
 
 ## A back tuck, against how far through it he is: how far over backwards he has
 ## turned, radians (once round), and how tightly he is tucked. He goes up
@@ -360,6 +389,16 @@ var _crawl := 0.0
 var _bat := 0.0
 ## How far he is holding a torch up (anything he carries that is in the group `torches`).
 var _torch := 0.0
+## How far he is holding a grappling hook's coil at his side (anything he
+## carries that is in the group `grapples`); how far through throwing it he
+## is, and how far into that throw (or its follow-through, while the hook is
+## out); and how far through winding it in, and how far into that.
+var _coil := 0.0
+var _cast_at := 1.0
+var _casting := 0.0
+var _reel_at := 1.0
+var _reeling := 0.0
+var _taut := 0.0
 var _swinging := 0.0
 var _swing_at := 1.0
 var _bat_grip := Vector3(-0.16, 0.95, 0.1)
@@ -497,6 +536,8 @@ var _watching := 0.0
 ## whether he is going up it (1) or down (-1).
 var _rope_swing := Vector2.ZERO
 var _rope_climb := 0.0
+## And how hard he is swinging on it, 0..1: enough, and his legs let go of it.
+var _rope_ride := 0.0
 ## On a ladder: going up (1) or down (-1), eased; how long he has been still;
 ## hanging off it by one hand to look about, 0..1; getting off the top, 0..1;
 ## and how far each hand has let go of what the body gives it.
@@ -646,6 +687,11 @@ func _process(delta: float) -> void:
 	_time += delta
 
 	var velocity: Vector3 = _player.velocity
+	# On a rope he goes where it takes him, however fast: that is its doing and
+	# not his, and only the swing of it comes into how he holds himself.
+	var swung := velocity
+	if &"state" in _player and _player.state == Player.State.ROPE:
+		velocity = Vector3.ZERO
 	var flat := Vector3(velocity.x, 0.0, velocity.z)
 	var speed := flat.length()
 	var grounded: bool = _player.is_on_floor() or (&"air_time" in _player and _player.air_time < 0.1)
@@ -709,10 +755,13 @@ func _process(delta: float) -> void:
 	_kick = _approach(_kick, 0.0, 7.5, delta)
 	_watching -= delta
 	# On a rope: which way it is carrying him, and whether he is climbing.
-	var carried_along := Vector2(velocity.dot(global_basis.z), velocity.dot(global_basis.x)) if doing == Player.State.ROPE else Vector2.ZERO
+	var carried_along := Vector2(swung.dot(global_basis.z), swung.dot(global_basis.x)) if doing == Player.State.ROPE else Vector2.ZERO
 	_rope_swing = _rope_swing.lerp(carried_along, 1.0 - exp(-6.0 * delta))
 	var hauling: float = clampf((_player.rope_travel - _rope_phase) / delta / 1.5, -1.0, 1.0) if doing == Player.State.ROPE else 0.0
 	_rope_climb = _approach(_rope_climb, hauling, 8.0, delta)
+	# Swinging in earnest his legs leave the rope and go with the swing; they
+	# stay off it through the top of each swing, and come back to it to climb.
+	_rope_ride = maxf(_rope_ride - delta * 0.6, smoothstep(1.4, 3.6, swung.length())) if doing == Player.State.ROPE else 0.0
 	# On a ladder: going up or down; and left alone a moment he hangs off it by one hand.
 	var on_ladder := doing == Player.State.LADDER
 	_ladder_off = _player.ladder_off if on_ladder and &"ladder_off" in _player else _approach(_ladder_off, 0.0, 12.0, delta)
@@ -727,7 +776,7 @@ func _process(delta: float) -> void:
 	_swinging = _approach(_swinging, swinging_now, 30.0 if swinging_now > _swinging else 5.5, delta)
 	# With something in his hand and nothing to do, he tosses it and catches it.
 	_torch = _approach(_torch, 1.0 if holding and _player.carried.is_in_group(&"torches") else 0.0, 8.0, delta)
-	if holding and _bat < 0.5 and _gun < 0.5 and _torch < 0.5 and _casual > 0.8 and _carry > 0.95:
+	if holding and _bat < 0.5 and _gun < 0.5 and _torch < 0.5 and _coil < 0.5 and _casual > 0.8 and _carry > 0.95:
 		_juggle = fposmod(_juggle + delta / 2.1, 1.0)
 	else:
 		_juggle = 0.4 if _juggle > 0.34 or _juggle < 0.001 else minf(_juggle + delta / 2.1, 0.4)
@@ -791,6 +840,14 @@ func _process(delta: float) -> void:
 	_grab = smoothstep(0.1, 0.42, _picking) * (1.0 - smoothstep(Player.PICKUP_TAKES, Player.PICKUP_TAKES + 0.16, _picking))
 	_pitch_at = _player.throw_progress if &"throw_progress" in _player else 1.0
 	_pitching = _approach(_pitching, smoothstep(0.0, 0.1, _pitch_at) * (1.0 - smoothstep(0.82, 1.0, _pitch_at)), 30.0, delta)
+	# A grappling hook: held, thrown (and still out), its rope coming taut, wound in.
+	_coil = _approach(_coil, 1.0 if holding and _player.carried.is_in_group(&"grapples") else 0.0, 8.0, delta)
+	_cast_at = _player.cast_progress if &"cast_progress" in _player else 1.0
+	var casting_now := smoothstep(0.0, 0.1, _cast_at) if _cast_at < 1.0 else (1.0 if &"hook_out" in _player and _player.hook_out and doing == Player.State.FREE else 0.0)
+	_casting = _approach(_casting, casting_now, 30.0 if casting_now > _casting else 7.0, delta)
+	_reel_at = _player.reel_progress if &"reel_progress" in _player else 1.0
+	_reeling = _approach(_reeling, smoothstep(0.0, 0.12, _reel_at) * (1.0 - smoothstep(0.85, 1.0, _reel_at)) * (1.0 - _rope), 20.0, delta)
+	_taut = _keyed(TAUT_JOLT, _player.taut_progress) * _rope if &"taut_progress" in _player else 0.0
 	_reach = _approach(_reach, _player.hand_reach if &"hand_reach" in _player else 0.0, 14.0, delta)
 	var pressing: bool = &"hand_normal" in _player and _player.hand_normal != Vector3.ZERO
 	_flat = _approach(_flat, 1.0 if pressing else 0.0, 14.0, delta)
@@ -1288,7 +1345,8 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 		var pump := clampf(_rope_swing.x * 0.25, -1.0, 1.0)
 		var pull := sin(TAU * _rope_phase / Player.ROPE_PULL)
 		at += Vector3(clampf(_rope_swing.y * 0.012, -0.04, 0.04), (0.05 + pull * 0.022 * absf(_rope_climb)) * _rope, 0.03 + pump * 0.07) * _rope
-		lean += (0.12 - pump * 0.3) * _rope
+		# (carried back he does not double over the rope as far as, carried forward, he lies back from it)
+		lean += (0.12 - pump * (0.3 if pump > 0.0 else 0.1)) * _rope
 		tuck -= pump * 0.18 * _rope
 		arch += pump * 0.12 * _rope
 		chin += (-0.3 * maxf(_rope_climb, 0.0) + 0.35 * maxf(-_rope_climb, 0.0) - 0.12 * absf(pump)) * _rope
@@ -1450,7 +1508,15 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	# (his head stays on the ball while his chest goes round under it)
 	chin += 0.12 * _swinging * _bat * sin(PI * clampf(_swing_at / 0.6, 0.0, 1.0))
 	# Throwing: side on to wind up, then round and over his front foot. (See the PITCH_ curves.)
-	var wound := _keyed(PITCH_TURN, _pitch_at) * _pitching + bat_turn
+	var wound := _keyed(PITCH_TURN, _pitch_at) * _pitching + bat_turn + _keyed(HOOK_TURN, _cast_at) * _casting
+	# Throwing a hook: he sinks and leans as it swings back beside him, and comes up after it. (See the HOOK_ curves.)
+	at.y += _keyed(HOOK_HIPS_Y, _cast_at) * _casting
+	lean += _keyed(HOOK_LEAN, _cast_at) * _casting
+	chin -= 0.3 * smoothstep(0.3, 0.7, _cast_at) * _casting
+	# Its rope taking his weight: stretched out under his hands, his back hollowed, looking up it.
+	at.y -= 0.05 * _taut
+	arch += 0.3 * _taut
+	chin -= 0.3 * _taut
 	at += Vector3(0.0, _keyed(PITCH_HIPS_Y, _pitch_at), _keyed(PITCH_HIPS_Z, _pitch_at)) * _pitching
 	lean += _keyed(PITCH_LEAN, _pitch_at) * _pitching
 	turned += wound * 0.6
@@ -1698,9 +1764,17 @@ func _pose_legs(stride: float, stance: float, gait: float) -> void:
 		# On a rope: knees up, feet gripping, shifting as the hands do.
 		# (one foot in front of it and the other behind, the rope between his insteps)
 		var inching := sin(TAU * _rope_phase / (Player.ROPE_PULL * 2.0) + i * PI)
-		target = target.lerp(Vector3(side * 0.035, ANKLE + 0.24 + inching * 0.06 + side * 0.025, 0.2 if i == 0 else 0.12), _rope)
-		pitch = lerpf(pitch, 0.35 if i == 0 else 0.7, _rope)
-		knee = lerpf(knee, side * 0.55, _rope)
+		var gripping := Vector3(side * 0.035, ANKLE + 0.24 + inching * 0.06 + side * 0.025, 0.2 if i == 0 else 0.12)
+		# Swinging, they go with it instead: hanging under him through the middle,
+		# kicked out ahead as it carries him forward, and folded back, trailing, as
+		# it carries him back. (See the ROPE_LEG_ curves; one leg a little ahead of the other.)
+		var riding := maxf(_rope_ride * (1.0 - absf(_rope_climb)), _taut)
+		# (a rope that has just taken his weight has his legs left behind him)
+		var carry := lerpf(clampf(_rope_swing.x / 5.0, -1.0, 1.0) * 0.5 + 0.5, 0.12, _taut)
+		var swept := Vector3(side * 0.075, ANKLE + _keyed(ROPE_LEG_Y, carry), _keyed(ROPE_LEG_Z, carry) + (0.05 if i == 0 else -0.03))
+		target = target.lerp(gripping.lerp(swept, riding), _rope)
+		pitch = lerpf(pitch, lerpf(0.35 if i == 0 else 0.7, _keyed(ROPE_LEG_TOES, carry), riding), _rope)
+		knee = lerpf(knee, side * lerpf(0.55, 0.12, riding), _rope)
 		# Off a wall: the leg that pushed is left out behind him, at the wall.
 		if i == _kick_leg and _kick > 0.01:
 			# (it is there in a moment, not in no time at all)
@@ -2173,6 +2247,10 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 			pitch = lerpf(pitch, -1.15 + swing * 0.12, _torch * (1.0 - _stoop))
 			roll = lerpf(roll, side * 0.5, _torch)
 			elbow = lerpf(elbow, -0.75, _torch)
+			# (a hook's coil hangs from his hand at his side, held a little out to clear his leg)
+			pitch = lerpf(pitch, 0.05 + swing * 0.2, _coil * (1.0 - _stoop))
+			roll = lerpf(roll, side * 0.3, _coil)
+			elbow = lerpf(elbow, -0.4, _coil)
 			curl = lerpf(lerpf(curl, 0.95, _carry), lerpf(0.1, 0.95, smoothstep(Player.PICKUP_TAKES - 0.12, Player.PICKUP_TAKES, _picking)), _stoop)
 			splay = lerpf(splay, 0.9, _stoop)
 		else:
@@ -2193,6 +2271,25 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 				roll = lerpf(roll, side * _keyed(PITCH_GLOVE_OUT, _pitch_at), _pitching)
 				elbow = lerpf(elbow, _keyed(PITCH_GLOVE_ELBOW, _pitch_at), _pitching)
 				curl = lerpf(curl, 0.7, _pitching)
+
+		# Throwing a grappling hook, underarm. (See the HOOK_ curves.)
+		if _casting > 0.001:
+			if i == 1:
+				pitch = lerpf(pitch, _keyed(HOOK_ARM, _cast_at), _casting)
+				roll = lerpf(roll, side * _keyed(HOOK_OUT, _cast_at), _casting)
+				elbow = lerpf(elbow, _keyed(HOOK_ELBOW, _cast_at), _casting)
+				curl = lerpf(curl, 0.9, _casting)
+			else:
+				pitch = lerpf(pitch, _keyed(HOOK_GUIDE, _cast_at), _casting)
+				roll = lerpf(roll, side * 0.25, _casting)
+				elbow = lerpf(elbow, -0.3, _casting)
+		# Winding it in: hand over hand in front of his chest. (See the REEL_ curves.)
+		if _reeling > 0.001:
+			var pull := fposmod(_reel_at * 3.0 + 0.5 * i, 1.0)
+			pitch = lerpf(pitch, _keyed(REEL_ARM, pull), _reeling)
+			roll = lerpf(roll, side * 0.08, _reeling)
+			elbow = lerpf(elbow, _keyed(REEL_ELBOW, pull), _reeling)
+			curl = lerpf(curl, 0.9, _reeling)
 
 		pitch = lerpf(pitch, -1.35 + sin(_time * 1.3 + i * 1.7) * 0.08, arms_reach)
 		roll = lerpf(roll, -side * 0.05, arms_reach)
@@ -2419,7 +2516,7 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 			elbow = lerpf(elbow, -1.6, _hat)
 		# Pressed against something, the hand is flat and the fingers spread;
 		# unless they are hooked over the edge of it.
-		var pressed := _flat * _reach * (1.0 - _carry if i == 1 else 1.0)
+		var pressed := _flat * _reach * (1.0 - _carry * (1.0 - _coil) if i == 1 else 1.0)
 		curl = lerpf(curl, -0.08, pressed * (1.0 - _hook))
 		splay = lerpf(splay, lerpf(1.25, 0.45, _hook), pressed)
 
@@ -2585,6 +2682,8 @@ func _on_respawned() -> void:
 	_carry = 0.0
 	_stoop = 0.0
 	_pitching = 0.0
+	_casting = 0.0
+	_reeling = 0.0
 	_reach = 0.0
 	_reach_held = false
 	_three = 0.0
@@ -3283,12 +3382,15 @@ func _reach_arms() -> void:
 		for i in 2:
 			var side := 1.0 if i == 0 else -1.0
 			# The right hand keeps hold of anything it is carrying.
-			var weight := _reach * (1.0 - _carry if i == 1 else 1.0) * (1.0 - _reach_let[i])
+			var weight := _reach * (1.0 - _carry * (1.0 - _coil) if i == 1 else 1.0) * (1.0 - _reach_let[i])
 			# (eased towards, so a target that hops does not jerk the arm: in the
 			# world, where what he has hold of stays put while he moves past it,
 			# or in his own space on a rope, which goes where he goes)
 			var eased_from := to_local(_hand_world[i]) if _rope < 0.5 and ease_in < 1.0 else _hand_targets[i]
-			_hand_targets[i] = eased_from.lerp(to_local(points[i]), ease_in)
+			# (once he has let go, the hand comes away from where it was on him: what
+			# it had hold of is no longer anything to reach back for)
+			if not (&"hand_reach" in _player) or _player.hand_reach > 0.0:
+				_hand_targets[i] = eased_from.lerp(to_local(points[i]), ease_in)
 			_hand_world[i] = to_global(_hand_targets[i])
 			var point := to_global(_hand_targets[i])
 			# Gripping, the arm reaches as far as the middle of the hand. Pressing,
@@ -3300,7 +3402,10 @@ func _reach_arms() -> void:
 				fingers = along.slide(_press_normal).normalized()
 				point -= fingers * palm_length
 				fore_length = _forearm
-			_solve_arm(i, side, point, fore_length, weight)
+			# (On a rope his elbows are kept out to the sides: his arms go up over his head and down in
+			# front of him there, and elbows that hung down would swing right round as they went by upright.)
+			var out := (Vector3.DOWN + left * side * 0.6 - global_basis.z.normalized() * 0.3).lerp(left * side - global_basis.y.normalized() * 0.45 - global_basis.z.normalized() * 0.2, _rope)
+			_solve_arm(i, side, point, fore_length, weight, out if _rope > 0.001 else Vector3.ZERO)
 			if pressing:
 				# The palm faces into the surface (it is the side of the hand towards his body).
 				var across := _press_normal * side
@@ -3369,7 +3474,9 @@ func _solve_arm(i: int, side: float, point: Vector3, fore_length: float, weight:
 	# arm does in a swing of the bat. With a bat it is taken from a line tipped
 	# well away from that: up while he swings, since the swing goes round him
 	# level, and out to the side while he only holds it, or stoops to take it.)
-	var ahead := (forward + Vector3.UP * 0.8 * _swinging * _bat + left * side * 0.8 * (1.0 - _swinging) * _bat).normalized()
+	# (And on a rope from a line tipped out to the side: his arms go from over his head to
+	# straight out ahead of him and back with every swing.)
+	var ahead := (forward + Vector3.UP * 0.8 * _swinging * _bat + left * side * 0.8 * (1.0 - _swinging) * _bat + left * side * 1.2 * _rope).normalized()
 	shoulder.basis = shoulder.basis.orthonormalized().slerp(parent.inverse() * _aim(upper_direction, ahead), weight)
 	var elbow := _elbows[i]
 	var upper := shoulder.global_basis.orthonormalized()

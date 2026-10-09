@@ -37,8 +37,19 @@ orbits there: drag the upper right of the screen, hold the right mouse button, o
   1.5 m, on one knee and a fist, held a moment; from about 2.3 m he goes on over them, flat on his front, and pushes
   himself up (or, if he is still being steered, scrambles up off his hands at a run); from about 3 m, in a stumble that
   his legs cannot catch up with and that goes over in a roll almost at once; straight over in a roll from 4 m and more.
-- **Climb a rope** (`scripts/rope.gd`) by jumping into it; up and down climb, left and right set it swinging, jump
-  leaps off with whatever swing it has. The rope is a simulated chain: it bends and swings under him.
+- **Swing on a rope** (`scripts/rope.gd`) by jumping into it (he catches one at arm's length if he is going its way).
+  The stick throws his weight about, whichever way it is pushed as the camera sees it: with the swing it builds it,
+  against it checks it, and left alone it dies away (`rope_pump`, `rope_brake`, `rope_swing_limit` on the Player).
+  Act, held, climbs; duck lets him down it, and off the end; climbing on at the top takes him onto a ledge there if
+  there is one. A shorter rope swings quicker. Jump lets go, and he keeps what the swing gave him: let go as it
+  rises ahead of him, it throws him forward and up (`rope_leap`). His legs go with it, kicked out ahead on the way
+  forward and folded back behind on the way back. While he is on it he is a weight on a line (`load_at`), the rope
+  above him pulled straight and the rest trailing; nobody on it, it is a chain that hangs and swings.
+- **Throw a grappling hook** (`scripts/grapple.gd`): anything in the group `grapples`. Carrying it, the nearest thing
+  in front of him that a hook will hold on (a `GrapplePoint`, `scripts/grapple_point.gd`, or anything in the group
+  `grapple_points`), within its `reach`, above him and in plain sight, has a ring drawn over it. Act throws the hook
+  there; it bites, its rope takes him off his feet and he is swinging on it as on any rope. When he lets go the hook
+  comes away and he winds it in. With nothing in reach the throw falls short. Duck and act puts it down.
 - **Climb a ladder** (`scripts/ladder.gd`) by walking or jumping into it; he steps off at the top, jump leaps off backwards.
   Walking out over the top of one from above, he turns round and gets onto it. Left alone on it a moment he hangs
   out from it by one hand to look about.
@@ -205,7 +216,9 @@ and restarts. Colours last until the game is closed.
 | `scripts/heat_mirage.gd` | Heat over the desert: far things near the level of the eye swim, and pools of sky lie on the far sand |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
 | `scripts/test_yard.gd` | The test yard (`test_yard.tscn`) |
-| `scripts/rope.gd` | A rope to climb and swing on, simulated as a chain |
+| `scripts/rope.gd` | A rope to swing on and climb: a pendulum under whoever is on it, a chain otherwise |
+| `scripts/grapple.gd` | A grappling hook on a coil of rope: finds what it will catch, flies there, hangs a rope from it, is wound back in |
+| `scripts/grapple_point.gd` | Somewhere a hook will catch; marks them on props of its own accord |
 | `scripts/ladder.gd`, `scripts/pool.gd` | A ladder; a box of water to swim in |
 | `scripts/dust.gd` | Puffs of dust, drawn all at once as one MultiMesh |
 | `scripts/toon.gd` | Cel shading: two flat tones for the figures, and optionally the world; a shader for hair; the pinstripe in his shirt |
@@ -470,3 +483,20 @@ and now less far (`breathing`). `tools/fire_sheets.gd -- <folder>` draws each ki
 A `HandTorch` (`scripts/torch.gd`) is a burning torch to carry: act picks it up, and he holds it up in front of him as he
 goes; act throws it, duck and act puts it down, and it goes on burning where it lies. There is one by the fire in the test
 yard, and "Torch to carry" is on the level editor's Puzzle page.
+
+A `GrappleHook` (`scripts/grapple.gd`) is a grappling hook to carry; its station in the test yard has a gap between two
+decks to swing across and two gallows to swing from. A level says what a hook will catch in any of these ways:
+
+```gdscript
+add_child(GrapplePoint.new())                      # a node where the hook is to bite (`ring` shows an iron ring there)
+GrapplePoint.mark(beam, Vector3(2.4, 0.9, 0.0))    # the same, on something, in its own space
+GrapplePoint.auto(prop, "lintel")                  # wherever that kind of prop holds one (`GrapplePoint.HOLDS`)
+anything.add_to_group(&"grapple_points")           # or any Node3D at all
+```
+
+Levels made in the editor get the third for nothing: every lintel, scaffold and awning holds a hook at both ends,
+every column, obelisk, statue and palm at its top, and any Marker3D named `Grapple...` in a prop's scene is one. "Grappling
+hook" and "Grapple point" are on the editor's Puzzle page. `tools/grapple_test.gd` runs the whole of it with nothing
+drawn (ends PASSED or FAILED); `tools/rope_numbers.gd` prints how a rope swings: how surely it is caught, how the swing
+grows when pumped and dies when left, what he carries off it at each point of the swing, and what climbing does to it.
+`rope` and `grapple` among the names given to `tools/pose_sheets.gd` draw both.

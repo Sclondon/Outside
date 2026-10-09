@@ -62,6 +62,8 @@ enum Rest {
 ## through a throw it leaves it.
 const PICKUP_TAKES := 0.5
 const THROW_RELEASE := 0.56
+## How far through its throw a grappling hook leaves his hand.
+const CAST_RELEASE := 0.6
 ## How far through a sprawl he is down on his front, and may scramble off
 ## instead of getting up (from, to).
 const SCRAMBLE := Vector2(0.24, 0.62)
@@ -143,7 +145,21 @@ const DIVE_IN_TAKES := 0.55
 @export var climb_time := 1.45
 ## How fast he works his way along a ledge he is hanging from.
 @export var shimmy_speed := 0.8
+## How fast he climbs a rope, and how fast he lets himself down it.
 @export var rope_speed := 1.5
+@export var rope_slide_speed := 3.4
+## How near a rope has to pass for him to catch it: whatever he does, and when
+## he is going towards it (or reaching for it with the stick).
+@export var rope_reach := Vector2(0.45, 0.7)
+## How hard he can throw his weight into a swing, m/s²; how quickly he can stop
+## one by throwing it against (per second); and how far round from straight
+## down he can work it up to, in degrees.
+@export var rope_pump := 4.0
+@export var rope_brake := 1.4
+@export var rope_swing_limit := 56.0
+## Leaping off a rope: the push he gives himself the way he is going, m/s, and
+## how much of a jump's lift goes with it. (The rest is the swing's own.)
+@export var rope_leap := Vector2(1.6, 0.7)
 @export var ladder_speed := 1.5
 
 @export_group("Crawling and swimming")
@@ -164,6 +180,11 @@ const DIVE_IN_TAKES := 0.55
 ## How long it takes him to stoop for something, and to wind up and throw it.
 @export var pickup_time := 0.55
 @export var throw_time := 0.8
+## How long the wind-up and throw of a grappling hook take, how long he is
+## winding it back in, and how far off the ground it lifts him as it takes his weight.
+@export var cast_time := 0.62
+@export var reel_time := 0.7
+@export var grapple_lift := 0.55
 
 @export_group("Landing")
 ## Coming down faster than these (m/s) he lands on three points, goes sprawling,
@@ -294,6 +315,13 @@ var is_scrambling := false
 ## (1: he is doing neither); and where the thing he is stooping for lies.
 var pickup_progress := 1.0
 var throw_progress := 1.0
+## The wind-up and throw of a grappling hook, 0..1 (it leaves his hand at
+## CAST_RELEASE); whether it is out on its line; winding it back in, 0..1; and
+## its rope coming taut in his hands, 0..1.
+var cast_progress := 1.0
+var hook_out := false
+var reel_progress := 1.0
+var taut_progress := 1.0
 var pickup_point := Vector3.ZERO
 ## The top edge he is hanging from, where his chest is: a point on the corner
 ## itself. And whether there is wall below it for his feet, or only air.
@@ -391,6 +419,22 @@ var _pool: Pool
 ## How far down the rope his hands are.
 var _rope_at := 0.0
 var _rope_heading := Vector3.ZERO
+## Act has been let go since he took hold of the rope (it climbs only when pressed afresh).
+var _rope_act := false
+## The rope he has just left, which he does not catch again at once.
+var _rope_left: Rope
+var _rope_rest := 0.0
+## The grappling hook whose rope he is on, if it is one.
+var _grapple: Node3D
+## What he is throwing a hook at (nothing, for a throw that will fall short).
+var _cast_at: Node3D
+## Being lifted off his feet by a hook's rope: the height his hands are to come to, and for how long it has been.
+var _take_up := Vector2.ZERO
+var _take_time := -1.0
+## Thrown off a rope: in the air he keeps the speed it gave him.
+var _flung := false
+## He has only just taken hold of the rope, and has still to be brought to it.
+var _rope_new := false
 ## Which way is up for what is seen of him: along the rope he is on.
 var _tilt := Vector3.UP
 ## Getting off the top of a ladder (1) or onto it from there (-1), and from where to where.
@@ -595,6 +639,9 @@ func _move(strength: float, delta: float) -> void:
 		now_grounded = _keep_to_ground(delta)
 	_was_grounded = now_grounded
 	air_time = 0.0 if now_grounded else air_time + delta
+	if now_grounded:
+		_flung = false
+		_rope_left = null
 
 	if state == State.FREE and carried == null and _grab_cooldown <= 0.0 and not is_diving:
 		_try_catch_ladder()
@@ -602,6 +649,7 @@ func _move(strength: float, delta: float) -> void:
 	if state == State.FREE or state == State.SLIDE:
 		_try_swim()
 	# Hands are free and he is in the air: catch a rope, or a ledge he is falling past.
+	_rope_rest -= delta
 	if not now_grounded and state == State.FREE and carried == null and _grab_cooldown <= 0.0:
 		if not _try_catch_rope() and velocity.y < 1.5:
 			_try_catch_ledge()
@@ -637,8 +685,14 @@ func _process(delta: float) -> void:
 	elif swing_progress < 1.0:
 		heading = Vector3.ZERO
 	elif state == State.ROPE:
-		# Left and right (as the camera sees them) choose which way he will leap off.
+		# He faces along the swing (see _climb_rope).
 		heading = _rope_heading.normalized() if _rope_heading.length() > 0.3 else Vector3.ZERO
+	elif cast_progress < 1.0 or hook_out:
+		# Throwing a hook, he turns to what he throws it at, and stays so while it is out.
+		heading = Vector3.ZERO
+		if is_instance_valid(_cast_at):
+			heading = Vector3(_cast_at.global_position.x - global_position.x, 0.0, _cast_at.global_position.z - global_position.z)
+			heading = heading.normalized() if heading.length() > 0.3 else Vector3.ZERO
 	elif _picking and pickup_progress < 1.0:
 		# He turns to what he is stooping for.
 		heading = Vector3(pickup_point.x - global_position.x, 0.0, pickup_point.z - global_position.z)
@@ -672,9 +726,13 @@ func _process(delta: float) -> void:
 	# On a rope he hangs along it, not bolt upright beside it: what is seen of
 	# him is tipped about his hands.
 	var up := Vector3.UP
-	if state == State.ROPE:
-		up = (_rope.point_at(_rope_at - 0.7) - _rope.point_at(_rope_at + 0.5)).normalized()
-	_tilt = _tilt.lerp(up, 1.0 - exp(-(7.0 if state == State.ROPE else 10.0) * delta)).normalized()
+	if state == State.ROPE and is_instance_valid(_rope):
+		# (along the line he hangs from, which is the rope above his hands; what
+		# trails below them does not come into it)
+		up = (_rope.point_at(_rope_at - 0.8) - _rope.point_at(_rope_at)).normalized()
+		# (taking his weight from where he stood, he is not laid over all at once)
+		up = Vector3.UP.slerp(up, 1.0 if _take_time < 0.0 else smoothstep(0.0, 0.5, _take_time)).normalized()
+	_tilt = _tilt.lerp(up, 1.0 - exp(-(9.0 if state == State.ROPE else 10.0) * delta)).normalized()
 	var turned := Basis(Vector3.UP, facing_yaw)
 	_rig.global_position = visual_position
 	if _tilt.y < 0.9999:
@@ -707,16 +765,23 @@ func _place_carried() -> void:
 		var upright := Basis(Vector3.UP, facing_yaw) * Basis(Vector3.RIGHT, 0.3) * Basis(Vector3.BACK, 0.18)
 		carried.global_basis = carried.global_basis.orthonormalized().slerp(upright, come) if come < 1.0 else upright
 		carried.global_position -= carried.global_basis.y * 0.14 * come
+	elif carried.is_in_group(&"grapples"):
+		# (a hook's coil hangs from his hand, the way he faces)
+		var level := Basis(Vector3.UP, facing_yaw)
+		carried.global_basis = carried.global_basis.orthonormalized().slerp(level, come) if come < 1.0 else level
 
 
 func respawn() -> void:
 	if is_limp:
 		_rig.recover()
 		is_limp = false
+	_drop_rope()
 	_let_go()
-	if _rope:
-		_rope.load_at = -1.0
-	_rope = null
+	cast_progress = 1.0
+	reel_progress = 1.0
+	taut_progress = 1.0
+	_flung = false
+	_rope_left = null
 	state = State.FREE
 	is_ducking = false
 	_run_time = 0.0
@@ -861,6 +926,9 @@ func _move_horizontal(strength: float, grounded: bool, delta: float) -> void:
 			target_speed *= 0.2
 		elif throw_progress < 1.0:
 			target_speed *= 0.3
+		# Throwing a hook, and while it is out on its line, he stands his ground.
+		if cast_progress < 1.0 or hook_out:
+			target_speed *= 0.12
 		# Wading, the water holds him back, more the deeper it is. A gun brought
 		# up to his shoulder is not run about with.
 		target_speed *= lerpf(1.0, 0.5, smoothstep(0.12, 0.85, wade))
@@ -885,6 +953,12 @@ func _move_horizontal(strength: float, grounded: bool, delta: float) -> void:
 	if not grounded:
 		# Keep momentum in the air when the stick is let go.
 		rate = air_acceleration if strength > 0.0 else air_acceleration * 0.25
+		if _flung and current.length() > target_speed and _wish.dot(current) >= 0.0:
+			# Thrown off a rope he keeps what it gave him, which may be more than
+			# he can run at: the stick turns it, and only pulling back checks it.
+			var speed := maxf(current.length() - 1.2 * delta, target_speed)
+			target = (current.normalized() + _wish * 1.6 * delta).normalized() * speed
+			rate = air_acceleration
 	elif strength == 0.0:
 		rate = deceleration
 	elif current.dot(target) < 0.0:
@@ -1070,6 +1144,10 @@ func _is_jump_held() -> bool:
 
 func _is_duck_held() -> bool:
 	return Input.is_action_pressed(&"duck") or (_touch != null and _touch.duck_held)
+
+
+func _is_act_held() -> bool:
+	return Input.is_action_pressed(&"act") or (_touch != null and _touch.act_held)
 
 
 # --- Diving, the back tuck and spinning ---
@@ -1392,12 +1470,12 @@ func _has_headroom(height: float) -> bool:
 # --- Ledges ---
 
 ## Catches the top edge of whatever he is moving into, if it is within reach of
-## his hands and there is room to stand on it.
-func _try_catch_ledge() -> bool:
+## his hands and there is room to stand on it. (`near` is how far off it may be.)
+func _try_catch_ledge(near := 0.25) -> bool:
 	if _wish.length_squared() < 0.04:
 		return false
 	var hit := KinematicCollision3D.new()
-	if not test_move(global_transform, _wish.normalized() * 0.25, hit) or absf(hit.get_normal().y) > 0.3:
+	if not test_move(global_transform, _wish.normalized() * near, hit) or absf(hit.get_normal().y) > 0.3:
 		return false
 	var into := Vector3(-hit.get_normal().x, 0.0, -hit.get_normal().z).normalized()
 	if _wish.normalized().dot(into) < 0.4:
@@ -1443,6 +1521,7 @@ func _try_catch_ledge() -> bool:
 ## whatever he was in the middle of on his feet is over.
 func _engage() -> void:
 	_jumping = false
+	_flung = false
 	_jump_buffer = 0.0
 	landing_progress = 1.0
 	is_scrambling = false
@@ -1579,71 +1658,270 @@ func _climb() -> void:
 
 # --- Ropes ---
 
+## Catches a rope that is within his reach: close by whatever he is doing, and
+## at arm's length if he is going towards it or reaching for it.
 func _try_catch_rope() -> bool:
 	var chest := global_position + Vector3.UP * 1.0
+	var hands := global_position + Vector3.UP * hang_height
+	var going := Vector3(velocity.x, 0.0, velocity.z)
+	going = going.normalized() if going.length() > 0.5 else Vector3.ZERO
 	for rope: Rope in get_tree().get_nodes_in_group(&"ropes"):
-		if rope.distance_to(chest) < 0.4:
-			_rope = rope
-			_rope_at = clampf(rope.nearest(global_position + Vector3.UP * hang_height), 0.4, rope.length - 0.1)
-			rope_travel = 0.0
-			# (he brings his speed to it, and it swings with him)
-			rope.load_at = _rope_at
-			rope.push(_rope_at, Vector3(velocity.x, 0.0, velocity.z) * 0.8)
-			velocity = Vector3.ZERO
-			_engage()
-			state = State.ROPE
-			_state_time = 0.0
-			return true
+		if rope == _rope_left and _rope_rest > 0.0:
+			continue
+		var at := rope.nearest(hands)
+		var away := rope.point_at(at) - hands
+		var distance := minf(away.length(), rope.distance_to(chest))
+		if distance > rope_reach.y:
+			continue
+		var level := Vector3(away.x, 0.0, away.z)
+		var towards := maxf(going.dot(level.normalized()), _wish.dot(level.normalized())) if level.length() > 0.05 else 1.0
+		if distance > rope_reach.x and towards < 0.35:
+			continue
+		# (he brings his speed to it, and it swings with him)
+		_hold_rope(rope, at, velocity)
+		return true
 	return false
 
 
-## On a rope: up and down climb it, left and right set it swinging, jump leaps
-## off the way he faces with whatever swing it has, duck lets go.
+## Takes hold of `rope` with his hands `at` down it, bringing `speed` to it.
+func _hold_rope(rope: Rope, at: float, speed: Vector3) -> void:
+	_rope = rope
+	_rope_at = clampf(at, 0.4, rope.length - 0.1)
+	rope_travel = 0.0
+	# (he has it between his knees and his feet as well as in his hands)
+	rope.held_below = 0.9
+	rope.load_at = _rope_at
+	rope.push(_rope_at, speed - rope.velocity_at(_rope_at))
+	var level := Vector3(speed.x, 0.0, speed.z)
+	_rope_heading = level.normalized() if level.length() > 1.0 else Vector3.ZERO
+	_rope_act = false
+	_take_time = -1.0
+	_rope_new = true
+	velocity = Vector3.ZERO
+	_engage()
+	state = State.ROPE
+	_state_time = 0.0
+
+
+## Puts him on a rope that a grappling hook has just hung for him: its line is
+## in his hands `at` down it. If he is stood on the ground it lifts him off it
+## as it takes his weight, and he swings from where he stood. False if he is in
+## no state to take it.
+func take_rope(rope: Rope, at: float, hook: Node3D) -> bool:
+	if is_limp or state != State.FREE or _is_resting():
+		return false
+	var grounded := is_on_floor()
+	var hands := global_position.y + hang_height
+	_hold_rope(rope, at, velocity)
+	_grapple = hook
+	taut_progress = 0.0
+	# (a hook's rope has no more to climb down than the little he holds below his hands)
+	if grounded:
+		_take_up = Vector2(hands, hands + grapple_lift)
+		_take_time = 0.0
+	var away := rope.global_position - global_position
+	away.y = 0.0
+	if away.length() > 0.3:
+		_rope_heading = away.normalized()
+	return true
+
+
+## On a rope. The stick throws his weight about: with the swing it builds it,
+## against it checks it. Act (held) climbs, duck lets him down it and off the
+## end, and jump leaps off with whatever swing it has. (Where there is only left
+## and right to go, up and down on the stick climb as well.)
 func _climb_rope(input: Vector2, delta: float) -> void:
+	if not is_instance_valid(_rope):
+		# (it has been taken down from over him)
+		_rope = null
+		_leave_rope()
+		return
 	var facing := Vector3(sin(facing_yaw), 0.0, cos(facing_yaw))
+	var swing := _rope.velocity_at(_rope_at)
+	var level := Vector3(swing.x, 0.0, swing.z)
+	var lean := _to_world(input if move_mode == MoveMode.FREE else Vector2(input.x, 0.0))
 	if _jump_buffer > 0.0:
 		_jump_buffer = 0.0
-		velocity = _rope.velocity_at(_rope_at) + facing * run_speed * 0.6 + Vector3.UP * _jump_velocity * 0.85
+		# Off it: what the swing gives him, a push the way he is going (or wants
+		# to go), and most of a jump's lift. Let go as it rises ahead of him, it
+		# throws him forward and up.
+		var way := facing
+		if lean.length() > 0.3:
+			way = lean.normalized()
+		elif level.length() > 1.0:
+			way = level.normalized()
+		velocity = swing + way * rope_leap.x + Vector3.UP * _jump_velocity * rope_leap.y
 		_jumping = true
+		_since_jump = 0.0
+		_flung = true
 		_leave_rope()
 		jumped.emit()
 		return
+	_rope_act = _rope_act or not _is_act_held()
+	var climb := 0.0
+	if _rope_act and _is_act_held():
+		climb -= rope_speed
 	if _is_duck_held() and _state_time > 0.15:
+		climb += rope_slide_speed
+	if move_mode == MoveMode.SIDE_SCROLL:
+		climb += input.y * rope_speed
+	var at := clampf(_rope_at + climb * delta, 0.4, _rope.length - 0.1)
+	if climb > 0.0 and _rope_at + climb * delta > _rope.length - 0.1 and _take_time < 0.0:
+		# (he has let himself down off the end of it)
 		_leave_rope()
 		return
-	_rope_heading = _to_world(Vector2(input.x, 0.0))
-	var at := clampf(_rope_at + input.y * rope_speed * delta, 0.4, _rope.length - 0.1)
+	if climb < 0.0 and at <= 0.4 and _rope_top_out(lean):
+		return
+	if _take_time >= 0.0:
+		at = _taken_up(at, delta)
 	# He hangs just behind the rope, with it in front of his chest, and goes where it goes.
 	var hold := _rope.point_at(at) - facing * 0.16
 	var to := Vector3(hold.x, hold.y - hang_height, hold.z)
-	# But not through things. The ground stops him climbing down any further,
-	# and off a wall the rope comes back the way it went.
+	# But not through things. Put down on the ground he lets go and stands, and
+	# off a wall the rope comes back the way it went.
 	var hit := KinematicCollision3D.new()
 	if test_move(global_transform, to - global_position, hit):
 		var normal := hit.get_normal()
 		if normal.y > 0.7:
-			if at > _rope_at:
-				at = _rope_at
-				hold = _rope.point_at(at) - facing * 0.16
-				to = Vector3(hold.x, maxf(hold.y - hang_height, global_position.y), hold.z)
+			if _take_time >= 0.0:
+				to.y = maxf(to.y, global_position.y)
+			elif _state_time > 0.2:
+				_put(global_position + hit.get_travel())
+				_leave_rope()
+				_grab_cooldown = 0.25
+				return
+			else:
+				at = minf(at, _rope_at)
+				to.y = maxf(to.y, global_position.y)
 		else:
-			var into := _rope.velocity_at(at).dot(normal)
+			var into := swing.dot(normal)
 			if into < 0.0:
-				_rope.push(at, -normal * into * 1.6)
-	rope_travel -= at - _rope_at
+				_rope.push(at, -normal * into * 1.5)
+			to = global_position + hit.get_travel()
+	# (climbing is hand over hand; let down it, the rope runs through his hands)
+	if climb <= rope_speed * 1.01 and _take_time < 0.0:
+		rope_travel -= at - _rope_at
+	if _take_time >= 0.0:
+		_rope.take_in(at)
+	else:
+		_rope.load_at = at
 	_rope_at = at
-	_rope.load_at = at
-	# Throwing his weight one way and the other works up a swing.
-	_rope.push(at, _rope_heading * 5.0 * delta)
-	velocity = _rope.velocity_at(at)
-	_put(to)
+	_pump(lean, swing, delta)
+	# He faces along the swing, and never turns about with it: the way it goes
+	# that is nearer the way he faces already. Hanging still, he turns to the stick.
+	var out := _rope.point_at(at) - _rope.global_position
+	if level.length() > 1.2:
+		_rope_heading = level.normalized() * (1.0 if level.dot(facing) >= 0.0 else -1.0)
+	elif lean.length() > 0.3 and level.length() < 0.6 and Vector2(out.x, out.z).length() < 0.35:
+		_rope_heading = lean.normalized()
+	else:
+		_rope_heading = Vector3.ZERO
+	taut_progress = minf(taut_progress + delta / 0.5, 1.0)
+	velocity = swing
+	if _rope_new:
+		# (to the rope from wherever he caught it, what is seen of him easing across)
+		_put(to)
+		_rope_new = false
+	else:
+		global_position = to
 
 
+## Throwing his weight about on a rope. With the way it is going (or to set it
+## going from rest) it is a push, less as it nears as high as he can work it;
+## against it, a drag. He cannot hold himself out to one side by it.
+func _pump(lean: Vector3, swing: Vector3, delta: float) -> void:
+	if lean.length() < 0.1:
+		return
+	var out := _rope.point_at(_rope_at) - _rope.global_position
+	if out.length() < 0.05:
+		return
+	var along := out.normalized()
+	var push := lean - along * lean.dot(along)
+	var level := Vector3(out.x, 0.0, out.z)
+	var speed := swing.length()
+	if speed < 0.6:
+		# Hanging there, all but still: he can start it from the bottom, and
+		# help it on its way back down from the top, but not push himself higher.
+		if level.length() < 0.3 or push.dot(level) < 0.0:
+			_rope.push(_rope_at, push * rope_pump * delta)
+		return
+	var with := push.normalized().dot(swing.normalized()) if push.length() > 0.01 else 0.0
+	if with > -0.25:
+		# (how high this swing will carry him as it is, from how fast it is going and where it has got to)
+		var top := cos(_rope.angle_at(_rope_at)) - speed * speed / (2.0 * _rope.gravity * maxf(_rope_at, 0.4))
+		var high := rad_to_deg(acos(clampf(top, -1.0, 1.0)))
+		var room := 1.0 - smoothstep(rope_swing_limit - 16.0, rope_swing_limit, high)
+		_rope.push(_rope_at, push * rope_pump * room * delta)
+	else:
+		_rope.push(_rope_at, -swing * (1.0 - exp(-rope_brake * lean.length() * -with * delta)))
+
+
+## A hook's rope taking his weight where he stands: it is hauled in under him
+## as he swings in beneath it, so that his feet come up off the ground and stay
+## off it. Returns how far down it his hands should now be.
+func _taken_up(at: float, delta: float) -> float:
+	_take_time += delta
+	var want := lerpf(_take_up.x, _take_up.y, smoothstep(0.0, 0.45, _take_time))
+	var top := _rope.global_position
+	var slope := clampf((top.y - _rope.point_at(_rope_at).y) / maxf(_rope_at, 0.1), 0.35, 1.0)
+	var needed := maxf((top.y - want) / slope, 0.4)
+	if needed < at:
+		return needed
+	if _take_time > 0.45:
+		_take_time = -1.0
+	return at
+
+
+## At the top of a rope and still climbing: if there is an edge there to get
+## hold of (what it hangs from, or something beside it), he takes that instead.
+func _rope_top_out(lean: Vector3) -> bool:
+	var was := _wish
+	var reach := ledge_reach
+	var facing := Vector3(sin(facing_yaw), 0.0, cos(facing_yaw))
+	ledge_reach.y = hang_height + 0.75
+	state = State.FREE
+	var caught := false
+	for turn: float in [0.0, 0.8, -0.8, 1.6, -1.6, 2.4, -2.4, PI]:
+		_wish = (lean.normalized() if lean.length() > 0.3 else facing).rotated(Vector3.UP, turn)
+		if _try_catch_ledge(0.7):
+			caught = true
+			break
+	_wish = was
+	ledge_reach = reach
+	if not caught:
+		state = State.ROPE
+		return false
+	# (state is HANG now; the rope is let go of without the leap)
+	var held := _state_time
+	state = State.ROPE
+	_leave_rope()
+	state = State.HANG
+	_state_time = minf(held, 0.0)
+	_grab_cooldown = 0.0
+	return true
+
+
+## Lets go of the rope he is on.
 func _leave_rope() -> void:
-	_rope.load_at = -1.0
-	_rope = null
+	_rope_left = _rope
+	_rope_rest = 0.9
+	_drop_rope()
 	state = State.FREE
 	_grab_cooldown = 0.5
+
+
+## The rope is no longer his: nobody weighs on it, and if it was a grappling
+## hook's the hook comes away and is wound in.
+func _drop_rope() -> void:
+	if is_instance_valid(_rope):
+		_rope.load_at = -1.0
+		_rope.held_below = 0.0
+	_rope = null
+	_take_time = -1.0
+	taut_progress = 1.0
+	if is_instance_valid(_grapple) and _grapple.has_method(&"come_away"):
+		_grapple.come_away()
+	_grapple = null
 
 
 # --- Ladders ---
@@ -1872,7 +2150,16 @@ func _act() -> void:
 	_stirred = true
 	if is_limp or state != State.FREE or pickup_progress < 1.0 or throw_progress < 1.0 or swing_progress < 1.0 or landing_progress < 1.0:
 		return
-	if _is_resting() or is_diving or flip_progress < 1.0 or is_spinning:
+	if _is_resting() or is_diving or flip_progress < 1.0 or is_spinning or cast_progress < 1.0:
+		return
+	if carried and carried.is_in_group(&"grapples"):
+		# A grappling hook is thrown at whatever there is to catch (see
+		# _use_hands), and stays his; with duck held it is put down.
+		if _is_duck_held() or is_ducking:
+			_let_go()
+		elif not hook_out and reel_progress >= 1.0:
+			_cast_at = carried.find_target(self)
+			cast_progress = 0.0
 		return
 	if gun_handling and carried and carried.is_in_group(&"guns"):
 		# A gun is fired, not thrown: he brings it up and shoots (see _use_hands).
@@ -1935,6 +2222,17 @@ func _use_hands(delta: float) -> void:
 		throw_progress = minf(throw_progress + delta / throw_time, 1.0)
 		if carried and (throw_progress >= THROW_RELEASE or state != State.FREE):
 			_throw()
+	if cast_progress < 1.0:
+		var before := cast_progress
+		cast_progress = minf(cast_progress + delta / cast_time, 1.0)
+		if carried == null or not carried.is_in_group(&"grapples") or state != State.FREE or is_limp:
+			# (whatever has happened to him, the throw is off)
+			cast_progress = 1.0
+		elif before < CAST_RELEASE and cast_progress >= CAST_RELEASE:
+			carried.cast(self, _cast_at if is_instance_valid(_cast_at) else null)
+			threw.emit()
+	if reel_progress < 1.0:
+		reel_progress = minf(reel_progress + delta / reel_time, 1.0)
 	_handle_gun(delta)
 
 
@@ -2020,6 +2318,9 @@ func _take(found: RigidBody3D) -> void:
 	found.freeze = true
 	found.collision_layer = 0
 	found.collision_mask = 0
+	# (anything that wants to know who has it is told)
+	if found.has_method(&"taken_by"):
+		found.taken_by(self)
 
 
 func _throw() -> void:
@@ -2036,6 +2337,9 @@ func _throw() -> void:
 func _let_go() -> void:
 	if carried == null:
 		return
+	if carried.has_method(&"taken_by"):
+		carried.taken_by(null)
+	cast_progress = 1.0
 	carried.collision_layer = _carried_layers.x
 	carried.collision_mask = _carried_layers.y
 	carried.freeze = false
@@ -2246,11 +2550,10 @@ static func _add_action(action: StringName, keys: Array[Key], axis := JOY_AXIS_I
 func ragdoll(impulse := Vector3.ZERO) -> void:
 	if is_limp:
 		return
+	_drop_rope()
 	_let_go()
 	state = State.FREE
-	if _rope:
-		_rope.load_at = -1.0
-	_rope = null
+	cast_progress = 1.0
 	_ladder = null
 	is_limp = true
 	pickup_progress = 1.0
@@ -2359,7 +2662,7 @@ func _place_hands(delta: float) -> void:
 			hand_normal = Vector3.UP
 			hand_fingers = into
 			hand_reach = smoothstep(0.42, 0.6, _ladder.top_y() - global_position.y) if ladder_off <= 0.0 or _ladder_leaving < 0.0 else 0.0
-	elif state == State.ROPE:
+	elif state == State.ROPE and is_instance_valid(_rope):
 		# One above the other, hand over hand: each keeps its hold on the rope
 		# while he goes up past it, then lets go and takes a new one above the other.
 		for i in 2:

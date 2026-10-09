@@ -62,7 +62,7 @@ const PALETTE := {
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
-		["Torch to carry", "torch", ""], ["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
+		["Torch to carry", "torch", ""], ["Grappling hook", "grapple", ""], ["Grapple point", "grapple_point", ""], ["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
 	],
 	"Guns": [
 		["Revolver", "thing", "revolver"], ["Rifle", "thing", "rifle"], ["Shotgun", "thing", "shotgun"], ["Flare pistol", "thing", "flare_pistol"],
@@ -117,6 +117,8 @@ const FIELDS := {
 		["links", "Worked by", "links"], ["needs_all", "Needs every one", "b", false], ["inverted", "Out until then", "b", false]],
 	"torch": [["lit", "Burning", "b", true]],
 	"rope": [["length", "Length", "n", 2.0, 16.0, 0.25, 5.5]],
+	"grapple": [["reach", "Length of its rope", "n", 4.0, 16.0, 0.5, 9.5]],
+	"grapple_point": [["ring", "Shows an iron ring", "b", true]],
 	"ladder": [["height", "Height", "n", 1.0, 16.0, 0.25, 4.0]],
 	"sandfall": [["width", "Width", "n", 0.0, 8.0, 0.25, 0.0], ["running", "Running", "b", true], ["links", "Turned by", "links"]],
 	"checkpoint": [],
@@ -125,7 +127,7 @@ const FIELDS := {
 }
 
 ## How far above the ground each kind is put when it is first set down.
-const LIFTS := {"rope": 6.0, "sandfall": 5.0, "sign": 3.0, "person": 0.15, "door": 1.3, "mover": 0.5}
+const LIFTS := {"rope": 6.0, "grapple": 0.3, "grapple_point": 5.0, "sandfall": 5.0, "sign": 3.0, "person": 0.15, "door": 1.3, "mover": 0.5}
 
 
 ## The fields of an item's kind.
