@@ -14,6 +14,7 @@ class_name LevelLayout
 ##     version   1
 ##     terrain   size, cell, dune_height, seed, scatter, rim_height, rim_width, wind [x, z]
 ##     weather   0 calm, 1 a breeze, 2 a storm
+##     mirage    how much the heat makes the distance swim, 0..1 (0: not at all)
 ##     items     a list of Dictionaries
 ## and every item has
 ##     id        a number of its own (what links are made to)
@@ -40,6 +41,7 @@ const PALETTE := {
 	"Stone": [
 		["Sphinx", "prop", "sphinx"], ["Great pyramid", "prop", "pyramid_great"], ["Ruined pyramid", "prop", "pyramid_ruined"],
 		["Pyramid door", "prop", "pyramid_entrance"], ["Obelisk", "prop", "obelisk"], ["Column", "prop", "column"],
+		["Stepped pyramid", "pyramid", ""], ["Finished pyramid", "pyramid", "finished"], ["Fallen pyramid", "pyramid", "fallen"],
 		["Broken column", "prop", "column_broken"], ["Column stump", "prop", "column_stump"], ["Fallen column", "prop", "column_fallen"],
 		["Lintel", "prop", "lintel"], ["Pharaoh", "prop", "statue_pharaoh"], ["Anubis", "prop", "statue_anubis"],
 		["Sarcophagus", "prop", "sarcophagus"], ["Carved wall", "prop", "wall_glyphs"], ["Ruined wall", "prop", "wall_ruin"],
@@ -78,6 +80,16 @@ const PALETTE := {
 const FIELDS := {
 	"prop": [["scale", "Size", "n", 0.2, 4.0, 0.05, 1.0], ["tilt_x", "Tip forward", "n", -180.0, 180.0, 1.0, 0.0], ["tilt_z", "Tip sideways", "n", -180.0, 180.0, 1.0, 0.0]],
 	"thing": [],
+	# A pyramid made from numbers (`scripts/pyramid.gd`). The three on the palette differ only in what they start as.
+	"pyramid": [["base", "Width", "n", 8.0, 120.0, 1.0, 40.0], ["slope", "Steepness", "n", 40.0, 65.0, 1.0, 54.0], ["rise", "Height of a course", "n", 0.6, 1.6, 0.05, 1.35],
+		["casing", "Smooth casing left", "n", 0.0, 1.0, 0.05, 0.0], ["cap", "Gold cap", "b", false], ["ruin", "Ruined", "n", 0.0, 1.0, 0.05, 0.0],
+		["seed", "Which ruin", "n", 0.0, 99.0, 1.0, 1.0], ["door", "Doorway", "b", false], ["stone", "Stone", "c", ["Sandstone", "Pale limestone", "Red sandstone", "Dark stone"], 0]],
+	"pyramid:finished": [["base", "Width", "n", 8.0, 120.0, 1.0, 40.0], ["slope", "Steepness", "n", 40.0, 65.0, 1.0, 54.0], ["rise", "Height of a course", "n", 0.6, 1.6, 0.05, 1.35],
+		["casing", "Smooth casing left", "n", 0.0, 1.0, 0.05, 1.0], ["cap", "Gold cap", "b", true], ["ruin", "Ruined", "n", 0.0, 1.0, 0.05, 0.0],
+		["seed", "Which ruin", "n", 0.0, 99.0, 1.0, 1.0], ["door", "Doorway", "b", false], ["stone", "Stone", "c", ["Sandstone", "Pale limestone", "Red sandstone", "Dark stone"], 1]],
+	"pyramid:fallen": [["base", "Width", "n", 8.0, 120.0, 1.0, 30.0], ["slope", "Steepness", "n", 40.0, 65.0, 1.0, 54.0], ["rise", "Height of a course", "n", 0.6, 1.6, 0.05, 1.35],
+		["casing", "Smooth casing left", "n", 0.0, 1.0, 0.05, 0.0], ["cap", "Gold cap", "b", false], ["ruin", "Ruined", "n", 0.0, 1.0, 0.05, 0.5],
+		["seed", "Which ruin", "n", 0.0, 99.0, 1.0, 1.0], ["door", "Doorway", "b", false], ["stone", "Stone", "c", ["Sandstone", "Pale limestone", "Red sandstone", "Dark stone"], 0]],
 	"pad": [["y", "Height", "n", -12.0, 40.0, 0.1, 0.0], ["half_x", "Half width", "n", 1.0, 80.0, 0.5, 8.0], ["half_z", "Half length", "n", 1.0, 80.0, 0.5, 8.0],
 		["round", "Round", "b", true], ["ease", "Rise of the dunes round it", "n", 0.5, 40.0, 0.5, 10.0]],
 	"dune": [["width", "Width", "n", 8.0, 140.0, 1.0, 46.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 6.0], ["horns", "Horns", "n", 0.2, 0.9, 0.01, 0.55]],
@@ -168,7 +180,7 @@ static func built_in() -> Dictionary:
 		var made := from_text(FileAccess.get_file_as_string(BUILT_IN))
 		if not made.is_empty():
 			return made
-	return {"version": VERSION, "terrain": {}, "weather": 1, "items": []}
+	return {"version": VERSION, "terrain": {}, "weather": 1, "mirage": HeatMirage.USUAL, "items": []}
 
 
 static func has_saved() -> bool:
@@ -201,6 +213,8 @@ static func from_text(text: String) -> Dictionary:
 	if not (read is Dictionary) or not (read as Dictionary).get("items") is Array:
 		return {}
 	var layout: Dictionary = read
+	# (a level from before there was a mirage has the usual one)
+	layout["mirage"] = float(layout.get("mirage", HeatMirage.USUAL))
 	# (JSON has no whole numbers: put back the ones that are)
 	for item: Dictionary in layout["items"]:
 		item["id"] = int(item.get("id", 0))

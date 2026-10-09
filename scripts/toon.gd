@@ -285,6 +285,17 @@ static func surface(color: Color) -> Material:
 	return banded
 
 
+## A material for stone: blocks in courses, strata, weathering and cracks, all
+## drawn by a shader (see `Sandstone`), and lit as `surface` is.
+static func sandstone(color := Sandstone.COLOUR) -> ShaderMaterial:
+	return Sandstone.surface(color)
+
+
+## A material for gold: lit as `surface` is, and shining.
+static func gold(color := Sandstone.GOLD) -> ShaderMaterial:
+	return Sandstone.gold(color)
+
+
 static func _material(color: Color) -> ShaderMaterial:
 	if _shader == null:
 		_shader = Shader.new()

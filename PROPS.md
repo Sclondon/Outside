@@ -10,7 +10,7 @@ their middle.
 | Scene | What it is |
 | --- | --- |
 | `sphinx` | The great sphinx, 25 m long. Solid all over: onto a paw from the side (1.3 m), from there the shoulder, from there the back. |
-| `pyramid_great` | 60 m across, 46 high, in steps of 1.35 m, each one he can catch and climb, up to the smooth casing at the top. |
+| `pyramid_great` | 60 m across, 46 high, in steps of 1.35 m, each one he can catch and climb, up to the smooth casing at the top. (For any other pyramid see "Pyramids made from numbers" below.) |
 | `pyramid_ruined` | 20 m across, its top gone and one corner fallen in (towards +X +Z) as a slope of blocks. |
 | `pyramid_entrance` | A doorway with a cornice and a short dark passage, shut at the back. Stand its back against a pyramid's face. |
 | `palm_a`, `palm_b`, `palm_c` | Palms: 8 m; 10.5 m and well bent; 5 m. The leaves sway. |
@@ -82,6 +82,57 @@ To look at the level without playing it, and to check he can still get about:
 ```
 godot --path . --resolution 960x960 --script tools/desert_views.gd -- <folder> [banded] [view ...]
 godot --headless --path . --fixed-fps 60 --script tools/desert_walk.gd
+```
+
+### Pyramids made from numbers
+
+`Pyramid` (`scripts/pyramid.gd`) is a StaticBody3D that makes its own mesh and collision when it enters the level, the
+same every time from the same numbers. In a layout it is the kind `pyramid` (the editor's "Stepped pyramid", "Finished
+pyramid" and "Fallen pyramid" are the same thing starting from different numbers); in a scene, add a node with the
+script and set it in the inspector. Its foot is at the origin; its door, if any, is in the face towards +Z.
+
+| Number | In the layout | What it is |
+| --- | --- | --- |
+| `base` | `base` | Width of the foot, metres (the foot of the casing: the stepped core is one tread in from it). |
+| `slope` | `slope` | Steepness of the faces, degrees. With `base` this gives the height: 60 m at 54 degrees is 41 m to the tip. |
+| `rise` | `rise` | Height of a course. He can catch and climb one of up to 1.6 m; the fixed great pyramid's are 1.35. |
+| `casing` | `casing` | How much smooth casing is left, down from the top: 0 none (all steps), about 0.25 a cap of it with a ragged lower edge, 1 all of it. Casing cannot be climbed. |
+| `gold_cap` | `cap` | A gilded capstone, the top eighth or so. On a stepped pyramid it stands on the top course. |
+| `ruin` | `ruin` | 0..1. From 0.03 the cap and the top courses go and loose blocks lie on the top; casing falls off in runs; blocks go missing and slip out; corners fall in (one from 0.2, two from 0.5, three from 0.75, four from 0.95), each a bite out of the courses with rubble and blocks lying in it and spilled past the foot. |
+| `seed` | `seed` | Which ruin: which corners, which blocks. |
+| `door` | `door` | A cutting through the bottom courses to a doorway with jambs and a lintel, and a few metres of dark passage, shut at the back. |
+| `colour` | `stone` | The stone: sandstone, pale limestone, red sandstone, dark stone (`Pyramid.STONES`). |
+
+What is solid: one box to a course (two or three where it is bitten or cut), so every step can be caught and climbed;
+one hull for casing that is whole from some course up, which he slides off; and one mesh of triangles for rubble, loose
+blocks and odd runs of casing, which he can walk up where it lies gently. It goes on 4 m below its foot, so it need not
+stand on ground that is quite level. After it is built, `triangles`, `shapes`, `height` and `fallen_corners` say what
+was made. A 60 m pyramid: finished, 20 triangles and 1 shape (with a door 196 and 14); stepped, 290 and 29; ruined
+(0.45), about 1450 and 62; ruined right down (1.0), about 4650 and 80.
+
+It is drawn with `Sandstone.surface` (`scripts/sandstone.gd`, also `Toon.sandstone(colour)`): a shader that draws the
+blocks and their joints, strata, worn edges, chips, stains and cracks from where each point is on the model, with
+nothing to load, each fading out before it is too small to draw. Anything else of stone can use it: give a mesh the
+material, and `course` and `block` (the height of a course and the length of a block) to suit. `Toon.gold()` is the
+capstone's gold.
+
+```
+godot --path . --resolution 960x960 --script tools/pyramid_sheets.gd -- <folder> [banded] [name ...]   # each sort, near and far
+godot --path . --resolution 960x960 --script tools/pyramid_sheets.gd -- <folder> level                 # those in the desert
+godot --headless --path . --fixed-fps 60 --script tools/pyramid_walk.gd                                # can he climb them
+```
+
+### The heat
+
+`HeatMirage` (`scripts/heat_mirage.gd`) is made by the desert, as strong as the layout's `mirage` says (0..1; 0 is
+none, and then nothing is drawn; the editor's Level page has it). What is far off and near the level of the eye swims,
+most where it is in the sun; nothing near does. Far ground a little below the level of the eye shows what is above it
+upside down, tinted with the sky: pools that are not there. It is less in a wind and with the sun low, and gone while
+he is under a roof. It is one strip drawn across the screen at the height of the horizon after everything solid,
+reading the picture so far: the same in both renderers.
+
+```
+godot --path . --resolution 1280x720 --script tools/pyramid_sheets.gd -- <folder> mirage   # with it, and without
 ```
 
 ## Guns, targets and ammunition (`guns/`)
