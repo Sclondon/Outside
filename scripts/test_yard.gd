@@ -548,7 +548,7 @@ func _build_range(at: Vector3) -> void:
 func _build_dig(at: Vector3) -> void:
 	_mark_here(at + Vector3(0.0, 0.0, -5.0), "THE DIG
 act picks a tool up, act again swings it
-helmets and the backpack: Menu, Dress him", 3.4)
+helmets and the backpack: the notebook, Me", 3.4)
 	# What he can pick up, lying in a row: the long things on their sides
 	var along := -3.0
 	for tool: String in ["khopesh", "pickaxe", "shovel", "turia"]:
