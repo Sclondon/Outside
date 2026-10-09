@@ -46,6 +46,9 @@ static var parts := {}
 static var helmet := ""
 static var backpack := false
 
+## Which part of the notebook (the menu: see GameMenu.SECTIONS) was last open, and so is opened at next.
+static var notebook_section := "journal"
+
 
 ## Works out `parts` from what has been chosen.
 static func dress() -> void:

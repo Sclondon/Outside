@@ -118,7 +118,7 @@ The ground of a level is a `SandGround` (`scripts/sand_ground.gd`), drawn by the
 
 ## The level editor
 
-In the desert, Menu, then "Edit this level". The game stands still and the view goes up over him.
+In the desert, the notebook (top right), Places, then "Edit this level". The game stands still and the view goes up over him.
 
 - **Looking about**: one finger drags the ground; two pinch to come nearer, turn to turn, and slid up or down together
   tip the view. For one hand there are + and - and a slider at the left. (Mouse: drag, wheel, right button.)
@@ -201,10 +201,47 @@ Nothing is a clip; `scripts/character_rig.gd` poses him every frame.
 
 ## Menu
 
-The Menu button (top right, or Esc) swaps every figure between its full and demade model, switches the world between
-smooth and banded light, dresses the boy (his face, hair, skin, eyes and clothes, a colour for each thing he wears,
-his cap on or off, a helmet in its place, and a backpack), changes level,
-and restarts. Colours last until the game is closed.
+The menu is the boy's field notebook. It lies in the top right corner of the screen: touch it (or Esc, or Start on a
+gamepad) and the book comes up over the stopped game, its cover swings open, and its pages are the menu. Touching
+anywhere off the book, the corner again, the "Put away" strap or Esc puts it away. Tabs down its edge turn to each
+part (a finger drawn across the pages, Page Up and Page Down, or a gamepad's shoulder buttons turn too); the arrow
+keys or a stick move a red mark from one thing to the next, and Enter or the jump button works it.
+
+- **Journal**: what the game has written in it. Anything new puts a red mark on the notebook in the corner, and is
+  what the book then opens at.
+- **Me**: dresses the boy: his face, hair and clothes from lists, his cap and a backpack as boxes to tick, a helmet,
+  paints for his skin, hair and eyes, and a scrap of each thing he wears (touch a scrap, then one of the thirty
+  paints). "Any old how" is all of it at random; "As he was" puts him back. A photograph stuck in the page is him
+  as he stands, so every change is seen as it is made.
+- **Places**: the levels, on a map and as a list; "Start this place again"; and, in the desert, "Edit this level".
+- **Notes**: figures in full or demade, the world's light smooth or in bands (either starts the level again), and
+  how he is moved about.
+
+What is chosen lasts until the game is closed.
+
+The game writes in the journal through `Notebook` (`scripts/notebook.gd`), from anywhere:
+
+```
+Notebook.note("The door in the east wall will not move.", "Wednesday")   # a paragraph, under a heading if given
+Notebook.task("Find what works the east door", "east_door")              # a box to tick...
+Notebook.done("east_door")                                               # ...and ticking it
+Notebook.find("Pot, red ware", "By the fallen column. 7 in. high.", "pot")  # numbered as it comes, drawn small beside
+Notebook.sketch("eye", "Cut over the door.")                             # a drawing with a line under it
+Notebook.translation(signs, "An offering which the king gives...", "North wall")
+```
+
+A drawing (and the signs of a translation) is the name of one of `NotebookInk.SKETCHES`, a `Texture2D`, or a
+`Callable(on: CanvasItem, rect: Rect2)` that draws it: so whatever reads real hieroglyphs can hand over a picture of
+the signs, or a function that draws them, with what they say. The five entries in a new game are placeholders
+(`Notebook.placeholders`).
+
+Everything in the book is drawn in code (`scripts/notebook_ink.gd`: paper, ruling, stains, pencil lines that waver,
+paint and cloth). The writing is Patrick Hand, by Patrick Wagesreiter, under the SIL Open Font Licence
+(`fonts/PatrickHand-Regular.ttf`, licence in `fonts/OFL.txt`). To check the notebook without a phone:
+
+```
+godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
+```
 
 ## Layout
 
@@ -228,7 +265,9 @@ and restarts. Colours last until the game is closed.
 | `scripts/ladder.gd`, `scripts/pool.gd` | A ladder; a box of water to swim in |
 | `scripts/dust.gd` | Puffs of dust, drawn all at once as one MultiMesh |
 | `scripts/toon.gd` | Cel shading: two flat tones for the figures, and optionally the world; a shader for hair; the pinstripe in his shirt |
-| `scripts/menu.gd`, `scripts/settings.gd` | The in-game menu and what it remembers |
+| `scripts/menu.gd`, `scripts/settings.gd` | The in-game menu, which is his notebook, and what it remembers |
+| `scripts/notebook.gd`, `scripts/notebook_ink.gd` | What the game has written in the notebook's journal (`Notebook.note(...)`); and the pencil, ink and paper its pages are drawn with |
+| `tools/notebook_test.gd` | Not part of the game: takes the notebook out, works every page of it with touches and keys in both levels, checks each took effect, and saves pictures |
 | `scripts/worn.gd` | What a figure wears that is not part of its model: the backpack and the helmets (`Worn.put_on(figure, &"helmet_anubis")`) |
 | `scripts/gear_prop.gd` | A prop whose gold, bronze and brass shine |
 | `tools/worn_sheets.gd` | Not part of the game: draws what is worn on everyone who can wear it, and the boy moving in it |
