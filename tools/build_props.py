@@ -36,7 +36,8 @@ X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
 TAU = math.tau
 
 # Colours (sRGB), by material name. scripts/prop.gd reshades each by its colour, so the
-# names matter only for `frond` and `frond_dry`, which sway.
+# names matter only for `plant`: that one is white, takes its colours from the points of
+# the mesh, and is drawn with the plant shader (see "plants" below).
 PALETTE = {
     "stone": (0.74, 0.66, 0.53),
     "stone_b": (0.69, 0.61, 0.49),
@@ -55,9 +56,7 @@ PALETTE = {
     "cloth_shade": (0.52, 0.47, 0.38),
     "trunk": (0.47, 0.37, 0.26),
     "trunk_dark": (0.36, 0.28, 0.20),
-    "frond": (0.32, 0.46, 0.21),
-    "frond_dry": (0.63, 0.55, 0.30),
-    "date": (0.72, 0.40, 0.14),
+    "plant": (1.0, 1.0, 1.0),
     "clay": (0.72, 0.45, 0.30),
     "clay_dark": (0.50, 0.30, 0.20),
     "alabaster": (0.88, 0.84, 0.73),
@@ -67,7 +66,7 @@ PALETTE = {
     "water": (0.13, 0.27, 0.33),
     "rock": (0.62, 0.52, 0.40),
 }
-DOUBLE_SIDED = ("frond", "frond_dry")
+DOUBLE_SIDED = ("plant",)
 
 
 def linear(c):
@@ -102,6 +101,12 @@ class Prop:
         self.ladders = []
         self.far = 0.0  # how far off it is still drawn (0: always)
         self.shadow = True  # whether it casts one
+        # For plants, by the index of a point: its colour (and how much it is leaf), the
+        # normal it is lit by, its texture coordinates, and how it bends in the wind.
+        self.paint = {}
+        self.normals = {}
+        self.place = {}
+        self.bend = {}
         self.m = Matrix.Identity(4)
         self.stack = []
 
@@ -502,69 +507,477 @@ def pyramid_entrance(p):
     p.box((0, 0.1, deep * 0.5 + 0.6), (5.0, 0.2, 1.2), b, True)
 
 
-def palm(p, height, lean, bend, fronds, seed, frond_length=3.3):
+# ---------------------------------------------------------------- plants
+#
+# A plant is one mesh in one material, `plant`, which scripts/prop.gd draws with its
+# plant shader: every plant in a level shares it. What differs from point to point is
+# carried by the points themselves, and `plant_point` sets it:
+#
+#   its colour, and how much it is leaf (1: light shines through it; 0: wood);
+#   where it is on its part: (from the root of the leaf to its tip, 0..1; across it, 0.5
+#   on the midrib, 0 and 1 at the tips of the leaflets). The shader paints by the first,
+#   darker and cooler at the root, paler and warmer at the tip, so a boot of the trunk
+#   or a berry asks for the tone it wants by it; the tips flutter by the second;
+#   how it bends: (how far along its part it is from where that is rooted, in metres;
+#   a number of its part's own, 0..1, so that each nods in its own time);
+#   the normal it is lit by. That is not the leaf's own, but leans out from the heart of
+#   the crown it belongs to: a crown is then lit as one round mass, light above and dark
+#   beneath, rather than each leaflet catching the light for itself.
+#
+# Leaves are cut out of triangles (a rib, and leaflets off it to both sides), not drawn
+# on a card: their edges are as clean as any other edge, near or far.
+
+PLANT = {
+    "leaf": (0.21, 0.43, 0.19),
+    "leaf_old": (0.14, 0.33, 0.20),
+    "leaf_young": (0.31, 0.51, 0.19),
+    "leaf_dry": (0.68, 0.56, 0.31),
+    "stalk": (0.58, 0.56, 0.28),
+    "bark": (0.43, 0.35, 0.27),
+    "bark_top": (0.57, 0.45, 0.30),
+    "bark_doum": (0.40, 0.35, 0.30),
+    "root": (0.31, 0.25, 0.20),
+    "date": (0.82, 0.40, 0.11),
+    "date_stalk": (0.88, 0.63, 0.22),
+    "doum": (0.31, 0.49, 0.31),
+    "doum_fruit": (0.58, 0.31, 0.14),
+    "reed": (0.34, 0.54, 0.22),
+    "reed_head": (0.63, 0.67, 0.30),
+    "sage": (0.46, 0.53, 0.37),
+    "twig": (0.47, 0.39, 0.30),
+    "straw": (0.76, 0.66, 0.38),
+}
+# The angle that spreads leaves most evenly round a stem.
+GOLDEN = math.pi * (3.0 - math.sqrt(5.0))
+
+
+def blend(a, b, t):
+    return tuple(x + (y - x) * t for x, y in zip(a, b))
+
+
+def ease(low, high, x):
+    t = min(max((x - low) / (high - low), 0.0), 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def plant_point(p, point, colour, normal, place=(0.5, 0.5), reach=0.0, phase=0.0, leaf=0.0):
+    i = p.v(point)
+    p.paint[i] = (linear(colour[0]), linear(colour[1]), linear(colour[2]), leaf)
+    p.normals[i] = (p.m.to_3x3() @ Vector(normal)).normalized()
+    p.place[i] = place
+    p.bend[i] = (reach * p.m.to_scale().x, phase)
+    return i
+
+
+def stem(p, points, radii, colour, sides=3, along=(0.5, 0.5), reach=(0.0, 0.0), phase=0.0, leaf=0.0):
+    """A round stem through `points`. A radius of 0 at an end closes it to a point there
+    (so three points, the middle one wide, make a berry). `along` and `reach`: what its
+    two ends are painted and bent by; `colour` may be a pair, for its two ends."""
+    points = [Vector(q) for q in points]
+    if not isinstance(colour[0], (list, tuple)):
+        colour = (colour, colour)
+    rings = []
+    side = None
+    for i, at in enumerate(points):
+        t = i / (len(points) - 1)
+        ahead = (points[min(i + 1, len(points) - 1)] - points[max(i - 1, 0)]).normalized()
+        if side is None:
+            ref = X if abs(ahead.dot(Y)) > 0.9 else Y
+            side = ref.cross(ahead).normalized()
+        else:
+            side = (side - ahead * side.dot(ahead)).normalized()
+        other = ahead.cross(side)
+        tone = blend(colour[0], colour[1], t)
+        where = (along[0] + (along[1] - along[0]) * t, 0.5)
+        far = reach[0] + (reach[1] - reach[0]) * t
+        if radii[i] <= 0.0:
+            rings.append([plant_point(p, at, tone, ahead * (1.0 if i else -1.0), where, far, phase, leaf)])
+            continue
+        ring = []
+        for k in range(sides):
+            out = side * math.cos(TAU * k / sides) + other * math.sin(TAU * k / sides)
+            ring.append(plant_point(p, at + out * radii[i], tone, out, where, far, phase, leaf))
+        rings.append(ring)
+    for low, high in zip(rings, rings[1:]):
+        for k in range(sides):
+            n = (k + 1) % sides
+            if len(low) == 1 and len(high) > 1:
+                p.face((low[0], high[k], high[n]), "plant", True)
+            elif len(high) == 1 and len(low) > 1:
+                p.face((low[k], low[n], high[0]), "plant", True)
+            elif len(low) > 1:
+                p.face((low[k], low[n], high[n], high[k]), "plant", True)
+
+
+def bark(p, path, radius, colour, rings, sides=6, flare=1.25, tooth=0.45, top_colour=None, rng=None, start=0.0, end=1.0, lap=0.3):
+    """The trunk of a palm as the leaves it has shed leave it: a stack of collars, each
+    a ring of boots (the stubs of old leaf stalks) that widens upward to a toothed lip
+    and is turned half a tooth from the one below, which makes the diamonds. With no
+    `tooth` and little `flare`, the rings of scars of a smooth trunk instead.
+    `path(t)` is its middle and `radius(t)` how thick it is, from `start` to `end`.
+    Each collar is painted from dark at its foot to pale at its lip."""
+    side = None
+    for j in range(rings):
+        t0 = start + (end - start) * j / rings
+        t1 = min(start + (end - start) * (j + 1 + lap) / rings, end)
+        c0, c1 = Vector(path(t0)), Vector(path(t1))
+        ahead = (c1 - c0).normalized()
+        side = ((X if side is None else side) - ahead * (X if side is None else side).dot(ahead)).normalized()
+        other = ahead.cross(side)
+        tone = blend(colour, top_colour or colour, (j + 0.5) / rings)
+        if rng:
+            tone = tuple(c * rng.uniform(0.9, 1.08) for c in tone)
+        dark = tuple(c * 0.8 for c in tone)
+        r0, r1 = radius(t0) * 0.86, radius(t1) * flare
+        high = (c1 - c0).length
+
+        def out(k):
+            angle = TAU * (k + 0.5 * (j % 2)) / sides
+            return side * math.cos(angle) + other * math.sin(angle)
+        feet = [plant_point(p, c0 + out(k) * r0, dark, out(k) - ahead * 0.3, (0.0, 0.5)) for k in range(sides)]
+        lows = [plant_point(p, c1 + out(k) * r1 - ahead * (high * tooth), tone, out(k) + ahead * 0.3, (0.8 if tooth else 1.0, 0.5))
+                for k in range(sides)]
+        for k in range(sides):
+            n = (k + 1) % sides
+            p.face((feet[k], feet[n], lows[n], lows[k]), "plant", True)
+            if tooth:
+                peak = plant_point(p, c1 + out(k + 0.5) * (r1 * 1.04), tone, out(k + 0.5) + ahead * 0.4, (1.0, 0.5))
+                p.face((lows[k], lows[n], peak), "plant", True)
+
+
+def frond(p, base, yaw, length, rise, droop, colour, leaflets=10, width=0.7, twist=0.0, phase=0.0, stalk=0.14, sweep=1.2,
+          fold=0.4, sag=0.2, heart=(0.0, -0.8, 0.0), leaf=1.0, stalk_colour=None):
+    """A feather leaf, as a date palm's: a rib that sets off at `rise` above level and
+    arches over by `droop` (radians) to its tip, a bare stalk for the first `stalk` of
+    it, then leaflets to both sides: long in the middle and short at both ends, swept
+    forward (more so towards the tip, where the last pair close it to a point), lifted
+    into a V by `fold` and hanging a little at their tips by `sag`. Next to one another
+    at the rib and parting towards their tips, they cut the comb of its outline.
+    `heart`: the middle of the crown, from the leaf's own root: it is lit as part of that."""
+    with p.at(base, yaw):
+        heart = Vector(heart)
+        fine = 24
+        line = [Vector((0.0, 0.0, 0.0))]
+        for i in range(fine):
+            angle = rise - droop * ((i + 0.5) / fine) ** 1.35
+            line.append(line[-1] + Vector((0.0, math.sin(angle), math.cos(angle))) * (length / fine))
+
+        def rib(t):
+            """Where the rib is at t, and which way is on along it, to its side and up from it."""
+            spot = min(max(t, 0.0), 1.0) * fine
+            i = min(int(spot), fine - 1)
+            ahead = (line[i + 1] - line[i]).normalized()
+            up = X.cross(ahead) * -1.0
+            turn = twist * t
+            return (line[i].lerp(line[i + 1], spot - i), ahead, X * math.cos(turn) + up * math.sin(turn),
+                    up * math.cos(turn) - X * math.sin(turn))
+
+        def lit(at, up, lean=Vector((0.0, 0.0, 0.0))):
+            return up * 0.45 + (at - heart).normalized() * 0.6 + Y * 0.2 + lean
+
+        stem(p, [rib(0.0)[0], rib(stalk + 0.02)[0]], [0.07, 0.03], stalk_colour or blend(colour, PLANT["stalk"], 0.6),
+             3, (0.2, 0.35), (0.0, length * stalk), phase)
+        spine = []
+        for k in range(leaflets + 1):
+            t = stalk + (1.0 - stalk) * k / leaflets
+            at, _, _, up = rib(t)
+            spine.append(plant_point(p, at, colour, lit(at, up), (t, 0.5), length * t, phase, leaf))
+        for k in range(leaflets):
+            u = (k + 0.5) / leaflets
+            t0 = stalk + (1.0 - stalk) * k / leaflets
+            t1 = stalk + (1.0 - stalk) * (k + 1) / leaflets
+            mid, ahead, side, up = rib((t0 + t1) * 0.5)
+            front = rib(t1)[0]
+            long = width * math.sin(math.pi * (0.12 + 0.8 * u)) ** 0.7
+            angle = sweep * (1.0 - 0.72 * u)
+            for hand in (1.0, -1.0):
+                way = (ahead * math.cos(angle) + side * (hand * math.sin(angle)) + up * fold).normalized()
+                tip = mid + way * long - Y * (sag * long * long)
+                shoulder = front + way * (long * 0.62) - Y * (sag * long * long * 0.38)
+                lean = side * (hand * 0.35)
+                m = plant_point(p, shoulder, colour, lit(shoulder, up, lean), (t1, 0.5 + hand * 0.25), length * t1 + long * 0.2, phase, leaf)
+                c = plant_point(p, tip, colour, lit(tip, up, lean), ((t0 + t1) * 0.5 + 0.08, 0.5 + hand * 0.5), length * t1 + long * 0.4, phase, leaf)
+                p.face((spine[k], spine[k + 1], m), "plant", True)
+                p.face((spine[k], m, c), "plant", True)
+
+
+def fan(p, base, yaw, rise, stalk, size, colour, blades=9, spread=1.8, droop=0.5, phase=0.0, fold=0.4, sag=0.22,
+        heart=(0.0, -0.6, 0.0), leaf=1.0, stalk_colour=None):
+    """A fan leaf, as a doum palm's: a long stalk that sets off at `rise` and bows over
+    by `droop`, and at its end a hand of pointed blades, joined for the first part of
+    their length and cut into a star beyond, folded up a little about its middle."""
+    with p.at(base, yaw):
+        heart = Vector(heart)
+
+        def way(angle):
+            return Vector((0.0, math.sin(angle), math.cos(angle)))
+        half = way(rise) * (stalk * 0.5)
+        hub = half + way(rise - droop * 0.5) * (stalk * 0.5)
+        stem(p, [(0.0, 0.0, 0.0), hub], [0.055, 0.03], stalk_colour or blend(colour, PLANT["stalk"], 0.6), 3, (0.2, 0.35),
+             (0.0, stalk), phase)
+        ahead = way(rise - droop)
+        up = X.cross(ahead) * -1.0
+
+        def lit(at):
+            return up * 0.45 + (at - heart).normalized() * 0.6 + Y * 0.2
+
+        def out(angle, far):
+            return hub + (ahead * math.cos(angle) + X * math.sin(angle)) * far + up * (fold * far * abs(math.sin(angle))) \
+                - Y * (sag * far * far)
+        middle = plant_point(p, hub, colour, lit(hub), (0.0, 0.5), stalk, phase, leaf)
+        inner = []
+        for j in range(blades + 1):
+            angle = -spread + 2.0 * spread * j / blades
+            at = out(angle, size * (0.34 + 0.12 * math.cos(angle)))
+            # (across: a little off the middle, so that only the very heart of the fan is painted as rib)
+            inner.append(plant_point(p, at, colour, lit(at), (0.6, 0.3 + 0.4 * (j % 2)), stalk + size * 0.4, phase, leaf))
+        for j in range(blades):
+            angle = -spread + 2.0 * spread * (j + 0.5) / blades
+            long = size * (0.7 + 0.3 * math.cos(angle))
+            at = out(angle, long)
+            tip = plant_point(p, at, colour, lit(at), (1.0, float(j % 2)), stalk + long, phase, leaf)
+            p.face((middle, inner[j], inner[j + 1]), "plant", True)
+            p.face((inner[j], tip, inner[j + 1]), "plant", True)
+
+
+def blade(p, base, yaw, length, lean, curl, width, colour, tip_colour=None, pieces=3, phase=0.0, leaf=1.0, belly=False, rooted=0.0,
+          paint=(0.0, 1.0)):
+    """A strap of a leaf: it stands at `lean` from upright, curls over by `curl` more to
+    its tip, and narrows to a point (with `belly`, it is widest at its middle, as a
+    shrub's leaf is). `rooted`: how far whatever it grows from is from its own root."""
+    with p.at(base, yaw):
+        at = Vector((0.0, 0.0, 0.0))
+        made = []
+        for i in range(pieces + 1):
+            t = i / pieces
+            if i:
+                angle = lean + curl * ((i - 0.5) / pieces) ** 1.5
+                at = at + Vector((0.0, math.cos(angle), math.sin(angle))) * (length / pieces)
+            wide = width * (math.sin(math.pi * (0.22 + 0.78 * t)) if belly else (1.0 - t) ** 0.6)
+            tone = blend(colour, tip_colour or colour, t)
+            angle = lean + curl * t ** 1.5
+            # (lit as part of its clump: mostly from above, and from the side it leans to)
+            normal = Y * 0.8 + Z * 0.5 + Vector((0.0, math.sin(angle), -math.cos(angle))) * 0.3
+            where = paint[0] + (paint[1] - paint[0]) * t
+            if i == pieces:
+                made.append([plant_point(p, at, tone, normal, (where, 1.0), rooted + length, phase, leaf)])
+            else:
+                made.append([plant_point(p, at + X * (hand * wide), tone, normal + X * (hand * 0.3), (where, 0.5 + hand * 0.5),
+                                         rooted + length * t, phase, leaf) for hand in (-1.0, 1.0)])
+        for low, high in zip(made, made[1:]):
+            if len(high) == 1:
+                p.face((low[0], low[1], high[0]), "plant", True)
+            else:
+                p.face((low[0], low[1], high[1], high[0]), "plant", True)
+
+
+def date_palm(p, height, lean, bend, seed, fronds=20, frond_length=3.6, bunches=3):
+    """A date palm: a stout trunk in the diamonds of its old leaf bases, swollen at the
+    foot and again under the crown; a crown of feather leaves, the young ones standing
+    up in the middle, the old ones level and then hanging, and the dead ones a dry
+    skirt against the trunk; and bunches of dates on bright stalks under it."""
     rng = random.Random(seed)
+
     # The trunk: a curve from the foot, out along +X and back up
     def trunk(t):
-        return Vector((lean * t + bend * math.sin(math.pi * t) , height * t, 0.25 * bend * math.sin(TAU * t)))
-    steps = 10
-    points, radii = [], []
-    for i in range(steps + 1):
-        t = i / steps
-        points.append(trunk(t))
-        radii.append((0.4 if i == 0 else 0.28 - 0.09 * t) + (0.022 if i % 2 else 0.0))
-    p.strand(points, radii, "trunk", 7, caps=False)
+        return Vector((lean * t + bend * math.sin(math.pi * t), height * t, 0.25 * bend * math.sin(TAU * t)))
+
+    def thick(t):
+        return 0.27 - 0.04 * t + 0.2 * math.exp(-height * t / 0.45) + 0.08 * ease(0.8, 1.0, t)
+    stem(p, [(0.0, -0.15, 0.0), (0.0, 0.32, 0.0)], [thick(0.0) * 1.3, thick(0.0) * 0.95], (PLANT["root"], PLANT["bark"]), 8, (0.3, 0.6))
+    under = 1.0 - 1.1 / height
+    bark(p, trunk, thick, PLANT["bark"], round(height * under / 0.42), 6, 1.25, 0.45, blend(PLANT["bark"], PLANT["bark_top"], 0.5), rng, 0.0, under)
+    # (under the crown the boots are the newest: bigger, paler, and standing further out)
+    bark(p, trunk, thick, blend(PLANT["bark"], PLANT["bark_top"], 0.6), 3, 6, 1.5, 0.6, PLANT["bark_top"], rng, under, 1.0)
     # (solid up to where he could reach)
     for t0, t1 in ((0.0, 0.2), (0.2, 0.42), (0.42, 0.7)):
         low, high = trunk(t0), trunk(t1)
-        p.solid_box(((low + high) * 0.5), (0.4, (high - low).length, 0.4))
+        p.solid_box(((low + high) * 0.5), (0.55, (high - low).length, 0.55))
     top = trunk(1.0)
-    # (few materials: there are many palms, and each material is drawn separately)
-    p.ellipsoid(top + Y * 0.1, (0.3, 0.42, 0.3), "trunk", 7, 4)
-    for i in range(3):
-        angle = rng.uniform(0, TAU)
-        p.ellipsoid(top + Vector((math.cos(angle) * 0.3, -0.25, math.sin(angle) * 0.3)), (0.13, 0.26, 0.13), "frond_dry", 5, 3)
+    stem(p, [top - Y * 0.05, top + Y * 0.3, top + Y * 0.75], [thick(1.0) * 1.35, 0.2, 0.0], (PLANT["bark_top"], PLANT["leaf_young"]), 6, (0.4, 0.8))
     for i in range(fronds):
-        upper = i % 2 == 0
-        yaw = TAU * i / fronds + rng.uniform(-0.2, 0.2)
-        rise = rng.uniform(0.8, 1.2) if upper else rng.uniform(0.1, 0.5)
-        frond(p, top + Y * 0.3, yaw, frond_length * rng.uniform(0.85, 1.1), rise, rng.uniform(0.8, 1.15), 0.4, "frond", 10)
-    for i in range(3):
-        frond(p, top + Y * 0.1, rng.uniform(0, TAU), frond_length * 0.75, -0.5, 0.9, 0.3, "frond_dry", 6)
-
-
-def frond(p, base, yaw, length, rise, droop, width, material, segments=8):
-    """One leaf: a rib that arches up and over, and a toothed blade folded along it.
-    Its first texture coordinate runs from the stem to the tip: the leaf sways by it."""
-    with p.at(base, yaw):
-        ribs, lefts, rights = [], [], []
-        at = Vector((0, 0, 0.15))
-        for i in range(segments + 1):
-            t = i / segments
-            angle = rise - (rise + droop) * t ** 1.3
-            if i:
-                at = at + Vector((0, math.sin(angle), math.cos(angle))) * (length / segments)
-            w = width * math.sin(math.pi * (0.06 + 0.9 * t)) ** 0.6 * (1.0 if i % 2 else 0.4)
-            up = Vector((0, math.cos(angle), -math.sin(angle)))
-            ribs.append(p.v(at))
-            lefts.append(p.v(at + X * w - up * w * 0.45))
-            rights.append(p.v(at - X * w - up * w * 0.45))
-        for i in range(segments):
-            t0, t1 = i / segments, (i + 1) / segments
-            p.face((ribs[i], ribs[i + 1], lefts[i + 1], lefts[i]), material, True, ((t0, 0.5), (t1, 0.5), (t1, 1.0), (t0, 1.0)))
-            p.face((ribs[i], rights[i], rights[i + 1], ribs[i + 1]), material, True, ((t0, 0.5), (t0, 0.0), (t1, 0.0), (t1, 0.5)))
+        # (from the youngest, upright in the middle, to the oldest, hanging)
+        age = i / (fronds - 1)
+        yaw = GOLDEN * i + rng.uniform(-0.15, 0.15)
+        rise = 1.3 - 1.85 * age ** 0.85 + rng.uniform(-0.1, 0.1)
+        long = frond_length * (0.72 + 0.36 * math.sin(math.pi * min(age * 1.25 + 0.15, 1.0))) * rng.uniform(0.94, 1.06)
+        tone = blend(PLANT["leaf_young"], PLANT["leaf"], min(age * 5.0, 1.0)) if age < 0.34 else blend(PLANT["leaf"], PLANT["leaf_old"], (age - 0.34) / 0.66)
+        root = top + Vector((math.sin(yaw), 0.0, math.cos(yaw))) * 0.2 + Y * (0.42 - 0.6 * age)
+        frond(p, root, yaw, long, rise, 1.15 + 0.6 * age + rng.uniform(-0.1, 0.1), tone, 9, 0.27 * frond_length, rng.uniform(-0.6, 0.6),
+              rng.random(), heart=(0.0, -0.9 + 0.6 * age, 0.0))
+    # The dead ones: folded shut, hanging down the trunk
+    for i in range(5):
+        yaw = GOLDEN * (i + 0.5) * 1.7 + rng.uniform(-0.3, 0.3)
+        root = top + Vector((math.sin(yaw), 0.0, math.cos(yaw))) * 0.26 - Y * rng.uniform(0.3, 0.55)
+        frond(p, root, yaw, frond_length * rng.uniform(0.55, 0.75), rng.uniform(-0.75, -0.45), rng.uniform(0.55, 0.75),
+              tuple(c * rng.uniform(0.82, 1.0) for c in PLANT["leaf_dry"]), 6, 0.13 * frond_length, rng.uniform(-0.5, 0.5), rng.random(),
+              sweep=0.7, fold=-0.55, sag=0.5, heart=(0.0, 0.6, 0.0), leaf=0.5, stalk_colour=PLANT["leaf_dry"])
+    for i in range(bunches):
+        yaw = GOLDEN * (i + 0.3) * 2.3 + rng.uniform(-0.3, 0.3)
+        with p.at(top - Y * 0.1, yaw):
+            far = rng.uniform(0.7, 0.95)
+            drop = rng.uniform(0.25, 0.45)
+            phase = rng.random()
+            stem(p, [(0.0, 0.1, 0.2), (0.0, 0.3, far * 0.6), (0.0, 0.05 - drop * 0.3, far)], [0.035, 0.03, 0.03], PLANT["date_stalk"], 3, (0.6, 0.8),
+                 (0.0, 0.5), phase)
+            stem(p, [(0.0, 0.1 - drop * 0.3, far), (0.0, -0.1 - drop * 0.4, far + 0.04), (0.0, -0.55 - drop, far + 0.02), (0.0, -0.8 - drop, far)],
+                 [0.0, 0.2, 0.17, 0.0], (PLANT["date_stalk"], PLANT["date"]), 5, (0.45, 0.2), (0.5, 0.9), phase)
 
 
 def palm_a(p):
-    palm(p, 8.0, 1.2, 0.5, 16, 1, 3.7)
+    date_palm(p, 8.0, 1.2, 0.5, 1, 26, 4.2)
 
 
 def palm_b(p):
-    palm(p, 10.5, 2.6, 1.3, 18, 2, 4.0)
+    date_palm(p, 10.5, 2.6, 1.3, 2, 28, 4.5)
 
 
 def palm_c(p):
-    palm(p, 4.8, 0.3, 0.25, 14, 3, 3.2)
+    date_palm(p, 4.8, 0.3, 0.25, 3, 22, 3.5, 2)
+
+
+def palm_doum(p):
+    """A doum palm: the palm that forks. A ringed grey trunk that parts in two, and one
+    arm in two again; at the end of each a round head of fan leaves on long stalks, the
+    dead ones hanging under it, and a few brown fruits."""
+    rng = random.Random(7)
+
+    def limb(a, b, c):
+        a, b, c = Vector(a), Vector(b), Vector(c)
+        return lambda t: a.lerp(b, t).lerp(b.lerp(c, t), t)
+
+    def taper(r0, r1, foot=0.0):
+        return lambda t: r0 + (r1 - r0) * t + foot * math.exp(-t * 3.0 / 0.4)
+    fork, left, right = (0.3, 3.5, 0.1), (-1.2, 5.6, 0.3), (1.9, 7.2, -0.4)
+    limbs = [
+        (limb((0, 0, 0), (-0.1, 1.8, 0.0), fork), taper(0.3, 0.26, 0.16), 10),
+        (limb(fork, (-0.9, 4.0, 0.2), left), taper(0.22, 0.19), 7),
+        (limb(fork, (1.6, 4.0, 0.1), right), taper(0.22, 0.16), 12),
+        (limb(left, (-2.4, 6.0, 0.1), (-2.5, 7.6, -0.8)), taper(0.17, 0.15), 6),
+        (limb(left, (-1.0, 6.7, 1.1), (-0.5, 8.1, 1.4)), taper(0.17, 0.15), 7),
+    ]
+    stem(p, [(0.0, -0.15, 0.0), (0.0, 0.32, 0.0)], [0.58, 0.43], (PLANT["root"], PLANT["bark_doum"]), 8, (0.3, 0.6))
+    for path, thick, rings in limbs:
+        bark(p, path, thick, PLANT["bark_doum"], rings, 6, 1.12, 0.0, blend(PLANT["bark_doum"], PLANT["bark"], 0.5), rng, lap=0.15)
+    main = limbs[0][0]
+    for t0, t1 in ((0.0, 0.5), (0.5, 1.0)):
+        low, high = main(t0), main(t1)
+        p.solid_box(((low + high) * 0.5), (0.55, (high - low).length, 0.55))
+    for path, thick, _ in limbs[2:]:
+        top = path(1.0)
+        stem(p, [top - Y * 0.1, top + Y * 0.2, top + Y * 0.55], [thick(1.0) * 1.5, 0.17, 0.0], (PLANT["bark"], PLANT["doum"]), 6, (0.4, 0.7))
+        leaves = 14
+        for i in range(leaves):
+            age = i / (leaves - 1)
+            yaw = GOLDEN * i + rng.uniform(-0.2, 0.2)
+            dead = i >= leaves - 2
+            tone = PLANT["leaf_dry"] if dead else blend(blend(PLANT["doum"], PLANT["leaf_young"], 0.5), PLANT["doum"], min(age * 2.5, 1.0))
+            root = top + Vector((math.sin(yaw), 0.0, math.cos(yaw))) * 0.12 + Y * (0.3 - 0.4 * age)
+            fan(p, root, yaw, (-1.0 if dead else 1.35 - 1.8 * age) + rng.uniform(-0.1, 0.1), rng.uniform(0.8, 1.15), rng.uniform(1.35, 1.7) * (0.75 if dead else 1.0),
+                tone, 9, 1.8, 0.3 if dead else 0.55, rng.random(), sag=0.3 if dead else 0.16, heart=(0.0, -0.5 + 0.5 * age, 0.0),
+                leaf=0.5 if dead else 1.0, stalk_colour=PLANT["leaf_dry"] if dead else None)
+        for i in range(2):
+            yaw = rng.uniform(0.0, TAU)
+            with p.at(top - Y * 0.1, yaw):
+                drop = rng.uniform(0.25, 0.5)
+                stem(p, [(0.0, 0.0, 0.1), (0.0, -drop, 0.42)], [0.02, 0.02], PLANT["twig"], 3, (0.4, 0.5), (0.0, 0.4))
+                stem(p, [(0.0, -drop + 0.03, 0.42), (0.0, -drop - 0.1, 0.43), (0.0, -drop - 0.23, 0.42)], [0.0, 0.11, 0.0], PLANT["doum_fruit"], 4,
+                     (0.7, 0.3), (0.4, 0.5))
+
+
+def palm_sucker(p):
+    """An offshoot of a date palm, or one cut to the ground and come again: a low stump
+    of boots and a bush of feather leaves from it, chest high. Nothing solid: he walks
+    through it."""
+    rng = random.Random(11)
+    bark(p, lambda t: Vector((0.0, 0.5 * t - 0.08, 0.0)), lambda t: 0.3 - 0.05 * t, PLANT["bark"], 2, 6, 1.4, 0.55, PLANT["bark_top"], rng)
+    stem(p, [(0.0, 0.38, 0.0), (0.0, 0.7, 0.0)], [0.28, 0.0], PLANT["bark_top"], 6, (0.4, 0.8))
+    leaves = 12
+    for i in range(leaves):
+        age = i / (leaves - 1)
+        yaw = GOLDEN * i + rng.uniform(-0.2, 0.2)
+        root = Vector((math.sin(yaw) * 0.15, 0.45 - 0.2 * age, math.cos(yaw) * 0.15))
+        frond(p, root, yaw, rng.uniform(1.7, 2.3) * (0.8 + 0.2 * math.sin(math.pi * age)), 1.35 - 1.05 * age + rng.uniform(-0.1, 0.1),
+              0.55 + 0.5 * age, blend(PLANT["leaf_young"], PLANT["leaf"], min(age * 2.0, 1.0)), 8, 0.5, rng.uniform(-0.5, 0.5), rng.random(),
+              heart=(0.0, -0.3 + 0.3 * age, 0.0))
+    for i in range(2):
+        yaw = rng.uniform(0.0, TAU)
+        frond(p, (math.sin(yaw) * 0.2, 0.2, math.cos(yaw) * 0.2), yaw, 1.5, 0.15, 0.5, PLANT["leaf_dry"], 6, 0.36, 0.3, rng.random(), sweep=0.7,
+              fold=-0.3, sag=0.5, heart=(0.0, 0.6, 0.0), leaf=0.5, stalk_colour=PLANT["leaf_dry"])
+
+
+def reeds(p):
+    """A clump of papyrus, for the edge of water: tall bare stems, each with a mop of
+    thin rays at its head, and sword leaves round their feet. Nothing solid."""
+    rng = random.Random(21)
+    for i in range(7):
+        yaw = GOLDEN * i + rng.uniform(-0.3, 0.3)
+        off = 0.12 + 0.5 * math.sqrt(i / 7.0)
+        high = rng.uniform(1.5, 2.5) * (1.0 - 0.25 * off)
+        lean = 0.1 + off * rng.uniform(0.25, 0.6)
+        phase = rng.random()
+        with p.at((math.sin(yaw) * off, 0.0, math.cos(yaw) * off), yaw):
+            half = Vector((0.0, high * 0.5 * math.cos(lean * 0.5), high * 0.5 * math.sin(lean * 0.5)))
+            top = half + Vector((0.0, high * 0.5 * math.cos(lean * 1.5), high * 0.5 * math.sin(lean * 1.5)))
+            stem(p, [(0.0, -0.05, 0.0), half, top], [0.032, 0.026, 0.018], (blend(PLANT["reed"], PLANT["root"], 0.3), PLANT["reed"]), 3, (0.1, 0.6),
+                 (0.0, high), phase)
+            rays = 14
+            for k in range(rays):
+                blade(p, top, GOLDEN * k + rng.uniform(-0.2, 0.2), rng.uniform(0.5, 0.8), 0.25 + 1.4 * math.sqrt(k / rays), rng.uniform(0.4, 0.9), 0.035,
+                      PLANT["reed"], PLANT["reed_head"], 2, phase, rooted=high, paint=(0.4, 1.0))
+    for i in range(12):
+        yaw = GOLDEN * i * 1.3 + rng.uniform(-0.3, 0.3)
+        off = rng.uniform(0.1, 0.7)
+        blade(p, (math.sin(yaw) * off, -0.03, math.cos(yaw) * off), yaw + rng.uniform(-0.5, 0.5), rng.uniform(0.7, 1.4), rng.uniform(0.05, 0.4),
+              rng.uniform(0.5, 1.3), 0.05, blend(PLANT["reed"], PLANT["leaf_old"], 0.4), PLANT["reed"], 3, rng.random())
+
+
+def shrub_dry(p):
+    """A dry desert shrub: a knot of pale woody stems forking outward, with tufts of
+    small grey-green leaves at their ends and bare twigs between. Nothing solid."""
+    rng = random.Random(31)
+
+    def tuft(at, far, count, phase):
+        for k in range(count):
+            dry = rng.random() < 0.25
+            blade(p, at, TAU * k / count + rng.uniform(-0.4, 0.4), rng.uniform(0.3, 0.46), rng.uniform(0.2, 1.3), rng.uniform(0.2, 0.6), 0.085,
+                  blend(PLANT["sage"], PLANT["straw"], 0.7) if dry else PLANT["sage"], None, 2, phase, belly=True, rooted=far, paint=(0.2, 1.0))
+    branches = 7
+    for i in range(branches):
+        yaw = TAU * i / branches + rng.uniform(-0.35, 0.35)
+        lean = rng.uniform(0.35, 1.05)
+        long = rng.uniform(0.8, 1.2)
+        phase = rng.random()
+        with p.at((math.sin(yaw) * 0.06, 0.0, math.cos(yaw) * 0.06), yaw):
+            def along(t, lean=lean, long=long):
+                angle = lean + 0.35 * t
+                return Vector((0.0, math.cos(angle), math.sin(angle))) * (long * t)
+            stem(p, [(0.0, -0.05, 0.0), along(0.5), along(1.0)], [0.04, 0.028, 0.014], (PLANT["root"], PLANT["twig"]), 3, (0.2, 0.7), (0.0, long), phase)
+            tuft(along(1.0), long, 6, phase)
+            for hand in (-1.0, 1.0, rng.choice((-0.4, 0.4))):
+                t = rng.uniform(0.35, 0.75)
+                root = along(t)
+                reach = long * rng.uniform(0.35, 0.55)
+                end = root + Vector((hand * math.sin(0.8), math.cos(0.8) * rng.uniform(0.6, 1.2), rng.uniform(0.2, 0.6))).normalized() * reach
+                stem(p, [root, end], [0.02, 0.011], PLANT["twig"], 3, (0.5, 0.75), (long * t, long * t + reach), phase)
+                # (some twigs are bare)
+                if rng.random() < 0.85:
+                    tuft(end, long * t + reach, 5, phase)
+
+
+def grass_tuft(p):
+    """A tuft of dry grass: a spray of straw blades, greener at the foot, and a few
+    taller stalks gone to seed. Nothing solid."""
+    rng = random.Random(41)
+    for i in range(20):
+        yaw = GOLDEN * i + rng.uniform(-0.3, 0.3)
+        off = 0.03 + 0.14 * math.sqrt(i / 20.0)
+        blade(p, (math.sin(yaw) * off, -0.03, math.cos(yaw) * off), yaw, rng.uniform(0.45, 0.9), 0.1 + off * rng.uniform(1.5, 4.0),
+              rng.uniform(0.6, 1.5), 0.035, blend(PLANT["reed"], PLANT["straw"], 0.45), PLANT["straw"], 3, rng.random())
+    for i in range(4):
+        yaw = rng.uniform(0.0, TAU)
+        blade(p, (math.sin(yaw) * 0.05, 0.0, math.cos(yaw) * 0.05), yaw, rng.uniform(1.0, 1.25), rng.uniform(0.1, 0.3), rng.uniform(0.3, 0.6), 0.014,
+              PLANT["straw"], tuple(c * 1.12 for c in PLANT["straw"]), 3, rng.random(), leaf=0.5)
 
 
 def obelisk(p):
@@ -1037,7 +1450,8 @@ def oasis_rim(p):
     p.far = 150.0
 
 
-PROPS = [sphinx, pyramid_great, pyramid_ruined, pyramid_entrance, palm_a, palm_b, palm_c, obelisk, column, column_broken, column_stump,
+PROPS = [sphinx, pyramid_great, pyramid_ruined, pyramid_entrance, palm_a, palm_b, palm_c, palm_doum, palm_sucker, reeds, shrub_dry,
+         grass_tuft, obelisk, column, column_broken, column_stump,
          column_fallen, lintel, statue_pharaoh, statue_anubis, sarcophagus, jar_canopic, jar_canopic_jackal, pot, pot_large, rock_small,
          rock_a, rock_b, block, block_stack, rubble, brazier, torch_stand, campfire, well, oasis_rim, scaffold, crate, block_push, awning,
          tent, wall_glyphs, wall_ruin]
@@ -1048,9 +1462,10 @@ PROPS = [sphinx, pyramid_great, pyramid_ruined, pyramid_entrance, palm_a, palm_b
 # How far off each of these is still drawn, in metres (others say so themselves, or are
 # always drawn). Any one placed in a level can be given another `draw_distance` there.
 # Too small for a shadow to be worth drawing.
-NO_SHADOW = ("jar_canopic", "jar_canopic_jackal", "pot", "rock_small", "rubble", "campfire", "oasis_rim")
+NO_SHADOW = ("jar_canopic", "jar_canopic_jackal", "pot", "rock_small", "rubble", "campfire", "oasis_rim", "grass_tuft")
 FAR = {"column": 190.0, "column_broken": 190.0, "column_stump": 150.0, "column_fallen": 190.0, "lintel": 190.0, "statue_pharaoh": 230.0,
-       "statue_anubis": 200.0, "sarcophagus": 130.0, "palm_a": 210.0, "palm_b": 210.0, "palm_c": 210.0}
+       "statue_anubis": 200.0, "sarcophagus": 130.0, "palm_a": 210.0, "palm_b": 210.0, "palm_c": 210.0,
+       "palm_doum": 210.0, "palm_sucker": 150.0, "reeds": 120.0, "shrub_dry": 110.0, "grass_tuft": 70.0}
 
 MADE_MATERIALS = {}
 
@@ -1073,6 +1488,11 @@ def export(p):
     mesh = bpy.data.meshes.new(p.name)
     made = bmesh.new()
     layer = made.loops.layers.uv.verify()
+    # (a plant's points carry more: see "plants")
+    plant = bool(p.paint)
+    if plant:
+        second = made.loops.layers.uv.new("bend")
+        colours = made.loops.layers.float_color.new("paint")
     points = [made.verts.new((v.x, -v.z, v.y)) for v in p.verts]
     slots = []
     triangles = 0
@@ -1090,11 +1510,26 @@ def export(p):
         if uvs:
             for loop, uv in zip(face.loops, uvs):
                 loop[layer].uv = uv
+        if plant:
+            for loop, i in zip(face.loops, indices):
+                loop[layer].uv = p.place.get(i, (0.5, 0.5))
+                loop[second].uv = p.bend.get(i, (0.0, 0.0))
+                loop[colours] = p.paint.get(i, (1.0, 1.0, 1.0, 0.0))
         triangles += len(indices) - 2
     for vert in [v for v in made.verts if not v.link_faces]:
         made.verts.remove(vert)
+    made.verts.index_update()
+    lit = [(0.0, 0.0, 0.0)] * len(made.verts)
+    for i, point in enumerate(points):
+        if point.is_valid and i in p.normals:
+            n = p.normals[i]
+            lit[point.index] = (n.x, -n.z, n.y)
     made.to_mesh(mesh)
     made.free()
+    if plant:
+        mesh.normals_split_custom_set_from_vertices(lit)
+        mesh.color_attributes.active_color = mesh.color_attributes["paint"]
+        mesh.color_attributes.render_color_index = 0
     for name in slots:
         mesh.materials.append(material_for(name))
     thing = bpy.data.objects.new(p.name, mesh)
@@ -1108,6 +1543,7 @@ def export(p):
         export_yup=True,
         export_animations=False,
         use_selection=True,
+        export_vertex_color="ACTIVE" if plant else "MATERIAL",
     )
     bpy.data.objects.remove(thing)
     bpy.data.meshes.remove(mesh)
