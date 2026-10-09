@@ -10,11 +10,8 @@ extends Control
 ## what has been chosen is kept in Settings.
 
 const LEVELS := [
-	["The tomb", "res://main.tscn"],
-	["Test yard", "res://mechanics.tscn"],
-	["Sand yard", "res://sand_yard.tscn"],
+	["Test yard", "res://test_yard.tscn"],
 	["Desert", "res://desert.tscn"],
-	["Hound run", "res://test_course.tscn"],
 ]
 const WIDTH := 344.0
 
@@ -32,6 +29,7 @@ var _cap_button: Button
 var _wardrobe: GridContainer
 var _swatches: Array[ColorPickerButton] = []
 var _garments: Array = []
+var _edit_button: Button
 
 
 func _ready() -> void:
@@ -81,6 +79,9 @@ func _ready() -> void:
 			continue
 		_main.add_child(_button(level[0], _go_to.bind(level[1])))
 	_main.add_child(_button("Restart this level", _restart))
+	# (a level made from a layout can be changed: see LevelEditor)
+	_edit_button = _button("Edit this level", _edit)
+	_main.add_child(_edit_button)
 	_main.add_child(_button("Close", func() -> void: _set_open(false)))
 
 	_dresser = _page()
@@ -119,6 +120,7 @@ func _input(event: InputEvent) -> void:
 
 func _set_open(open: bool) -> void:
 	_panel.visible = open
+	_edit_button.visible = get_tree().get_first_node_in_group(&"editable_level") != null
 	get_tree().paused = open
 	if open:
 		_show_page(false)
@@ -253,6 +255,16 @@ func _swap_models() -> void:
 func _swap_world() -> void:
 	Settings.world_banded = not Settings.world_banded
 	_restart()
+
+
+## Opens the level editor over this level.
+func _edit() -> void:
+	_panel.visible = false
+	var editor := get_tree().get_first_node_in_group(&"level_editor") as LevelEditor
+	if editor == null:
+		editor = LevelEditor.new()
+		get_parent().add_child(editor)
+	editor.open()
 
 
 func _restart() -> void:

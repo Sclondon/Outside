@@ -16,6 +16,15 @@ var look_h := 0.65
 var pin := Vector3.INF
 ## The way the camera looks is measured from this instead of from the way he faces, if set.
 var hold_yaw := NAN
+## Every bone's place in the skeleton, frame by frame, since the last sheet: what
+## a still picture cannot show (a joint that shakes) is found by `shake` in this.
+var track: Array = []
+var track_from := 0
+var frame_number := 0
+## A bone turning back on itself from one frame to the next by more than this each way, degrees, is shaking;
+## and one whose turning changes by more than this in a frame has jumped.
+const SHAKE := 1.5
+const JUMP := 14.0
 
 
 func _initialize() -> void:
@@ -123,6 +132,7 @@ func _initialize() -> void:
 	cam.fov = 30.0
 	stage.add_child(cam)
 	cam.make_current()
+	process_frame.connect(record)
 	run.call_deferred()
 
 
@@ -184,7 +194,88 @@ func snap() -> void:
 	cells.append(image)
 
 
+## Notes where every bone is this frame.
+func record() -> void:
+	frame_number += 1
+	if paused or player == null or player._rig == null or not is_instance_valid(player._rig._skeleton):
+		return
+	var skeleton: Skeleton3D = player._rig._skeleton
+	var row: Array[Transform3D] = []
+	for bone in skeleton.get_bone_count():
+		row.append(skeleton.get_bone_global_pose(bone))
+	if track.is_empty():
+		track_from = frame_number
+	track.append(row)
+
+
+## Marks a break in what `record` has noted: he has been put somewhere else.
+func cut() -> void:
+	track.append(null)
+
+
+## Prints which bones shook or jumped since the last sheet, and how badly, and on which frame of it.
+func shake(name: String) -> void:
+	var skeleton: Skeleton3D = player._rig._skeleton
+	var found: Array = []
+	var since_cut := 0
+	var turns: Array = []  # each bone's turn over the last frame, as an axis times degrees
+	var steps: Array = []
+	for i in track.size():
+		if track[i] == null or (i > 0 and track[i - 1] != null and track[i].size() != track[i - 1].size()):
+			since_cut = 0
+			turns.clear()
+			continue
+		since_cut += 1
+		# (the first frames after he is put down are him settling)
+		if since_cut < 8 or track[i - 1] == null:
+			turns.clear()
+			continue
+		var now: Array = []
+		var moved: Array = []
+		for bone in track[i].size():
+			var q := Quaternion(track[i][bone].basis.orthonormalized()) * Quaternion(track[i - 1][bone].basis.orthonormalized()).inverse()
+			var angle := q.get_angle()
+			if angle > PI:
+				angle -= TAU
+			now.append(q.get_axis() * rad_to_deg(angle))
+			moved.append(track[i][bone].origin - track[i - 1][bone].origin)
+		if not turns.is_empty():
+			if found.is_empty():
+				for bone in now.size():
+					found.append({"bone": skeleton.get_bone_name(bone), "shakes": 0, "worst": 0.0, "at": 0, "jump": 0.0, "jump_at": 0, "slips": 0, "slip": 0.0})
+			for bone in mini(now.size(), found.size()):
+				var a: Vector3 = turns[bone]
+				var b: Vector3 = now[bone]
+				var back := -a.dot(b) / maxf(a.length(), 0.0001)
+				if a.dot(b) < 0.0 and minf(back, a.length()) > SHAKE:
+					found[bone].shakes += 1
+					if minf(back, a.length()) > found[bone].worst:
+						found[bone].worst = minf(back, a.length())
+						found[bone].at = i
+				if (b - a).length() > found[bone].jump:
+					found[bone].jump = (b - a).length()
+					found[bone].jump_at = i
+				var c: Vector3 = steps[bone]
+				var d: Vector3 = moved[bone]
+				if c.dot(d) < 0.0 and minf(c.length(), d.length()) > 0.006:
+					found[bone].slips += 1
+					found[bone].slip = maxf(found[bone].slip, minf(c.length(), d.length()))
+		# (SHAKE_TRACE=<bone> in the environment prints that bone's turn on every frame, degrees about x, y and z)
+		var traced := skeleton.find_bone(OS.get_environment("SHAKE_TRACE"))
+		if traced >= 0 and traced < now.size():
+			print("TRACE %s %d  %6.1f %6.1f %6.1f" % [name, i, now[traced].x, now[traced].y, now[traced].z])
+		turns = now
+		steps = moved
+	var bad := found.filter(func(entry: Dictionary) -> bool: return entry.shakes >= 2 or entry.jump > JUMP or entry.slips >= 2)
+	bad.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.shakes * 100 + a.jump > b.shakes * 100 + b.jump)
+	print("SHAKE ", name, " frames=", track.size(), " from=", track_from, " bones=", bad.size())
+	for entry: Dictionary in bad.slice(0, 14):
+		print("  %-14s shakes=%d worst=%.1f at %d | jump=%.1f at %d | slips=%d %.3f" % [entry.bone, entry.shakes, entry.worst, entry.at, entry.jump, entry.jump_at, entry.slips, entry.slip])
+	track.clear()
+
+
 func sheet(name: String, columns := 3) -> void:
+	shake(name)
 	var rows := ceili(cells.size() / float(columns))
 	var page := Image.create(CELL * columns, CELL * rows, false, cells[0].get_format())
 	for i in cells.size():
@@ -195,6 +286,7 @@ func sheet(name: String, columns := 3) -> void:
 
 
 func place(at: Vector3, yaw: float) -> void:
+	cut()
 	touch.move = Vector2.ZERO
 	touch.duck_held = false
 	touch.jump_held = false
@@ -914,6 +1006,33 @@ func jump() -> void:
 			await snap()
 		touch.jump_held = false
 		sheet(kind[0], 6)
+	# Close on the knee he brings up, from the side, in front and behind, to
+	# see what the bend does to his breeches
+	for yaw: float in [PI * 0.5, 0.7, PI - 0.7]:
+		place(Vector3(0, 0.05, 0), PI * 0.5)
+		view = Vector3(yaw, 0.1, 2.0)
+		look_h = 0.55
+		await frames(53, Vector3(1, 0, 0))
+		touch.jump_held = true
+		player._queue_jump()
+		for i in 4:
+			await frames(4, Vector3(1, 0, 0))
+			await snap()
+		touch.jump_held = false
+	sheet("jump_close", 4)
+	# And stopped at the top of it, from all round
+	place(Vector3(0, 0.05, 0), PI * 0.5)
+	await frames(53, Vector3(1, 0, 0))
+	touch.jump_held = true
+	player._queue_jump()
+	await frames(14, Vector3(1, 0, 0))
+	touch.jump_held = false
+	paused = true
+	for yaw: float in [0.0, 0.5, 1.0, PI * 0.5, 2.2, PI, -2.2, -1.0]:
+		view = Vector3(yaw, 0.25, 1.5)
+		await snap()
+	paused = false
+	sheet("jump_round", 4)
 	look_h = 0.65
 
 
@@ -1441,6 +1560,15 @@ func bat() -> void:
 		await frames(4)
 		await snap()
 	sheet("bat", 4)
+	# The swing again, every other frame, from in front and from the side
+	for yaw: float in [0.5, PI * 0.5 - 0.2]:
+		view = Vector3(yaw, 0.12, 3.4)
+		await frames(50)
+		player._act()
+		for i in 12:
+			await frames(3)
+			await snap()
+	sheet("bat_fine", 6)
 	club.queue_free()
 
 

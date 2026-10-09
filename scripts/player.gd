@@ -67,7 +67,7 @@ const THROW_RELEASE := 0.56
 const SCRAMBLE := Vector2(0.24, 0.62)
 ## How far a sprawl throws him forward over his feet, metres, and while (from, to).
 const SPRAWL_THROW := 0.68
-const SPRAWL_FALLS := Vector2(0.06, 0.34)
+const SPRAWL_FALLS := Vector2(0.0, 0.16)
 ## How far through a swing of a bat it meets whatever is in front of him.
 const SWING_HITS := 0.5
 ## How far under the surface his feet are when he floats, and when he counts as under it.
@@ -171,7 +171,7 @@ const DIVE_IN_TAKES := 0.55
 ## 9.5, of 2 m at 11, of 2.5 m at 12.3, of 3 m at 13.5, of 4.5 m at 16.5.
 @export var landing_speeds := Vector4(9.0, 11.6, 13.0, 15.2)
 ## How long each of those takes him, seconds.
-@export var landing_times := Vector4(1.0, 1.7, 0.95, 0.72)
+@export var landing_times := Vector4(1.0, 1.5, 0.95, 0.72)
 ## How fast a stumble (to begin with) and a roll carry him forward.
 @export var stumble_speed := 3.2
 @export var roll_speed := 4.4

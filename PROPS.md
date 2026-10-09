@@ -54,25 +54,18 @@ are instances and pick the change up.
 
 ## The desert (`desert.tscn`)
 
-A scene to edit in the editor. Under `Level`:
+The desert is not laid out in the Godot editor any more. It is made from a layout (`levels/desert.json`, or the one saved on
+the device) by `scripts/desert.gd`, and changed with the level editor inside the game: see "The level editor" in README.md.
+The scene holds only `Sky` and `Sun` (ordinary nodes: change the light there), the `Terrain`, the player, the camera and the
+controls. Every prop below is on the editor's Stone and Camp pages.
 
-- `Sky`, `Sun`: the light. Ordinary nodes.
-- `Terrain`: the ground (below).
-- `Approach`, `Camp`, `Oasis`, `Colonnade`, `Sphinx`, `Pyramid`, `RuinedPyramid`, `Shrine`, `Outpost`, `FallenObelisk`: one node
-  for each place, holding its props and a `Ground` pad. Move the node and the whole place moves, ground and all.
-- `Scatter`: lone rocks, palms and stones out in the dunes.
-- `Checkpoints`: Marker3Ds in the group `checkpoints`. He comes back to the last one he came within 5 m of. Copy one to add one.
-
-To place more: drag a scene from `props/` into the viewport, or copy one that is there (Ctrl+D). On a pad the ground is level, at
-the height of the pad; out on the dunes, set the height by eye and sink things a little.
-
-`tools/build_desert.gd` laid the scene out the first time. It will not write over `desert.tscn` again unless run with `-- force`,
-which throws away whatever has been done by hand.
+A new prop is offered by the editor once it is added to `PALETTE` in `scripts/level_layout.gd`.
 
 ### The ground
 
 `Terrain` (`scripts/desert_terrain.gd`) makes its mesh and collider from a height function when the scene opens, in the editor
-too. In the inspector: `size`, `cell` (the side of one square of the mesh), `dune_height`, `seed`, `rim_height` and `rim_width`
+too (there it reads `layout_file`, so the Godot editor shows the same ground as the game). The game gives it its shape from the
+layout: its own numbers, the pads, dunes placed by hand, and ponds and rivers, which are cut into it (`shape_from`). In the inspector: `size`, `cell` (the side of one square of the mesh), `dune_height`, `seed`, `rim_height` and `rim_width`
 (the ground rises at its edges to close the level in), `far_from` (beyond this the ground is drawn coarsely), and a `Rebuild`
 button.
 

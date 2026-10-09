@@ -9,6 +9,11 @@ extends StaticBody3D
 ## `scripts/desert_pad.gd`): move a pad in the editor and the ground follows.
 ## The "Rebuild" button in the inspector makes it again by hand.
 ##
+## It can also be given its whole shape as a layout (`shape_from`, and see
+## `LevelLayout`): pads, dunes placed by hand, and water (ponds and rivers,
+## which are cut into it). That is how the game makes it, from the layout the
+## level editor saves; `layout_file` has the editor here do the same.
+##
 ## The dunes are `SandDunes` (crescents and ridges shaped by `wind`): see
 ## `dunes_at`. In the game the ground is drawn by a `SandGround` (the `ground`
 ## here), which takes footprints and follows the player with a fine mesh; it
@@ -61,6 +66,15 @@ extends StaticBody3D
 	set(value):
 		wind = value
 		queue_rebuild()
+## How thickly dunes are scattered over it by chance: 1 is as many as its size
+## calls for, 0 none (only those placed by hand are left).
+@export var scatter := 1.0:
+	set(value):
+		scatter = maxf(value, 0.0)
+		queue_rebuild()
+## A layout to take its shape from when the scene opens (the game gives it
+## one itself: see `scripts/desert.gd`).
+@export_file("*.json") var layout_file := ""
 @export_tool_button("Rebuild") var _rebuild_button := rebuild
 
 ## In the game: what draws the ground (see `SandGround`). None in the editor.
@@ -77,6 +91,13 @@ const FAR_MARGIN := 12.0
 
 # Each pad: [world-to-pad Transform3D, half size, round, ease, height]
 var _pads: Array = []
+# Whether the pads were given (`shape_from`, `use_pads`) and not to be looked for in the scene.
+var _given := false
+# Dunes placed by hand: ["dune", at, width, height, horns] or ["ridge", from, to, height].
+var _extra: Array = []
+# Water cut into the ground. Each: [points, half width, depth, level asked for
+# (from the ground at its first point), bank, bounds, level (worked out), id].
+var _carves: Array = []
 var _dunes: SandDunes
 var _made: Array[Node] = []
 var _wait := -1.0
@@ -84,6 +105,10 @@ var _wait := -1.0
 
 func _ready() -> void:
 	add_to_group(&"terrain")
+	if not _given and layout_file != "" and FileAccess.file_exists(layout_file):
+		var read: Variant = JSON.parse_string(FileAccess.get_file_as_string(layout_file))
+		if read is Dictionary:
+			shape_from(read)
 	rebuild()
 	set_process(Engine.is_editor_hint())
 
@@ -129,15 +154,100 @@ func sand_material() -> Material:
 
 ## How high the ground stands at a place (in this node's own space).
 func height_at(x: float, z: float) -> float:
+	var height := _dry_at(x, z)
+	for carve: Array in _carves:
+		if (carve[5] as Rect2).has_point(Vector2(x, z)):
+			height = _carved(height, carve, x, z)
+	return height
+
+
+# The ground before any water is cut into it.
+func _dry_at(x: float, z: float) -> float:
 	var height := _open_at(x, z)
 	for pad: Array in _pads:
 		height = _pressed(height, pad, x, z)
 	return height
 
 
+## Takes its whole shape from a layout (see `LevelLayout`): its own numbers
+## from `terrain`, and from `items` the pads, the dunes placed by hand, and
+## the ponds and rivers. Call `rebuild` afterwards.
+func shape_from(layout: Dictionary) -> void:
+	var own: Dictionary = layout.get("terrain", {})
+	size = own.get("size", size)
+	cell = own.get("cell", cell)
+	dune_height = own.get("dune_height", dune_height)
+	seed = int(own.get("seed", seed))
+	rim_height = own.get("rim_height", rim_height)
+	rim_width = own.get("rim_width", rim_width)
+	scatter = own.get("scatter", scatter)
+	var blows: Array = own.get("wind", [wind.x, wind.y])
+	wind = Vector2(blows[0], blows[1])
+	var pads: Array = []
+	_extra.clear()
+	_carves.clear()
+	for item: Dictionary in layout.get("items", []):
+		var at := Vector2(item["at"][0], item["at"][1])
+		var yaw := deg_to_rad(item.get("yaw", 0.0))
+		match item.get("kind", ""):
+			"pad":
+				pads.append([Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, item.get("y", 0.0), at.y)),
+						Vector2(item.get("half_x", 10.0), item.get("half_z", 10.0)), item.get("round", false), item.get("ease", 10.0)])
+			"dune":
+				_extra.append(["dune", at, item.get("width", 40.0), item.get("height", 5.0), item.get("horns", 0.55)])
+			"ridge":
+				var along: Vector2 = Vector2(sin(yaw), cos(yaw)) * float(item.get("length", 80.0)) * 0.5
+				_extra.append(["ridge", at - along, at + along, item.get("height", 6.0)])
+			"pond":
+				_add_carve(PackedVector2Array([at]), item.get("radius", 8.0), item)
+			"river":
+				var points := PackedVector2Array()
+				for point: Array in item.get("points", [item["at"]]):
+					points.append(Vector2(point[0], point[1]))
+				_add_carve(points, item.get("width", 8.0) * 0.5, item)
+	use_pads(pads)
+
+
+func _add_carve(points: PackedVector2Array, half: float, item: Dictionary) -> void:
+	var bank: float = item.get("bank", 5.0)
+	var bounds := Rect2(points[0], Vector2.ZERO)
+	for point in points:
+		bounds = bounds.expand(point)
+	_carves.append([points, half, item.get("depth", 1.2), item.get("level", -0.4), bank, bounds.grow(half + bank), 0.0, int(item.get("id", 0))])
+
+
+## The water cut into the ground, once it has been made: for each, `id` (the
+## item it came from), `level` (how high its surface is, in this node's own
+## space), `depth`, `rect` (the ground it lies in), `points` and `half` (its
+## line, and how far it reaches each side of it).
+func waters() -> Array:
+	var all: Array = []
+	for carve: Array in _carves:
+		all.append({"id": carve[7], "level": carve[6], "depth": carve[2], "rect": (carve[5] as Rect2).grow(-carve[4]), "points": carve[0], "half": carve[1]})
+	return all
+
+
+# What a pond or a river makes of the ground at a place: its bed, a dish
+# under the water; and beside it the bank, which comes up from the water's
+# edge to the ground as it was.
+func _carved(height: float, carve: Array, x: float, z: float) -> float:
+	var points: PackedVector2Array = carve[0]
+	var at := Vector2(x, z)
+	var away := at.distance_to(points[0])
+	for i in points.size() - 1:
+		away = minf(away, at.distance_to(Geometry2D.get_closest_point_to_segment(at, points[i], points[i + 1])))
+	var half: float = carve[1]
+	if away >= half + carve[4]:
+		return height
+	if away < half:
+		return carve[6] - carve[2] * (1.0 - away * away / (half * half))
+	return lerpf(carve[6], height, smoothstep(0.0, carve[4], away - half))
+
+
 ## Tells the ground where its pads are without it being in a scene: each is
 ## [the pad's transform, half size, round, ease]. For tools that lay a level out.
 func use_pads(pads: Array) -> void:
+	_given = true
 	_pads.clear()
 	for pad: Array in pads:
 		var place: Transform3D = pad[0]
@@ -153,15 +263,28 @@ func _make_dunes() -> void:
 	all.seed = seed
 	var scale := dune_height / 4.5
 	var reach := size * 0.5 - rim_width * 0.5
-	all.scatter(Rect2(-reach, -reach, reach * 2.0, reach * 2.0), int(size * size / 5200.0), Vector2(2.2, 7.5) * scale, Callable(), 0.25)
+	var count := int(size * size / 5200.0 * scatter)
+	if count > 0:
+		all.scatter(Rect2(-reach, -reach, reach * 2.0, reach * 2.0), count, Vector2(2.2, 7.5) * scale, Callable(), 0.25)
 	var pads := _pads
+	var carves := _carves
 	_dunes = all.without(func(bounds: Rect2) -> bool:
 		for pad: Array in pads:
 			var middle: Vector3 = (pad[0] as Transform3D).affine_inverse().origin
 			var room: float = (pad[1] as Vector2).length() + pad[3] * 0.5
 			if bounds.grow(room - minf(bounds.size.x, bounds.size.y) * 0.22).has_point(Vector2(middle.x, middle.z)):
 				return true
+		# (nor on a pond)
+		for carve: Array in carves:
+			if (carve[0] as PackedVector2Array).size() == 1 and bounds.grow(carve[1] - minf(bounds.size.x, bounds.size.y) * 0.22).has_point(carve[0][0]):
+				return true
 		return false)
+	# Those placed by hand stand wherever they were put.
+	for dune: Array in _extra:
+		if dune[0] == "dune":
+			_dunes.add_barchan(dune[1], dune[2], dune[3], dune[4])
+		else:
+			_dunes.add_ridge(dune[1], dune[2], dune[3], 0.05, int(absf(dune[1].x * 3.0 + dune[1].y)))
 
 
 # Dunes and the rim, before any pad.
@@ -184,7 +307,7 @@ func _pressed(height: float, pad: Array, x: float, z: float) -> float:
 
 
 func _gather_pads() -> void:
-	if not is_inside_tree():
+	if not is_inside_tree() or _given:
 		return
 	var found: Array = []
 	var scene := get_tree().edited_scene_root if Engine.is_editor_hint() else null
@@ -225,6 +348,14 @@ func rebuild() -> void:
 		for row in range(maxi(int((middle.z - reach + half) / step), 0), mini(int((middle.z + reach + half) / step) + 2, side)):
 			for column in range(maxi(int((middle.x - reach + half) / step), 0), mini(int((middle.x + reach + half) / step) + 2, side)):
 				heights[row * side + column] = _pressed(heights[row * side + column], pad, column * step - half, row * step - half)
+	# Then the water: each lies as high as the ground at its first point, give or take.
+	for carve: Array in _carves:
+		var first: Vector2 = carve[0][0]
+		carve[6] = _dry_at(first.x, first.y) + carve[3]
+		var bounds: Rect2 = carve[5]
+		for row in range(maxi(int((bounds.position.y + half) / step), 0), mini(int((bounds.end.y + half) / step) + 2, side)):
+			for column in range(maxi(int((bounds.position.x + half) / step), 0), mini(int((bounds.end.x + half) / step) + 2, side)):
+				heights[row * side + column] = _carved(heights[row * side + column], carve, column * step - half, row * step - half)
 	if Engine.is_editor_hint():
 		var material := sand_material()
 		for chunk_row in range(0, count, CHUNK):

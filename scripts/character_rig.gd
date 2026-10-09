@@ -37,7 +37,7 @@ const KNEEL_ENDS := Vector2(0.62, 0.94)
 ## Going sprawling, the same way: when he tips on forward off that knee and fist
 ## onto both hands (from, to), when his hands come up off the ground (from, to),
 ## and when he is on his feet again (from, to).
-const SPRAWL := Vector2(0.06, 0.18)
+const SPRAWL := Vector2(0.0, 0.03)
 const SPRAWL_HANDS := Vector2(0.7, 0.8)
 const SPRAWL_ENDS := Vector2(0.82, 1.0)
 ## How far along a ledge he shimmies for each foot to take one step on the wall.
@@ -102,26 +102,43 @@ const CLIMB_STANDS := Vector2(0.78, 1.0)
 ## legs shoot out behind him and his arms give, and he is flat on his front;
 ## he lies there a moment; presses himself up; and gets first the foot that was
 ## in front under him, then the other, and stands. Heights are above the ground.
-const SPRAWL_HIPS_Y := [0.0, 0.265, 0.18, 0.25, 0.34, 0.125, 0.46, 0.125, 0.62, 0.27, 0.74, 0.34, 0.84, 0.4]
-const SPRAWL_HIPS_Z := [0.0, 0.02, 0.18, 0.07, 0.34, 0.03, 0.62, 0.0, 0.74, -0.03, 0.84, 0.0]
-const SPRAWL_LEAN := [0.0, 1.0, 0.18, 1.36, 0.34, 1.6, 0.46, 1.6, 0.62, 1.22, 0.74, 1.0, 0.84, 0.6]
-const SPRAWL_ARCH := [0.0, -0.3, 0.18, -0.12, 0.34, 0.0, 0.46, 0.04, 0.62, 0.0, 0.74, -0.3, 0.84, -0.2]
+const SPRAWL_HIPS_Y := [0.0, 0.3, 0.16, 0.125, 0.46, 0.125, 0.62, 0.27, 0.74, 0.34, 0.84, 0.4]
+const SPRAWL_HIPS_Z := [0.0, 0.04, 0.16, 0.03, 0.62, 0.0, 0.74, -0.03, 0.84, 0.0]
+const SPRAWL_LEAN := [0.0, 0.9, 0.08, 1.35, 0.16, 1.6, 0.46, 1.6, 0.62, 1.22, 0.74, 1.0, 0.84, 0.6]
+const SPRAWL_ARCH := [0.0, -0.2, 0.16, 0.0, 0.46, 0.04, 0.62, 0.0, 0.74, -0.3, 0.84, -0.2]
 ## Which way his head is tipped, down positive: into the ground, then up to see where he is.
-const SPRAWL_CHIN := [0.0, 0.45, 0.18, 0.4, 0.34, 1.0, 0.46, 0.9, 0.6, -0.25, 0.84, -0.1]
+const SPRAWL_CHIN := [0.0, 0.4, 0.16, 1.0, 0.46, 0.9, 0.6, -0.25, 0.84, -0.1]
 ## The ankle of the leg that was in front, and how far its toes are down; and of the one whose knee was.
 ## (Neither foot is moved as he goes down: the Player carries him forward over
 ## them by Player.SPRAWL_THROW, so here they fall behind by as much. The back
 ## one, already behind him, is at the end of its leg and drags.)
-const SPRAWL_FRONT_Z := [0.06, 0.19, 0.34, -0.48, 0.62, -0.48, 0.75, 0.1, 1.0, 0.1]
-const SPRAWL_FRONT_PITCH := [0.18, 0.0, 0.34, 1.25, 0.62, 1.1, 0.75, 0.0]
-const SPRAWL_BACK_Z := [0.06, -0.3, 0.34, -0.54, 0.7, -0.54, 0.84, -0.08]
-const SPRAWL_BACK_PITCH := [0.0, 1.15, 0.34, 1.3, 0.7, 1.1, 0.84, 0.15]
+const SPRAWL_FRONT_Z := [0.0, 0.19, 0.16, -0.48, 0.62, -0.48, 0.75, 0.1, 1.0, 0.1]
+const SPRAWL_FRONT_PITCH := [0.0, 0.0, 0.16, 1.25, 0.62, 1.1, 0.75, 0.0]
+const SPRAWL_BACK_Z := [0.0, -0.3, 0.16, -0.54, 0.7, -0.54, 0.84, -0.08]
+const SPRAWL_BACK_PITCH := [0.0, 1.15, 0.16, 1.3, 0.7, 1.1, 0.84, 0.15]
 
-## Swinging a bat, against how far through the swing he is: which way his chest
-## is turned (his left positive), and which way the bat points, as an angle
-## round him from straight ahead. Back a little further first, then all the way round.
-const SWING_TURN := [0.0, -0.45, 0.25, -0.95, 0.5, 0.3, 0.75, 1.1, 1.0, 1.2]
-const SWING_ANGLE := [0.0, -2.2, 0.25, -2.7, 0.5, 0.0, 0.75, 2.4, 1.0, 2.6]
+## Swinging a bat, as a batter does, drawn against how far through the swing
+## he is. He loads: his weight goes back, his front knee comes up, the bat is
+## cocked further behind him. He strides out onto his front foot; his hips and
+## chest come round, and the bat, which has hung back behind his hands, drops
+## into the plane of the swing and is whipped through late; it meets the ball
+## level, his arms at full stretch (Player.SWING_HITS); and it goes on round
+## and up over his front shoulder, his hands folding in after it.
+## Which way his chest is turned (his left positive), and which way the bat
+## points, as an angle round him from straight ahead.
+const SWING_TURN := [0.0, -0.45, 0.25, -1.05, 0.4, -0.5, 0.5, 0.35, 0.68, 1.1, 1.0, 1.25]
+const SWING_ANGLE := [0.0, -2.2, 0.25, -2.9, 0.4, -1.9, 0.5, 0.0, 0.6, 1.5, 0.78, 2.6, 1.0, 2.95]
+## How far the bat points upward (0: level), and where his hands are: how far
+## round him (as the bat's angle is measured), how far out from him, how high.
+const SWING_TILT := [0.0, 0.9, 0.25, 0.8, 0.4, 0.3, 0.5, 0.02, 0.64, 0.2, 0.85, 0.7, 1.0, 0.9]
+const SWING_HANDS := [0.0, -1.4, 0.25, -1.75, 0.4, -1.0, 0.5, 0.15, 0.66, 1.1, 1.0, 1.7]
+const SWING_REACH := [0.0, 0.16, 0.25, 0.13, 0.4, 0.24, 0.5, 0.36, 0.62, 0.37, 0.85, 0.22, 1.0, 0.16]
+const SWING_HANDS_Y := [0.0, 0.95, 0.25, 1.0, 0.4, 0.92, 0.5, 0.82, 0.7, 0.9, 1.0, 1.04]
+## His hips: how far forward of where he stood (back, as he loads; then on over
+## his front foot), and how far down. And how far his front foot strides out.
+const SWING_HIPS_Z := [0.0, 0.0, 0.25, -0.07, 0.4, 0.0, 0.5, 0.08, 0.75, 0.1, 1.0, 0.04]
+const SWING_HIPS_Y := [0.0, 0.0, 0.25, -0.03, 0.5, -0.07, 0.8, -0.03, 1.0, 0.0]
+const SWING_STRIDE := [0.0, 0.0, 0.14, 0.0, 0.4, 0.24, 1.0, 0.2]
 
 ## Throwing, as a ball player does, drawn the same way against how far through
 ## the throw he is. He turns side on, his front knee coming up and the ball
@@ -239,6 +256,11 @@ var _thighs: Array[Node3D] = []
 var _shins: Array[Node3D] = []
 var _feet: Array[Node3D] = []
 var _toes: Array[Node3D] = []
+## Helpers, on a figure that has the bones: one at each knee and one at each
+## hip, turned half as far as the joint, so what is skinned near a joint bends
+## in two easy folds and keeps its shape, not one hard one.
+var _knees: Array[Node3D] = []
+var _seats: Array[Node3D] = []
 var _shoulders: Array[Node3D] = []
 var _elbows: Array[Node3D] = []
 var _hands: Array[Node3D] = []
@@ -490,6 +512,8 @@ var _stair_shift: Array[float] = [0.0, 0.0]
 var _stair_left: Array[float] = [0.0, 0.0]
 var _stair_drop := 0.0
 var _stride_now := 1.0
+## How many treads he is taking at a step, on stairs (0 off them).
+var _stair_each := 0.0
 ## In the air (and for a moment either side of it) his arms are not held in a
 ## pose but thrown: each follows where it is wanted on a spring, as (pitch,
 ## roll, elbow), and how fast each of those is changing. How far that has taken
@@ -823,7 +847,10 @@ func _process(delta: float) -> void:
 		var each := clampf(roundf(stride * 0.5 / tread), 1.0, 3.0)
 		while each > 1.0 and each * riser > lerpf(0.4, 0.5, _descending):
 			each -= 1.0
-		stride = lerpf(stride, 2.0 * each * tread, _stairs)
+		# (how many he takes at a step changes over a moment, not at once: in the
+		# middle of a step it would snatch the foot back or throw it on)
+		_stair_each = each if _stair_each == 0.0 else _approach(_stair_each, each, 7.0, delta)
+		stride = lerpf(stride, 2.0 * _stair_each * tread, _stairs)
 		var made_up := _stair_slew * (1.0 - exp(-6.0 * delta))
 		_phase = fposmod(_phase + made_up * _stairs, 1.0)
 		_stair_slew -= made_up
@@ -831,10 +858,13 @@ func _process(delta: float) -> void:
 		_stair_set[0] = false
 		_stair_set[1] = false
 		_stair_slew = 0.0
+		_stair_each = 0.0
 	_stride_now = stride
 	# His arms are let go as he leaves the ground, and gathered again once he is back on it.
 	var loose_armed := (not grounded or _launch > 0.25 or _land > 0.25 or _whirl > 0.3) and doing == Player.State.FREE
-	_arm_free = _approach(_arm_free, 1.0 if loose_armed else 0.0, 13.0 if loose_armed else 4.5, delta)
+	# (let go all at once: what they are wanted to do changes in a moment as he
+	# takes off, and it is the spring that carries them from the one to the other)
+	_arm_free = 1.0 if loose_armed else _approach(_arm_free, 0.0, 4.5, delta)
 	var stance := lerpf(lerpf(lerpf(lerpf(0.6, 0.34, _run), 0.3, _sprint), 0.68, _push), 0.57, _duck)
 	if grounded:
 		# (a figure scaled up covers more ground per stride)
@@ -1346,6 +1376,9 @@ func _pose_body(speed: float, vertical_speed: float, stance: float, gait: float)
 	var bat_turn := lerpf(-0.45, _keyed(SWING_TURN, _swing_at), _swinging) * _bat
 	at.y -= 0.05 * _bat
 	lean += 0.12 * _bat
+	at += Vector3(0.0, _keyed(SWING_HIPS_Y, _swing_at), _keyed(SWING_HIPS_Z, _swing_at)) * _swinging * _bat
+	# (his head stays on the ball while his chest goes round under it)
+	chin += 0.12 * _swinging * _bat * sin(PI * clampf(_swing_at / 0.6, 0.0, 1.0))
 	# Throwing: side on to wind up, then round and over his front foot. (See the PITCH_ curves.)
 	var wound := _keyed(PITCH_TURN, _pitch_at) * _pitching + bat_turn
 	at += Vector3(0.0, _keyed(PITCH_HIPS_Y, _pitch_at), _keyed(PITCH_HIPS_Z, _pitch_at)) * _pitching
@@ -1529,6 +1562,9 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 			ground = high * _stairs
 			target += (Vector3(0.0, high, shift) + _ankle_offset(toes) - _ankle_offset(pitch)) * _stairs
 			pitch = lerpf(pitch, toes, _stairs)
+			# (the lift of his ordinary step on top of the height of the tread
+			# would carry the foot up over his hip, and the leg right round with it)
+			target.y = lerpf(target.y, minf(target.y, _hips.position.y - 0.1), _stairs)
 
 		# Airborne, he holds a pose, and there are two of them. Going up out of a
 		# run it is a stride held: one knee driven high in front, the other leg
@@ -1691,7 +1727,12 @@ func _pose_legs(vertical_speed: float, stride: float, stance: float, gait: float
 			knee = lerpf(knee, side * lerpf(0.55, 0.15, smoothstep(0.3, 0.8, _ladder_off)), _ladder)
 		# Winded, and with a bat, his feet are planted wide; he steps into a swing.
 		target.x += side * (0.05 * _tired + 0.07 * _bat)
-		target.z += (0.16 if i == 0 else -0.06) * _swinging * _bat
+		if i == 0:
+			# (the front foot: up as he loads, and out)
+			target.z += _keyed(SWING_STRIDE, _swing_at) * _swinging * _bat
+			target.y += 0.1 * sin(PI * clampf((_swing_at - 0.12) / 0.28, 0.0, 1.0)) * _swinging * _bat
+		else:
+			target.z -= 0.06 * _swinging * _bat
 		if i == 1:
 			# (and comes round on the ball of his back foot)
 			var pivot := smoothstep(0.35, 0.6, _swing_at) * _swinging * _bat
@@ -1808,15 +1849,45 @@ func _solve_leg(index: int, side: float, target: Vector3, foot_basis: Basis, kne
 	var reach := clampf(to_target.length(), 0.1, _thigh + _shin - 0.004)
 	var direction := to_target.normalized() if to_target.length_squared() > 0.0001 else Vector3.DOWN
 	var ahead := Vector3(sin(knee), 0.0, cos(knee))
-	var bend_axis := direction.cross(ahead)
-	bend_axis = bend_axis.normalized() if bend_axis.length_squared() > 0.0001 else Vector3.LEFT
+	# The hinge of the knee is carried round with the leg from where it lies
+	# when the leg hangs straight down, by the shortest way. (Taken afresh from
+	# `ahead` each time, it turned over as the foot passed in front of the hip
+	# or behind it, and went anywhere at all with the foot tucked up close.)
+	var bend_axis := (Quaternion(Vector3.DOWN, direction) * Vector3.DOWN.cross(ahead)).normalized()
 	var hip_angle := acos(clampf((_thigh * _thigh + reach * reach - _shin * _shin) / (2.0 * _thigh * reach), -1.0, 1.0))
 	var thigh_direction := direction.rotated(bend_axis, hip_angle)
 	var knee_at := hip + thigh_direction * _thigh
 	var ankle := hip + direction * reach
-	_thighs[index].transform = Transform3D(_aim_down(thigh_direction, ahead), hip)
-	_shins[index].transform = Transform3D(_aim_down((ankle - knee_at).normalized(), ahead), knee_at)
+	# Both bones are turned about the knee's own hinge, which lies across the
+	# plane the leg bends in. (Taking each bone's side from `ahead` instead
+	# turned it right round on itself whenever it pointed along or above that:
+	# a knee brought up high, a heel out in front.)
+	var across := -bend_axis
+	var thigh_up := -thigh_direction
+	var shin_up := (knee_at - ankle).normalized()
+	_thighs[index].transform = Transform3D(Basis(across, thigh_up, across.cross(thigh_up)), hip)
+	_shins[index].transform = Transform3D(Basis(across, shin_up, across.cross(shin_up)), knee_at)
 	_feet[index].transform = Transform3D(foot_basis, ankle)
+	_half_joints(index)
+
+
+## Sets a leg's helper joints from where its thigh and shin are: each halfway
+## round its joint. The knee's also rides out over the kneecap as the leg
+## folds, which keeps the knee full where it would otherwise cave in.
+func _half_joints(index: int) -> void:
+	if index >= _knees.size():
+		return
+	var thigh := _thighs[index].basis.orthonormalized()
+	var shin := _shins[index].basis.orthonormalized()
+	var knee_at := _shins[index].position
+	var down_thigh := -thigh.y
+	var down_shin := -shin.y
+	var fold := down_thigh.angle_to(down_shin)
+	# (out of the crook: away from the line between hip and ankle)
+	var crook := down_shin - down_thigh
+	var out := -crook.normalized() if crook.length_squared() > 0.0001 else Vector3.ZERO
+	_knees[index].transform = Transform3D(thigh.slerp(shin, 0.5), knee_at + out * 0.022 * pow(sin(fold * 0.5), 2.0))
+	_seats[index].transform = Transform3D(Basis.IDENTITY.slerp(thigh, 0.5), _thighs[index].position)
 
 
 func _pose_arms(vertical_speed: float, gait: float) -> void:
@@ -1835,8 +1906,11 @@ func _pose_arms(vertical_speed: float, gait: float) -> void:
 	var bat_angle := _keyed(SWING_ANGLE, _swing_at)
 	# (waiting, he keeps the end of it going round in little circles)
 	var waggle := Vector3(sin(_time * 2.3) * 0.13, 0.0, cos(_time * 2.3) * 0.1 + sin(_time * 0.7) * 0.05)
-	_bat_dir = (Vector3(-0.25, 0.9, -0.35) + waggle).lerp(Vector3(sin(bat_angle), 0.12 + 0.5 * smoothstep(0.7, 1.0, _swing_at), cos(bat_angle)), _swinging).normalized()
-	_bat_grip = Vector3(-0.16, 0.95, 0.1).lerp(Vector3(sin(bat_angle * 0.6) * 0.28, 0.86, 0.1 + cos(bat_angle * 0.6) * 0.24), _swinging)
+	var bat_tilt := _keyed(SWING_TILT, _swing_at)
+	_bat_dir = (Vector3(-0.25, 0.9, -0.35) + waggle).lerp(Vector3(sin(bat_angle) * (1.0 - 0.5 * bat_tilt), bat_tilt, cos(bat_angle) * (1.0 - 0.5 * bat_tilt)), _swinging).normalized()
+	var hands_round := _keyed(SWING_HANDS, _swing_at)
+	var hands_out := _keyed(SWING_REACH, _swing_at)
+	_bat_grip = Vector3(-0.16, 0.95, 0.1).lerp(Vector3(sin(hands_round) * hands_out, _keyed(SWING_HANDS_Y, _swing_at), 0.08 + cos(hands_round) * hands_out), _swinging)
 	for i in 2:
 		var side := 1.0 if i == 0 else -1.0
 		# Opposite to the leg on the same side, and a beat behind it. Negative
@@ -2444,14 +2518,6 @@ static func _approach(from: float, to: float, rate: float, delta: float) -> floa
 	return lerpf(from, to, 1.0 - exp(-rate * delta))
 
 
-## Basis whose -Y axis points along `direction`, keeping +Z as near `ahead` as possible.
-static func _aim_down(direction: Vector3, ahead := Vector3.BACK) -> Basis:
-	var y := -direction
-	var x := y.cross(ahead)
-	x = x.normalized() if x.length_squared() > 0.0001 else Vector3.RIGHT
-	return Basis(x, y, x.cross(y))
-
-
 func _build() -> void:
 	var figure := (model if model else MODELS[1 if low_poly or Settings.low_poly else 0]).instantiate()
 	add_child(figure)
@@ -2483,6 +2549,9 @@ func _build() -> void:
 		_shins.append(_joint(_hips, "shin" + suffix, hip + Vector3.DOWN * _thigh))
 		_feet.append(_joint(_hips, "foot" + suffix, hip + Vector3.DOWN * (_thigh + _shin)))
 		_toes.append(_joint(_feet[-1], "toe" + suffix, _toe))
+		if _has("knee" + suffix) and _has("seat" + suffix):
+			_knees.append(_joint(_hips, "knee" + suffix, hip + Vector3.DOWN * _thigh))
+			_seats.append(_joint(_hips, "seat" + suffix, hip))
 
 	# What hangs and swings: the hem of the jumper, front first and round to
 	# his left, and his hair.
@@ -2784,6 +2853,7 @@ func _follow_ragdoll() -> void:
 		# Feet have no body of their own; they ride on the shins.
 		_feet[i].global_transform = _shins[i].global_transform * Transform3D(Basis.IDENTITY, Vector3.DOWN * _shin)
 		_toes[i].rotation = Vector3.ZERO
+		_half_joints(i)
 
 
 ## A rigid body standing in for the bone `joint` drives: a capsule reaching

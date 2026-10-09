@@ -2,7 +2,8 @@ extends SceneTree
 ## Not part of the game. Opens desert.tscn and saves pictures of it from a set of
 ## viewpoints (an overview, each landmark, some at the boy's eye level), four to a
 ## sheet, and prints what each costs to draw.
-## godot --path . --resolution 960x960 --script tools/desert_views.gd -- <outdir> [banded] [name ...]
+## godot --path . --resolution 960x960 --script tools/desert_views.gd -- <outdir> [banded] [yard] [name ...]
+## With `yard`: the test yard (test_yard.tscn) and its stations instead.
 
 const CELL := 640
 const VIEWS := [
@@ -28,11 +29,27 @@ const VIEWS := [
 	["from_pyramid", Vector3(0, 33, -97), Vector3(0, 0, 60), 60.0],
 ]
 
+const YARD_VIEWS := [
+	["yard", Vector3(30, 70, 95), Vector3(0, 0, 0), 55.0],
+	["start", Vector3(9, 5, 14), Vector3(0, 1, 0), 55.0],
+	["kick", Vector3(-5.5, 3, 15), Vector3(-5.5, 3, 6), 55.0],
+	["pond", Vector3(36, 5, -2), Vector3(50, -0.5, -12), 55.0],
+	["pond_eye", Vector3(40, 1.3, -12), Vector3(50, -0.3, -12), 55.0],
+	["hounds", Vector3(-22, 6, 44), Vector3(-36, 0.5, 30), 55.0],
+	["mummy", Vector3(-30, 6, -20), Vector3(-42, 0.5, -32), 55.0],
+	["range", Vector3(40, 5, 18), Vector3(40, 1, 36), 55.0],
+	["range_bench", Vector3(40, 2.2, 24.5), Vector3(40, 0.9, 28), 50.0],
+	["targets", Vector3(40, 2.5, 31), Vector3(41, 1, 41), 50.0],
+	["pool", Vector3(-14, 6, 0), Vector3(-26, -0.5, -8), 55.0],
+	["decks", Vector3(0, 8, 42), Vector3(2, 2, 24), 55.0],
+]
+
 var out := ""
 var only: Array = []
 var cam: Camera3D
 var cells: Array[Image] = []
 var names: Array = []
+var views: Array = VIEWS
 
 
 func _initialize() -> void:
@@ -44,7 +61,10 @@ func _initialize() -> void:
 	if "banded" in only:
 		only.erase("banded")
 		Settings.world_banded = true
-	var scene: Node = load("res://desert.tscn").instantiate()
+	if "yard" in only:
+		only.erase("yard")
+		views = YARD_VIEWS
+	var scene: Node = load("res://test_yard.tscn" if views == YARD_VIEWS else "res://desert.tscn").instantiate()
 	root.add_child(scene)
 	cam = Camera3D.new()
 	root.add_child(cam)
@@ -60,7 +80,7 @@ func run() -> void:
 	for i in 20:
 		await physics_frame
 	var page := 0
-	for view: Array in VIEWS:
+	for view: Array in views:
 		if not only.is_empty() and not view[0] in only:
 			continue
 		cam.global_position = view[1]

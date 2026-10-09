@@ -850,11 +850,11 @@ func _physics_process(delta: float) -> void:
 	if not is_built():
 		return
 	for body: Variant in _bodies:
-		if is_instance_valid(body):
+		if is_instance_valid(body) and (body as Node).is_inside_tree():
 			_watch_body(body, _bodies[body])
 	if slope_carry > 0.0:
 		for figure: Variant in _figures:
-			if is_instance_valid(figure) and _figures[figure].on:
+			if is_instance_valid(figure) and (figure as Node).is_inside_tree() and _figures[figure].on:
 				_carry(figure, _figures[figure], delta)
 
 

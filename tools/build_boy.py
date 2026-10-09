@@ -663,7 +663,7 @@ def ring_share(angle, count, index):
 
 # How much further down the thigh takes over at the back of his seat than at the
 # front: (where it starts to, where it has it all), in metres.
-SEAT = (0.075, 0.15)
+SEAT = (0.02, 0.10)
 
 
 def seat_share(p):
@@ -731,7 +731,9 @@ def weights(part, p):
         return result
     if part == "boots":
         # The top of the boot goes with the shin, as the sock inside it does.
-        shin = 1.0 - blend(0.105, 0.06, p.y)
+        # (over the instep the upper goes with the foot higher up than at the heel, or it parts from the shaft when the ankle bends)
+        instep = blend(0.0, 0.05, p.z)
+        shin = 1.0 - blend(0.105 + 0.045 * instep, 0.06 + 0.035 * instep, p.y)
         toe = blend(TOE.z - 0.022, TOE.z + 0.022, p.z) * (1.0 - shin)
         return {"shin" + suffix: shin, "foot" + suffix: 1.0 - shin - toe, "toe" + suffix: toe}
 
@@ -744,12 +746,25 @@ def weights(part, p):
     # comes up (sneaking, sliding) the back of his breeches is not carried
     # forward with it and flattened.
     behind = seat_share(p)
-    leg = blend(HIP_Y + 0.035 - SEAT[0] * behind, HIP_Y - 0.05 - SEAT[1] * behind, p.y)
-    left = blend(-0.012, 0.012, p.x)
-    shin = blend(KNEE_Y + 0.04, KNEE_Y - 0.04, p.y)
+    # (The change from hips to thigh is a long, gentle one, longest behind: a
+    # short one folds like card when the thigh comes right up, and leaves his
+    # seat a flat flap. In front it is shorter, where the crease of the hip is.)
+    leg = blend(HIP_Y + 0.06 - SEAT[0] * behind, HIP_Y - 0.06 - SEAT[1] * behind, p.y)
+    # (and from one leg to the other, so the seam between them does not tear into pleats when his knees go apart)
+    # (only there, though: below his crotch each leg is its own, or the inside of
+    # a thigh that comes up is held back by the other and the leg is pulled flat)
+    seam = 0.004 + 0.026 * blend(HIP_Y - 0.17, HIP_Y - 0.10, p.y)
+    left = blend(-seam, seam, p.x)
+    # The knee likewise: a long change over the kneecap, which is the outside of
+    # the bend and must stay round, and a shorter one in the crook behind it.
+    kneecap = blend(-0.03, 0.035, p.z)
+    knee_span = 0.035 + 0.045 * kneecap
+    shin = blend(KNEE_Y + knee_span, KNEE_Y - knee_span, p.y)
     # (trousers that come down over the boot hang from the shin: the foot moves inside them)
     foot = 0.0 if option in ("long", "suit", "braceslong", "waistcoatlong") else blend(0.09, 0.055, p.y)
-    low = blend(0.72, 0.62, p.y)
+    # (his waist bends over a long stretch too: the waistband is a step in the
+    # surface, and a short bend there stands it out behind him like a shelf)
+    low = blend(0.78, 0.58, p.y)
     high = blend(0.73, 0.84, p.y)
     central = reach < 0.09
     neck = blend(0.928, 0.968, p.y) if central else 0.0
@@ -764,11 +779,32 @@ def weights(part, p):
         "upper_arm" + suffix: arm * (1.0 - fore),
         "forearm" + suffix: arm * fore,
     }
+    # Two helper bones to each leg, which the rig turns half as far as the joint
+    # they sit at: `knee` between thigh and shin, `seat` between hips and thigh.
+    # What is near a joint is given mostly to its helper, so no part of him has
+    # to go the whole angle in one fold: that is what crushed his knees and the
+    # seat of his breeches flat when he crouched or brought a knee up.
+    at_knee = bump(p.y, KNEE_Y - 0.01, 0.1) * 0.85
+    at_hip = bump(p.y, HIP_Y - 0.03 - 0.03 * behind, 0.12) * 0.75
+    hips_share = result["hips"]
+    result["hips"] = 0.0
     for name, share in (("_l", left), ("_r", 1.0 - left)):
-        result["thigh" + name] = leg * share * (1.0 - shin)
-        result["shin" + name] = leg * share * shin * (1.0 - foot)
+        thigh = leg * share * (1.0 - shin)
+        lower = leg * share * shin * (1.0 - foot)
+        pelvis = hips_share * share
+        result["knee" + name] = (thigh + lower) * at_knee
+        result["seat" + name] = (thigh * (1.0 - at_knee) + pelvis) * at_hip
+        result["thigh" + name] = thigh * (1.0 - at_knee) * (1.0 - at_hip)
+        result["shin" + name] = lower * (1.0 - at_knee)
         result["foot" + name] = leg * share * shin * foot
+        result["hips"] += pelvis * (1.0 - at_hip)
     return result
+
+
+def bump(value, middle, reach):
+    """1 at `middle`, falling smoothly to 0 at `reach` either side of it."""
+    t = max(0.0, 1.0 - abs(value - middle) / reach)
+    return t * t * (3.0 - 2.0 * t)
 
 
 def bones():
@@ -798,6 +834,9 @@ def bones():
         listed.append(("shin" + suffix, hip - Y * THIGH, "hips"))
         listed.append(("foot" + suffix, hip - Y * (THIGH + SHIN), "hips"))
         listed.append(("toe" + suffix, hip - Y * (THIGH + SHIN) + TOE, "foot" + suffix))
+        # (helpers: the rig turns each half as far as its joint; see `weights`)
+        listed.append(("knee" + suffix, hip - Y * THIGH, "hips"))
+        listed.append(("seat" + suffix, hip, "hips"))
     return listed
 
 

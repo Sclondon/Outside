@@ -1,8 +1,10 @@
 # Outside
 
-A touch-first 3D adventure in the spirit of Inside: a boy of the 1910s, flat cap and faded blue overalls, finding his way through a
-torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.7, built for phones and the web
-(the Scareathon arcade).
+A touch-first 3D adventure in the spirit of Inside: a boy of the 1910s, flat cap and faded blue overalls, in a desert
+of dunes, ruins and pyramids. Godot 4.7, built for phones and the web (the Scareathon arcade).
+
+There are two levels: the desert (`desert.tscn`, where the game opens), which is laid out with the level editor
+inside the game, and the test yard (`test_yard.tscn`), where every mechanic has a station.
 
 ## Controls
 
@@ -14,7 +16,7 @@ torch-lit pyramid, with block-and-plate puzzles and a mummy that wakes. Godot 4.
 
 ## What he can do
 
-`mechanics.tscn` is an open yard to run about in, with a station for each of these set out round it. The camera
+`test_yard.tscn` is a yard among dunes with a station for each of these set out round it, a sign over each. The camera
 orbits there: drag the upper right of the screen, hold the right mouse button, or use a right stick.
 
 - **Sprint** by keeping up a full run for a moment (`sprint_delay`, `sprint_speed` on the Player): he throws himself
@@ -71,7 +73,41 @@ orbits there: drag the upper right of the screen, hold the right mouse button, o
 Each of the newer moves has a switch on the Player (`dive_enabled`, `flip_enabled`, `spin_enabled`, `rest_enabled`,
 `gun_handling`), all on.
 
-It also has a pen each for the hounds and the mummy, with a plate that lets them loose and calls them off.
+The yard also has everything sand does (footprints, sand running down steep faces, wind and its weather plate, sand
+pouring into heaps, two lumps of wet sand), water as a tank and as a pond lying in the sand, a fire, the guns on a
+bench with things to shoot, his brother, a cat, and a pen each for the hounds and the mummy, with a plate that lets
+them loose and calls them off.
+
+## The level editor
+
+In the desert, Menu, then "Edit this level". The game stands still and the view goes up over him.
+
+- **Looking about**: one finger drags the ground; two pinch to come nearer and turn to turn; the slider at the left
+  tips the view. (Mouse: drag, wheel, right button.)
+- **Putting things in**: the pages down the left (Ground, Water, Stone, Camp, People, Puzzle, Guns) fill the strip
+  along the bottom. Touch one, then touch the ground.
+- **Changing them**: touch a thing to choose it; its sliders come up at the right, with Move to, Copy, Remove. Drag it
+  by its mark to move it.
+- **The ground**: "Level" has the desert's size, the height and number of its dunes, the wind and the weather.
+  Level ground, dunes and ridges placed by hand, ponds and rivers are things like any other: a river is a line of
+  points to drag and add to, and the ground is cut away under water and made again a moment after any change.
+- **People**: townspeople (who, and how far they wander), his brother, a cat, hounds (which give chase when he comes
+  within their distance, or when something sets them on) and the mummy.
+- **Puzzles**: pressure plates, targets and things that smash are either on or off; a door, a bridge or lift, a sand
+  fall, a hound or the mummy has "Choose what works it": touch the plates and targets that should, and lines show
+  what is joined to what. Also ropes, ladders, blocks to push, checkpoints, signs, and where he starts.
+- **Keeping it**: every change is saved on the device as it is made (`user://desert_layout.json`) and is what the
+  game plays from then on. "More" shows the whole level as text, to copy off the phone or paste one in, and has
+  "Back to the original level". Pasted into `levels/desert.json`, a level becomes the one the game ships with.
+- Undo and Redo go back and forward through the last forty changes. "Play" starts from the start; "Play here"
+  from the middle of the view.
+
+The layout is plain data (`scripts/level_layout.gd` says what is in it); `scripts/desert.gd` makes the level from
+it, and `scripts/level_editor.gd` is the editor. To check the editor without a phone:
+
+```
+godot --path . --resolution 1280x720 --script tools/editor_test.gd -- <folder>
+```
 
 ## How he moves
 
@@ -120,9 +156,11 @@ and restarts. Colours last until the game is closed.
 | `scripts/character_rig.gd` | Animates the model in code: gait, leg IK, a jointed back, hands, looking about, and the swing of hair and hem |
 | `scripts/touch_controls.gd` | Floating stick and jump area |
 | `scripts/follow_camera.gd` | The camera: a fixed side view (the tomb) or a third-person orbit (the yard) |
-| `scripts/tomb.gd` | The game (`main.tscn`): the approach, the passage and three chambers, their puzzles and the mummy |
+| `scripts/desert.gd` | The desert (`desert.tscn`): makes the level from its layout, and runs its puzzles, checkpoints and people |
+| `scripts/level_layout.gd`, `scripts/level_editor.gd` | What a level is made of, as data; and the editor inside the game that changes it |
+| `scripts/desert_terrain.gd` | The desert's ground: dunes, level ground, and water cut into it |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
-| `scripts/mechanics_course.gd` | The test yard (`mechanics.tscn`) |
+| `scripts/test_yard.gd` | The test yard (`test_yard.tscn`) |
 | `scripts/rope.gd` | A rope to climb and swing on, simulated as a chain |
 | `scripts/ladder.gd`, `scripts/pool.gd` | A ladder; a box of water to swim in |
 | `scripts/dust.gd` | Puffs of dust, drawn all at once as one MultiMesh |
@@ -132,7 +170,6 @@ and restarts. Colours last until the game is closed.
 | `scripts/mummy_rig.gd` | Its own way of moving, laid over the boy's rig: a step and a dragged leg, the swipe, and its loose bandages swinging as chains |
 | `tools/build_mummy.py` | Builds the mummy in Blender: its proportions, the face under its wrappings, and a chain of bones down each loose end |
 | `tools/mummy_sheets.gd` | Not part of the game: drives the mummy through each thing it does and saves pictures of it |
-| `scripts/level.gd` | The old grey-box test course with the hounds (`test_course.tscn`) |
 | `scripts/hound.gd` | A hound, of either breed: chases the player, leaps obstacles and gaps, bays and barks (recordings of dogs, in `audio/hounds/`), braces and barks under what it cannot reach, and plays, sits and sleeps when left alone |
 | `scripts/hound_rig.gd` | Animates a hound in code: walk, trot and rotary gallop on three-jointed legs, spine flex, a jaw that keeps time with its voice, a head that watches things, sitting, lying and the bow, a tail on springs, and ears that hang and swing or stand and turn |
 | `scripts/fur.gd` | The hound's coat: streaked along the lie of the hair, with a few shells stood off it |
@@ -182,11 +219,14 @@ shallow, one steep) at a walk and a run; `jump` also draws every other frame of 
 as several sheets (`swim_in`, `swim_out`, `ladder_top`, `rope_climb` and so on). `dive`, `dive_edges`, `flip`, `spin`,
 `sit`, `sleep`, `gun` (add `revolver`, `rifle`, `shotgun` or `flare_pistol` for just that one), `wade` and
 `stairs_sprint` draw the newer moves as strips a few frames apart, and print the edge cases they test.
+A picture cannot show a joint that shakes, so the same run also watches every bone on every frame and prints, under
+each sheet, a line `SHAKE <sheet>` and the bones that turned back on themselves from one frame to the next (`shakes`),
+or whose turning changed by more than a few degrees in one frame (`jump`, a flip if it is near 180), and the frame it
+was worst on. `SHAKE_TRACE=<bone>` in the environment prints that bone's turn on every frame. `jump` also draws
+`jump_close` and `jump_round`: the knee coming up, from close and from all round.
 The hounds' rig reads their joints from their skeletons too, so the two breeds can differ in any measurement.
 
 ## The hounds
-
-Two hounds wait behind the start and are let loose once the player passes `RELEASE_X` (`scripts/level.gd`).
 
 There are two breeds (`breed` on the Hound; left at `ANY`, the hounds of a scene take turns, so a pair is one of each):
 
