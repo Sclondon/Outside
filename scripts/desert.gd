@@ -187,6 +187,8 @@ func _made(item: Dictionary) -> Node3D:
 			# Every brazier, torch stand and campfire is lit.
 			for marker in prop.find_children("Flame*", "Marker3D", true, false):
 				marker.add_child(Fire.brazier())
+			# And whatever would hold a grappling hook will: the ends of a lintel, the top of a column, the crown of a palm.
+			GrapplePoint.auto(prop, what)
 			return prop
 		"pyramid":
 			return Pyramid.from_item(item)
@@ -237,6 +239,14 @@ func _made(item: Dictionary) -> Node3D:
 			var torch := HandTorch.new()
 			torch.lit = item.get("lit", true)
 			return torch
+		"grapple":
+			var hook := GrappleHook.new()
+			hook.reach = item.get("reach", 9.5)
+			return hook
+		"grapple_point":
+			var point := GrapplePoint.new()
+			point.ring = item.get("ring", true)
+			return point
 		"rope":
 			var rope := Rope.new()
 			rope.length = item.get("length", 5.5)

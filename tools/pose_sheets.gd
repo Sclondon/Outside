@@ -289,6 +289,7 @@ func place(at: Vector3, yaw: float) -> void:
 	cut()
 	touch.move = Vector2.ZERO
 	touch.duck_held = false
+	touch.act_held = false
 	touch.jump_held = false
 	player.state = Player.State.FREE
 	player.global_position = at
@@ -319,7 +320,7 @@ func run() -> void:
 			InputMap.action_erase_events(action)
 			Input.action_release(action)
 	await frames(5)
-	for name: String in ["turnaround", "idle", "walk", "sprint", "cap", "flatout", "turn", "sneak", "slide", "jump", "hang", "shimmy", "climb", "slab", "land1", "sprawl", "scramble", "land2", "land3", "land0", "throw", "stairs", "hatless", "crawl", "tired", "ladder", "swim", "bat", "rope", "kick", "dive", "dive_edges", "flip", "spin", "sit", "sleep", "gun", "wade", "stairs_sprint", "roll"]:
+	for name: String in ["turnaround", "idle", "walk", "sprint", "cap", "flatout", "turn", "sneak", "slide", "jump", "hang", "shimmy", "climb", "slab", "land1", "sprawl", "scramble", "land2", "land3", "land0", "throw", "stairs", "hatless", "crawl", "tired", "ladder", "swim", "bat", "rope", "grapple", "kick", "dive", "dive_edges", "flip", "spin", "sit", "sleep", "gun", "wade", "stairs_sprint", "roll"]:
 		if wants(name):
 			# (what he does by chance, he does the same way every time a sheet is drawn)
 			seed(hash(name))
@@ -332,6 +333,7 @@ func tap_duck(count := 3, heading := Vector3.INF) -> void:
 	touch.duck_held = true
 	await frames(count, heading)
 	touch.duck_held = false
+	touch.act_held = false
 
 
 ## Runs along +x, jumps, and presses duck `after` frames later.
@@ -394,11 +396,13 @@ func dive_edges() -> void:
 	await frames(12, Vector3(1, 0, 0))
 	print("EDGE duck then jump out of a run: state before=", was, " diving=", player.is_diving, " flip=", player.flip_progress, " y=", player.global_position.y)
 	touch.duck_held = false
+	touch.act_held = false
 	# Duck pressed too late
 	await to_dive(Vector3(0, 0.05, 0), Vector3(1, 0, 0), 50, 22)
 	await frames(3, Vector3(1, 0, 0))
 	print("EDGE duck late (22 frames): diving=", player.is_diving)
 	touch.duck_held = false
+	touch.act_held = false
 	# A standing jump
 	place(Vector3(0, 0.05, 0), PI * 0.5)
 	await frames(20)
@@ -409,6 +413,7 @@ func dive_edges() -> void:
 	# Under the low bar (underside at 0.95): he dives, lands short of it and rolls through
 	await to_dive(Vector3(-9.4, 0.05, -12), Vector3(1, 0, 0), 60, 5)
 	touch.duck_held = false
+	touch.act_held = false
 	view = Vector3(PI * 0.5, 0.0, 6.0)
 	hold_yaw = PI * 0.5
 	pin = Vector3(-1.0, 0.6, -12)
@@ -423,6 +428,7 @@ func dive_edges() -> void:
 	# At the wall: he catches the top of it
 	await to_dive(Vector3(0, 0.05, -1.2), Vector3(0, 0, 1), 46, 5)
 	touch.duck_held = false
+	touch.act_held = false
 	var caught := false
 	for i in 60:
 		await frames(1, Vector3(0, 0, 1))
@@ -488,6 +494,7 @@ func flip() -> void:
 	await frames(3, Vector3(1, 0, 0))
 	print("FLIP sneaking: flip=", player.flip_progress, " vel=", player.velocity)
 	touch.duck_held = false
+	touch.act_held = false
 	await frames(50, Vector3(1, 0, 0) if false else Vector3.INF)
 	print("FLIP sneaking: went ", player.global_position - start)
 	# Under what is too low to stand in: no jump. Under what is too low to turn over in: an ordinary jump.
@@ -500,6 +507,7 @@ func flip() -> void:
 	await frames(4)
 	print("FLIP under a 1.6 m ceiling: flip=", player.flip_progress, " vy=", player.velocity.y, " ducking=", player.is_ducking)
 	touch.duck_held = false
+	touch.act_held = false
 	look_h = 0.65
 
 
@@ -632,6 +640,8 @@ func sit() -> void:
 	await frames(int((player.sit_hold + player.sit_time + player.lie_time) * 60.0) + 140)
 	print("SIT duck still held: rest=", player.rest, " lie=", player.lie_progress)
 	touch.duck_held = false
+	touch.act_held = false
+	touch.move = Vector2.ZERO
 	await frames(30)
 	print("SIT duck let go: rest=", player.rest, " (still asleep?)")
 	player._queue_jump()
@@ -921,6 +931,7 @@ func slide() -> void:
 		await snap()
 	print("SLIDE head joint y=", player._rig._head.global_position.y, " state=", player.state)
 	touch.duck_held = false
+	touch.act_held = false
 	sheet("slide")
 	look_h = 0.65
 
@@ -967,6 +978,7 @@ func sneak() -> void:
 	sheet("sneak_close")
 	look_h = 0.65
 	touch.duck_held = false
+	touch.act_held = false
 
 
 func jump() -> void:
@@ -1425,6 +1437,7 @@ func crawl() -> void:
 			break
 	await shots("crawl_out", 12, 6, Vector3(1, 0, 0), 4)
 	touch.duck_held = false
+	touch.act_held = false
 	look_h = 0.65
 
 
@@ -1554,6 +1567,7 @@ func swim() -> void:
 	touch.duck_held = true
 	await shots("swim_dive", 8, 5, Vector3(1, 0, 0), 4)
 	touch.duck_held = false
+	touch.act_held = false
 	touch.jump_held = true
 	await shots("swim_rise", 12, 5, Vector3(1, 0, 0), 4)
 	touch.jump_held = false
@@ -1639,47 +1653,234 @@ func bat() -> void:
 	club.queue_free()
 
 
+## How far round from straight down the rope he is on has swung, degrees, positive towards +x.
+func rope_angle() -> float:
+	if not is_instance_valid(player._rope):
+		return 0.0
+	var hold: Vector3 = player._rope.point_at(player._rope_at) - player._rope.global_position
+	return rad_to_deg(atan2(hold.x, -hold.y))
+
+
+## On a rope, pumps in time with the swing for `count` frames (or leaves it alone),
+## taking a picture every `every`. Returns how far it got each half swing, degrees.
+func pump(count: int, every: int, in_time := true) -> Array:
+	var peaks: Array = []
+	var widest := 0.0
+	var side := 0.0
+	for i in count:
+		var way: float = signf(player.velocity.x) if absf(player.velocity.x) > 0.2 else 1.0
+		await frames(1, Vector3(way, 0, 0) if in_time else Vector3.ZERO)
+		var a := rope_angle()
+		if signf(a) != side and absf(a) > 0.5:
+			if side != 0.0:
+				peaks.append(snappedf(widest, 0.1))
+			side = signf(a)
+			widest = 0.0
+		widest = maxf(widest, absf(a))
+		if every > 0 and i % every == every - 1:
+			await snap()
+	return peaks
+
+
 func rope() -> void:
-	# Dropped beside it, going its way: he catches it and it takes his swing
-	place(Vector3(69.75, 2.2, 20), PI * 0.5)
+	# Run at it and jump: he catches it at arm's length and it takes his run as its first swing
+	place(Vector3(67.0, 0.05, 20.3), PI * 0.5)
+	hold_yaw = PI * 0.5
 	view = Vector3(PI * 0.5 - 0.2, 0.1, 6.5)
 	pin = Vector3(70, 3.0, 20)
-	player.velocity = Vector3(3.0, 0, 0)
-	await frames(6, Vector3(1, 0, 0))
+	await frames(5)
+	var jumped := 0
+	for i in 120:
+		if jumped == 0 and player.global_position.x > 68.75:
+			jumped = i
+			touch.jump_held = true
+			player._queue_jump()
+		await frames(1, Vector3(1, 0, 0))
+		if player.state == Player.State.ROPE:
+			print("ROPE caught %.2f s after jumping, %.2f m down it, passing %.2f m to the side" % [(i - jumped) / 60.0, player._rope_at, 0.3])
+			break
+	touch.jump_held = false
 	print("ROPE state=", player.state, " at ", player.global_position)
-	# Pumping it: his weight thrown with the swing
-	for i in 9:
-		for k in 16:
-			var swing: float = signf(player.velocity.x) if absf(player.velocity.x) > 0.2 else 1.0
-			await frames(1, Vector3(swing, 0, 0))
-		await snap()
+	# Left alone, the swing his run gave it; then pumped in time with it
+	print("ROPE the swing his run-in gives, left alone: ", await pump(150, 0, false))
+	print("ROPE pumped in time, widest each half swing (degrees): ", await pump(9 * 34, 34))
 	print("ROPE end state=", player.state, " at ", player.global_position, " vel ", player.velocity)
 	sheet("rope")
-	# Closer, and closer together; then climbing it
+	# Closer, and closer together: one whole swing and a bit
 	pin = Vector3.INF
 	look_h = 0.9
-	view = Vector3(PI * 0.5 - 0.2, 0.1, 4.0)
-	for i in 12:
-		for k in 5:
-			var swing: float = signf(player.velocity.x) if absf(player.velocity.x) > 0.2 else 1.0
-			await frames(1, Vector3(swing, 0, 0))
-		await snap()
+	view = Vector3(PI * 0.5 - 0.2, 0.1, 4.6)
+	await pump(16 * 10, 10)
 	sheet("rope_swing", 4)
+	# From behind, as the orbit camera has it
+	view = Vector3(PI + 0.35, 0.25, 6.0)
+	await pump(8 * 20, 20)
+	sheet("rope_behind", 4)
+	# Climbing it (act held), still swinging: the shorter rope swings the quicker
+	view = Vector3(PI * 0.5 - 0.2, 0.1, 4.0)
+	touch.act_held = true
 	for i in 12:
-		for k in 5:
-			aim()
-			touch.move = Vector2(0, -1)
-			await physics_frame
-			await process_frame
+		await frames(5, Vector3.ZERO)
 		await snap()
+	touch.act_held = false
 	touch.move = Vector2.ZERO
 	sheet("rope_climb", 4)
+	# Let down it again, worked up, and off at the front of the swing
+	touch.duck_held = true
+	await frames(40, Vector3.ZERO)
+	touch.duck_held = false
+	touch.act_held = false
+	await pump(360, 0)
 	look_h = 0.65
-	pin = Vector3(70, 3.0, 20)
+	pin = Vector3(74.0, 2.6, 20)
+	view = Vector3(PI * 0.5, 0.08, 13.0)
+	var before := rope_angle()
+	for i in 400:
+		var a := rope_angle()
+		if player.velocity.x > 0.0 and a > 20.0 and before <= 20.0:
+			break
+		before = a
+		await frames(1, Vector3(signf(player.velocity.x), 0, 0))
+	await snap()
+	var from: Vector3 = player.global_position
+	print("ROPE lets go at %.1f degrees, the rope going %s (frame %d of the sheet)" % [rope_angle(), player.velocity, track.size()])
+	touch.jump_held = true
 	player._queue_jump()
-	await frames(20, Vector3(1, 0, 0))
+	await frames(1, Vector3(1, 0, 0))
 	print("ROPE leapt off: state=", player.state, " vel ", player.velocity)
+	for i in 11:
+		await frames(6, Vector3(1, 0, 0))
+		await snap()
+		if player.is_on_floor() and i > 3:
+			touch.jump_held = false
+	touch.jump_held = false
+	print("ROPE came down %.1f m on from where he let go" % (player.global_position.x - from.x))
+	sheet("rope_leap", 4)
+	touch.move = Vector2.ZERO
 	pin = Vector3.INF
+	hold_yaw = NAN
+
+
+## Stands him at `at` facing +x with `hook` picked up off the ground in front of him.
+func take_hook(hook: GrappleHook, at: Vector3) -> void:
+	place(at, PI * 0.5)
+	hold_yaw = PI * 0.5
+	hook.linear_velocity = Vector3.ZERO
+	hook.global_position = at + Vector3(0.45, 0.25, 0.0)
+	await frames(30)
+	player._act()
+	await frames(50)
+
+
+func grapple() -> void:
+	# A beam six metres up with somewhere on it for a hook to catch, and the hook lying ready
+	box(Vector3(0, 6.3, -30), Vector3(0.4, 0.4, 3.0), Color(0.42, 0.44, 0.47))
+	var point := GrapplePoint.mark(stage, Vector3(0, 6.05, -30))
+	var hook := GrappleHook.new()
+	hook.position = Vector3(-4.3, 0.3, -30)
+	stage.add_child(hook)
+	await take_hook(hook, Vector3(-4.9, 0.05, -30))
+	view = Vector3(PI * 0.5 - 0.5, 0.1, 3.6)
+	# Stood with the coil in his hand, and walking with it; what it will catch is marked
+	await snap()
+	view = Vector3(-0.5, 0.15, 3.6)
+	await frames(2)
+	await snap()
+	for i in 2:
+		await frames(9, Vector3(1, 0, 0))
+		await snap()
+	await frames(30)
+	touch.move = Vector2.ZERO
+	await frames(20)
+	print("GRAPPLE holds ", player.carried, "; would catch ", hook.target, " ", hook.target.global_position if hook.target else Vector3.ZERO, " from ", player.global_position)
+	view = Vector3(PI * 0.5 - 0.15, 0.3, 13.0)
+	pin = Vector3(-1.0, 3.2, -30)
+	await frames(2)
+	await snap()
+	pin = Vector3.INF
+	view = Vector3(PI * 0.5 - 0.5, 0.1, 3.6)
+	await frames(2)
+	sheet("grapple_hold", 5)
+	# The wind-up and throw, every third frame, from his throwing side; and again from in front
+	for round in 2:
+		view = Vector3(PI * 0.5 - 0.5, 0.1, 4.2) if round == 0 else Vector3(-0.6, 0.15, 4.2)
+		await frames(20)
+		var began := track.size()
+		player._act()
+		var bitten := -1
+		for i in 16:
+			for k in 3:
+				await frames(1)
+				if bitten < 0 and player.state == Player.State.ROPE:
+					bitten = track.size() - began
+			await snap()
+		print("GRAPPLE thrown: on the rope %.2f s after act (frame %d of the sheet), the rope %.1f m long" % [bitten / 60.0, bitten, hook.rope.length if is_instance_valid(hook.rope) else 0.0])
+		sheet("grapple_throw" if round == 0 else "grapple_throw_front", 4)
+		if round == 0:
+			await take_hook(hook, Vector3(-4.2, 0.05, -30))
+	# The whole of it from further off: thrown, bitten, taken off his feet and swung out
+	await take_hook(hook, Vector3(-4.2, 0.05, -30))
+	view = Vector3(PI * 0.5, 0.06, 15.0)
+	pin = Vector3(-1.5, 3.2, -30)
+	await frames(40)
+	player._act()
+	var fastest := 0.0
+	var lowest := 100.0
+	for i in 16:
+		for k in 6:
+			await frames(1)
+			if player.state == Player.State.ROPE:
+				fastest = maxf(fastest, player.velocity.length())
+				lowest = minf(lowest, player.global_position.y)
+		await snap()
+	print("GRAPPLE taken off his feet: fastest %.1f m/s, feet never below %.2f, now at %s" % [fastest, lowest, player.global_position])
+	sheet("grapple_swing", 4)
+	# Pumped (numbers), then closer as the rope takes him again; then off at the front and winding in
+	print("GRAPPLE pumped in time, widest each half swing (degrees): ", await pump(300, 0))
+	var before := rope_angle()
+	for i in 400:
+		var a := rope_angle()
+		if player.velocity.x > 0.0 and a > 20.0 and before <= 20.0:
+			break
+		before = a
+		await frames(1, Vector3(signf(player.velocity.x), 0, 0))
+	var from: Vector3 = player.global_position
+	print("GRAPPLE lets go at %.1f degrees, the rope going %s" % [rope_angle(), player.velocity])
+	pin = Vector3.INF
+	look_h = 0.8
+	view = Vector3(PI * 0.5 - 0.4, 0.1, 5.5)
+	touch.jump_held = true
+	player._queue_jump()
+	for i in 12:
+		await frames(5, Vector3(1, 0, 0) if i < 6 else Vector3.ZERO)
+		await snap()
+	touch.jump_held = false
+	touch.move = Vector2.ZERO
+	await frames(60)
+	print("GRAPPLE came down %.1f m on; hook state %d, out %s, carried %s" % [player.global_position.x - from.x, hook.state, player.hook_out, player.carried == hook])
+	sheet("grapple_reel", 4)
+	look_h = 0.65
+	# Thrown where there is nothing to catch: it falls short and he winds it in
+	await take_hook(hook, Vector3(14, 0.05, -30))
+	view = Vector3(PI * 0.5 - 0.3, 0.12, 7.5)
+	pin = Vector3(16.0, 1.6, -30)
+	await frames(40)
+	print("GRAPPLE with nothing in reach it would catch ", hook.target)
+	player._act()
+	for i in 16:
+		await frames(5)
+		await snap()
+	print("GRAPPLE fell short: hook state %d, out %s, his state %d" % [hook.state, player.hook_out, player.state])
+	sheet("grapple_miss", 4)
+	pin = Vector3.INF
+	hold_yaw = NAN
+	touch.duck_held = true
+	await frames(20)
+	player._act()
+	await frames(10)
+	touch.duck_held = false
+	hook.queue_free()
+	point.queue_free()
 
 
 func kick() -> void:

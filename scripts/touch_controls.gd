@@ -21,6 +21,8 @@ signal act_pressed
 var move := Vector2.ZERO
 var jump_held := false
 var duck_held := false
+## The hand: pressed (`act_pressed`) it picks up, throws and so on; held, it climbs a rope.
+var act_held := false
 ## Set by an orbiting camera: drags on the upper right of the screen then turn
 ## it, and jump is the lower right only.
 var look_enabled := false
@@ -103,6 +105,7 @@ func _press(index: int, pos: Vector2) -> void:
 	elif pos.distance_to(_act_centre()) < reach:
 		if _act_index == -1:
 			_act_index = index
+			act_held = true
 			act_pressed.emit()
 	elif look_enabled and pos.y < size.y * 0.5:
 		if _look_index == -1:
@@ -130,6 +133,7 @@ func _release(index: int) -> void:
 		_look_index = -1
 	elif index == _act_index:
 		_act_index = -1
+		act_held = false
 
 
 func _drag(pos: Vector2) -> void:

@@ -33,7 +33,7 @@ const FLATS: Array[Rect2] = [
 	Rect2(0, 0, 9, 9), Rect2(15, -12, 9, 6), Rect2(29.5, 6, 10, 9), Rect2(2, 25, 15, 9),
 	Rect2(-16, 8, 5, 5), Rect2(-26, -8, 9, 8), Rect2(-2, -25, 16, 8), Rect2(32, -26, 7, 7),
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
-	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6),
+	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6), Rect2(17, -47, 14, 6),
 ]
 const EASE := 9.0
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
@@ -92,6 +92,7 @@ func _ready() -> void:
 	_build_range(Vector3(40.0, 0.0, 36.0))
 	_build_camels(Vector3(-44.0, 0.0, 6.0))
 	_build_dig(Vector3(24.5, 0.0, 27.0))
+	_build_grapple(Vector3(6.0, 0.0, -47.0))
 	_build_kinds()
 	_settle_in.call_deferred()
 
@@ -242,7 +243,7 @@ func _build_low(at: Vector3) -> void:
 ## back down. Every deck is open on one side to drop from. The next two are
 ## reached by their ledges, or by the rope; the last by its ladder.
 func _build_decks(at: Vector3) -> void:
-	_mark_here(at + Vector3(-3.0, 0.0, 0.0), "STAIRS, DROPS, ROPE, LADDER\neach deck is higher: drop off them\nact picks up a rock, act again throws", 3.6)
+	_mark_here(at + Vector3(-3.0, 0.0, 0.0), "STAIRS, DROPS, ROPE, LADDER\neach deck is higher: drop off them\nact picks up a rock, act again throws\non the rope: the stick swings it, act climbs, duck lets down", 3.9)
 	var rise := DECKS[0] / 8.0
 	for i in 8:
 		_solid(at + Vector3(i * 0.45, rise * (i + 1) * 0.5, 0.0), Vector3(0.45, rise * (i + 1), 4.0), PROP)
@@ -417,6 +418,38 @@ act picks the torch up: it lights his way")
 	torch.freeze = true
 	add_child(torch)
 	_keep(torch)
+
+
+## A grappling hook, and things to throw it at: a beam over the gap between two
+## decks, to swing across on; and two gallows of different heights to swing from.
+func _build_grapple(at: Vector3) -> void:
+	_mark_here(at, "GRAPPLING HOOK
+act picks it up  ·  the ring shows what it will catch
+act throws it: the stick swings, act climbs,
+duck lets down, jump lets go", 3.8)
+	var hook := GrappleHook.new()
+	hook.position = at + Vector3(1.4, 0.16, 0.8)
+	hook.rotation.x = PI * 0.5
+	hook.freeze = true
+	add_child(hook)
+	_keep(hook)
+	# Two decks a metre high (a step up to the first), five and a half metres apart
+	_solid(at + Vector3(3.6, 0.25, 0.0), Vector3(0.8, 0.5, 3.0), PROP.darkened(0.06))
+	_solid(at + Vector3(6.0, 0.5, 0.0), Vector3(4.0, 1.0, 3.0), PROP)
+	_solid(at + Vector3(15.5, 0.5, 0.0), Vector3(4.0, 1.0, 3.0), PROP)
+	# A beam across over the middle of the gap, on two posts, with a ring under it
+	for z: float in [-2.4, 2.4]:
+		_solid(at + Vector3(10.75, 3.6, z), Vector3(0.3, 7.2, 0.3), DARK)
+	_prop(at + Vector3(10.75, 7.3, 0.0), Vector3(0.3, 0.3, 5.4), DARK)
+	var ring := GrapplePoint.mark(self, at + Vector3(10.75, 7.1, 0.0), true)
+	ring.name = "GrappleBeam"
+	# Two gallows on the level beyond, a low one and a high one: a hook holds on the end of each arm
+	for gallows: Array in [[Vector3(21.5, 0.0, -3.0), 4.6], [Vector3(25.0, 0.0, 3.2), 8.0]]:
+		var foot: Vector3 = at + gallows[0]
+		var tall: float = gallows[1]
+		_solid(foot + Vector3(0.0, tall * 0.5, 0.0), Vector3(0.3, tall, 0.3), DARK)
+		_prop(foot + Vector3(-1.0, tall - 0.15, 0.0), Vector3(2.3, 0.25, 0.25), DARK)
+		GrapplePoint.mark(self, foot + Vector3(-2.0, tall - 0.3, 0.0), true)
 
 
 ## Hounds: the plate lets them loose, and calls them off again.
