@@ -120,8 +120,12 @@ The ground of a level is a `SandGround` (`scripts/sand_ground.gd`), drawn by the
 
 In the desert, Menu, then "Edit this level". The game stands still and the view goes up over him.
 
-- **Looking about**: one finger drags the ground; two pinch to come nearer and turn to turn; the slider at the left
-  tips the view. (Mouse: drag, wheel, right button.)
+- **Looking about**: one finger drags the ground; two pinch to come nearer, turn to turn, and slid up or down together
+  tip the view. For one hand there are + and - and a slider at the left. (Mouse: drag, wheel, right button.)
+- **On a phone**: everything is sized for a thumb and kept clear of the ends of the screen. "Panel" puts the panel at
+  the right away to see more of the level (choosing a thing brings it back); a thing is dragged by its ring and moves as
+  far as the finger does, or a step at a time with the arrows in its panel (the step is beside them); the pages down
+  the left scroll; "?" says all this again. Text (a sign, a level pasted in) brings up the phone's keyboard.
 - **Putting things in**: the pages down the left (Ground, Water, Stone, Camp, Dig, People, Puzzle, Guns) fill the strip
   along the bottom. Touch one, then touch the ground.
 - **Changing them**: touch a thing to choose it; its sliders come up at the right, with Move to, Copy, Remove. Drag it

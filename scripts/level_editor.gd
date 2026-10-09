@@ -29,7 +29,9 @@ extends Control
 ## one in. "Play" starts the level from its start; "Play here" from where the
 ## view is.
 
-const PANEL := 300.0
+const PANEL := 330.0
+## How far a touch may be from a thing's mark and still be meant for it, in pixels of the 720-high screen.
+const TOUCH := 54.0
 const DOT := {
 	"pad": Color(0.95, 0.85, 0.5), "dune": Color(0.95, 0.75, 0.4), "ridge": Color(0.95, 0.75, 0.4), "pond": Color(0.4, 0.75, 0.95),
 	"river": Color(0.4, 0.75, 0.95), "pool": Color(0.4, 0.75, 0.95), "person": Color(0.95, 0.5, 0.5), "plate": Color(0.7, 0.95, 0.5),
@@ -68,6 +70,11 @@ var _page := ""
 var _radii := {}
 
 var _overlay: Control
+var _ui: Control
+var _shelf: PanelContainer
+# How far the arrows move a thing, metres; and where it was taken hold of, from its own middle.
+var _nudge := 1.0
+var _held_at := Vector2.ZERO
 var _status: Label
 var _strip: HBoxContainer
 var _inspector: VBoxContainer
@@ -117,9 +124,36 @@ func open() -> void:
 		_focus = player.global_position
 	_yaw = 0.0
 	_follow_ground()
+	_keep_clear()
 	_show_page("Level")
 	_show_inspector()
-	_say("One finger moves the ground, two zoom and turn. Touch a thing to choose it.", 6.0)
+	_say("One finger moves the ground, two zoom and turn. Touch a thing to choose it.  ( ? for more )", 7.0)
+
+
+# Keeps everything clear of the edges a phone cannot show or be touched at.
+func _keep_clear() -> void:
+	var window := Vector2(DisplayServer.window_get_size())
+	var safe := DisplayServer.get_display_safe_area()
+	var edges := [0.0, 0.0, 0.0, 0.0]
+	# (what the system says is safe means something only where the game fills the
+	# screen, as it does on a phone: in a window on a desk it is the desk's)
+	var fills := (window - Vector2(DisplayServer.screen_get_size())).abs().length() < 8.0
+	if fills and OS.has_feature("mobile") and safe.size.x > 0 and safe.size.y > 0:
+		var scale := size.x / window.x
+		edges = [safe.position.x * scale, safe.position.y * scale, (window.x - safe.end.x) * scale, (window.y - safe.end.y) * scale]
+	elif OS.has_feature("web") and DisplayServer.is_touchscreen_available():
+		# (a browser does not say: a phone held sideways is allowed a margin at each end)
+		edges = [30.0, 0.0, 30.0, 6.0]
+	_ui.offset_left = clampf(edges[0], 0.0, 90.0)
+	_ui.offset_top = clampf(edges[1], 0.0, 60.0)
+	_ui.offset_right = -clampf(edges[2], 0.0, 90.0)
+	_ui.offset_bottom = -clampf(edges[3], 0.0, 60.0)
+
+
+# Shows the panel at the right, or puts it away; what is along the bottom takes the room.
+func _show_side(shown: bool) -> void:
+	_side.visible = shown
+	_shelf.offset_right = -PANEL - 16.0 if shown else -8.0
 
 
 func _build_ui() -> void:
@@ -129,68 +163,95 @@ func _build_ui() -> void:
 	_overlay.draw.connect(_draw_overlay)
 	add_child(_overlay)
 
+	# Everything else stands inside the part of the screen that is safe to use:
+	# clear of a phone's rounded corners and whatever is cut out of its edge.
+	_ui = Control.new()
+	_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_ui)
+	get_viewport().size_changed.connect(_keep_clear)
+
 	# Along the top: what is done to the whole level.
 	var top := HBoxContainer.new()
 	top.position = Vector2(8.0, 8.0)
-	top.add_theme_constant_override("separation", 6)
-	add_child(top)
+	top.add_theme_constant_override("separation", 7)
+	_ui.add_child(top)
 	top.add_child(_button("Play", _play.bind(false)))
 	top.add_child(_button("Play here", _play.bind(true)))
 	top.add_child(_button("Undo", _step_back))
 	top.add_child(_button("Redo", _step_on))
 	top.add_child(_button("Save", _save_now))
 	top.add_child(_button("More", _show_share.bind(true)))
+	top.add_child(_button("Panel", func() -> void: _show_side(not _side.visible)))
+	top.add_child(_button(" ? ", func() -> void: _say("One finger drags the ground. Two fingers: pinch to come nearer, turn to turn, slide up or down together to tip the view.\nTouch a thing to choose it; drag it by its ring, or use Move to and the arrows.\nA page on the left, then a thing along the bottom, then touch the ground to put it there.", 14.0)))
 	_status = Label.new()
-	_status.add_theme_font_size_override("font_size", 17)
-	_status.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	_status.add_theme_constant_override("outline_size", 6)
-	_status.position = Vector2(12.0, 58.0)
+	_status.add_theme_font_size_override("font_size", 19)
+	_status.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_status.add_theme_constant_override("outline_size", 7)
+	_status.position = Vector2(140.0, 70.0)
 	_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_status)
+	_ui.add_child(_status)
 
-	# Down the left: the pages, and the slider that tips the view.
+	# Down the left: the pages (they scroll, when there are more than fit), and
+	# beside them what moves the view for one hand: nearer, further, and tipped.
+	var page_scroll := ScrollContainer.new()
+	page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page_scroll.anchor_bottom = 1.0
+	page_scroll.offset_left = 8.0
+	page_scroll.offset_right = 128.0
+	page_scroll.offset_top = 70.0
+	page_scroll.offset_bottom = -92.0
+	_ui.add_child(page_scroll)
 	var pages := VBoxContainer.new()
-	pages.position = Vector2(8.0, 92.0)
-	pages.add_theme_constant_override("separation", 5)
-	add_child(pages)
+	pages.add_theme_constant_override("separation", 6)
+	page_scroll.add_child(pages)
 	for page: String in ["Level"] + LevelLayout.PALETTE.keys():
 		var button := _button(page, _show_page.bind(page))
-		button.custom_minimum_size = Vector2(96.0, 42.0)
+		button.custom_minimum_size = Vector2(108.0, 52.0)
 		pages.add_child(button)
+	var nearer := _button("+", func() -> void: _reach = maxf(_reach * 0.75, 6.0))
+	nearer.position = Vector2(138.0, 108.0)
+	nearer.custom_minimum_size = Vector2(54.0, 54.0)
+	_ui.add_child(nearer)
+	var further := _button("-", func() -> void: _reach = minf(_reach * 1.33, 900.0))
+	further.position = Vector2(138.0, 168.0)
+	further.custom_minimum_size = Vector2(54.0, 54.0)
+	_ui.add_child(further)
 	_tilt = VSlider.new()
 	_tilt.min_value = 0.25
 	_tilt.max_value = 1.5
 	_tilt.step = 0.01
 	_tilt.value = _pitch
-	_tilt.position = Vector2(116.0, 100.0)
-	_tilt.custom_minimum_size = Vector2(34.0, 220.0)
-	_tilt.size = Vector2(34.0, 220.0)
+	_tilt.position = Vector2(140.0, 236.0)
+	_tilt.custom_minimum_size = Vector2(50.0, 200.0)
+	_tilt.size = Vector2(50.0, 200.0)
 	_tilt.focus_mode = Control.FOCUS_NONE
 	_tilt.value_changed.connect(func(value: float) -> void: _pitch = value)
-	add_child(_tilt)
+	_ui.add_child(_tilt)
 	var tip := _caption("Tip")
-	tip.position = Vector2(118.0, 322.0)
+	tip.autowrap_mode = TextServer.AUTOWRAP_OFF
+	tip.position = Vector2(150.0, 438.0)
 	tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(tip)
+	_ui.add_child(tip)
 
 	# Along the bottom: what the page offers.
-	var shelf := PanelContainer.new()
-	shelf.anchor_top = 1.0
-	shelf.anchor_bottom = 1.0
-	shelf.anchor_right = 1.0
-	shelf.offset_left = 8.0
-	shelf.offset_right = -PANEL - 16.0
-	shelf.offset_top = -66.0
-	shelf.offset_bottom = -8.0
-	add_child(shelf)
+	_shelf = PanelContainer.new()
+	_shelf.anchor_top = 1.0
+	_shelf.anchor_bottom = 1.0
+	_shelf.anchor_right = 1.0
+	_shelf.offset_left = 8.0
+	_shelf.offset_right = -PANEL - 16.0
+	_shelf.offset_top = -84.0
+	_shelf.offset_bottom = -8.0
+	_ui.add_child(_shelf)
 	var scroll := ScrollContainer.new()
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	shelf.add_child(scroll)
+	_shelf.add_child(scroll)
 	_strip = HBoxContainer.new()
-	_strip.add_theme_constant_override("separation", 6)
+	_strip.add_theme_constant_override("separation", 7)
 	scroll.add_child(_strip)
 
-	# At the right: the thing that is chosen.
+	# At the right: the thing that is chosen. ("Panel" puts it away, to see more of the level.)
 	_side = PanelContainer.new()
 	_side.anchor_left = 1.0
 	_side.anchor_right = 1.0
@@ -199,13 +260,13 @@ func _build_ui() -> void:
 	_side.offset_right = -8.0
 	_side.offset_top = 8.0
 	_side.offset_bottom = -8.0
-	add_child(_side)
+	_ui.add_child(_side)
 	var side_scroll := ScrollContainer.new()
 	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_side.add_child(side_scroll)
 	_inspector = VBoxContainer.new()
 	_inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_inspector.add_theme_constant_override("separation", 5)
+	_inspector.add_theme_constant_override("separation", 6)
 	side_scroll.add_child(_inspector)
 
 	# Over everything, when asked for: the level as text, and the way back.
@@ -336,6 +397,9 @@ func _gui_input(event: InputEvent) -> void:
 			if was.length() > 10.0 and now.length() > 10.0:
 				_reach = clampf(_reach * was.length() / now.length(), 6.0, 900.0)
 				_yaw -= was.angle_to(now)
+			# (both fingers slid up or down together tip the view)
+			_pitch = clampf(_pitch + drag.relative.y * 0.5 * 0.006, 0.25, 1.5)
+			_tilt.set_value_no_signal(_pitch)
 		accept_event()
 	elif event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
@@ -408,12 +472,16 @@ func _grab(screen: Vector2) -> String:
 		var points: Array = chosen["points"]
 		for i in points.size():
 			var at := Vector3(points[i][0], level.height_at(points[i][0], points[i][1]), points[i][1])
-			if not cam.is_position_behind(at) and cam.unproject_position(at).distance_to(screen) < 40.0:
+			if not cam.is_position_behind(at) and cam.unproject_position(at).distance_to(screen) < TOUCH:
 				_drag_point = i
+				_held_at = Vector2.ZERO
 				return "point"
 		return ""
 	var mark := level.place_of(chosen)
-	if not cam.is_position_behind(mark) and cam.unproject_position(mark).distance_to(screen) < 46.0:
+	if not cam.is_position_behind(mark) and cam.unproject_position(mark).distance_to(screen) < TOUCH:
+		# (it is moved by as much as the finger moves: it does not jump to be under it, where it could not be seen)
+		var under := ground_under(screen)
+		_held_at = Vector2(under.x - mark.x, under.z - mark.z) if under != Vector3.INF else Vector2.ZERO
 		return "item"
 	return ""
 
@@ -426,7 +494,7 @@ func _drag_to(screen: Vector2) -> void:
 		chosen["points"][_drag_point] = [snappedf(at.x, 0.01), snappedf(at.z, 0.01)]
 		chosen["at"] = chosen["points"][0]
 	else:
-		chosen["at"] = [snappedf(at.x, 0.01), snappedf(at.z, 0.01)]
+		chosen["at"] = [snappedf(at.x - _held_at.x, 0.01), snappedf(at.z - _held_at.y, 0.01)]
 		if not chosen["kind"] in GROUND_KINDS:
 			level.put(chosen)
 
@@ -487,7 +555,7 @@ func _tapped(screen: Vector2) -> void:
 # the smallest thing standing where it meets the ground.
 func _pick(screen: Vector2, ground: Vector3, triggers_only: bool) -> Dictionary:
 	var best := {}
-	var nearest := 44.0
+	var nearest := TOUCH
 	for item: Dictionary in layout["items"]:
 		if triggers_only and not _is_trigger(item):
 			continue
@@ -553,6 +621,8 @@ func _radius(item: Dictionary) -> float:
 func _choose(item: Dictionary) -> void:
 	chosen = item
 	_next = ""
+	if not item.is_empty():
+		_show_side(true)
 	_show_inspector()
 
 
@@ -672,10 +742,27 @@ func _remove() -> void:
 		if item.has("links"):
 			(item["links"] as Array).erase(gone["id"])
 	chosen = {}
+	_say("Taken away. Undo brings it back.")
 	if gone["kind"] in GROUND_KINDS:
 		_shape_in = 0.6
 	_save_in = 1.2
 	_show_inspector()
+
+
+# Moves what is chosen one step across the screen (x) or up it (y, negative: away).
+func _nudge_by(way: Vector2) -> void:
+	if chosen.is_empty():
+		return
+	_remember()
+	var by := (Vector2(cos(_yaw), -sin(_yaw)) * way.x + Vector2(sin(_yaw), cos(_yaw)) * way.y) * _nudge
+	if chosen["kind"] == "river":
+		for point: Array in chosen["points"]:
+			point[0] = snappedf(point[0] + by.x, 0.01)
+			point[1] = snappedf(point[1] + by.y, 0.01)
+		chosen["at"] = chosen["points"][0]
+	else:
+		chosen["at"] = [snappedf(chosen["at"][0] + by.x, 0.01), snappedf(chosen["at"][1] + by.y, 0.01)]
+	_changed(chosen, "at")
 
 
 func _copy() -> void:
@@ -709,12 +796,12 @@ func _show_page(page: String) -> void:
 		_show_inspector()
 		var note := Label.new()
 		note.text = "The desert itself: its size, dunes, wind and weather are at the right."
-		note.add_theme_font_size_override("font_size", 16)
+		note.add_theme_font_size_override("font_size", 18)
 		_strip.add_child(note)
 		return
 	for entry: Array in LevelLayout.PALETTE[page]:
 		var button := _button(entry[0], _arm.bind(entry))
-		button.custom_minimum_size = Vector2(0.0, 44.0)
+		button.custom_minimum_size = Vector2(0.0, 58.0)
 		_strip.add_child(button)
 
 
@@ -742,6 +829,22 @@ func _show_inspector() -> void:
 	row.add_child(_button("Look at", func() -> void:
 		_focus = level.place_of(item)
 		_reach = clampf(_radius(item) * 3.5, 10.0, 220.0)))
+	# Arrows, to move it a step at a time (a finger hides what it drags): away
+	# from the eye, towards it, and to either side, as the view is turned.
+	var arrows := HBoxContainer.new()
+	arrows.add_theme_constant_override("separation", 5)
+	_inspector.add_child(arrows)
+	for way: Array in [["<", Vector2(-1, 0)], ["^", Vector2(0, -1)], ["v", Vector2(0, 1)], [">", Vector2(1, 0)]]:
+		var arrow := _button(way[0], _nudge_by.bind(way[1]))
+		arrow.custom_minimum_size.x = 54.0
+		arrows.add_child(arrow)
+	var step := _button("%s m" % String.num(_nudge, 1), Callable())
+	step.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	step.pressed.connect(func() -> void:
+		var steps: Array[float] = [0.1, 0.5, 1.0, 5.0]
+		_nudge = steps[(steps.find(_nudge) + 1) % steps.size()]
+		step.text = "%s m" % String.num(_nudge, 1))
+	arrows.add_child(step)
 	if not item["kind"] in ["dune", "pond", "river", "pool", "start", "checkpoint", "sign"]:
 		_number("Turned", item, "yaw", -180.0, 180.0, 1.0)
 	if not item.has("y") and not item["kind"] in GROUND_KINDS:
@@ -765,7 +868,7 @@ func _show_inspector() -> void:
 				var box := CheckButton.new()
 				box.text = field[1]
 				box.focus_mode = Control.FOCUS_NONE
-				box.custom_minimum_size.y = 40.0
+				box.custom_minimum_size.y = 50.0
 				box.button_pressed = item.get(field[0], field[3])
 				box.toggled.connect(func(on: bool) -> void:
 					_remember()
@@ -776,7 +879,7 @@ func _show_inspector() -> void:
 				_inspector.add_child(_caption(field[1]))
 				var choice := OptionButton.new()
 				choice.focus_mode = Control.FOCUS_NONE
-				choice.custom_minimum_size.y = 40.0
+				choice.custom_minimum_size.y = 50.0
 				for option: String in field[3]:
 					choice.add_item(option)
 				choice.selected = int(item.get(field[0], field[4]))
@@ -789,7 +892,7 @@ func _show_inspector() -> void:
 				_inspector.add_child(_caption(field[1]))
 				var line := LineEdit.new()
 				line.text = item.get(field[0], field[3])
-				line.custom_minimum_size.y = 40.0
+				line.custom_minimum_size.y = 50.0
 				line.text_submitted.connect(func(text: String) -> void:
 					_remember()
 					item[field[0]] = text
@@ -830,7 +933,7 @@ func _show_level() -> void:
 	_inspector.add_child(_caption("Weather"))
 	var weather := OptionButton.new()
 	weather.focus_mode = Control.FOCUS_NONE
-	weather.custom_minimum_size.y = 40.0
+	weather.custom_minimum_size.y = 50.0
 	for kind: String in ["Calm", "A breeze", "A storm"]:
 		weather.add_item(kind)
 	weather.selected = int(layout.get("weather", 1))
@@ -861,7 +964,7 @@ func _number(title: String, holder: Dictionary, key: String, least: float, most:
 	slider.allow_lesser = true
 	slider.value = holder.get(key, 0.0)
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.custom_minimum_size.y = 40.0
+	slider.custom_minimum_size.y = 50.0
 	slider.focus_mode = Control.FOCUS_NONE
 	var show := func() -> void: caption.text = "%s: %s" % [title, String.num(slider.value, 0 if step >= 1.0 else 2)]
 	show.call()
@@ -886,11 +989,11 @@ func _number(title: String, holder: Dictionary, key: String, least: float, most:
 	var less := _button("-", func() -> void:
 		_remember()
 		slider.value -= step)
-	less.custom_minimum_size.x = 40.0
+	less.custom_minimum_size.x = 54.0
 	var more := _button("+", func() -> void:
 		_remember()
 		slider.value += step)
-	more.custom_minimum_size.x = 40.0
+	more.custom_minimum_size.x = 54.0
 	row.add_child(less)
 	row.add_child(slider)
 	row.add_child(more)
@@ -931,7 +1034,8 @@ func _draw_overlay() -> void:
 				if is_chosen:
 					for point: Vector3 in line:
 						if not cam.is_position_behind(point):
-							over.draw_circle(cam.unproject_position(point), 11.0, Color(colour, 0.9))
+							over.draw_circle(cam.unproject_position(point), 15.0, Color(colour, 0.9))
+							over.draw_arc(cam.unproject_position(point), 15.0, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 2.0, true)
 			"pool":
 				var half := Vector2(item.get("size_x", 6.0), item.get("size_z", 6.0)) * 0.5
 				var corner := Vector2(item["at"][0], item["at"][1])
@@ -940,8 +1044,9 @@ func _draw_overlay() -> void:
 					ring.append(Vector3(corner.x + way.x * half.x, item["y"], corner.y + way.y * half.y))
 				_outline(ring, colour, is_chosen)
 		if is_chosen:
-			over.draw_arc(at, 22.0, 0.0, TAU, 40, Color(1, 1, 1, 0.95), 3.0, true)
-			over.draw_circle(at, 7.0, colour)
+			over.draw_arc(at, 28.0, 0.0, TAU, 40, Color(0, 0, 0, 0.55), 6.0, true)
+			over.draw_arc(at, 28.0, 0.0, TAU, 40, Color(1, 1, 1, 0.95), 3.0, true)
+			over.draw_circle(at, 9.0, colour)
 			# What works it: a line to each.
 			for link: int in item.get("links", []):
 				for other: Dictionary in layout["items"]:
@@ -952,8 +1057,8 @@ func _draw_overlay() -> void:
 							over.draw_circle(cam.unproject_position(to), 9.0, Color(0.7, 1.0, 0.5, 0.95))
 		else:
 			var show_all := _next == "link" and _is_trigger(item)
-			over.draw_circle(at, 9.0 if show_all else 4.5, Color(colour, 0.95 if show_all else 0.7))
-			over.draw_arc(at, 9.0 if show_all else 4.5, 0.0, TAU, 16, Color(0, 0, 0, 0.5), 1.0, true)
+			over.draw_circle(at, 13.0 if show_all else 6.5, Color(colour, 0.95 if show_all else 0.75))
+			over.draw_arc(at, 13.0 if show_all else 6.5, 0.0, TAU, 16, Color(0, 0, 0, 0.6), 1.5, true)
 	# The middle of the view, where "Play here" starts him.
 	var centre := size * 0.5
 	over.draw_line(centre + Vector2(-9, 0), centre + Vector2(9, 0), Color(1, 1, 1, 0.4), 1.5)
@@ -1004,16 +1109,17 @@ func _button(text: String, pressed: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size.y = 42.0
-	button.add_theme_font_size_override("font_size", 17)
-	button.pressed.connect(pressed)
+	button.custom_minimum_size.y = 52.0
+	button.add_theme_font_size_override("font_size", 19)
+	if pressed.is_valid():
+		button.pressed.connect(pressed)
 	return button
 
 
 func _heading(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 19)
+	label.add_theme_font_size_override("font_size", 22)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return label
 
@@ -1021,7 +1127,7 @@ func _heading(text: String) -> Label:
 func _caption(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.modulate.a = 0.8
-	label.add_theme_font_size_override("font_size", 15)
+	label.modulate.a = 0.85
+	label.add_theme_font_size_override("font_size", 17)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return label
