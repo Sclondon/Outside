@@ -69,7 +69,7 @@ TOE = Vector((0.0, -0.035, 0.075))
 HEAD_CENTRE = Vector((0.0, 1.108, 0.006))
 HEAD_RADII = Vector((0.103, 0.136, 0.113))
 
-SHIRT, DENIM, SKIN, HAIR, SOCKS, LEATHER, BRASS, PATCH, TWEED, EYES, MOUTH, JACKET, WAISTCOAT, APRON, BRACES = range(15)
+SHIRT, DENIM, SKIN, HAIR, SOCKS, LEATHER, BRASS, PATCH, TWEED, EYES, MOUTH, JACKET, WAISTCOAT, APRON, BRACES, EYEWHITE, IRIS, PUPIL, HAIRWAVY = range(19)
 MATERIALS = [
     ("shirt", (0.90, 0.85, 0.72)),
     ("overalls", (0.47, 0.55, 0.65)),
@@ -87,6 +87,14 @@ MATERIALS = [
     ("waistcoat", (0.31, 0.30, 0.33)),
     ("apron", (0.93, 0.91, 0.84)),
     ("braces", (0.56, 0.40, 0.25)),
+    # The eyes of the sculpted face: the white of each, the ring of colour and the dark of it.
+    ("eyewhite", (0.93, 0.91, 0.86)),
+    ("iris", (0.36, 0.25, 0.16)),
+    ("pupil", (0.05, 0.04, 0.04)),
+    # Hair again, for the cuts that are waved rather than curled: the game shades
+    # whatever has this material with its other hair shader (Toon.WAVY_HAIR_SHADER),
+    # in the colour of his hair.
+    ("hairwavy", (0.23, 0.165, 0.12)),
 ]
 
 # Where one garment ends and the next begins on the body.
@@ -431,6 +439,9 @@ def hair(b, crown_only=False, long=False, forelock="with"):
 
     def on_scalp(angle, phi, lift=0.0):
         c, s = math.cos(phi), math.sin(phi)
+        if crown_only and phi > 0.0:
+            # (bareheaded, his hair is fullest above his temples, not an egg coming to a point: see ROUND)
+            lift += (grown.y + lift) * ROUND * math.sin(2.0 * phi) ** 2
         return crown + tilt @ Vector((math.sin(angle) * (grown.x + lift) * c, (grown.y + lift) * s, math.cos(angle) * (grown.z + lift) * c))
 
     scalp = []
@@ -520,8 +531,9 @@ def hair(b, crown_only=False, long=False, forelock="with"):
                 if abs(angle) < 0.85 and phi < 0.7:
                     # The quiff: longest at the front and in the middle, standing up off his forehead
                     front = (1.0 - abs(angle) / 0.85) * (1.0 - blend(0.3, 0.7, phi))
-                    sweep = Vector((-0.18, 1.0 - 0.6 * blend(0.05, 0.6, phi), -0.3 - 0.4 * blend(0.05, 0.6, phi))).normalized()
-                    ringlet(angle, 0.0, rng.uniform(0.05, 0.06) * (0.6 + 1.0 * front), 0.0, 0.55 + 0.5 * front, 0.2, at + 0.2, sweep)
+                    # (combed back over his head and lying on it: stood straight up, it made a peak of his crown)
+                    sweep = Vector((-0.3, 0.45 - 0.45 * blend(0.05, 0.6, phi), -0.75 - 0.2 * blend(0.05, 0.6, phi))).normalized()
+                    ringlet(angle, 0.0, rng.uniform(0.04, 0.05) * (0.6 + 0.7 * front), 0.0, 0.55 + 0.4 * front, 0.2, at + 0.12, sweep)
                 else:
                     ringlet(angle, 0.0, rng.uniform(0.022, 0.03), 0.0, 0.45, 0.15, at)
         # (and along his hairline, short ones brushed up into it, so no scalp shows under the quiff)
@@ -684,7 +696,10 @@ def weights(part, p):
     side = 1.0 if p.x >= 0.0 else -1.0
     # (a part that is one choice of several is named `<slot>__<option>`)
     kind, _, option = part.partition("__")
-    if part in ("head", "crown", "hairtop__crown") or kind == "face":
+    if part == "face__sculpt":
+        # (his eyeballs, each on a bone of its own, which the rig turns to look)
+        return {"eye_l" if p.x >= 0.0 else "eye_r": 1.0}
+    if part in ("head", "crown", "hairtop__crown") or kind in ("face", "head"):
         return {"head": 1.0}
     if part == "cap":
         return {"cap": 1.0}
@@ -695,12 +710,20 @@ def weights(part, p):
         # at its own end, and swings a little between.
         down = blend(HEAD_CENTRE.y - 0.05, 0.86, p.y)
         return {"head": (1.0 - down) * 0.8, "chest": down * 0.75, "hair" + suffix: 0.2 + 0.05 * down}
+    if option == "waves" and p.y < HEAD_CENTRE.y - 0.09 and p.z < 0.0:
+        # Hair down her back hangs from her head and lies on her shoulders, as a plait does.
+        down = blend(HEAD_CENTRE.y - 0.09, 0.84, p.y)
+        held = (1.0 - down) * 0.82 + down * 0.7
+        return {"head": (1.0 - down) * 0.82, "chest": down * 0.7, "hair_b": 1.0 - held}
     if kind in ("hair", "hair_long", "forelock", "hairtop"):
         # A curl belongs to the head at its root and, the further it stands off,
         # to whichever hair bones it hangs nearest.
         q = p - HEAD_CENTRE
         off = math.sqrt((q.x / HEAD_RADII.x) ** 2 + (q.y / HEAD_RADII.y) ** 2 + (q.z / HEAD_RADII.z) ** 2)
         loose = blend(1.10, 1.34, off) * 0.9
+        if option in FIRM:
+            # (combed, oiled or pinned up: it does not swing, however far it stands off)
+            loose *= 0.25
         angle = math.atan2(q.x, q.z)
         result = {"head": 1.0 - loose}
         for index, (name, _angle, _height) in enumerate(HAIR_BONES):
@@ -813,6 +836,9 @@ def bones():
         listed.append((name, on_head(angle, height), "head"))
     # The cap turns about the middle of its band.
     listed.append(("cap", HEAD_CENTRE + Matrix.Rotation(CAP_TILT, 3, "X") @ Vector((0.0, CAP_BAND, 0.0)), "head"))
+    # His eyes turn about their own middles (the sculpted face has eyeballs; the rig looks with them).
+    for side, suffix in ((1.0, "_l"), (-1.0, "_r")):
+        listed.append(("eye" + suffix, eye_centre(side), "head"))
     for side, suffix in ((1.0, "_l"), (-1.0, "_r")):
         shoulder = Vector((side * SHOULDER.x, SHOULDER.y, 0.0))
         listed.append(("upper_arm" + suffix, shoulder, "chest"))
@@ -854,9 +880,11 @@ def bones():
 #   over     base (bib and braces), braces, waistcoat (both on the base body),
 #            braceslong, waistcoatlong (on the long one), pinafore (on the dress)
 #   patch    base (his knee patch)
-#   face     full, light, dots (base: none, his plain face)
-#   hair     base (the mullet), long, crop, parting, bob, plaits, ponytail, curls:
-#            what of each cut shows whether or not a cap is on
+#   head     base (an egg, for the faces below), sculpt (a head with a face modelled into it)
+#   face     full, light, dots: features set on the egg (base: none, his plain face);
+#            sculpt: the eyeballs of the sculpted head
+#   hair     base (the mullet), long, and each of CUTS: what of each cut shows
+#            whether or not a cap is on
 #   hairtop  base (the forelock under the peak of his cap), crown (his curls
 #            without it), and for each other cut what a cap would hide
 #
@@ -935,7 +963,302 @@ def eyes_small(b):
     eyes(b, 0.72, 1.0)
 
 
+# --- The sculpted face ---
+#
+# The faces above are features stuck on an egg. This one is a head of its own
+# (`head__sculpt`, shown in place of `head__base`), with the face modelled into
+# it as form: a brow ridge over hollowed sockets, a nose with a bridge and a
+# tip, cheeks, lips, and a chin above a flat jaw. It is kept simple, a few
+# broad shapes as a carver would rough a face out, and cheap: one grid of
+# points, finer over the face than behind.
+#
+# Above the brow it is the same egg as the plain head, so every cut of hair and
+# the cap fit it. Its eyes are balls set in the sockets (`face__sculpt`): white,
+# with a ring of colour and a dark middle, each on a bone of its own
+# (`eye_l`, `eye_r`), so that the rig can turn them to what he looks at.
+
+# Where an eye is: how far across from the middle of his face and how far above
+# the middle of his head. Then the opening between its lids (half its width,
+# and how far the upper lid and the lower are from the middle of the eye: the
+# upper comes down over the top of the ring of colour, which is what makes an
+# eye look easy rather than startled), and the size of the ball behind them.
+EYE = Vector((0.037, 0.003, 0.0))
+EYE_HALF = (0.0175, 0.0086, 0.0098)
+EYE_RADIUS = 0.0245
+# His lips: the height of the line between them, half their width, and how
+# thick the upper and the lower are.
+LIPS = (-0.067, 0.0255, 0.0048, 0.0064)
+# How far the corners of his mouth are turned up.
+SMILE = 0.0036
+# How strongly each feature is cut (metres it stands out, or in).
+SCULPT = {"brow": 0.0058, "socket": 0.0072, "bridge": 0.0034, "nose": 0.0180, "wings": 0.0070, "cheek": 0.0050, "chin": 0.0058}
+# How far the rings of an eyeball are from where it looks, in degrees: the dark
+# middle, the ring of colour, and the white.
+PUPIL_RINGS = (5.0, 10.5)
+IRIS_RINGS = (10.5, 18.0, 25.5)
+WHITE_RINGS = (25.5, 37.0, 52.0, 70.0, 90.0)
+
+
+def skull_ring(h):
+    """The ring round his head `h` above its middle: its true height (he is flat
+    under the jaw, where the egg came to a point), how far forward its middle
+    is, and its half width and half depth."""
+    s = max(-0.999, min(0.999, h / HEAD_RADII.y))
+    c, jaw = math.sqrt(1.0 - s * s), max(0.0, -s)
+    y = h if h > -0.105 else -0.105 - 0.017 * math.tanh((-0.105 - h) / 0.017)
+    return y, 0.012 * jaw, HEAD_RADII.x * c * (1.0 - 0.2 * jaw ** 1.5), HEAD_RADII.z * c
+
+
+def eye_depth():
+    """How far forward of the middle of his head the middle of an eyeball is: it sits just behind where his face would be."""
+    _y, forward, rx, rz = skull_ring(EYE.y)
+    return forward + rz * math.sqrt(1.0 - (EYE.x / rx) ** 2) - 0.0035 - EYE_RADIUS
+
+
+def eye_centre(side):
+    return HEAD_CENTRE + Vector((side * EYE.x, EYE.y, eye_depth()))
+
+
+def swell(distance, spread):
+    """1 at no `distance`, falling away smoothly over `spread`."""
+    return math.exp(-(distance / spread) ** 2)
+
+
+def face_relief(x, h, cut=SCULPT):
+    """How far the sculpted face stands forward of the egg (or back from it) `x` across and `h` above the middle of his head."""
+    ax = abs(x)
+    # The brow: a ridge arched over each eye, running out into the temple
+    arch = 0.0300 + 0.0035 * swell(ax - EYE.x, 0.02)
+    out = cut["brow"] * swell(h - arch, 0.0085) * blend(0.003, 0.02, ax) * (1.0 - 0.75 * blend(0.05, 0.075, ax))
+    # ...over the sockets, hollowed either side of the nose
+    out -= cut["socket"] * swell(ax - EYE.x, 0.027) * swell(h - EYE.y, 0.019)
+    # The nose: a narrow bridge from between the brows, widening and standing
+    # further out down to the tip, and cut away sharply under it
+    top, tip = 0.020, -0.029
+    along = min(max((top - h) / (top - tip), 0.0), 1.0)
+    stands = cut["bridge"] + (cut["nose"] - cut["bridge"]) * along ** 1.35
+    if h > top:
+        stands *= swell(h - top, 0.011)
+    if h < tip:
+        stands *= swell(h - tip, 0.0062)
+    out += stands * swell(x, 0.0066 + 0.0062 * along)
+    # (and the wings of the nostrils either side of the tip)
+    out += cut["wings"] * swell(ax - 0.0105, 0.0058) * swell(h + 0.0315, 0.0058)
+    # Cheeks, full under the eyes
+    out += cut["cheek"] * swell(ax - 0.047, 0.022) * swell(h + 0.032, 0.022)
+    # The mouth sits on a low mound; the lips are two rolls with a furrow between
+    # them, tucked in at the corners
+    line = LIPS[0] + smile(x)
+    out += 0.0038 * swell(x, 0.030) * swell(h - line, 0.020)
+    out += (0.0022 * swell(h - line - 0.0028, 0.0030) + 0.0028 * swell(h - line + 0.0036, 0.0036)) * swell(x, 0.021)
+    out -= 0.0020 * swell(h - line, 0.0016) * swell(x, 0.028)
+    out -= 0.0014 * swell(ax - LIPS[1] - 0.002, 0.007) * swell(h - line, 0.007)
+    # A dip under the lower lip, and the ball of the chin
+    out -= 0.0010 * swell(x, 0.020) * swell(h + 0.0815, 0.008)
+    out += cut["chin"] * swell(x, 0.022) * swell(h + 0.104, 0.016)
+    return out
+
+
+def smile(x):
+    """How far the line of his mouth is lifted `x` across from its middle."""
+    return SMILE * min((x / LIPS[1]) ** 2, 1.6)
+
+
+def drawn_rows(h, x):
+    """The rows of the grid are drawn together so that one runs along each lid of
+    his eyes and each edge of his lips: the opening of an eye and the red of the
+    lips then have clean edges however coarse the grid is. Gives the height a
+    point `x` across on the row at `h` is moved to."""
+    wide, upper, lower = EYE_HALF
+    off = h - EYE.y
+    tall = upper if off > 0.0 else lower
+    if abs(off) <= tall + 0.0045:
+        open_by = max(0.16, 1.0 - ((abs(x) - EYE.x) / wide) ** 2)
+        return EYE.y + math.copysign(min(abs(off), tall) * open_by + max(abs(off) - tall, 0.0), off)
+    line, half, upper, lower = LIPS
+    off = h - line
+    if -lower <= off <= upper:
+        full = max(0.1, 1.0 - (x / half) ** 2)
+        if off > 0.0:
+            # (the upper lip dips in the middle)
+            full *= 1.0 - 0.22 * swell(x, 0.0045)
+        return line + smile(x) + off * full
+    return h + smile(x) * (1.0 - blend(0.0, 0.012, min(abs(off - upper), abs(off + lower))))
+
+
+def sculpted(angle, h, cut=SCULPT, drawn=True):
+    """A point of the sculpted head: `angle` round from the front, on the row at `h` above its middle."""
+    if drawn:
+        h = drawn_rows(h, math.sin(angle) * skull_ring(h)[2])
+    y, forward, rx, rz = skull_ring(h)
+    q = Vector((math.sin(angle) * rx, y, forward + math.cos(angle) * rz))
+    q.z += face_relief(q.x, q.y, cut) * blend(0.2, 0.5, math.cos(angle))
+    # His lids: inside the opening the surface is sunk behind the eyeball, which
+    # shows through it; round the opening it lies just over the ball, and runs
+    # out from there into the socket.
+    wide, upper, lower = EYE_HALF
+    dx, dh = abs(q.x) - EYE.x, q.y - EYE.y
+    tall = upper if dh > 0.0 else lower
+    if math.cos(angle) > 0.0 and abs(dx) < 2.2 * wide and abs(dh) < 0.03:
+        closed = abs(dh) / tall + (dx / wide) ** 2
+        inside = EYE_RADIUS ** 2 - dx * dx - dh * dh
+        ball = eye_depth() + math.sqrt(max(inside, 0.0))
+        if closed < 0.985:
+            q.z = ball - 0.0045
+        elif inside > 0.0:
+            lid = ball + 0.0014
+            q.z = max(lid + (q.z - lid) * blend(1.0, 2.1, closed), lid)
+    return HEAD_CENTRE + q
+
+
+def sculpted_at(x, h, lift=0.0, cut=SCULPT):
+    """The point of the sculpted face `x` across and `h` above the middle of his head, stood `lift` off it."""
+    def at(x, h):
+        return sculpted(math.asin(max(-0.99, min(0.99, x / skull_ring(h)[2]))), h, cut, False)
+
+    out = (at(x + 0.002, h) - at(x - 0.002, h)).cross(at(x, h + 0.002) - at(x, h - 0.002)).normalized()
+    return at(x, h) + out * lift
+
+
+def sculpt_grid():
+    """Where the rows and columns of the sculpted head are: the heights of the
+    rows from the crown down, and the angles of the columns round one side from
+    the front to the back. They are close together where there is a face to model."""
+    wide, above, below = EYE_HALF
+    line, _half, upper, lower = LIPS
+    if kit.LOW:
+        rows = [0.115, 0.072, 0.040, 0.031, EYE.y + above + 0.004, EYE.y + above, EYE.y, EYE.y - below, EYE.y - below - 0.004, -0.021, -0.029, -0.037,
+                -0.053, line + upper, line, line - lower, -0.085, -0.104, -0.120, -0.131]
+        across = [0.0, 0.008, EYE.x - wide, EYE.x, EYE.x + wide, 0.066, 0.081, 0.096]
+        behind = [90.0, 125.0, 160.0, 180.0]
+    else:
+        rows = [0.130, 0.115, 0.095, 0.072, 0.055, 0.044, 0.037, 0.031, 0.025, EYE.y + above + 0.004]
+        rows += [EYE.y + above, EYE.y + above * 0.5, EYE.y, EYE.y - below * 0.5, EYE.y - below]
+        rows += [EYE.y - below - 0.004, -0.018, -0.022, -0.026, -0.029, -0.033, -0.037, -0.042, -0.048, -0.055]
+        rows += [line + upper, line + upper * 0.5, line, line - lower * 0.5, line - lower]
+        rows += [-0.079, -0.085, -0.093, -0.101, -0.109, -0.116, -0.122, -0.128, -0.133]
+        across = [0.0, 0.004, 0.008, 0.0125] + [EYE.x + wide * t for t in (-1.0, -0.68, -0.34, 0.0, 0.34, 0.68, 1.0)] + [0.060, 0.066, 0.073, 0.081, 0.089, 0.096]
+        behind = [90.0, 106.0, 124.0, 142.0, 161.0, 180.0]
+    return rows, [math.asin(x / HEAD_RADII.x) for x in across] + [math.radians(angle) for angle in behind]
+
+
+def head_sculpt(b):
+    """The sculpted head, in skin, with his lips in their own colour. (It colours itself.)"""
+    rows, side = sculpt_grid()
+    angles = side + [-angle for angle in side[-2:0:-1]]
+    count = len(angles)
+    verts = [[b._vert(sculpted(angle, h), None) for angle in angles] for h in rows]
+    line, half, upper, lower = LIPS
+    faces = []
+
+    def face(corners, h, columns):
+        made = b.bm.faces.new(corners)
+        # (his lips are the faces between the rows drawn along their edges, in front, and no wider than they are)
+        j, k = columns
+        across = abs(math.sin(angles[j]) + math.sin(angles[k])) * 0.5 * skull_ring(h)[2]
+        lips = line - lower < h < line + upper and across < half and math.cos(angles[j]) + math.cos(angles[k]) > 0.0
+        made.material_index = MOUTH if lips else SKIN
+        faces.append(made)
+
+    for r in range(len(rows) - 1):
+        for j in range(count):
+            k = (j + 1) % count
+            face((verts[r][j], verts[r][k], verts[r + 1][k], verts[r + 1][j]), (rows[r] + rows[r + 1]) * 0.5, (j, k))
+    for r, h in ((0, HEAD_RADII.y), (len(rows) - 1, -HEAD_RADII.y)):
+        pole = b._vert(HEAD_CENTRE + Vector((0.0, skull_ring(h)[0], skull_ring(h)[1])), None)
+        for j in range(count):
+            face((verts[r][j], verts[r][(j + 1) % count], pole), h, (j, (j + 1) % count))
+    bmesh.ops.recalc_face_normals(b.bm, faces=faces)
+
+
+def sculpt_ears(b):
+    for side in (1.0, -1.0):
+        b.ellipsoid(HEAD_CENTRE + Vector((side * 0.099, -0.016, -0.012)), Vector((0.012, 0.027, 0.018)), None, 8, 5)
+
+
+def sculpt_brows(b):
+    """Eyebrows, lying along the ridge of the brow."""
+    for side in (1.0, -1.0):
+        line = [sculpted_at(side * x, h, 0.0004) for x, h in ((0.0140, 0.0292), (0.026, 0.0330), (0.039, 0.0344), (0.052, 0.0322), (0.062, 0.0272))]
+        b.strand(line, [0.0024, 0.0034, 0.0034, 0.0028, 0.0016], 5)
+
+
+def sculpt_lashes(b):
+    """A dark line along each upper lid, which is what gives an eye its shape from any way off, and one between his lips."""
+    wide, tall, _lower = EYE_HALF
+    for side in (1.0, -1.0):
+        line = []
+        for t in (-1.0, -0.6, -0.2, 0.2, 0.6, 1.0, 1.22):
+            # (it runs on a little past the outer corner)
+            x = EYE.x + wide * t
+            h = EYE.y + tall * max(1.0 - t * t, 0.0) + (0.0006 if t <= 1.0 else -0.0016)
+            line.append(sculpted_at(side * x, h, 0.0006))
+        b.strand(line, [0.0007, 0.0011, 0.0013, 0.0013, 0.0012, 0.0010, 0.0005], 4)
+    # (and the line between his lips, which is what gives a mouth its expression)
+    half = LIPS[1] * 0.96
+    line = [sculpted_at(half * t, LIPS[0] + smile(half * t), 0.0004) for t in (-1.0, -0.6, -0.2, 0.2, 0.6, 1.0)]
+    b.strand(line, [0.0005, 0.0008, 0.0009, 0.0009, 0.0008, 0.0005], 4)
+
+
+def eyeballs(rings, closed=False):
+    """Part of both eyeballs: the bands between `rings` (degrees from where the eye looks), and with `closed` the middle as well."""
+    def made(b):
+        segments = 8 if kit.LOW else 12
+        for side in (1.0, -1.0):
+            centre = eye_centre(side)
+            loops = []
+            for ring in (rings[::len(rings) - 1] if kit.LOW else rings):
+                off = math.radians(ring)
+                loops.append([b._vert(centre + Vector((math.cos(math.tau * k / segments) * math.sin(off), math.sin(math.tau * k / segments) * math.sin(off), math.cos(off))) * EYE_RADIUS, None)
+                              for k in range(segments)])
+            faces = []
+            for near, far in zip(loops, loops[1:]):
+                for k in range(segments):
+                    faces.append(b.bm.faces.new((near[k], near[(k + 1) % segments], far[(k + 1) % segments], far[k])))
+            if closed:
+                pole = b._vert(centre + Z * EYE_RADIUS, None)
+                for k in range(segments):
+                    faces.append(b.bm.faces.new((loops[0][k], loops[0][(k + 1) % segments], pole)))
+            for made_face in faces:
+                # (an open band has no inside for its faces to be turned out of: each is turned by hand)
+                made_face.normal_update()
+                if made_face.normal.dot(made_face.calc_center_median() - kit.to_blender(centre)) < 0.0:
+                    made_face.normal_flip()
+    return made
+
+
 # --- Hair ---
+#
+# Cuts of hair other than his own curls are made as a game makes stylised hair:
+# one closed surface over the head (`helmet`) rather than strands, modelled in
+# locks (a ridge down each, a crease between, and each ending where it will at
+# the hem), with whatever stands off it (a bun, a plait, a tail) as shapes of
+# its own. Three things keep it from looking like a cone set on his head:
+#
+# - The crown is rounder than his skull. A head of hair is fullest above and
+#   behind the temples, so the surface is filled out there (ROUND) and comes no
+#   higher on top than it must.
+# - The hair grows from somewhere real. Either from a whorl at the back of the
+#   crown, a little off the middle, combed out from it in every direction (a
+#   crop, a fringe); or from a parting, a line it falls away from to either
+#   side; or it is drawn back from the hairline to where it is tied. The rows of
+#   the surface run that way, and so do the streaks and the lights of the shader.
+# - What is combed or pinned (FIRM) stays put, and only loose hair swings.
+#
+# After period photographs and guides to the hair of 1900-1925. Boys and men:
+# cropped; a pudding-basin fringe; a side parting with the long side combed over
+# and the sides short above the ears; oiled and combed straight back; a centre
+# parting with the front falling in curtains; a pompadour combed up off the
+# brow. Girls and women: a bob with a fringe; a finger-waved bob with a side
+# parting; plaits; hair drawn back to a tail, or to a low knot at the nape; the
+# full soft pompadour of the Gibson girl with its knot on the crown; and a
+# girl's long loose waves under a big ribbon bow.
+
+# How much fuller than an egg the crown of a head of hair is, half way between its top and its sides.
+ROUND = 0.12
+# The cuts that do not swing (see `weights`).
+FIRM = ("crop", "bowl", "parting", "slick", "quiff", "waved", "bun", "gibson", "ponytail", "plaits")
+
 
 def hairline(brow, side, nape, face=1.05, soft=0.35):
     """How far down the hair comes at each angle round his head (heights above its
@@ -952,83 +1275,169 @@ def hair_shape(grow):
     return HEAD_CENTRE + Vector((0.0, 0.006, -0.003)), HEAD_RADII + Vector(grow)
 
 
-def helmet(b, hem, grow, drop=0.0, flare=0.0, curl=0.0, rows=9, count=28):
-    """Hair as one smooth surface over his head: from the crown down to `hem`
-    (see `hairline`), standing `grow` off his skull. Below the widest part of his
-    head it follows the head in (`drop` 0) or hangs straight (1), and may `flare`
-    out on the way and `curl` under at the end."""
+def aim(back, side=0.0):
+    """A direction out from the middle of his head: straight up, tipped `back`
+    radians towards the back of it (forwards, if less than nothing) and `side`
+    towards his left."""
+    return Vector((math.sin(side), math.cos(side) * math.cos(back), -math.cos(side) * math.sin(back)))
+
+
+def towards(d, direction, spread):
+    """1 where `d` is `direction`, falling away smoothly over `spread` radians round it."""
+    return math.exp(-(d.angle(direction) / spread) ** 2)
+
+
+def helmet(b, hem, grow, drop=0.0, flare=0.0, curl=0.0, rows=9, count=28, whorl=None, parting=None, drawn=False,
+           locks=0, relief=0.004, ragged=0.0, body=None):
+    """Hair as one surface over his head, down to `hem` (see `hairline`), standing
+    `grow` off his skull. Below the widest part of his head it follows the head
+    in (`drop` 0) or hangs straight (1), and may `flare` out on the way and
+    `curl` under at the end.
+
+    It grows from `whorl` (a direction out from the middle of his head, see
+    `aim`); or, with `parting` (how far round from the front the parting meets
+    his hairline, and the direction of its other end, on his crown), from a
+    line, which shows as a furrow. With `drawn` it runs the other way: from the
+    hairline back to the whorl, which is then where it is tied.
+
+    `locks` is how many locks it is modelled in, each standing `relief` proud of
+    the creases between them and ending up to `ragged` (a share of its length)
+    short of the hem. `body`, given a direction and how far along the hair that
+    is, says how much further the hair stands off there: a wave over the brow."""
     if kit.LOW:
-        rows, count = max(rows // 2, 4), 12
+        rows, count = max(rows // 2, 4), max(locks, 6) * 2
+    elif locks:
+        count = locks * 4
     centre, radii = hair_shape(grow)
-    grid = []
-    for i in range(rows + 1):
-        share = max(i / rows, 0.08)
-        row = []
-        for j in range(count):
-            angle = math.tau * j / count
-            end = math.acos(max(-0.97, min(0.97, hem(angle) / radii.y)))
-            theta = share * end
-            out = math.sin(theta)
-            if theta > math.pi / 2:
-                u = (theta - math.pi / 2) / max(end - math.pi / 2, 1e-6)
-                out = out + (1.0 - out) * drop + flare * u - curl * u * u
-            row.append(centre + Vector((math.sin(angle) * radii.x * out, radii.y * math.cos(theta), math.cos(angle) * radii.z * out)))
-        grid.append(row)
+    rng = random.Random(7)
+    lengths = [rng.random() for _ in range(max(locks, 1))]
+
+    def end_of(angle):
+        return math.acos(max(-0.97, min(0.97, hem(angle) / radii.y)))
+
+    def rim(angle):
+        end = end_of(angle)
+        return Vector((math.sin(angle) * math.sin(end), math.cos(end), math.cos(angle) * math.sin(end)))
+
+    def place(d, lift):
+        angle = math.atan2(d.x, d.z)
+        theta = math.acos(max(-1.0, min(1.0, d.y)))
+        end = end_of(angle)
+        out, up = math.sin(theta), math.cos(theta)
+        if theta < math.pi / 2:
+            # (fuller than an egg over the crown; but not at the hem, where it lies on his head)
+            full = 1.0 + ROUND * math.sin(2.0 * theta) ** 2 * blend(0.0, 0.5, end - theta)
+            out, up = out * full, up * full
+        else:
+            # (hair that crosses his brow on its way down is outside the hem for a while: it does not hang there)
+            u = min((theta - math.pi / 2) / max(end - math.pi / 2, 1e-6), 1.0) if end > math.pi / 2 else 0.0
+            out = out + (1.0 - out) * drop * u ** 0.5 + flare * u - curl * u * u
+        p = Vector((math.sin(angle) * radii.x * out, radii.y * up, math.cos(angle) * radii.z * out))
+        return centre + p + p.normalized() * lift
+
+    if parting is not None:
+        first, last = rim(parting[0]), parting[1]
+    elif whorl is None:
+        whorl = aim(0.55, 0.12)
+
+    grid = [[None] * count for _ in range(rows + 1)]
+    for j in range(count):
+        tip = rim(math.tau * j / count)
+        if parting is None:
+            root = whorl
+        else:
+            # (from the place along the parting it is level with, front to back:
+            # what is in front falls from the front end of it, what is behind from the back)
+            root = first.slerp(last, blend(0.85, -0.85, math.cos(math.tau * j / count)))
+        at = j / count * locks
+        ridge = abs(math.sin(math.pi * at)) if locks else 0.5
+        short = ragged * (0.55 * lengths[int(at) % len(lengths)] + 0.45 * (1.0 - ridge))
+        for i in range(rows + 1):
+            share = i / rows
+            if parting is None:
+                share = max(share, 0.07)
+            d = root.slerp(tip, share * (1.0 - short)) if root.angle(tip) > 1e-4 else tip
+            lift = relief * (ridge ** 0.6 - 0.5) * blend(0.05, 0.45, share) if locks else 0.0
+            if parting is not None:
+                # (it rises out of the parting)
+                lift -= 0.0045 * (1.0 - blend(0.0, 0.12, share))
+            if body is not None:
+                lift += body(d, share)
+            grid[i][j] = place(d, lift)
     # (turned under at the hem, so that it has a thickness)
     under = [centre + Vector(((p.x - centre.x) * 0.88, p.y - centre.y + 0.007, (p.z - centre.z) * 0.88)) for p in grid[-1]]
-    loft(b, grid + [under], 6.0)
+    lofted, close = grid + [under], (parting is None, False)
+    if drawn:
+        lofted, close = lofted[::-1], (False, parting is None)
+    loft(b, lofted, 6.0, close)
 
 
 def hair_crop(b):
     """Cropped close all over: a boy's, in any year."""
-    helmet(b, hairline(0.080, 0.016, -0.100, 1.2, 0.5), (0.0075, 0.009, 0.009))
+    helmet(b, hairline(0.080, 0.016, -0.100, 1.2, 0.5), (0.0075, 0.006, 0.009), locks=10, relief=0.002)
+
+
+def hair_bowl(b):
+    """A pudding-basin cut: combed forward from the crown into a fringe cut straight
+    across above his brows, and the same length all round, over the tops of his ears."""
+    helmet(b, hairline(0.036, -0.010, -0.066, 1.3, 0.2), (0.014, 0.007, 0.014), 0.85, 0.0, 0.06, 10, whorl=aim(0.5, 0.1), locks=14, relief=0.005, ragged=0.07)
 
 
 def hair_bob(b):
     """A bob: straight, to the jaw all round, with a fringe cut across the brow."""
-    helmet(b, hairline(0.036, -0.080, -0.092, 1.0, 0.2), (0.017, 0.014, 0.017), 1.0, 0.05, 0.10, 10)
-
-
-def lock(b, line, wide, thick, centre):
-    """A flat lock of combed hair lying along `line` on a head whose middle is `centre`."""
-    rings = []
-    for i, point in enumerate(line):
-        ahead = (line[min(i + 1, len(line) - 1)] - line[max(i - 1, 0)]).normalized()
-        across = ahead.cross((point - centre).normalized()).normalized()
-        rings.append((point, across * wide[i], across.cross(ahead) * thick[i]))
-    first, last = (line[0] - line[1]).normalized(), (line[-1] - line[-2]).normalized()
-    b.tube(kit.dome(rings[0], first, thick[0], 2)[::-1] + rings + kit.dome(rings[-1], last, thick[-1], 2), 6)
+    helmet(b, hairline(0.036, -0.080, -0.092, 1.0, 0.2), (0.017, 0.008, 0.017), 1.0, 0.05, 0.10, 10, whorl=aim(0.45), locks=16, relief=0.004, ragged=0.03)
 
 
 def hair_parting(b):
-    """Parted on his left and combed over and back in waves, with the front
-    lifted off his forehead (after inspirationArt/hair.webp)."""
-    grow = (0.008, 0.009, 0.009)
-    helmet(b, hairline(0.074, 0.014, -0.100, 1.2, 0.5), grow)
-    centre, radii = hair_shape(grow)
+    """Parted on his left, the long side combed over the top and lifted in a
+    wave off his forehead, the sides short above his ears."""
+    wave = aim(-0.85, -0.3)
+    helmet(b, hairline(0.072, 0.014, -0.100, 1.2, 0.5), (0.010, 0.007, 0.010), parting=(0.62, aim(0.75, 0.38)), locks=11, relief=0.004, ragged=0.04,
+           body=lambda d, share: 0.011 * towards(d, wave, 0.45))
 
-    def at(roll, pitch, lift):
-        # (`roll` round towards his left ear, `pitch` forward towards his brow, from the top of his head)
-        out = Vector((math.sin(roll) * math.cos(pitch), math.cos(roll) * math.cos(pitch), math.sin(pitch)))
-        return centre + Vector((out.x * (radii.x + lift), out.y * (radii.y + lift), out.z * (radii.z + lift)))
 
-    parting = 0.36
-    locks = 5 if kit.LOW else 10
-    for k in range(locks):
-        # Over the top to his right and swept back: the first is the wave over his forehead, the rest lie flatter behind it
-        t = k / (locks - 1)
-        pitch = 0.82 - 1.85 * t
-        wave = 0.021 * (1.0 - t) ** 2 + 0.004
-        line = []
-        for m in range(8):
-            s = m / 7
-            line.append(at(parting - (parting + 1.32) * s, pitch - 0.34 * (1.0 - 0.7 * t) * s, 0.005 + wave * math.sin(math.pi * min(s * 1.5, 1.0)) ** 2))
-        lock(b, line, [0.0185 - 0.008 * m / 7 for m in range(8)], [0.0095 - 0.004 * m / 7 for m in range(8)], centre)
-    for k in range(3 if kit.LOW else 6):
-        # ...and the short side of the parting, combed straight down over his ear
-        pitch = 0.74 - 1.65 * k / 5
-        line = [at(parting + 0.05 + 0.95 * s, pitch - 0.1 * s, 0.004) for s in (0.0, 0.3, 0.65, 1.0)]
-        lock(b, line, [0.017, 0.018, 0.016, 0.011], [0.007, 0.008, 0.007, 0.004], centre)
+def hair_slick(b):
+    """Oiled and combed straight back off his forehead, as young men wore it: the marks of the comb in it, and no parting."""
+    front = aim(-0.75)
+    helmet(b, hairline(0.086, 0.022, -0.098, 1.1, 0.55), (0.006, 0.006, 0.010), whorl=aim(1.7), drawn=True, locks=15, relief=0.003,
+           body=lambda d, share: 0.006 * towards(d, front, 0.5))
+
+
+def hair_curtains(b):
+    """Parted in the middle and left to fall either side of his forehead, in waves, to his cheekbones."""
+    def hem(angle):
+        round_by = abs((angle + math.pi) % math.tau - math.pi)
+        front = 0.084 - 0.070 * blend(0.04, 0.72, round_by)
+        back = 0.002 + (-0.088 - 0.002) * blend(1.5, 2.6, round_by)
+        share = blend(0.78, 1.12, round_by)
+        return front * (1.0 - share) + back * share
+
+    falls = (aim(-0.7, 0.5), aim(-0.7, -0.5))
+    helmet(b, hem, (0.013, 0.007, 0.012), 0.5, 0.0, 0.03, 10, parting=(0.0, aim(0.8)), locks=12, relief=0.005, ragged=0.10,
+           body=lambda d, share: 0.008 * (towards(d, falls[0], 0.4) + towards(d, falls[1], 0.4)))
+
+
+def hair_quiff(b):
+    """A pompadour: left long on top and combed up and back off his brow in a full
+    wave, a little to one side, short at the sides."""
+    wave = aim(-0.62, -0.12)
+    helmet(b, hairline(0.088, 0.018, -0.098, 1.1, 0.5), (0.008, 0.007, 0.010), whorl=aim(1.3, 0.15), drawn=True, locks=11, relief=0.005,
+           body=lambda d, share: 0.021 * towards(d, wave, 0.5))
+
+
+def hair_waved(b):
+    """A waved bob: parted on her left and set in waves close to her head, across
+    her forehead and down over her ears to the jaw."""
+    def hem(angle):
+        turned = (angle + math.pi) % math.tau - math.pi
+        round_by = abs(turned)
+        # (it sweeps across her brow from the parting, lowest over the far temple)
+        sweep = 0.076 - 0.052 * blend(0.5, -0.95, turned)
+        side = -0.064 + (-0.086 + 0.064) * blend(1.5, 2.6, round_by)
+        front = blend(-1.25, -0.95, turned) * (1.0 - blend(0.5, 0.85, turned))
+        return sweep * front + side * (1.0 - front)
+
+    helmet(b, hem, (0.011, 0.006, 0.012), 0.7, 0.0, 0.10, 10, parting=(0.5, aim(0.8, 0.3)), locks=10, relief=0.003, ragged=0.02)
 
 
 def hair_plaits(b):
@@ -1040,7 +1449,7 @@ def hair_plaits(b):
         share = blend(0.85, 1.15, round_by)
         return front * (1.0 - share) + back * share
 
-    helmet(b, hem, (0.010, 0.011, 0.011), 0.35)
+    helmet(b, hem, (0.010, 0.007, 0.011), 0.35, parting=(0.0, aim(1.0)), locks=12, relief=0.003)
     for side in (1.0, -1.0):
         path = [Vector((side * x, y, z)) for x, y, z in ((0.095, 1.064, -0.018), (0.102, 1.025, -0.004), (0.101, 0.990, 0.020),
                                                          (0.095, 0.957, 0.050), (0.089, 0.918, 0.071), (0.084, 0.878, 0.079), (0.081, 0.838, 0.081))]
@@ -1064,8 +1473,7 @@ def hair_plaits(b):
 
 def hair_ponytail(b):
     """Drawn straight back and tied at the nape, the tail hanging down her back."""
-    grow = (0.009, 0.010, 0.010)
-    helmet(b, hairline(0.078, -0.010, -0.080, 1.12, 0.4), grow)
+    helmet(b, hairline(0.078, -0.010, -0.080, 1.12, 0.4), (0.009, 0.006, 0.010), whorl=aim(1.64), drawn=True, locks=14, relief=0.003)
     centre = HEAD_CENTRE
     for x, lean in ((0.0, 0.0), (0.011, 0.5), (-0.011, -0.5)):
         line = [centre + Vector((x * s, y, z)) for s, y, z in ((0.3, -0.004, -0.108), (0.6, -0.016, -0.140), (1.0, -0.055, -0.160),
@@ -1076,10 +1484,85 @@ def hair_ponytail(b):
     b.ellipsoid(centre + Vector((0.0, -0.008, -0.122)), Vector((0.021, 0.012, 0.016)), None, 8, 3)
 
 
+def knot(b, grow, where, radius, thick):
+    """A knot of hair pinned on her head: a rope of it wound flat round on itself,
+    out from the middle of her head in the direction `where`."""
+    centre, radii = hair_shape(grow)
+    at = centre + Vector((where.x * radii.x, where.y * radii.y, where.z * radii.z))
+    across = where.cross(X).normalized()
+    up = across.cross(where)
+    count = 8 if kit.LOW else 16
+    points, thicks = [], []
+    for k in range(count):
+        t = k / (count - 1)
+        turn = math.tau * 1.7 * t
+        points.append(at + (across * math.cos(turn) + up * math.sin(turn)) * radius * (1.0 - 0.8 * t) + where * thick * (0.25 + 0.75 * t))
+        thicks.append(thick * (0.95 - 0.25 * t))
+    b.strand(points, thicks, 6)
+    # (and what it is wound on, so that nothing shows through the middle of it)
+    b.ellipsoid(at + where * thick * 0.2, Vector((radius * 0.9, thick * 0.8, radius * 0.9)), Y.rotation_difference(where).to_matrix(), 8, 3)
+
+
+def hair_bun(b):
+    """Drawn back over the tops of her ears to a low knot at the nape: how most women wore it by the war."""
+    grow = (0.011, 0.007, 0.011)
+    helmet(b, hairline(0.074, -0.004, -0.086, 1.12, 0.4), grow, 0.2, whorl=aim(1.92), drawn=True, locks=14, relief=0.003)
+    knot(b, grow, aim(1.92), 0.033, 0.019)
+
+
+def hair_gibson(b):
+    """The Gibson girl's: all of it brushed up from the hairline into a full soft
+    roll that stands out round her face, and wound into a knot on the back of her crown."""
+    grow = (0.015, 0.010, 0.016)
+    # (the roll: fullest a little way in from the hairline, all the way round)
+    helmet(b, hairline(0.076, 0.002, -0.074, 1.1, 0.4), grow, 0.3, 0.0, 0.10, 10, whorl=aim(0.62), drawn=True, locks=14, relief=0.005,
+           body=lambda d, share: 0.021 * swell(share - 0.70, 0.24))
+    knot(b, grow, aim(0.62), 0.036, 0.020)
+
+
+def hair_waves(b):
+    """A girl's: parted in the middle and left long, in loose waves over her ears and down her back."""
+    helmet(b, hairline(0.076, -0.040, -0.095, 1.05, 0.35), (0.012, 0.007, 0.012), 0.5, parting=(0.0, aim(0.9)), locks=12, relief=0.004, ragged=0.05)
+    # What hangs down her back: a thick fall of it from ear to ear, to below her
+    # shoulder blades, swaying from side to side as waved hair does on its way down.
+    count = 6 if kit.LOW else 14
+    rows = []
+    for i in range(count + 1):
+        t = i / count
+        y = HEAD_CENTRE.y - 0.035 - 0.245 * t
+        sway = 0.006 * math.sin(math.tau * 2.4 * t) * blend(0.0, 0.3, t)
+        wide = (0.088 + 0.012 * math.sin(math.pi * t)) * (1.0 - 0.45 * blend(0.75, 1.0, t))
+        deep = 0.058 - 0.012 * t + 0.004 * math.sin(math.tau * 2.4 * t + 1.0)
+        middle = -0.060 - 0.006 * blend(0.0, 0.5, t) - 0.012 * blend(0.5, 1.0, t)
+        thick = 0.022 * (1.0 - 0.5 * blend(0.7, 1.0, t))
+        ring = []
+        for inner in (False, True):
+            for k in range(9):
+                turn = math.pi * (k / 8 - 0.5) * (-1.0 if inner else 1.0)
+                lock = 0.003 * abs(math.sin(4.0 * turn)) * (0.0 if inner else 1.0)
+                less = thick if inner else 0.0
+                ring.append(Vector((sway + math.sin(turn) * (wide - less), y, middle - math.cos(turn) * (deep - less + lock))))
+        rows.append(ring)
+    loft(b, rows, 4.0, (False, True))
+
+
+def bow(b):
+    """The big ribbon bow a girl's hair was tied with, on the back of her crown."""
+    where = aim(0.95)
+    centre, radii = hair_shape((0.012, 0.007, 0.012))
+    at = centre + Vector((where.x * radii.x, where.y * radii.y, where.z * radii.z)) + where * 0.006
+    lean = Y.rotation_difference(where).to_matrix()
+    for side in (1.0, -1.0):
+        # (a loop either side of the knot, and an end hanging from it)
+        b.ellipsoid(at + lean @ Vector((side * 0.046, 0.004, 0.008)), Vector((0.044, 0.012, 0.027)), lean @ Matrix.Rotation(side * 0.35, 3, "Y"), 8, 3)
+        b.ellipsoid(at + lean @ Vector((side * 0.016, 0.0, -0.034)), Vector((0.011, 0.006, 0.030)), lean @ Matrix.Rotation(-side * 0.3, 3, "Y"), 6, 3)
+    b.ellipsoid(at + where * 0.004, Vector((0.012, 0.011, 0.012)), lean, 8, 3)
+
+
 def hair_curls(b):
     """Big natural curls, standing out all round the head."""
     hem = hairline(0.066, -0.030, -0.095, 1.02, 0.3)
-    grow = (0.012, 0.012, 0.012)
+    grow = (0.012, 0.008, 0.012)
     helmet(b, hem, grow)
     centre, radii = hair_shape(grow)
     rng = random.Random(5)
@@ -1092,9 +1575,12 @@ def hair_curls(b):
         out = Vector((math.sin(angle) * ring, y, math.cos(angle) * ring))
         if out.y * radii.y < hem(math.atan2(out.x, out.z)) - 0.004:
             continue
-        stand = 0.012 + 0.016 * max(out.y, 0.0) + rng.uniform(-0.003, 0.004)
+        # (they stand as far off his head on top as at the sides, and the whole
+        # is fullest above his temples, as the other cuts are: not piled to a point)
+        stand = 0.012 + 0.003 * max(out.y, 0.0) + rng.uniform(-0.003, 0.004)
+        full = 1.0 + ROUND * (2.0 * ring * max(out.y, 0.0)) ** 2
         size = rng.uniform(0.029, 0.037)
-        b.ellipsoid(centre + Vector((out.x * (radii.x + stand), out.y * (radii.y + stand), out.z * (radii.z + stand))),
+        b.ellipsoid(centre + Vector((out.x * (radii.x + stand), out.y * (radii.y + stand), out.z * (radii.z + stand))) * full,
                     Vector((size, size * rng.uniform(0.85, 1.0), size)), None, 8, 4)
 
 
@@ -1125,7 +1611,11 @@ def above_cap(shapes):
     return made
 
 
-CUTS = [("crop", hair_crop), ("parting", hair_parting), ("bob", hair_bob), ("plaits", hair_plaits), ("ponytail", hair_ponytail), ("curls", hair_curls)]
+# (cut, its shapes, and its material: HAIRWAVY for those that are waved, which the game shades with its other hair shader)
+CUTS = [("crop", hair_crop, HAIR), ("bowl", hair_bowl, HAIR), ("parting", hair_parting, HAIR), ("slick", hair_slick, HAIR),
+        ("curtains", hair_curtains, HAIRWAVY), ("quiff", hair_quiff, HAIRWAVY), ("curls", hair_curls, HAIR),
+        ("bob", hair_bob, HAIR), ("waved", hair_waved, HAIRWAVY), ("plaits", hair_plaits, HAIR), ("ponytail", hair_ponytail, HAIR),
+        ("bun", hair_bun, HAIR), ("gibson", hair_gibson, HAIRWAVY), ("waves", hair_waves, HAIRWAVY)]
 
 
 # --- Clothes ---
@@ -1415,7 +1905,14 @@ PARTS = [
     ("body__dress", None, body_dress, None),
     ("skirt__dress", DENIM, skirt, None),
     ("over__pinafore", APRON, pinafore, None),
-    ("head", SKIN, head, (0.004, 4, 2000)),
+    ("head__base", SKIN, head, (0.004, 4, 2000)),
+    ("head__sculpt", None, head_sculpt, None),
+    ("head__sculpt", SKIN, sculpt_ears, None),
+    ("head__sculpt", HAIR, sculpt_brows, None),
+    ("head__sculpt", EYES, sculpt_lashes, None),
+    ("face__sculpt", PUPIL, eyeballs(PUPIL_RINGS, True), None),
+    ("face__sculpt", IRIS, eyeballs(IRIS_RINGS), None),
+    ("face__sculpt", EYEWHITE, eyeballs(WHITE_RINGS), None),
     ("face__full", SKIN, nose, None),
     ("face__full", EYES, eyes, None),
     ("face__full", HAIR, brows, None),
@@ -1429,7 +1926,8 @@ PARTS = [
     ("hair__long", HAIR, hair_long, None),
     ("cap", TWEED, cap, None),
     ("hairtop__crown", HAIR, hair_crown, None),
-] + [("hair__" + cut, HAIR, under_cap(shapes), None) for cut, shapes in CUTS] + [("hairtop__" + cut, HAIR, above_cap(shapes), None) for cut, shapes in CUTS] + [
+] + [("hair__" + cut, material, under_cap(shapes), None) for cut, shapes, material in CUTS] + [("hairtop__" + cut, material, above_cap(shapes), None) for cut, shapes, material in CUTS] + [
+    ("hairtop__waves", APRON, bow, None),
     ("hands", SKIN, hands, None),
     ("fingers", SKIN, fingers, None),
     ("boots", LEATHER, boots, (0.003, 3, 3000)),
@@ -1448,6 +1946,10 @@ PREVIEWS = [
     ("curls_waistcoat", {"hair": "curls", "hairtop": "curls", "face": "full", "over": "waistcoat", "patch": ""}, False),
     ("curls_cap", {"hair": "curls", "hairtop": "", "face": "full", "body": "long", "over": "braceslong", "patch": ""}, True),
     ("bob_cap", {"hair": "bob", "hairtop": "", "face": "full", "body": "dress", "skirt": "dress", "over": "", "patch": ""}, True),
+    ("sculpt_bowl", {"hair": "bowl", "hairtop": "bowl", "head": "sculpt", "face": "sculpt"}, False),
+    ("sculpt_quiff", {"hair": "quiff", "hairtop": "quiff", "head": "sculpt", "face": "sculpt", "body": "suit", "over": "", "patch": ""}, False),
+    ("sculpt_gibson", {"hair": "gibson", "hairtop": "gibson", "head": "sculpt", "face": "sculpt", "body": "dress", "skirt": "dress", "over": "", "patch": ""}, False),
+    ("sculpt_waves", {"hair": "waves", "hairtop": "waves", "head": "sculpt", "face": "sculpt", "body": "dress", "skirt": "dress", "over": "pinafore", "patch": ""}, False),
 ]
 
 
@@ -1465,7 +1967,11 @@ def previews(name, folder):
     camera.data.type = "ORTHO"
     scene.collection.objects.link(camera)
     scene.camera = camera
+    # (PREVIEW_ONLY in the environment, a list of their names, renders just those)
+    wanted = os.environ.get("PREVIEW_ONLY", "").split()
     for label, chosen, capped in PREVIEWS:
+        if wanted and label not in wanted:
+            continue
         for thing in scene.objects:
             if thing.type != "MESH":
                 continue
@@ -1475,7 +1981,9 @@ def previews(name, folder):
             elif thing.name.endswith("_cap"):
                 thing.hide_render = not capped
         for view, direction, target, frame in (("front", (0.25, -1, 0.1), (0.0, 0.0, 0.67), 1.5), ("back", (-0.5, 1, 0.15), (0.0, 0.0, 0.67), 1.5),
-                                               ("head", (0.5, -0.85, 0.12), (0.0, 0.0, 1.10), 0.46), ("headback", (-0.6, 0.8, 0.2), (0.0, 0.0, 1.08), 0.5)):
+                                               ("head", (0.5, -0.85, 0.12), (0.0, 0.0, 1.10), 0.46), ("headback", (-0.6, 0.8, 0.2), (0.0, 0.0, 1.08), 0.5),
+                                               ("face", (0.0, -1, 0.03), (0.0, 0.0, 1.09), 0.3), ("profile", (1, 0, 0.0), (0.0, 0.0, 1.09), 0.34),
+                                               ("top", (0.0, -0.08, 1), (0.0, 0.0, 1.1), 0.5)):
             offset = Vector(direction).normalized() * 4.0
             camera.data.ortho_scale = frame
             camera.location = Vector(target) + offset

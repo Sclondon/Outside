@@ -20,22 +20,42 @@ class_name CharacterLook
 enum Sex { ANY, MALE, FEMALE }
 
 ## Faces: [name, label]. The name is the option of the slot `face`; `base` is
-## the plain face he was made with.
-const FACES := [["base", "Plain"], ["full", "Eyes, nose and mouth"], ["dots", "Dot eyes and nose"], ["light", "Nose and brows"]]
+## the plain face he was made with. `sculpt` is a face modelled into the head
+## (brow, sockets, nose, cheeks, lips and chin as form), with eyes that have
+## whites and turn to what he looks at; the others are features set on an egg.
+const FACES := [["base", "Plain"], ["sculpt", "Sculpted"], ["full", "Eyes, nose and mouth"], ["dots", "Dot eyes and nose"], ["light", "Nose and brows"]]
+## What else of the model a face shows, where it is more than its own option of
+## the slot `face`: the sculpted face is a head of its own.
+const FACE_PARTS := {"sculpt": {"head": "sculpt"}}
 
 ## Cuts of hair. "hair" is the option of the slot `hair` (what shows with or
 ## without a cap), "bare" that of the slot `hairtop` without a cap and "capped"
 ## with one: a cap hides the top of every cut, and the boy's own curls then show
 ## a forelock under its peak instead.
+##
+## "wavy" says which of the two hair shaders a cut has: the curly one
+## (Toon.HAIR_SHADER) or the waved one (Toon.WAVY_HAIR_SHADER). It is the model
+## that decides it, by the material it gives the cut (`hair` or `hairwavy`, in
+## CUTS in tools/build_boy.py): this only records what is built. "grown", where
+## it is given, says that only the grown wear it (true), or only children
+## (false), when somebody is made up at random; anyone may be given any of them.
 const HAIRS := [
 	{"name": "mullet", "label": "Mullet", "hair": "base", "bare": "crown", "capped": "base", "sex": Sex.MALE},
 	{"name": "long", "label": "Long curls", "hair": "long", "bare": "crown", "capped": "base", "sex": Sex.ANY},
 	{"name": "crop", "label": "Cropped", "hair": "crop", "bare": "crop", "capped": "none", "sex": Sex.MALE},
+	{"name": "bowl", "label": "Pudding basin", "hair": "bowl", "bare": "bowl", "capped": "none", "sex": Sex.MALE, "grown": false},
 	{"name": "parting", "label": "Side parting", "hair": "parting", "bare": "parting", "capped": "none", "sex": Sex.MALE},
+	{"name": "slick", "label": "Combed back", "hair": "slick", "bare": "slick", "capped": "none", "sex": Sex.MALE, "grown": true},
+	{"name": "curtains", "label": "Centre parting", "hair": "curtains", "bare": "curtains", "capped": "none", "sex": Sex.MALE, "wavy": true},
+	{"name": "quiff", "label": "Pompadour", "hair": "quiff", "bare": "quiff", "capped": "none", "sex": Sex.MALE, "wavy": true},
 	{"name": "curls", "label": "Big curls", "hair": "curls", "bare": "curls", "capped": "none", "sex": Sex.ANY},
 	{"name": "bob", "label": "Bob", "hair": "bob", "bare": "bob", "capped": "none", "sex": Sex.FEMALE},
+	{"name": "waved", "label": "Waved bob", "hair": "waved", "bare": "waved", "capped": "none", "sex": Sex.FEMALE, "wavy": true},
 	{"name": "plaits", "label": "Plaits", "hair": "plaits", "bare": "plaits", "capped": "none", "sex": Sex.FEMALE},
 	{"name": "ponytail", "label": "Ponytail", "hair": "ponytail", "bare": "ponytail", "capped": "none", "sex": Sex.FEMALE},
+	{"name": "bun", "label": "Low knot", "hair": "bun", "bare": "bun", "capped": "none", "sex": Sex.FEMALE, "grown": true},
+	{"name": "gibson", "label": "Pompadour and knot", "hair": "gibson", "bare": "gibson", "capped": "none", "sex": Sex.FEMALE, "wavy": true, "grown": true},
+	{"name": "waves", "label": "Long waves and a bow", "hair": "waves", "bare": "waves", "capped": "none", "sex": Sex.FEMALE, "wavy": true, "grown": false},
 ]
 
 ## Clothes. "parts" names an option for each slot of clothing; "garments" is
@@ -86,6 +106,10 @@ const HAIR_COLOURS: Array[Color] = [
 	Color(0.23, 0.165, 0.12), Color(0.075, 0.065, 0.06), Color(0.15, 0.10, 0.075), Color(0.36, 0.21, 0.12), Color(0.50, 0.22, 0.12),
 	Color(0.71, 0.38, 0.17), Color(0.62, 0.48, 0.30), Color(0.82, 0.69, 0.44), Color(0.56, 0.55, 0.53), Color(0.86, 0.85, 0.81),
 ]
+## Eyes (the ring of colour in each, on the sculpted face). The first is the one the boy was made with.
+const EYE_COLOURS: Array[Color] = [
+	Color(0.36, 0.25, 0.16), Color(0.20, 0.14, 0.10), Color(0.45, 0.36, 0.20), Color(0.36, 0.44, 0.30), Color(0.38, 0.50, 0.60), Color(0.46, 0.50, 0.52),
+]
 ## Cloth, as it was then: nothing bright, and most of it washed out.
 const SHIRTS: Array[Color] = [
 	Color(0.90, 0.85, 0.72), Color(0.93, 0.92, 0.87), Color(0.74, 0.80, 0.84), Color(0.80, 0.78, 0.72), Color(0.84, 0.74, 0.70), Color(0.78, 0.72, 0.56),
@@ -125,6 +149,8 @@ static func parts_for(hair_name: String, capped: bool, face: String, outfit_name
 	var cut := hair(hair_name)
 	var parts: Dictionary = outfit(outfit_name)["parts"].duplicate()
 	parts["face"] = face
+	parts["head"] = "base"
+	parts.merge(FACE_PARTS.get(face, {}), true)
 	parts["hair"] = cut["hair"]
 	parts["hairtop"] = cut["capped"] if capped else cut["bare"]
 	return parts
@@ -192,7 +218,7 @@ static func random(seed := -1, sex := Sex.ANY, face := "") -> Dictionary:
 
 	var outfits: Array = OUTFITS.filter(func(entry: Dictionary) -> bool: return entry["sex"] == sex and (entry["grown"] or not grown))
 	var worn: Dictionary = outfits[rng.randi() % outfits.size()]
-	var cuts: Array = HAIRS.filter(func(entry: Dictionary) -> bool: return entry["sex"] == sex or entry["sex"] == Sex.ANY)
+	var cuts: Array = HAIRS.filter(func(entry: Dictionary) -> bool: return (entry["sex"] == sex or entry["sex"] == Sex.ANY) and entry.get("grown", grown) == grown)
 	var cut: Dictionary = cuts[rng.randi() % cuts.size()]
 
 	# Skin and hair: fair hair goes with fair skin, and grey with age
@@ -223,8 +249,9 @@ static func random(seed := -1, sex := Sex.ANY, face := "") -> Dictionary:
 		# (a girl's cap is an oddity: let it be her skirt's colour, or a brother's)
 		colours["cap"] = second
 	var capped := rng.randf() < (0.5 if sex == Sex.MALE else 0.08)
-	var faces := ["full", "full", "full", "dots", "dots", "base"]
-	return dressed({
+	# (nearly everyone has the sculpted face; a few have one of the simpler ones)
+	var faces := ["sculpt", "sculpt", "sculpt", "sculpt", "sculpt", "sculpt", "full", "dots"]
+	var someone := {
 		"face": face if face != "" else faces[rng.randi() % faces.size()],
 		"hair": cut["name"],
 		"outfit": worn["name"],
@@ -234,4 +261,9 @@ static func random(seed := -1, sex := Sex.ANY, face := "") -> Dictionary:
 		"size": size,
 		# (a child is as the boy is; the grown are narrower for their height, or their heads would be vast)
 		"build": rng.randf_range(0.94, 1.04) if not grown else rng.randf_range(0.86, 0.96),
-	})
+	}
+	# Eyes: light ones go with fair skin. (Chosen last, so that a seed gives
+	# the same person as it did before there were eyes to colour.)
+	var eyes: Array[Color] = EYE_COLOURS if skin < 4 else EYE_COLOURS.slice(0, 3)
+	colours["iris"] = eyes[rng.randi() % eyes.size()]
+	return dressed(someone)

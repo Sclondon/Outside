@@ -145,7 +145,8 @@ Nothing is a clip; `scripts/character_rig.gd` poses him every frame.
 ## Menu
 
 The Menu button (top right, or Esc) swaps every figure between its full and demade model, switches the world between
-smooth and banded light, dresses the boy (a colour for each thing he wears, and his cap on or off), changes level,
+smooth and banded light, dresses the boy (his face, hair, skin, eyes and clothes, a colour for each thing he wears,
+and his cap on or off), changes level,
 and restarts. Colours last until the game is closed.
 
 ## Layout
@@ -204,6 +205,26 @@ It also uses whichever of the optional bones a figure has (chest, neck, fingers,
 
 The boy's colours are the `MATERIALS` list at the top of `tools/build_boy.py`. A material named `hair` is given the
 hair shader (`Toon.HAIR_SHADER`): strands of differing tone, darker roots, and a broken band of light across the curls.
+One named `hairwavy` is given the other (`Toon.WAVY_HAIR_SHADER`), in the same colour: the strands swing from side to
+side in long S-curves, the surface is shaded as if it rose and fell with them, and each crest carries one broad band
+of light. Which a cut of hair has is decided where it is built (`CUTS` in `tools/build_boy.py`).
+
+The boy and the townspeople are one model, and what can be chosen for it is in `scripts/character_look.gd`: faces,
+cuts of hair, clothes and colours (`tools/build_boy.py` builds an object for each choice, under "Other turn-outs").
+
+- **Hair.** His own curls are ringlets. Every other cut is one surface over the head, modelled in locks, growing from
+  a whorl at the back of the crown, or falling from a parting, or drawn back to where it is tied; the crown is filled
+  out above the temples so that it is round, not an egg. There are sixteen: mullet, long curls, cropped, pudding
+  basin, side parting, combed back, centre parting, pompadour and big curls; bob, waved bob, plaits, ponytail, low
+  knot, pompadour and knot, and long waves with a bow.
+- **Faces.** `sculpt` is a head of its own with the face modelled into it (brow ridge, eye sockets, a nose with a
+  bridge and a tip, cheeks, lips, chin and a flat jaw), kept to a few broad forms. Its eyes are balls set in the
+  sockets, white with a ring of colour (`iris`, which the dresser and `CharacterLook.random` choose) and a dark
+  middle, each on a bone (`eye_l`, `eye_r`): the rig turns them to what he looks at before his head follows, and
+  brings them back to the middle as it catches up. The other faces are features set on a plain egg.
+
+`tools/look_sheets.gd` draws all of it (`faces`, `eyes`, `hair`, `outfits`, `skin`, `random`, `crowd`, `menu`; see its
+header).
 
 To see what a change to the model or the rig has done, without playing through it:
 

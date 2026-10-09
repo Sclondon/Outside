@@ -3,11 +3,14 @@ extends SceneTree
 ## (scripts/character_look.gd) and saves contact sheets of it, to check a new
 ## face, cut of hair or set of clothes without playing.
 ##
-## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/look_sheets.gd -- <outdir> [faces hair outfits skin random crowd menu] [lo]
+## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/look_sheets.gd -- <outdir> [faces eyes hair outfits skin random crowd menu] [lo]
 ##
-## With no names, all of them; `lo` among the names uses the demade model.
+## With no names, all of them; `lo` among the names uses the demade model, and
+## `cut=<name>` (any number of them) draws only those cuts of hair.
 ##   faces    every face close up, from in front, three-quarters and the side
-##   hair     every cut from four sides, bareheaded and under a cap
+##   eyes     the sculpted face looking at something moved about in front of
+##            him: first with his eyes, then with his head
+##   hair     every cut from four sides and from above, bareheaded and under a cap
 ##   outfits  every set of clothes standing (front and back) and at a run
 ##   skin     the skins and hair colours
 ##   random   twenty-four people made up at random, each as a Townsperson
@@ -19,6 +22,8 @@ const CELL := 360
 
 var out := ""
 var only: Array = []
+## The cuts of hair to draw, if not all of them (see `hair`).
+var cuts: Array = []
 var stage: Node3D
 var figure: Figure
 var cam: Camera3D
@@ -37,11 +42,15 @@ func _initialize() -> void:
 			InputMap.action_erase_events(action)
 	var args := OS.get_cmdline_user_args()
 	if args.is_empty():
-		printerr("usage: -- <outdir> [faces hair outfits skin random crowd menu] [lo]")
+		printerr("usage: -- <outdir> [faces eyes hair outfits skin random crowd menu] [lo]")
 		quit(1)
 		return
 	out = args[0]
 	only = Array(args.slice(1))
+	for arg: String in only.duplicate():
+		if arg.begins_with("cut="):
+			only.erase(arg)
+			cuts.append(arg.trim_prefix("cut="))
 	if only.has("lo"):
 		only.erase("lo")
 		Settings.low_poly = true
@@ -141,7 +150,7 @@ func wear(look: Dictionary) -> void:
 
 func run() -> void:
 	await frames(40)
-	for name: String in ["faces", "hair", "outfits", "skin", "random", "crowd", "menu"]:
+	for name: String in ["faces", "eyes", "hair", "outfits", "skin", "random", "crowd", "menu"]:
 		if wants(name):
 			await call(name)
 	quit()
@@ -150,29 +159,68 @@ func run() -> void:
 func faces() -> void:
 	var rows: Array = CharacterLook.FACES.map(func(entry: Array) -> Dictionary: return {"face": entry[0], "hair": "crop", "cap": false})
 	# (and as he will most often be seen: under his cap and his own curls)
+	rows.append({"face": "sculpt", "hair": "mullet", "cap": true})
 	rows.append({"face": "full", "hair": "mullet", "cap": true})
 	rows.append({"face": "dots", "hair": "mullet", "cap": true})
+	# (and the sculpted one on a woman and on a dark skin, which shade differently)
+	rows.append({"face": "sculpt", "hair": "bun", "cap": false, "outfit": "dress", "colours": {"skin": CharacterLook.SKINS[0], "hair": CharacterLook.HAIR_COLOURS[7], "iris": CharacterLook.EYE_COLOURS[4]}})
+	rows.append({"face": "sculpt", "hair": "crop", "cap": false, "outfit": "suit", "colours": {"skin": CharacterLook.SKINS[6], "hair": CharacterLook.HAIR_COLOURS[1], "iris": CharacterLook.EYE_COLOURS[1]}})
 	for look: Dictionary in rows:
 		wear(look)
 		for yaw: float in [0.0, 0.75, PI * 0.5]:
-			view = Vector4(yaw, 0.04, 1.0, 1.1)
+			view = Vector4(yaw, 0.04, 0.66, 1.1)
 			await frames(2)
 			await snap()
 	sheet("faces", 6)
 
 
+## What he looks at is moved about in front of him. Each row is one place: just
+## after it has moved there, when only his eyes have gone to it, and a moment
+## later, when his head has followed; from in front and from three-quarters.
+func eyes() -> void:
+	wear({"face": "sculpt", "hair": "crop", "cap": false})
+	var thing := Node3D.new()
+	stage.add_child(thing)
+	figure.rig._watch = thing
+	for at: Vector3 in [Vector3(0, 1.1, 3), Vector3(1.2, 1.1, 2), Vector3(-1.2, 1.1, 2), Vector3(0, 2.2, 2), Vector3(0.6, 0.2, 1.5), Vector3(-3, 1.1, 0.5)]:
+		figure.rig._watch = null
+		await frames(40)
+		thing.position = at
+		figure.rig._watch = thing
+		figure.rig._watching = 100.0
+		for wait: int in [5, 50]:
+			await frames(wait)
+			for yaw: float in [0.0, 0.6]:
+				view = Vector4(yaw, 0.03, 0.85, 1.1)
+				await frames(1)
+				await snap()
+	figure.rig._watch = null
+	thing.queue_free()
+	sheet("eyes", 4)
+
+
 func hair() -> void:
 	var count := 0
+	figure.place(Vector3(0, 0.02, 0), 0.0)
+	await frames(30)
 	for cut: Dictionary in CharacterLook.HAIRS:
+		if not cuts.is_empty() and not cuts.has(cut["name"]):
+			continue
 		for capped: bool in [false, true]:
 			wear({"face": "full", "hair": cut["name"], "cap": capped, "outfit": "dress" if cut["sex"] == CharacterLook.Sex.FEMALE else "overalls"})
-			for yaw: float in [0.5, PI * 0.5, PI, -2.3]:
-				view = Vector4(yaw, 0.1, 1.45, 1.06)
+			for yaw: float in [0.0, 0.6, PI * 0.5, PI, -2.3]:
+				view = Vector4(yaw, 0.1, 1.2, 1.08)
 				await frames(2)
 				await snap()
+			# (and from above and a little in front: the crown, and the parting or the whorl)
+			view = Vector4(0.0, 1.1, 1.3, 1.12)
+			await frames(2)
+			await snap()
 		count += 1
 		if count % 2 == 0:
-			sheet("hair_%d" % (count / 2), 4)
+			sheet("hair_%d" % (count / 2), 6)
+	if count % 2 == 1:
+		sheet("hair_%d" % (count / 2 + 1), 6)
 
 
 func outfits() -> void:
