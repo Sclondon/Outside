@@ -357,6 +357,12 @@ func _person(item: Dictionary, who: String) -> Node3D:
 			hyena.bold = item.get("bold", 0.4)
 			hyena.roam = item.get("roam", 12.0)
 			return hyena
+		"crocodile":
+			# (it finds its own water: the pond or the river it is put in, or the nearest)
+			var crocodile := Crocodile.new()
+			crocodile.docile = item.get("docile", false)
+			crocodile.reach = item.get("reach", 5.0)
+			return crocodile
 	return null
 
 
@@ -387,6 +393,8 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as JackalMummy).caught.connect(_on_caught.bind(made))
 	elif made is Hyena:
 		(made as Hyena).caught.connect(_on_caught.bind(made))
+	elif made is Crocodile:
+		(made as Crocodile).caught.connect(_on_caught.bind(made))
 	if made is RigidBody3D and made.is_in_group(&"throwable"):
 		_loose.append(made)
 		_loose_starts.append(made.global_transform)
@@ -468,6 +476,8 @@ func _introduce(node: Node3D) -> void:
 		(node as JackalMummy).target = _player
 	elif node is Hyena:
 		(node as Hyena).target = _player
+	elif node is Crocodile:
+		(node as Crocodile).target = _player
 
 
 func _physics_process(delta: float) -> void:

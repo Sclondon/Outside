@@ -76,6 +76,7 @@ const PALETTE := {
 		["Hound", "person", "hound"], ["Mummy", "person", "mummy"], ["Camel", "person", "camel"],
 		["Scarab swarm", "person", "scarabs"], ["Scarabs (harmless)", "person", "scarabs_harmless"],
 		["Mummified jackal", "person", "jackal_mummy"], ["Hyena", "person", "hyena"],
+		["Crocodile", "person", "crocodile"],
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
@@ -132,6 +133,7 @@ const FIELDS := {
 	"person:jackal_mummy": [["rest", "Waits", "c", ["Lying", "Standing"], 0], ["finery", "Wears", "c", ["Wrappings", "Collar", "Mask and collar"], 0],
 		["alert", "Wakes within", "n", 0.0, 40.0, 0.5, 5.0], ["links", "Woken by", "links"]],
 	"person:hyena": [["bold", "How bold", "n", 0.0, 1.0, 0.05, 0.4], ["roam", "Roams", "n", 0.0, 40.0, 1.0, 12.0]],
+	"person:crocodile": [["docile", "Docile", "b", false], ["reach", "Comes this far from the water", "n", 0.0, 20.0, 0.5, 5.0]],
 	"plate": [["span_x", "Width", "n", 0.6, 8.0, 0.1, 1.6], ["span_z", "Length", "n", 0.6, 8.0, 0.1, 1.6], ["latches", "Stays down", "b", false], ["only_him", "Only he presses it", "b", false]],
 	"door": [["wide", "Width", "n", 0.6, 12.0, 0.1, 3.0], ["tall", "Height", "n", 1.0, 12.0, 0.1, 2.6], ["thick", "Thickness", "n", 0.2, 3.0, 0.05, 0.4],
 		["links", "Opened by", "links"], ["needs_all", "Needs every one", "b", false], ["inverted", "Open until then", "b", false]],

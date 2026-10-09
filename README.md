@@ -584,6 +584,55 @@ stride and how far a planted paw slid (`SLIDE`), and after each `m_` strip any b
 the fastest any bone turned in one frame. In the fast gaits the leg bones are listed: they swing back and forth four
 or five times a second, which is what it counts; none turns more than about 35 degrees in a frame.
 
+## The crocodile
+
+`Crocodile.new()` is a whole Nile crocodile (`scripts/crocodile.gd`), about 3.4 m long. It lives in water: the `Pool`
+it is put in, or the nearest within `water_within` of where it is put (in the desert, any pond or river). The level
+editor places one ("Crocodile" on the People page: docile or not, and how far from the water it will come), and there
+is one in the test yard's pond, docile until the plate beside the pond is trodden on.
+
+```gdscript
+var crocodile := Crocodile.new()
+crocodile.docile = true                  # scenery: it floats, basks and watches, and never hunts
+crocodile.reach = 5.0                    # how far from the water it will come after him, metres
+crocodile.position = Vector3(x, y, z)    # in the water, where it will float; or on the bank, where it will bask
+add_child(crocodile)
+crocodile.caught.connect(...)            # it has him (the levels knock him down and start him again, as for a hound)
+```
+
+Left alone it floats like a log, at a slant, with only its eyes and its nostrils out of the water, and every so often
+(`float_for`) hauls out and walks up the bank to bask on its belly with its mouth open (`bask_for`), and slides back in.
+It watches the boy within `notice`.
+
+When he comes within `edge` of its water, or into it, it sinks and comes at him under water. **What gives it away is
+the line of rings it draws on the surface as it comes**, and in shallow water its back; a few metres off it stops, its
+eyes come up with a splash, and after `wind_up` (under half a second) it lunges, up the bank if need be, jaws wide.
+If its jaws close on him it sends `caught`, shakes its head, and in the water rolls. It swims faster than he does
+(`chase_speed` against his `swim_speeds`), so the water is not safe while it is in it; on land it is slower than he
+runs, follows for `reach` metres or `stamina` seconds, gives up, walks back and rests. It is in the group `pursuers`
+only while it is hunting.
+
+A burning flare, a lit torch, a shot or a blow (`shot`, `struck`, as the hounds have) and anything thrown that comes
+down near it each send it under and keep it there for a while. It is never killed. With no water near it lies about
+on land round `home`, and lunges from there.
+
+On land it has three ways of going: the belly crawl (sprawled, one foot at a time, its back and tail bending), the
+high walk (lifted clear on straightened legs, in diagonal pairs) and a fast belly run for the water or after him. The
+sources, and the note that none of the numbers is a measurement, are at the top of `scripts/crocodile_rig.gd`;
+`CrocodileRig` extends `HoundRig` and uses its leg solver and foot path unchanged, with the legs told to fold out to
+the side. The model is built by `tools/build_crocodile.py` (`models/crocodile.glb`, and a demade `crocodile_lo.glb`):
+nothing is fused or textured, the belly, flanks and tail bands are materials cut along the hide's own edges, and the
+scutes are geometry. Its voice (a hiss, a bellow, the clap of its jaws) is made up in code; `voice = false` makes it
+silent. Like the hounds, it and the player pass through each other.
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/crocodile_sheets.gd -- <folder> [turnaround floating bask look hunt m_crawl m_high m_run m_turn m_swim m_dive m_slide m_return m_haul m_lunge m_gape m_thrash m_roll ...]
+godot --headless --path . --fixed-fps 60 --script tools/crocodile_test.gd
+```
+
+The stage is a pond with a sloping bank. Add `lo` for the demade model. Under each gait it prints when each foot came
+down and how far a planted foot slid, and after each `m_` strip any bone that shook or jumped.
+
 ## Demade models
 
 The same scripts also build low-poly, flat-shaded versions (`models/boy_lo.glb`, `models/hound_lo.glb`,
