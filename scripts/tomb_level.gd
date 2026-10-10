@@ -248,6 +248,9 @@ func _work_switches(at: Vector3) -> void:
 				for torch: Node3D in get_tree().get_nodes_in_group(&"torches"):
 					if torch.get(&"lit") and torch.global_position.distance_to(bowl.global_position + Vector3.UP * 0.9) < LIGHT_WITHIN:
 						now = true
+				# (and so does oil burning at its foot)
+				if Oil.is_burning_at(bowl.global_position, 0.8):
+					now = true
 				if now:
 					var flame := bowl.find_child("Flame*", true, false) as Node3D
 					(flame if flame else bowl).add_child(Fire.brazier())

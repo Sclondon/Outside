@@ -9,6 +9,7 @@ extends Node3D
 ## in and as a pond lying in the sand to wade into; fire; the guns and things
 ## to shoot; and everyone else: his brother, a cat, and a pen each for the
 ## hounds and the mummy, and two camels. Run `test_yard.tscn`. The camera orbits; drag to turn it.
+## Oil, to pour and to set light to, has a station too, out to the east, beyond the low bars.
 ##
 ## The ground is a `SandGround`, made here from `height_at`: dunes from
 ## `SandDunes` (small ones among the stations, big ones all round), pressed
@@ -35,6 +36,8 @@ const FLATS: Array[Rect2] = [
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
 	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6), Rect2(17, -47, 14, 6),
 	Rect2(-18, -46, 6, 5),
+	# (oil)
+	Rect2(52, 10, 8.5, 6.5),
 	Rect2(44, -44, 6, 5),
 	Rect2(-50, 50, 7, 6),
 	Rect2(10, 57, 45, 4),
@@ -92,6 +95,7 @@ func _ready() -> void:
 	_build_pond()
 	_build_kick(Vector3(-5.5, 0.0, 6.0))
 	_build_fire(Vector3(6.5, 0.0, 6.5))
+	_build_oil(Vector3(52.0, 0.0, 10.0))
 	_build_hounds(Vector3(-36.0, 0.0, 30.0))
 	_build_mummy(Vector3(-42.0, 0.0, -32.0))
 	_build_range(Vector3(40.0, 0.0, 36.0))
@@ -419,6 +423,64 @@ func _build_kick(at: Vector3) -> void:
 	_sign(at + Vector3(0.0, 6.2, 0.0), "WALL KICK\njump again in the air against a wall")
 	for way: float in [-1.0, 1.0]:
 		_solid(at + Vector3(way * 1.0, 2.6, 0.0), Vector3(0.6, 5.2, 3.0), PROP.darkened(0.05))
+
+
+## Oil. Two jars to take up and pour (duck with one, and walk), and a torch and
+## a campfire to light it with; a fuse already laid, six metres of it, that
+## runs under a cobweb between two posts to a heap of jars; and a fire dish
+## that opens a gate when oil burns in it, which has to be brought to it.
+func _build_oil(at: Vector3) -> void:
+	_mark_here(at + Vector3(-6.0, 0.0, 0.0), "OIL
+act takes a jar up  ·  duck with it and it pours: walk, and it lays a trail
+thrown, it breaks  ·  duck with the torch to light it, or throw the torch in
+fire runs along it: under the web to the jars, and into the dish that opens the gate", 3.8)
+	for z: float in [-1.0, -1.9]:
+		var jar := OilJar.new()
+		# (in the yard a jar that is broken is back before long)
+		jar.comes_back = 15.0
+		jar.position = at + Vector3(-4.0, 0.02, z)
+		add_child(jar)
+	var hearth := _set_down("res://props/campfire.tscn", at + Vector3(-5.6, 0.0, 2.6))
+	var flame := hearth.find_child("Flame*", true, false) as Node3D
+	(flame if flame else hearth).add_child(Fire.brazier())
+	var torch := HandTorch.new()
+	torch.position = at + Vector3(-4.2, 0.02, 1.6)
+	torch.rotation.z = 0.12
+	torch.freeze = true
+	add_child(torch)
+	_keep(torch)
+	# The fuse, running east; the web across it; and the heap of jars at its end
+	var fuse := OilSpill.new()
+	fuse.length = 6.0
+	fuse.position = at + Vector3(-2.0, 0.0, 4.0)
+	fuse.rotation.y = PI * 0.5
+	add_child(fuse)
+	for z: float in [3.0, 5.0]:
+		_solid(at + Vector3(1.0, 1.3, z), Vector3(0.4, 2.6, 0.4), PROP.darkened(0.2))
+	var web := Cobweb.new()
+	web.kind = Cobweb.Kind.SHEET
+	web.wide = 1.6
+	web.tall = 2.5
+	web.seed = 11
+	web.position = at + Vector3(1.0, 0.0, 4.0)
+	web.rotation.y = PI * 0.5
+	add_child(web)
+	for place: Vector3 in [Vector3(4.25, 0.02, 4.0), Vector3(4.6, 0.02, 4.4), Vector3(4.65, 0.02, 3.6)]:
+		var heaped := OilJar.new()
+		heaped.comes_back = 20.0
+		heaped.position = at + place
+		add_child(heaped)
+	# The dish, and the gate it opens
+	var dish := OilMark.new()
+	dish.position = at + Vector3(1.5, 0.0, -3.0)
+	add_child(dish)
+	var gate := Door.new(Vector3(0.4, 2.4, 3.0), DARK.lightened(0.1))
+	gate.position = at + Vector3(6.0, 1.2, -3.0)
+	add_child(gate)
+	for z: float in [-5.0, -1.0]:
+		_solid(at + Vector3(6.0, 1.6, z), Vector3(0.6, 3.2, 1.0), PROP)
+	_solid(at + Vector3(6.0, 2.9, -3.0), Vector3(0.6, 1.0, 3.0), PROP)
+	dish.changed.connect(func(pressed: bool) -> void: gate.is_open = pressed)
 
 
 ## A fire to stand by.

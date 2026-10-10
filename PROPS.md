@@ -318,6 +318,17 @@ Not scenes in `props/`: each is made whole in code, and placed by the level edit
 | `ScarabSocket` | A stone 0.5 by 0.3 by 0.6 m with a hollow for the amulet, its foot at the origin. A `TombParts.Plate` that only the amulet presses (`changed`). |
 | `Cobweb` | `kind` `CORNER` (the corner is at the origin, `height` above it; one edge runs towards +X along the roof and the other down the wall), `SHEET` (stands on the origin, across X, facing along Z), `HANGING` (hangs from `height` above the origin, spread along X), `DRAPE` (stands on the origin, over something `over` in size). In the group `cobwebs`. |
 
+## Oil
+
+Not scenes in `props/`: each is made whole in code, and placed by the level editor (see "Oil" in README.md).
+
+| Class | What it is |
+| --- | --- |
+| `OilJar` | RigidBody3D, a `Breakable`, in the groups `throwable`, `interest` and `kindling`: a clay jar 46 cm tall with two ears and a rag stopper, dark where the oil has run down it, its origin at its foot. Holds `measures` of oil (`left`); pours while whoever carries it ducks; breaks into a puddle. |
+| `OilSpill` | Oil already poured: a trail `length` long and `wide` across from the origin along +Z, turning aside by `bend` degrees over its length; no length, a puddle `wide` across. Gives `burnt` when fire reaches its far end. |
+| `OilMark` | A fire dish: a shallow stone dish `radius` across let into the floor, its middle at the origin, with no collision. `pressed`, and gives `changed`, from the moment oil burns in it. |
+| `Oil` | The oil that lies about and burns. One to a level, made when first asked for (`Oil.of(node)`); nothing to place. |
+
 ## Inscriptions
 
 Writing in hieroglyphs is not a prop but a thing made in code (`scripts/inscription.gd`, and "Hieroglyphs" in README.md):

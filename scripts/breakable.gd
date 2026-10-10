@@ -24,7 +24,8 @@ signal shattered(by: Node3D)
 @export var made_of: StringName = &"pot"
 ## How long the pieces lie there, in seconds.
 @export var pieces_last := 6.0
-## It is back, whole, where it began after this long (0: it is gone for good).
+## It is back, whole, where it began after this long (0: it is gone for good;
+## under 0: it stays as it is, broken, until something calls `mend`).
 @export var comes_back := 0.0
 ## It only dents and jumps (a tin can).
 @export var unbreakable := false
@@ -108,7 +109,7 @@ func shatter(push := Vector3.ZERO, at := Vector3.INF, by: Node3D = null) -> void
 	if comes_back > 0.0:
 		await get_tree().create_timer(comes_back).timeout
 		mend()
-	else:
+	elif comes_back == 0.0:
 		# (whoever may be holding it lets go of nothing: it is only hidden until its pieces are gone)
 		await get_tree().create_timer(pieces_last + 1.0).timeout
 		queue_free()

@@ -790,6 +790,70 @@ A `HandTorch` (`scripts/torch.gd`) is a burning torch to carry: act picks it up,
 goes; act throws it, duck and act puts it down, and it goes on burning where it lies. There is one by the fire in the test
 yard, and "Torch to carry" is on the level editor's Puzzle page.
 
+## Oil
+
+Lamp oil, to spill and to set light to (`scripts/oil.gd`, `oil_jar.gd`, `oil_spill.gd`, `oil_mark.gd`). Nothing new
+to press:
+
+- **A jar of oil** (`OilJar`) is picked up with act like any pot. **Duck with it and it pours**: it tips over, and oil
+  runs from its mouth for as long as he stays down, in a trail behind him if he sneaks along and in a puddle that
+  spreads if he stays where he is. Stand up and it stops. A jar holds 40 measures, about nine metres of trail; a drop
+  over it shows what is left while he pours. Act throws it, and **thrown it breaks** (so does one dropped off
+  anything much over a metre, shot or kicked): what was in it is a puddle where it broke. Duck and act puts it down
+  whole.
+- **Oil lies where it fell**, black and shining with a brown edge, the ground stained round it; what touches runs
+  together into one puddle. It lies on sand and on stone, on slopes, and not under water.
+- **Any flame lights it**: a torch thrown down in it, or held to it by ducking (carried upright, the torch is too high
+  to light what he walks over); a brazier or a campfire it has been poured up to; a flare; oil burning beside it.
+  **Fire goes along it at a metre a second**, so a trail is a fuse, and each part burns for about seven seconds and
+  is then a scorch. A gap stops it; oil poured into the gap carries it over.
+- **A full jar in the fire bursts** after a moment (it smokes first): everything in it is alight at once. Shot with
+  the flare pistol it does the same. So a fuse laid to a heap of jars is a bomb.
+- **Burning oil** lights a cold torch that is in it and anything else that can be kindled; holds scarabs off and burns
+  cobwebs, as any fire does; stops a mummy, which stands at the edge of it until it has burnt out; lights a tomb's
+  brazier if it burns at its foot; and burns him. He can run through a line of it. If he stands in it he smokes, and
+  after half a second he is thrown down and starts again from the last checkpoint. A flame that has only just caught
+  does not count, so he has time to step back from what he lights.
+- **Water** puts it out: oil that water rises over stops burning, and is oil again when the water has gone.
+- **When he starts again** a jar that is broken or spent is whole and full where it began, and a spill laid by the
+  level that has burnt is laid afresh. What he poured himself stays as it is.
+
+In the level editor's Puzzle page: "Oil jar" (how much it holds), "Oil spill" (oil already poured: a trail of a
+length and width along the way it faces, that can bend; with no length, a puddle) and "Fire dish" (a soot-black
+stone dish in the floor). All three are triggers, to be touched when a door or anything else is asked what works it: a jar when it is broken,
+a spill when the fire has reached its far end, a dish from the moment oil burns in it. The test yard has a station
+out to the east: two jars, a torch and a campfire, a fuse under a cobweb to a heap of jars, and a dish that opens a
+gate.
+
+For other code:
+
+```gdscript
+Oil.is_burning_at(point, 0.5)        # is oil burning within half a metre of there? (static: ask from anywhere)
+Oil.is_flame_at(tree, point, 0.5)    # that, or a Fire (torch, brazier, campfire) or a flare
+var oil := Oil.of(self)              # the level's oil (made when first asked for)
+oil.pour(from)  oil.spill(at, 40)  oil.lay(from, to)  oil.ignite(at)  oil.douse(at)  oil.clear()
+```
+
+`Oil` is in the group `flames` and its `burning` says whether any of it is alight. To be lit by burning oil, be in the
+group `kindling` and have `kindle(by)`: it is called, several times a second, while oil burns within 0.3 m of the
+node's origin. (Cold torches, in `torches`, are lit without it.) Wherever oil burns a `Fire` stands on it, so
+anything that already minds a `Fire` (`Nearby.fires`) needs nothing more.
+
+It is cheap: at most 320 patches of oil in a level (the oldest scorch gives way to new oil), drawn as three draws of
+one MultiMesh however many there are, one more for all the flames, and at most six whole fires, three of them casting
+light, moved to where the burning is. With all 320 alight it costs 0.04 ms a frame to work out and 0.13 ms to draw.
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/oil_test.gd
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/oil_sheets.gd -- <folder> [stone] [yard]
+```
+
+The first checks all of the above with nothing drawn and ends with PASSED or FAILED. The second draws it: puddles on
+stone by day and by torchlight, a trail burning, a heap of jars bursting, and in the test yard the fuse on sand and the
+boy carrying a jar and pouring. Add `--rendering-method gl_compatibility` to see it as the web draws it.
+
+Not done: oil is not slippery, does not float on water, and does not burn through wood or rope.
+
 ## The dig, the backpack and the helmets
 
 The tools and furniture of an excavation of the 1910s are props (PROPS.md lists them; the level editor's Dig page places
