@@ -366,6 +366,12 @@ func _person(item: Dictionary, who: String) -> Node3D:
 			crocodile.docile = item.get("docile", false)
 			crocodile.reach = item.get("reach", 5.0)
 			return crocodile
+		"birds":
+			var birds := Birds.new()
+			birds.kind = int(item.get("bird", 1)) as Birds.Kind
+			birds.count = int(item.get("count", 8))
+			birds.roam = item.get("roam", 30.0)
+			return birds
 	return null
 
 

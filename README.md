@@ -89,7 +89,7 @@ Each of the newer moves has a switch on the Player (`dive_enabled`, `flip_enable
 The yard also has everything sand does (footprints, sand running down steep faces, wind and its weather plate, sand
 pouring into heaps, two lumps of wet sand), water as a tank and as a pond lying in the sand, a fire, the guns on a
 bench with things to shoot, a dig (tools to pick up, the helmets on stands, someone wearing one), his brother, a cat, and a pen each for the hounds and the mummy, with a plate that lets
-them loose and calls them off. North of the start the kinds of ground are laid side by side in a row to walk along.
+them loose and calls them off; and birds (a station of them to run at, more at the pond, and vultures overhead). North of the start the kinds of ground are laid side by side in a row to walk along.
 
 ## Sand, and the other kinds of ground
 
@@ -141,6 +141,7 @@ In the desert, the notebook (top right), Places, then "Edit this level". The gam
   sand. 0 is none.
 - **People**: townspeople (who, and how far they wander), his brother, a cat, hounds (which give chase when he comes
   within their distance, or when something sets them on) and the mummy, of whichever kind ("Kind": see The mummies).
+  Birds are here too (which kind, how many, how far they range: see The birds).
 - **Puzzles**: pressure plates, targets and things that smash are either on or off; a door, a bridge or lift, a sand
   fall, a hound or the mummy has "Choose what works it": touch the plates and targets that should, and lines show
   what is joined to what. Also ropes, ladders, blocks to push, checkpoints, signs, and where he starts.
@@ -288,6 +289,9 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `tools/hound_sheets.gd` | Not part of the game: drives the hounds through each thing they do and saves pictures of it |
 | `tools/cat_sheets.gd` | Not part of the game: the same for the cat |
 | `tools/cat_test.gd` | Not part of the game: runs a cat with nothing drawn and checks that it wanders, watches, flees a hound up onto something and comes down |
+| `scripts/birds.gd` | Birds: a flock of one kind that finds its own perches, ground and water, feeds, goes up when the boy comes near or a gun goes off, wheels, and comes down again; soarers that gather over what lies dead |
+| `scripts/bird_kinds.gd`, `scripts/bird_mesh.gd` | What each kind of bird is, as numbers; and the mesh built from them, with the shader that beats its wings and bends its neck and legs for a whole flock in one draw |
+| `tools/bird_sheets.gd`, `tools/bird_test.gd`, `tools/bird_place_check.gd` | Not part of the game: pictures of every kind of bird and of what each does, and what they cost; a run with nothing drawn that checks they settle, go up, come down, and stay in range and above the ground; and one that puts them into the desert as the editor would |
 | `tools/build_boy.py` | Builds the boy in Blender: one continuous body, modelled in a T-pose, in shirt, patched overalls and curls, and his cap as a separate object |
 | `tools/pose_sheets.gd` | Not part of the game: drives the Player through each thing he does and saves pictures of it |
 | `tools/build_hound.py` | Builds the two hounds in Blender from two lists of measurements |
@@ -636,6 +640,73 @@ godot --headless --path . --fixed-fps 60 --script tools/crocodile_test.gd
 
 The stage is a pond with a sloping bank. Add `lo` for the demade model. Under each gait it prints when each foot came
 down and how far a planted foot slid, and after each `m_` strip any bone that shook or jumped.
+
+
+## The birds
+
+`Birds.new()` is a flock (`scripts/birds.gd`): so many of one kind, living within so far of where it is put.
+
+```gdscript
+var doves := Birds.new()
+doves.kind = Birds.Kind.DOVE     # SPARROW, DOVE, HOOPOE, SWALLOW, IBIS, HERON, EGRET, GOOSE, KESTREL, KINGFISHER, VULTURE, GRIFFON, KITE
+doves.count = 14
+doves.roam = 25.0                # how far from here they go
+doves.position = Vector3(x, y, z)
+add_child(doves)
+```
+
+In the level editor they are "Birds" on the People page (which kind, how many, how far they range). The test yard has
+a station of them (doves and sparrows to run at, posts and a broken column for them to go up onto, a hoopoe, a
+kestrel), waders, geese, a kingfisher and swallows at its pond, and vultures and kites over it.
+
+- **The kinds** (`scripts/bird_kinds.gd`: measurements, colours, how each holds itself, flies and lives). In flocks
+  about a camp or a ruin: house sparrows (hopping, up in a blur and bounding along with their wings shut between
+  bursts) and laughing doves (walking with a nodding head). By itself on the ground: the hoopoe, barred black and
+  white, its crest going up when it lands or is uneasy, and a flight like a big slow butterfly. Never down: swallows
+  (the red-bellied one of the Nile), hawking low over water and dipping into it. At the water's edge: the sacred ibis
+  (flies with its neck out and legs trailing), the grey heron (neck drawn back in an S, slow deep beats) and the
+  cattle egret; they walk the shallows no deeper than their legs, probe and jab, preen, and stand on one leg. On the
+  water: Egyptian geese, in pairs, leaving rings as they paddle, and running along the top of it to get off. On a
+  high perch: the kestrel, which goes out to hang in the wind over open ground, wings going fast and shallow and tail
+  spread, drops on what it sees and goes back up; and the pied kingfisher, which does the same over water and goes in
+  with a splash. High up, in wide circles on still wings: the Egyptian vulture (white, black flight feathers, flat
+  wings), the griffon (huge, wings in a shallow V, fingered tips) and, lower, the black kite with its notched tail.
+- **Where they are.** A flock looks round it when it has been in the level a moment (and `rescan()` makes it look
+  again): for the flat tops of whatever is solid (a column, a wall, a block, the top of a palm's trunk), for any
+  Marker3D in the groups `bird_perches` or `perches`, for open ground, and, in anything in the group `water`, for
+  shallows and for open water. It uses a few hundred rays, once.
+- **The boy, and noise.** Each kind bears him so near and no nearer (`wary`: 3.6 m for a sparrow, 10 m for a heron),
+  less if he creeps and more if he runs. Nearly that near, they stop feeding, watch him and edge away; nearer, they
+  go up, a flock all together. A flock wheels round for a few seconds and comes down on what is high, and goes back to
+  its ground when it has been quiet a while (to other ground, if he is standing on theirs); a heron or a goose goes
+  off round in a wide circle and comes down somewhere away from him. Anything in the group `pursuers` puts them up as
+  he does, and so does a shot: every gun in the group `guns` is listened to (`fired`), and every bird within 90 m of
+  it goes up, the nearest first. `flush(from, within)` does it from code, and `flushed` says how many went.
+- **Vultures** come down in narrowing circles over any Node3D in the group `carrion`, and over the boy when he has
+  lain knocked down for six seconds; after a dozen more they land round it, hop nearer and tear at it; and they leave
+  when it is gone or he gets up.
+- **How they are drawn** (`scripts/bird_mesh.gd`). There are no bodies and no bones. A bird is built from its
+  measurements as one mesh of about 300 triangles, every point of which says what it is part of (body, wing, neck,
+  head, leg, tail, crest); each flock is one MultiMesh, and the vertex shader beats the wings (two halves, the outer
+  following late), folds them along the flanks, bends the neck at two joints, nods the head, swings, tucks or trails
+  the legs, fans the tail and raises the crest, all from eight numbers a bird. Beyond a distance that goes with its
+  size a bird is drawn from a second mesh of 16 to 36 triangles moved by the same shader.
+- **What it costs.** `birds.cost` is the script's time each frame in microseconds. On a desktop thirty sparrows cost
+  about 0.1 ms a frame on the ground and 0.3 ms while all of them are in the air, and all thirteen flocks in the test
+  yard (56 birds) about 0.3 ms together; each flock is two draw calls (and their shadows). A bird standing still
+  costs nothing; one on its feet is seen to every other frame; and a flock more than 90 m beyond its range from the
+  camera one frame in four.
+- They are silent: no recordings have been added.
+
+The kinds were chosen from the birds of the Nile valley as they were in the boy's day and as tombs show them: Charles
+Whymper, *Egyptian Birds* (1909), which is of the boy's own decade and has plates of nearly all of these; the birds of
+the marsh scenes of the tomb of Nebamun and the geese of Meidum; and the gods' birds (the ibis of Thoth, the falcon of
+Horus, the vulture of Nekhbet, and the Egyptian vulture and the hoopoe that are hieroglyphs).
+
+```
+godot --path . --resolution 640x480 --script tools/bird_sheets.gd -- <folder> [kinds beat acts takeoff flock flush water soar far yard cost] [sparrow heron ...]
+godot --headless --path . --fixed-fps 60 --script tools/bird_test.gd
+```
 
 ## Demade models
 

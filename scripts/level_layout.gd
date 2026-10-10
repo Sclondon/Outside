@@ -77,6 +77,7 @@ const PALETTE := {
 		["Scarab swarm", "person", "scarabs"], ["Scarabs (harmless)", "person", "scarabs_harmless"],
 		["Mummified jackal", "person", "jackal_mummy"], ["Hyena", "person", "hyena"],
 		["Crocodile", "person", "crocodile"],
+		["Birds", "person", "birds"],
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
@@ -146,6 +147,9 @@ const FIELDS := {
 		["alert", "Wakes within", "n", 0.0, 40.0, 0.5, 5.0], ["links", "Woken by", "links"]],
 	"person:hyena": [["bold", "How bold", "n", 0.0, 1.0, 0.05, 0.4], ["roam", "Roams", "n", 0.0, 40.0, 1.0, 12.0]],
 	"person:crocodile": [["docile", "Docile", "b", false], ["reach", "Comes this far from the water", "n", 0.0, 20.0, 0.5, 5.0]],
+	# (`bird` is which kind, in the order of `Birds.Kind`; they find their own perches, ground and water within their range)
+	"person:birds": [["bird", "Kind", "c", ["Sparrows", "Doves", "Hoopoe", "Swallows", "Sacred ibis", "Grey heron", "Cattle egret", "Egyptian goose", "Kestrel", "Pied kingfisher", "Egyptian vulture", "Griffon vulture", "Black kite"], 1],
+		["count", "How many", "n", 1.0, 40.0, 1.0, 8.0], ["roam", "They range", "n", 5.0, 150.0, 1.0, 30.0]],
 	"plate": [["span_x", "Width", "n", 0.6, 8.0, 0.1, 1.6], ["span_z", "Length", "n", 0.6, 8.0, 0.1, 1.6], ["latches", "Stays down", "b", false], ["only_him", "Only he presses it", "b", false]],
 	"door": [["wide", "Width", "n", 0.6, 12.0, 0.1, 3.0], ["tall", "Height", "n", 1.0, 12.0, 0.1, 2.6], ["thick", "Thickness", "n", 0.2, 3.0, 0.05, 0.4],
 		["links", "Opened by", "links"], ["needs_all", "Needs every one", "b", false], ["inverted", "Open until then", "b", false]],
