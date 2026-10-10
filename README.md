@@ -980,14 +980,32 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
   | --- | --- |
   | A plate | The block in the room, pushed onto it |
   | A plate | A block that has to be pushed in from the room before |
+  | Two plates on one door | The block in the room on one, and on the other a block pushed in from the room before: both |
   | A plate and an offering table | The block, and a canopic jar (found earlier) set on the table: both |
   | A seal stone | Trodden on: it is up in a loft, or at the foot of the well |
   | A door that opens only from behind | Over the wall by the loft, and down a drop that cannot be climbed back |
   | A cold brazier, in a room with no torches | A burning torch (found earlier) brought to it |
   | A pit too wide to jump | The grappling hook (found earlier), thrown at the ring over it |
+  | A face too high to catch, the next room at the top of it | A seal stone (at its foot, or in a loft or under a well) lets sand pour in from the roof; he walks up the heap |
 
   Between rooms: stairs down, a passage to duck through, water to swim (which makes him let go of what he carries), a
-  shaft with a ladder. A door, once open, stays open. He carries one thing at a time, and not up a ledge or a ladder.
+  shaft with a ladder, a shaft with a rope. A door, once open, stays open. He carries one thing at a time, and not up
+  a ledge, a ladder or a rope.
+- **The rope** (`TombPlan.Pass.ROPE`) hangs from a beam under the roof of its shaft, 0.8 m out from the lip, to half a
+  metre short of the floor below. Going down he runs off the lip into it, which is taking hold, and lets himself down
+  with the stick (or duck, faster). Coming back he jumps into it, climbs with the stick, and at the top, where his feet
+  are over the lip, leaps off towards the floor with jump. The Player takes a rope only with both hands free, so
+  nothing goes up it; but with his hands full he can still step off the lip and drop, so the plan lets a thing be
+  carried down (and the solver then knows it cannot come back: there is never a rope beyond a pit, which the hook has to
+  recross). An inscription at its head says what it is.
+- **The sand** (`TombPlan.Pass.SAND`) is the one way that goes up: the next room is 3.2 m higher, over a face he cannot
+  catch (the highest edge he can reach is 2.75 m), and the room at its foot is tall. What "opens" it is whatever its
+  switches are, as for a door: when they are done a `SandFall` in the roof pours a `SandPile` against the face, which
+  gets higher at an even pace and is full in eight seconds, its top half a metre under the lip: he walks up it and hops
+  onto the floor, with whatever he carries (hands free, he can catch the lip from it sooner). It never empties: dying
+  does not undo it. The far half of the heap is in the rock under the next room, where nothing is cut down as far as it
+  reaches, and the tomb is cut open further towards the camera round it, since the heap is wider than the tomb. There
+  is no loft over the room at its foot and no mummy in the room at its top, and one such way to a tomb at most.
 - **Mummies** are of a kind chosen with something in the room that kind cannot get past, between it and whatever he has
   to stand still at: a trench for the shambler, the child and the royal one, a kerb for the priest and the crawler, two
   piers too close together for the brute. Each wakes as he passes, loses him after a few seconds of not being able to get
@@ -999,6 +1017,8 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
   swing in the built tomb against what the Player can do, read from `player.tscn`.
 - **The same everywhere**: all the dice are `TombRandom` (whole numbers only, nothing from the engine or the clock), seeded
   from the generator's `VERSION`, the seed, the difficulty and the sub-seed. A plan and its stone each have a fingerprint.
+  `VERSION` is 2 since the two-plate door, the rope and the sand went in: the same number now makes a different tomb
+  than it did (and so does a day).
 - **The daily tomb** (`TombDaily`): the seed is made from the number of days since 1 January 1970 by the clock at
   Greenwich; tomb #1 was 1 October 2026; the day of the week sets the difficulty. The time counts sixtieths of a second
   of play, not of the wall clock. Dying puts him back at the last door he went through (each end of each room), with
@@ -1022,8 +1042,9 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
   stands on the screen as the game builds it, seen from the side; one finger drags it about, two pinch. The rooms run
   along the bottom in their order: touch one to choose it, "+ Room" to put one after it. The panel at the right changes
   the chosen room: what it is (corridor, well, pillared hall, high gallery, antechamber), dark or lit, a pit, a mummy and
-  what holds it back, the torches, hooks and jars that lie in it, the way on (doorway, stairs, crawl, water, ladder, a
-  pit to swing over) and what locks the door on (the generator's seven rules, by name). Whatever a lock needs that is
+  what holds it back, the torches, hooks and jars that lie in it, the way on (doorway, stairs, crawl, water, ladder,
+  rope, a pit to swing over, up the sand) and what locks the door on (the generator's rules, by name; where the way on
+  is up the sand, that is what lets the sand in, and with none it is a seal stone at the foot of the face). Whatever a lock needs that is
   nowhere before it is left in the room before, and said. After every change the solver is run again and what it found
   is said under the buttons; "Way through" lists one way, step by step, or what is wrong. Every change is kept on the
   device (`user://my_tombs.json`), under the tomb's name; "Tombs" has the others, a new one, one of the generator's
@@ -1032,7 +1053,8 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
   nowhere; "Edit" there comes back.
   What it makes is a `TombSpec`: the rooms in order, as plain data. It can say only what the generator's own rules can
   make, because those are what `TombLayout` knows how to set in stone: `TombSpec.problems` lists whatever is outside
-  them (a locked crawl, a seal stone under a room that is no well), and nothing with a problem is built or played. A
+  them (a locked crawl, a seal stone under a room that is no well, a loft at the foot of the sand, a mummy at the top of
+  it), and nothing with a problem is built or played. A
   tomb that can be built but not finished, or in which he could get himself stuck, can still be played: it is said, not
   forbidden.
 
@@ -1055,6 +1077,7 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
 | `tools/tomb_sheets.gd` | Not part of the game: draws a tomb's plan, the whole of it as built, and each room as he sees it |
 
 ```
-godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [drive] [seeds=500] [drive_seeds=1,2,3]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [drive] [templates] [custom] [seeds=500] [drive_seeds=1,2,3] [per=3]
+godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_test.gd -- templates custom shots=<folder>
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_sheets.gd -- <folder> [seed:difficulty ...] [daily]
 ```

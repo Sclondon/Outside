@@ -23,6 +23,8 @@ extends RefCounted
 ## thing lie in it (`torch`, `hook`, `jar`), `way` (one of WAYS: how the next
 ## room is got to), `lock` (one of LOCKS: what opens the door on), and for a
 ## seal stone `stone_in` (which room it is over, or under: counted from 0).
+## Where the way on is up the sand (`sand`), the lock is what lets the sand in,
+## and with no lock it is a seal stone at the foot of the face.
 ## `seed`, `difficulty` and `sub` only settle the sizes of the rooms.
 
 const VERSION := 1
@@ -36,12 +38,21 @@ const MIDDLE_ROLES := ["corridor", "well", "hall", "gallery", "antechamber"]
 const ROLE_TITLES := {"entrance": "Entrance", "corridor": "Corridor", "well": "Well", "hall": "Pillared hall", "gallery": "High gallery",
 	"antechamber": "Antechamber", "burial": "Burial chamber", "loft": "Loft", "crypt": "Chamber under the well"}
 ## How the next room is got to, and what each is called.
-const WAYS := ["open", "stairs", "crawl", "flood", "shaft", "gap"]
+const WAYS := ["open", "stairs", "crawl", "flood", "shaft", "rope", "gap", "sand"]
 const WAY_TITLES := {"open": "A level doorway", "stairs": "Stairs down", "crawl": "A crawl", "flood": "Water to swim",
-	"shaft": "A ladder down a shaft", "gap": "A pit to swing over (hook)"}
+	"shaft": "A ladder down a shaft", "rope": "A rope down a shaft", "gap": "A pit to swing over (hook)", "sand": "Up a face, on poured sand"}
+## What each way asks of whoever is making the tomb (nothing, for most).
+const WAY_NOTES := {
+	"flood": "He lets go of whatever he carries in the water.",
+	"shaft": "Nothing is carried up or down a ladder.",
+	"rope": "He jumps into the rope to take hold, and at the top leaps off onto the floor. It wants both hands: nothing comes back up it, though he can drop down with a thing.",
+	"gap": "Wants a grappling hook, left in an earlier room.",
+	"sand": "The next room is higher, over a face he cannot climb until sand has poured in to stand on. What lets it in is the lock below; with none, a seal stone at the foot of the face. Nothing is carried up it.",
+}
 ## What opens the door on, and what each is called.
-const LOCKS := ["none", "work", "cross", "brazier", "offering", "lever_above", "lever_below", "bypass"]
+const LOCKS := ["none", "work", "cross", "pair", "brazier", "offering", "lever_above", "lever_below", "bypass"]
 const LOCK_TITLES := {"none": "No door", "work": "A block and its plate", "cross": "A plate, its block from the room before",
+	"pair": "Two plates: its own block, and one from the room before",
 	"brazier": "A brazier to light", "offering": "A block, and a jar on the table", "lever_above": "A seal stone up in a loft",
 	"lever_below": "A seal stone under a well", "bypass": "Opened from behind, over the wall"}
 ## What each lock asks of whoever is making the tomb.
@@ -49,6 +60,7 @@ const LOCK_NOTES := {
 	"none": "",
 	"work": "The block stands in this room: he pushes it onto the plate.",
 	"cross": "The block starts in the room before, and that room's way on has to be a level doorway.",
+	"pair": "Two plates, and both must be down: this room's own block on one, and on the other a block pushed in from the room before, whose way on has to be a level doorway.",
 	"brazier": "Wants a torch brought here: leave one in an earlier room. The room is usually dark.",
 	"offering": "A block to push, and a jar to set on the table: leave a jar in an earlier room.",
 	"lever_above": "A slab over a room, caught by its edge. The stone on it opens this door.",
@@ -110,14 +122,16 @@ static func from_plan(plan: TombPlan) -> Dictionary:
 					told["lock"] = "work"
 				"weight_from_afar":
 					told["lock"] = "cross"
+				"two_stones":
+					told["lock"] = "pair"
 				"fire":
 					told["lock"] = "brazier"
 				"two_weights":
 					told["lock"] = "offering"
 				"over_the_wall":
 					told["lock"] = "bypass"
-				"lever_above", "lever_below":
-					told["lock"] = link.hint
+				"lever_above", "lever_below", "sand_above", "sand_below":
+					told["lock"] = "lever_above" if link.hint.ends_with("above") else "lever_below"
 					told["stone_in"] = plan.rooms[plan.triggers[link.switches[0]].room].parent
 		(spec["rooms"] as Array).append(told)
 	return spec
@@ -177,10 +191,15 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 		if not lock in LOCKS:
 			wrong.append("%s: there is no such lock." % title)
 			continue
-		if lock != "none" and lock != "bypass" and way in ["crawl", "shaft", "gap"]:
+		if lock != "none" and lock != "bypass" and way in ["crawl", "shaft", "rope", "gap"]:
 			wrong.append("%s: %s has no door to lock. Make the way on a doorway, stairs or water." % [title, String(WAY_TITLES[way]).to_lower()])
+		if way == "sand":
+			if lock == "bypass":
+				wrong.append("%s: the way over the wall comes down stairs: it cannot also go up the sand." % title)
+			if i + 1 < count - 1 and int(rooms[i + 1].get("mummy", -1)) >= 0:
+				wrong.append("%s: nothing can wait at the top of the sand: it would come down it after him." % room_title(spec, i + 1))
 		match lock:
-			"cross":
+			"cross", "pair":
 				if i < 2:
 					wrong.append("%s: there is no room before it to bring a block from." % title)
 				elif rooms[i - 1].get("way", "open") != "open" or rooms[i - 1].get("lock", "none") == "bypass":
@@ -195,6 +214,8 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 					wrong.append("%s: the loft with its seal stone has to be over this room or an earlier one." % title)
 				elif rooms[host].get("role", "") == "well":
 					wrong.append("%s: there is no loft over a well. Put its seal stone under the well instead." % title)
+				elif rooms[host].get("way", "open") == "sand":
+					wrong.append("%s: there is no loft over %s, whose way on is up the sand: he would get up the face from it." % [title, room_title(spec, host)])
 				elif lofts.has(host):
 					wrong.append("%s: the loft over %s is already used." % [title, room_title(spec, host)])
 				else:
@@ -257,6 +278,8 @@ static func compile(spec: Dictionary) -> TombPlan:
 		var link := plan.spine_link(i)
 		if link.pass_kind == TombPlan.Pass.GAP:
 			link.hint = "hook"
+		elif link.pass_kind == TombPlan.Pass.ROPE:
+			link.hint = "rope"
 		match told.get("lock", "none"):
 			"work":
 				link.switches = [plan.add_trigger(TombPlan.Switch.WORK_PLATE, i).id]
@@ -265,6 +288,10 @@ static func compile(spec: Dictionary) -> TombPlan:
 				plan.add_thing(TombPlan.Item.BLOCK, i - 1).dest = i
 				link.switches = [plan.add_trigger(TombPlan.Switch.PLATE, i).id]
 				link.hint = "weight_from_afar"
+			"pair":
+				plan.add_thing(TombPlan.Item.BLOCK, i - 1).dest = i
+				link.switches = [plan.add_trigger(TombPlan.Switch.PLATE, i).id, plan.add_trigger(TombPlan.Switch.WORK_PLATE, i).id]
+				link.hint = "two_stones"
 			"brazier":
 				link.switches = [plan.add_trigger(TombPlan.Switch.BRAZIER, i).id]
 				link.hint = "fire"
@@ -290,6 +317,16 @@ static func compile(spec: Dictionary) -> TombPlan:
 				link.pass_kind = TombPlan.Pass.STAIRS
 				link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, i + 1).id]
 				link.hint = "over_the_wall"
+		# Up the sand: with no lock of its own, a seal stone at the foot of the face lets it in.
+		if link.pass_kind == TombPlan.Pass.SAND:
+			match link.hint:
+				"":
+					link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, i).id]
+					link.hint = "sand"
+				"lever_above":
+					link.hint = "sand_above"
+				"lever_below":
+					link.hint = "sand_below"
 	return plan
 
 
@@ -346,7 +383,7 @@ static func step_words(spec: Dictionary, plan: TombPlan, step: Array) -> String:
 		"go":
 			var link: TombPlan.Link = plan.links[step[1]]
 			var how: String = {"open": "through the doorway", "stairs": "by the stairs", "crawl": "through the crawl", "flood": "through the water", "gap": "over the pit, on the hook",
-				"shaft": "by the ladder", "climb": "over the edge", "drop": "down the drop"}[TombPlan.PASS_NAMES[link.pass_kind]]
+				"shaft": "by the ladder", "climb": "over the edge", "drop": "down the drop", "rope": "by the rope", "sand": "over the sand"}[TombPlan.PASS_NAMES[link.pass_kind]]
 			return "Go to %s, %s" % [place_title(spec, plan, step[3]), how]
 		"push":
 			return "Push the block into %s" % place_title(spec, plan, step[4])

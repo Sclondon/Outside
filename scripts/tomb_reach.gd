@@ -9,11 +9,18 @@ const JUMP_SHARE := 0.8
 ## The highest ledge a tomb asks him to catch: the wall in the test yard that
 ## is "too high to jump onto, not too high to reach".
 const LEDGE_MOST := 2.1
+## How much higher than the highest edge he can possibly catch a face must be
+## that is meant to stop him (the foot of the sand, with no sand).
+const FACE_OVER := 0.4
+## How far below where a rope is tied the Player stops climbing it.
+const ROPE_TOP := 0.4
+## How far over the lip his feet must be at the top of a rope, to leap off onto it.
+const ROPE_STEP_OFF := 0.3
 
 
 ## The numbers: `far` (a running jump over level ground, metres), `ledge` (the
 ## highest top he can catch from a standing jump), `hop`, `step`, `tall`,
-## `crouched`, `wide`, `run`, and the swimmer's and the hook's.
+## `crouched`, `wide`, `run`, and the swimmer's, the hook's and the rope's.
 static func measure() -> Dictionary:
 	var player := (load("res://player.tscn") as PackedScene).instantiate() as Player
 	var gravity := 2.0 * player.jump_height / (player.time_to_apex * player.time_to_apex)
@@ -36,6 +43,8 @@ static func measure() -> Dictionary:
 		"hook_reach": hook.reach,
 		"hook_rise": hook.rise,
 		"hook_steep": hook.steep,
+		"rope_near": player.rope_reach.x,
+		"rope_far": player.rope_reach.y,
 	}
 	hook.free()
 	player.free()
@@ -89,6 +98,36 @@ static func check(layout: TombLayout, reach: Dictionary) -> PackedStringArray:
 					bad = "the ring over a gap of %.2f is out of the hook's reach from its edge" % size
 				if size <= float(reach["far"]):
 					bad = "a gap of %.2f that should want the hook can be jumped" % size
+			"rope":
+				# Stepping off the lip he must be within reach of it, and hang clear
+				# of the face; from the floor below its end must be no higher than
+				# his hands; and at the top of it his feet must be over the lip.
+				var out: float = move["out"]
+				var feet := float(move["over"]) - ROPE_TOP - float(reach["hang"])
+				if size <= float(reach["ledge"]):
+					bad = "a rope down %.2f is no shaft: its lip can be caught from below" % size
+				elif out > float(reach["rope_far"]) + float(reach["wide"]) * 0.5:
+					bad = "a rope %.2f out from the lip is out of his reach as he steps off" % out
+				elif out < float(reach["wide"]) + 0.3:
+					bad = "a rope %.2f out from the face leaves him no room to hang" % out
+				elif float(move["clear"]) > float(reach["hang"]) - 0.3:
+					bad = "a rope that ends %.2f over the floor is too high to jump into" % move["clear"]
+				elif feet < ROPE_STEP_OFF or feet + float(reach["tall"]) > float(move["over"]):
+					bad = "at the top of the rope his feet are %.2f over the lip: he cannot leap off onto it" % feet
+			"sand":
+				# With no sand the face must be past catching; the top of the heap
+				# must be near enough under the lip to hop up with his hands full;
+				# and the heap must be what the layout has left room for.
+				var heap := float(move["pile"]) * tan(SandPile.SLOPE) * SandPile.PROFILE[0].y
+				var left := size - heap
+				if size < float(reach["ledge"]) + FACE_OVER:
+					bad = "a face of %.2f could be got up with no sand" % size
+				elif left > float(reach["hop"]) * 0.6:
+					bad = "the lip is %.2f over the top of the sand: too high to hop onto" % left
+				elif left < 0.0:
+					bad = "the sand heaps %.2f higher than the lip" % -left
+				elif SandPile.PROFILE[-1].x > float(move["skirt"]) + 0.001:
+					bad = "the heap of sand spreads further than there is room for"
 		if bad != "":
 			wrong.append("room %d: %s" % [move["room"], bad])
 	# What is meant to hold each mummy must hold that kind, and let him by.
@@ -110,4 +149,10 @@ static func check(layout: TombLayout, reach: Dictionary) -> PackedStringArray:
 			wrong.append("room %d: a %s does not hold mummy kind %d" % [part["room"], TombPlan.BARRIER_NAMES[barrier], kind])
 		if float(own["walk_speed"]) * 1.3 > float(reach["run"]):
 			wrong.append("room %d: mummy kind %d is too fast to run from" % [part["room"], kind])
+		# Nothing waits at the top of the sand (but the guardian, behind what
+		# holds it): the heap is as good a way down for it as it is a way up for him.
+		if not part["guardian"]:
+			for link in layout.plan.links:
+				if link.pass_kind == TombPlan.Pass.SAND and link.b == part["room"]:
+					wrong.append("room %d: a mummy at the top of the sand would come down it after him" % part["room"])
 	return wrong

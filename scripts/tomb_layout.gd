@@ -5,8 +5,9 @@ extends RefCounted
 ## `TombBuilder`), so it can be made, measured and compared with nothing drawn.
 ##
 ## The tomb is a section, like the drawings of the tombs in the Valley of the
-## Kings: its axis runs along X and goes down as it goes in, he keeps to the
-## line Z = 0, and everything nearer the camera than `FRONT` is cut away. Rooms
+## Kings: its axis runs along X and goes down as it goes in (but for a way up
+## over sand: see _lay_sand), he keeps to the line Z = 0, and everything nearer
+## the camera than `FRONT` is cut away. Rooms
 ## off the axis are above (a loft: a slab he catches the edge of by jumping, and
 ## walks under otherwise) or below (the chamber at the foot of the well).
 ##
@@ -72,6 +73,26 @@ const POOL_DEEP := 2.2
 const POOL_BELOW := 0.35
 ## A shaft with a ladder down it.
 const SHAFT_DEEP := 4.5
+## A shaft with a rope down it: how deep it is, how far out from the face the
+## rope hangs, how high over the lip it is tied, how far short of the floor it
+## stops, how wide the shaft is cut, and how quickly a swing on it dies away
+## (it is an old thick one, for climbing).
+const ROPE_DEEP := 4.5
+const ROPE_OUT := 0.8
+const ROPE_OVER := 2.5
+const ROPE_CLEAR := 0.5
+const ROPE_WIDE := 3.2
+const ROPE_DRAG := 1.6
+## The face that sand gets him over: how high it is; how far out the foot of
+## the heap comes when it is full, and how much further than that its skirts
+## are drawn (as a share: `SandPile.PROFILE`); how far from the face the sand
+## falls; how many seconds the heap takes to fill; and the room over the lip.
+const SAND_RISE := 3.2
+const SAND_PILE := 5.2
+const SAND_SKIRT := 1.16
+const SAND_OUT := 0.3
+const SAND_TIME := 8.0
+const SAND_ROOM := 2.6
 ## A block to push, and how far it has to go to its plate.
 const BLOCK := 0.9
 const TRACK := 2.6
@@ -105,7 +126,8 @@ var boxes: Array = []
 ## Working parts, lights and dressing: each a Dictionary with `kind`, `at`, `room`.
 var parts: Array[Dictionary] = []
 ## By the plan's room: `x0`, `x1`, `floor`, `west` and `east` (where he stands
-## just inside each end), and for a loft `edge` (where its lip is caught).
+## just inside each end), for a loft `edge` (where its lip is caught), and for
+## a room whose way on is up the sand `face` (where that is).
 var rooms: Array[Dictionary] = []
 ## By the plan's thing, switch and link: where it is.
 var thing_at: Array[Vector3] = []
@@ -129,6 +151,9 @@ var _y := 0.0
 var _ceil := 0.0
 var _room := 0
 var _sky := false
+## As far along as the rock is left whole under the floor: the far half of a
+## heap of sand lies in it (see _lay_sand).
+var _sand_to := -1000000.0
 
 
 ## Sets out `plan`.
@@ -157,7 +182,10 @@ func _lay() -> void:
 		var way_out := plan.spine_link(i) if i < along.size() - 1 else null
 		over = _lay_room(room, way_in, way_out, over)
 	length = _x
-	depth = -_y
+	# (the deepest floor that is stood on: the way on may go up again, over sand)
+	for span in spans:
+		if not span.deadly and not span.solid:
+			depth = maxf(depth, -span.floor)
 	_shell()
 
 
@@ -203,11 +231,26 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 				parts.append({"kind": "ladder", "room": _room, "at": Vector3(_x + 0.06, _y, 0.0), "high": SHAFT_DEEP, "yaw": PI * 0.5})
 				_span(2.0, top + 2.6)
 				moves.append({"kind": "ladder", "is": SHAFT_DEEP, "room": _room})
+			TombPlan.Pass.ROPE:
+				# The floor ends over a shaft, and a rope hangs down it from the roof, clear of the face.
+				var top := _y
+				_y -= ROPE_DEEP
+				var tied := top + ROPE_OVER
+				parts.append({"kind": "rope", "room": _room, "at": Vector3(_x + ROPE_OUT, tied, 0.0), "long": tied - _y - ROPE_CLEAR})
+				parts.append({"kind": "inscription", "room": _room, "link": way_in.id, "hint": "rope", "at": Vector3(_x - 1.8, top + DOORWAY + 0.45, BACK + 0.02)})
+				_span(ROPE_WIDE, tied + 0.1)
+				moves.append({"kind": "rope", "is": ROPE_DEEP, "out": ROPE_OUT, "over": ROPE_OVER, "clear": ROPE_CLEAR, "room": _room})
+			TombPlan.Pass.SAND:
+				# (he has come up over the edge of this floor: see _lay_sand)
+				_y += SAND_RISE
+				_sand_to = _x - SAND_OUT + SAND_PILE * SAND_SKIRT
 	_ceil = _y + high
 	if loft:
 		_ceil = maxf(_ceil, _y + LOFT_TOP + LOFT_ROOM)
 	if way_out and way_out.pass_kind == TombPlan.Pass.GAP:
 		_ceil = maxf(_ceil, _y + GAP_ROOM)
+	if way_out and way_out.pass_kind == TombPlan.Pass.SAND:
+		_ceil = maxf(_ceil, _y + SAND_RISE + SAND_ROOM)
 	if not over.is_empty():
 		# The loft from the room before ends a little past the foot of the stairs.
 		var lip := _x + 0.5
@@ -220,6 +263,9 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 
 	# --- Just inside: a seal stone that opens the door behind him, the things that lie here, a plate
 	for trigger in plan.triggers:
+		# (the one that lets the sand in is at the foot of its face)
+		if way_out and way_out.pass_kind == TombPlan.Pass.SAND and trigger.id in way_out.switches:
+			continue
 		if trigger.room == room.id and trigger.kind == TombPlan.Switch.LEVER:
 			var stone := _span(1.6, _ceil)
 			_lever(trigger, (stone.xa + stone.xb) * 0.5, _y)
@@ -246,6 +292,7 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 	# --- What the room is
 	match room.role:
 		TombPlan.Role.WELL:
+			_past_sand(CRYPT_LONG + ROCK if crypt else 0.0)
 			_span(2.2, _ceil)
 			var shaft := _span(WELL_WIDE, _ceil)
 			shaft.floor = _y - WELL_DEEP
@@ -290,6 +337,7 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 		parts.append(mummy)
 		_span(2.6, _ceil)
 	if room.pit:
+		_past_sand()
 		var pit := _span(PIT_WIDE, _ceil)
 		pit.floor = _y - PIT_DEEP
 		pit.deadly = true
@@ -353,6 +401,8 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 	# --- The way out
 	var out_kind := way_out.pass_kind
 	var loft_to := -1.0
+	# (whatever the way on is, it may be cut down into the rock)
+	_past_sand()
 	if out_kind == TombPlan.Pass.GAP:
 		loft_to = _x
 		var approach := _span(2.6, _ceil)
@@ -364,6 +414,9 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 		info["gap"] = [approach.xb, gulf.xb]
 	var last := _span(1.6, _ceil)
 	info["east"] = Vector3(last.xb - 0.9, _y, 0.0)
+	if out_kind == TombPlan.Pass.SAND:
+		_lay_sand(way_out)
+		info["face"] = _x
 	info["x1"] = _x
 	parts.append({"kind": "check", "room": _room, "at": info["east"]})
 	rooms[room.id] = info
@@ -389,8 +442,8 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 
 	# --- The wall, and the door in it
 	match out_kind:
-		TombPlan.Pass.SHAFT:
-			# (no wall: the room ends at the head of the ladder)
+		TombPlan.Pass.SHAFT, TombPlan.Pass.ROPE, TombPlan.Pass.SAND:
+			# (no wall: the room ends at the head of the ladder or the rope, or at the foot of the face)
 			pass
 		TombPlan.Pass.CRAWL:
 			var tunnel := _span(CRAWL_LONG, _y + CRAWL_HIGH)
@@ -447,6 +500,46 @@ func _lay_burial(room: TombPlan.Room, info: Dictionary) -> void:
 	rooms[room.id] = info
 	var end := _span(ROCK, _ceil)
 	end.solid = true
+
+
+# The foot of a face he cannot get up: the seal stone that lets the sand in, if
+# it is here, and then clear floor for the heap. The sand comes out of the roof
+# hard by the face, so that the top of the heap is under the lip, a hop short
+# of it. He is put back (`east`) short of where the heap's foot comes to.
+#
+# The heap is a cone, and only the half of it this side of the face is seen:
+# the rest is in the rock the next room stands on, which is why nothing is
+# hollowed out of that as far as the heap goes (_past_sand). And it is wider
+# than the tomb is cut open, so here the cut is further out, for its skirts to
+# lie on stone and not on air.
+func _lay_sand(way: TombPlan.Link) -> void:
+	for id in way.switches:
+		var trigger := plan.triggers[id]
+		if trigger.kind == TombPlan.Switch.LEVER and trigger.room == _room:
+			var stone := _span(1.6, _ceil)
+			_lever(trigger, (stone.xa + stone.xb) * 0.5, _y)
+	var reach := SAND_PILE * SAND_SKIRT
+	var heap := _span(SAND_OUT + reach, _ceil)
+	var face := heap.xb
+	door_at[way.id] = Vector3(face, _y + SAND_RISE, 0.0)
+	parts.append({"kind": "sand", "room": _room, "link": way.id, "at": Vector3(face - SAND_OUT, _ceil, 0.0), "cap": SAND_PILE})
+	if way.hint != "":
+		parts.append({"kind": "inscription", "room": _room, "link": way.id, "hint": way.hint, "at": Vector3(heap.xa - 0.4, _y + DOORWAY + 0.45, BACK + 0.02)})
+	moves.append({"kind": "sand", "is": SAND_RISE, "pile": SAND_PILE, "skirt": SAND_SKIRT, "room": _room})
+	var out := reach - FRONT + 0.2
+	var z := FRONT + out * 0.5
+	var low := _y - ROCK - UNDER
+	_box(Vector3((heap.xa + face) * 0.5, _y - ROCK * 0.5, z), Vector3(face - heap.xa, ROCK, out), "floor", false)
+	_box(Vector3((heap.xa + face) * 0.5, low + UNDER * 0.5, z), Vector3(face - heap.xa, UNDER, out), "rock", false)
+	_box(Vector3(face + reach * 0.5, _y + SAND_RISE - ROCK * 0.5, z), Vector3(reach, ROCK, out), "floor", false)
+	_box(Vector3(face + reach * 0.5, (low + _y + SAND_RISE - ROCK) * 0.5, z), Vector3(reach, _y + SAND_RISE - ROCK - low, out), "rock", false)
+
+
+# Plain floor as far as the rock has to be left whole for a heap of sand (and
+# `beyond`: for what is cut back under the floor from where it starts).
+func _past_sand(beyond := 0.0) -> void:
+	if _x < _sand_to + beyond:
+		_span(_sand_to + beyond - _x, _ceil)
 
 
 # The chamber at the foot of the well: under the floor he came in by.
@@ -524,6 +617,7 @@ func _plate_after(room: TombPlan.Room) -> int:
 func _barrier(kind: TombPlan.Barrier) -> void:
 	match kind:
 		TombPlan.Barrier.TRENCH:
+			_past_sand()
 			var trench := _span(TRENCH_WIDE, _ceil)
 			trench.floor = _y - TRENCH_DEEP
 			moves.append({"kind": "jump", "is": TRENCH_WIDE, "room": _room})

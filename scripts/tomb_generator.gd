@@ -14,8 +14,9 @@ extends RefCounted
 ##     in a new room off the axis (a loft over a room, the chamber at the foot
 ##     of the well); one rule makes a loop: the door is opened from behind, and
 ##     the way round to behind it is over the wall and down a drop.
-##  3. The ways themselves: stairs, a crawl, a flooded stretch, a shaft; never
-##     one that a thing which has to be carried or pushed along it could not pass.
+##  3. The ways themselves: stairs, a crawl, a flooded stretch, a shaft with a
+##     ladder or a rope; never one that a thing which has to be carried or
+##     pushed along it could not pass.
 ##  4. Mummies, each of a kind with something in its room that kind cannot get
 ##     past (`BARRIER_FOR`), and pits.
 ##  5. `TombSolver` plays it through. If it cannot be finished, or could be
@@ -28,7 +29,7 @@ extends RefCounted
 
 ## Changed whenever a change here would make a different tomb from the same
 ## seed. It is part of the seed, and of every result that is kept.
-const VERSION := 1
+const VERSION := 2
 const MAX_TRIES := 40
 ## For each difficulty: the fewest and most rooms down the axis, the fewest and
 ## most locks, and how many mummies.
@@ -53,11 +54,11 @@ const BARRIER_FOR := {
 }
 
 ## The rules that put in a lock, and how likely each is at each difficulty.
-const RULES := ["work", "lever", "brazier", "cross", "gap", "bypass", "offering"]
+const RULES := ["work", "lever", "brazier", "cross", "gap", "bypass", "offering", "pair", "sand"]
 const RULE_WEIGHTS := [
-	[4, 3, 2, 0, 0, 0, 0],
-	[3, 3, 3, 2, 2, 2, 1],
-	[2, 3, 3, 3, 3, 3, 2],
+	[4, 3, 2, 0, 0, 0, 0, 0, 2],
+	[3, 3, 3, 2, 2, 2, 1, 1, 2],
+	[2, 3, 3, 3, 3, 3, 2, 2, 2],
 ]
 
 
@@ -213,6 +214,50 @@ static func _apply(rule: String, plan: TombPlan, i: int, rng: TombRandom) -> boo
 			link.switches = [plan.add_trigger(TombPlan.Switch.PLATE, i).id]
 			link.hint = "weight_from_afar"
 			return true
+		"pair":
+			# Two plates on one door: one for the room's own block, and one for a
+			# block that is pushed in from the room before.
+			if i < 2:
+				return false
+			var before := plan.spine_link(i - 1)
+			if before.pass_kind != TombPlan.Pass.OPEN or before.fixed:
+				return false
+			before.keep_push = true
+			before.fixed = true
+			plan.add_thing(TombPlan.Item.BLOCK, i - 1).dest = i
+			link.switches = [plan.add_trigger(TombPlan.Switch.PLATE, i).id, plan.add_trigger(TombPlan.Switch.WORK_PLATE, i).id]
+			link.hint = "two_stones"
+			return true
+		"sand":
+			# No door: the way on is up, over a face too high to catch, and a seal
+			# stone lets the sand in that he walks up. The stone is at the foot of
+			# the face, or (not in an easy tomb) as often in a room off this one or
+			# one of the two before it. (No loft over the room itself: he would
+			# get up by that instead.)
+			if link.keep_push or plan.side_room(i, TombPlan.Role.LOFT) != null:
+				return false
+			# (one to a tomb: it is a long way up)
+			for other in plan.links:
+				if other.pass_kind == TombPlan.Pass.SAND:
+					return false
+			link.pass_kind = TombPlan.Pass.SAND
+			link.fixed = true
+			var hosts: Array = []
+			if plan.difficulty >= 1 and rng.chance(50):
+				for j in range(maxi(i - 2, 1), i + 1):
+					if _side_role(plan, j) != -1:
+						hosts.append(j)
+			if hosts.is_empty():
+				link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, i).id]
+				link.hint = "sand"
+				return true
+			var host: int = hosts[rng.below(hosts.size())]
+			var role := _side_role(plan, host)
+			var side := plan.add_room(role, host)
+			plan.add_link(host, side.id, TombPlan.Pass.SHAFT if role == TombPlan.Role.CRYPT else TombPlan.Pass.CLIMB)
+			link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, side.id).id]
+			link.hint = "sand_below" if role == TombPlan.Role.CRYPT else "sand_above"
+			return true
 		"gap":
 			# No door: a pit too wide to jump, and a grappling hook somewhere before it.
 			if link.keep_carry or link.keep_push:
@@ -248,6 +293,9 @@ static func _side_role(plan: TombPlan, i: int) -> int:
 		return -1 if plan.side_room(i, TombPlan.Role.CRYPT) != null else TombPlan.Role.CRYPT
 	if room.role == TombPlan.Role.ENTRANCE or room.role == TombPlan.Role.BURIAL:
 		return -1
+	# (from a loft at the foot of the sand's face he would get over it with no sand)
+	if plan.spine_link(i).pass_kind == TombPlan.Pass.SAND:
+		return -1
 	return -1 if plan.side_room(i, TombPlan.Role.LOFT) != null else TombPlan.Role.LOFT
 
 
@@ -258,7 +306,7 @@ static func _carry_from(plan: TombPlan, i: int, rng: TombRandom, back: int) -> i
 	var from := i
 	var furthest := i
 	# (not past a pit that only the hook crosses)
-	while furthest > 0 and i - furthest < back and plan.spine_link(furthest - 1).pass_kind != TombPlan.Pass.GAP:
+	while furthest > 0 and i - furthest < back and TombPlan.carries(plan.spine_link(furthest - 1), plan.spine()[furthest - 1].id, false):
 		furthest -= 1
 	if furthest < i:
 		from = rng.between(furthest, i - 1)
@@ -272,9 +320,14 @@ static func _ways(plan: TombPlan, rng: TombRandom) -> void:
 	var count := plan.spine().size()
 	var floods := 0
 	var shafts := 0
+	var ropes := 0
+	# (the hook has to come back over its pit: there is no rope beyond one, that
+	# it could be dropped down and not brought up again)
+	var hooked := false
 	for i in count - 1:
 		var link := plan.spine_link(i)
 		if link.fixed:
+			hooked = hooked or link.pass_kind == TombPlan.Pass.GAP
 			continue
 		if i == 0:
 			# (the entrance stair)
@@ -288,12 +341,16 @@ static func _ways(plan: TombPlan, rng: TombRandom) -> void:
 			0 if door else 2,
 			2 if deep and floods == 0 and not link.keep_carry else 0,
 			2 if deep and shafts == 0 and not link.keep_carry and not door else 0,
+			3 if deep and ropes == 0 and not hooked and not link.keep_carry and not door else 0,
 		])
-		link.pass_kind = [TombPlan.Pass.OPEN, TombPlan.Pass.STAIRS, TombPlan.Pass.CRAWL, TombPlan.Pass.FLOOD, TombPlan.Pass.SHAFT][pick]
+		link.pass_kind = [TombPlan.Pass.OPEN, TombPlan.Pass.STAIRS, TombPlan.Pass.CRAWL, TombPlan.Pass.FLOOD, TombPlan.Pass.SHAFT, TombPlan.Pass.ROPE][pick]
 		if link.pass_kind == TombPlan.Pass.FLOOD:
 			floods += 1
 		elif link.pass_kind == TombPlan.Pass.SHAFT:
 			shafts += 1
+		elif link.pass_kind == TombPlan.Pass.ROPE:
+			ropes += 1
+			link.hint = "rope"
 
 
 # Mummies and pits.

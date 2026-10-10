@@ -7,8 +7,10 @@ extends SceneTree
 ##  - every generated tomb (seeds 1 to `seeds`, each difficulty) taken into the
 ##    editor's form and made into a plan again can still be finished, and has
 ##    as many rooms, doors and things as it had;
-##  - `fuzz` tombs put together at random: whichever of them `problems` lets
-##    through is laid out and solved without a script error;
+##  - `fuzz` tombs put together at random (every way and every lock the editor
+##    offers, the two-plate door, the rope and the sand among them): whichever
+##    of them `problems` lets through is laid out and solved without a script
+##    error, and its rope and its sand are ones he can use;
 ##  - what `problems` is there to refuse is refused;
 ##  - a tomb comes back from text as it went;
 ##  - the editor itself: opened, a room added, changed, moved and removed,
@@ -80,6 +82,9 @@ func _fuzzed() -> void:
 	var rng := TombRandom.new(90210)
 	var let_through := 0
 	var finishable := 0
+	var reach := TombReach.measure()
+	var had := {"pair": 0, "rope": 0, "sand": 0}
+	var sound := {"pair": 0, "rope": 0, "sand": 0}
 	for n in fuzz:
 		var spec := TombSpec.fresh("Fuzz %d" % n)
 		spec["seed"] = rng.between(1, 9999)
@@ -110,7 +115,27 @@ func _fuzzed() -> void:
 			expect(found["layout"] != null and (found["layout"] as TombLayout).length > 0.0, "fuzz %d was not laid out" % n)
 			if found["ok"]:
 				finishable += 1
+			var has := {}
+			for told: Dictionary in rooms.slice(0, rooms.size() - 1):
+				if told["lock"] == "pair":
+					has["pair"] = true
+				if told["way"] in ["rope", "sand"] and told["lock"] != "bypass":
+					has[told["way"]] = true
+			for what: String in has:
+				had[what] += 1
+				if found["ok"]:
+					sound[what] += 1
+			# (what a mummy is held by is chosen at random here, and may not hold it: that is not looked at)
+			for warning: String in found["warnings"]:
+				expect(not ("rope" in warning or "sand" in warning or "face" in warning), "fuzz %d: %s" % [n, warning])
+			var moves := {}
+			for move in (found["layout"] as TombLayout).moves:
+				moves[move["kind"]] = true
+			expect(moves.has("rope") == has.has("rope") and moves.has("sand") == has.has("sand"), "fuzz %d: its rope or its sand was not laid out" % n)
 	print("fuzz: %d of %d let through, %d of them can be finished" % [let_through, fuzz, finishable])
+	print("      of those let through, with a two-plate door %d (%d can be finished), a rope %d (%d), the sand %d (%d)" % [had["pair"], sound["pair"], had["rope"], sound["rope"], had["sand"], sound["sand"]])
+	for what: String in had:
+		expect(int(sound[what]) > 0, "no random tomb with %s can be finished" % what)
 	expect(let_through > fuzz / 20, "hardly any random tomb is let through")
 	expect(finishable > 0, "no random tomb can be finished")
 
@@ -134,6 +159,55 @@ func _refused() -> void:
 	spec["rooms"].pop_back()
 	spec["rooms"].pop_back()
 	expect(not TombSpec.problems(spec).is_empty(), "a tomb of two rooms was let through")
+	# The two-plate door, the rope and the sand: what cannot be built, and that what can is sound.
+	spec = TombSpec.fresh()
+	spec["rooms"][1]["lock"] = "pair"
+	expect(not TombSpec.problems(spec).is_empty(), "two plates with no room before for the second block were let through")
+	spec = TombSpec.fresh()
+	spec["rooms"].insert(1, TombSpec.room("corridor"))
+	spec["rooms"][2]["lock"] = "pair"
+	expect(TombSpec.problems(spec).is_empty(), "a two-plate door was refused: %s" % str(TombSpec.problems(spec)))
+	expect(TombSpec.check(spec)["ok"], "a two-plate door cannot be finished")
+	expect(JSON.stringify(TombSpec.from_plan(TombSpec.compile(spec))["rooms"]) == JSON.stringify(spec["rooms"]), "a two-plate door did not come back from its plan as it went")
+	spec["rooms"][1]["way"] = "stairs"
+	expect(not TombSpec.problems(spec).is_empty(), "two plates were let through with stairs between the block and its plate")
+	spec = TombSpec.fresh()
+	spec["rooms"][1]["way"] = "rope"
+	expect(TombSpec.problems(spec).is_empty() and TombSpec.check(spec)["ok"], "a rope down a shaft was refused, or cannot be finished")
+	spec["rooms"][1]["lock"] = "work"
+	expect(not TombSpec.problems(spec).is_empty(), "a door at the head of a rope was let through")
+	# (the hook can be dropped down a rope with, and not brought back up for the pit)
+	spec = TombSpec.fresh()
+	spec["rooms"].insert(1, TombSpec.room("corridor"))
+	spec["rooms"][0]["hook"] = 1
+	spec["rooms"][1]["way"] = "gap"
+	spec["rooms"][2]["way"] = "rope"
+	var lost := TombSpec.check(spec)
+	expect((lost["problems"] as PackedStringArray).is_empty() and not lost["ok"] and lost["solved"]["reason"] == "it can be made unfinishable", "a rope beyond a pit, that the hook can be lost down, was called sound")
+	spec = TombSpec.fresh()
+	spec["rooms"][1]["way"] = "sand"
+	expect(TombSpec.problems(spec).is_empty() and TombSpec.check(spec)["ok"], "a way up the sand was refused, or cannot be finished")
+	expect(TombSpec.compile(spec).links[1].hint == "sand", "the sand with no lock has no seal stone at its foot")
+	expect(JSON.stringify(TombSpec.from_plan(TombSpec.compile(spec))["rooms"]) == JSON.stringify(spec["rooms"]), "a way up the sand did not come back from its plan as it went")
+	spec["rooms"][1]["lock"] = "lever_above"
+	spec["rooms"][1]["stone_in"] = 1
+	expect(not TombSpec.problems(spec).is_empty(), "a loft at the foot of the sand's face was let through")
+	spec["rooms"][1]["lock"] = "bypass"
+	expect(not TombSpec.problems(spec).is_empty(), "a way over the wall and up the sand at once was let through")
+	spec["rooms"][1]["lock"] = "work"
+	expect(TombSpec.problems(spec).is_empty() and TombSpec.check(spec)["ok"], "sand let in by a block on its plate was refused, or cannot be finished")
+	spec = TombSpec.fresh()
+	spec["rooms"].insert(1, TombSpec.room("corridor"))
+	spec["rooms"][2]["way"] = "sand"
+	spec["rooms"][2]["lock"] = "lever_above"
+	spec["rooms"][2]["stone_in"] = 1
+	expect(TombSpec.problems(spec).is_empty() and TombSpec.check(spec)["ok"], "sand let in from a loft over the room before was refused, or cannot be finished")
+	expect(TombSpec.compile(spec).links[2].hint == "sand_above", "sand let in from a loft is not said to be")
+	spec = TombSpec.fresh()
+	spec["rooms"].insert(1, TombSpec.room("corridor"))
+	spec["rooms"][1]["way"] = "sand"
+	spec["rooms"][2]["mummy"] = 4
+	expect(not TombSpec.problems(spec).is_empty(), "a mummy at the top of the sand was let through")
 	# A brazier and no torch: it is built, and said not to be sound.
 	spec = TombSpec.fresh()
 	spec["rooms"][1]["lock"] = "brazier"

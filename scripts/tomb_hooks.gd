@@ -23,16 +23,22 @@ extends RefCounted
 ##   notebook     res://scripts/notebook.gd       `translation(signs, meaning, where)` when he has stood
 ##                                                under an inscription, `note(text, heading)` for a result.
 
-## What is written over a door, by what opens it (`TombPlan.Link.hint`).
+## What is written over a door, by what opens it (`TombPlan.Link.hint`); and at
+## the head of a rope, and at the foot of a face that sand gets him over.
 const HINTS := {
 	"weight": "Stone answers to stone: lay a weight where the floor gives.",
 	"weight_from_afar": "The weight this floor wants lies in the room behind you.",
 	"two_weights": "Two gifts open the way: a stone for the floor, a jar for the table.",
+	"two_stones": "Two floors give here. One stone waits beside them; the other lies in the room behind you.",
 	"lever_above": "The seal is over your head. Leap, and take hold.",
 	"lever_below": "The seal lies at the foot of the well.",
 	"fire": "Bring fire to the cold bowl, and the dark will give way.",
 	"hook": "No one leaps the gulf. Cast iron at the ring, and swing.",
+	"rope": "Those before you went down by the rope. It hangs there still, and wants both hands.",
 	"over_the_wall": "This door opens only from within. Others have come in over it.",
+	"sand": "Tread the seal, and the desert comes in. Climb what it brings.",
+	"sand_above": "The seal that lets the desert in is over your head. Climb what it brings.",
+	"sand_below": "The seal that lets the desert in lies at the foot of the well.",
 	"treasure": "Take what is here, and what sleeps here wakes.",
 }
 

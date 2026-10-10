@@ -24,6 +24,8 @@ enum Pass {
 	SHAFT, ## Straight down, by a ladder. Both hands are needed.
 	CLIMB, ## Up over a ledge by the hands (and down by stepping off: that way, carrying).
 	DROP, ## A drop too high to get back up: one way.
+	ROPE, ## Straight down a shaft by a hanging rope. The rope wants both hands; with them full he can still step off and drop.
+	SAND, ## Up over a face too high to catch, by walking up the heap of sand that pours in when its switches are done.
 }
 ## What can be carried (one thing at a time) or, a block, pushed.
 enum Item { TORCH, HOOK, JAR, BLOCK }
@@ -41,7 +43,7 @@ enum Switch {
 enum Barrier { NONE, TRENCH, KERB, NARROW }
 
 const ROLE_NAMES := ["entrance", "corridor", "well", "hall", "gallery", "antechamber", "burial", "loft", "crypt"]
-const PASS_NAMES := ["open", "stairs", "crawl", "flood", "gap", "shaft", "climb", "drop"]
+const PASS_NAMES := ["open", "stairs", "crawl", "flood", "gap", "shaft", "climb", "drop", "rope", "sand"]
 const ITEM_NAMES := ["torch", "hook", "jar", "block"]
 const SWITCH_NAMES := ["lever", "work_plate", "plate", "offering", "brazier", "treasure"]
 const BARRIER_NAMES := ["none", "trench", "kerb", "narrow"]
@@ -71,6 +73,7 @@ class Link:
 	var b := 0
 	var pass_kind := Pass.OPEN
 	## The switches that must all be done for its door to open (none: no door).
+	## For a way up over sand, what must be done for the sand to pour.
 	var switches: Array[int] = []
 	## A word for what opens it, for the inscription over the door (see TombHooks.HINTS).
 	var hint := ""
@@ -207,6 +210,13 @@ static func carries(link: Link, from: int, hook: bool) -> bool:
 		Pass.CLIMB:
 			# (down off a ledge with his hands full, yes; up onto it, no)
 			return from == link.b
+		Pass.ROPE:
+			# (the rope is caught and climbed with both hands: but he can step off
+			# the lip with them full, and what he drops down with stays down)
+			return from == link.a
+		Pass.SAND:
+			# (the heap, once it is full, comes to within a hop of the lip: his hands are not wanted)
+			return true
 	return false
 
 
