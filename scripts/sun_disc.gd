@@ -13,7 +13,7 @@ signal changed(on: bool)
 const SUN := 0.46
 
 ## How high the middle of the sun is.
-@export var height := 1.1
+@export var height := 0.7
 ## Once the light has found it, it stays on.
 @export var latches := false
 ## Whether the light is on it (or has been, if it latches).

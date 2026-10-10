@@ -11,10 +11,10 @@ extends StaticBody3D
 signal turned_to(steps: int)
 
 ## How big across the disc is.
-const DISC := 0.8
+const DISC := 0.7
 
 ## How high the middle of the disc is.
-@export var height := 1.1
+@export var height := 0.7
 ## How far one press turns it, degrees.
 @export var step := 45.0
 ## How many steps round it starts.
@@ -52,7 +52,7 @@ func _ready() -> void:
 	var reach := DISC * 0.5 + 0.07
 	# (the post is solid only up to the fork: the light must be able to come at the disc from any side)
 	PuzzleKit.shape(self, Vector3(0.0, (height - reach) * 0.5, 0.0), Vector3(0.12, height - reach, 0.12))
-	PuzzleKit.rod(self, Vector3(0.0, (height - reach) * 0.5 + 0.1, 0.0), 0.045, height - reach - 0.2, PuzzleKit.wood(), 0.035, 8)
+	PuzzleKit.rod(self, Vector3(0.0, (height - reach) * 0.5 + 0.1, 0.0), 0.045, maxf(height - reach - 0.2, 0.02), PuzzleKit.wood(), 0.035, 8)
 	# What turns: a fork of bronze, and the disc in it.
 	_head = Node3D.new()
 	_head.position.y = height
@@ -68,7 +68,7 @@ func _ready() -> void:
 	_head.add_child(_dish)
 	var rim := PuzzleKit.rod(_dish, Vector3.ZERO, DISC * 0.5, 0.035, dull, -1.0, 24)
 	rim.rotation.x = PI * 0.5
-	var polish := PuzzleKit.rod(_dish, Vector3.ZERO, DISC * 0.5 - 0.035, 0.045, Toon.gold(Color(0.98, 0.8, 0.46)), -1.0, 24)
+	var polish := PuzzleKit.rod(_dish, Vector3.ZERO, DISC * 0.5 - 0.035, 0.045, Toon.gold(Color(0.9, 0.68, 0.36)), -1.0, 24)
 	polish.rotation.x = PI * 0.5
 	# The face, for the light to find: a thin disc, solid.
 	var face := StaticBody3D.new()

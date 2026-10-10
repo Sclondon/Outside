@@ -257,7 +257,7 @@ func _made(item: Dictionary) -> Node3D:
 			return lock
 		"beam":
 			var beam := SunBeam.new()
-			beam.height = item.get("height", 1.1)
+			beam.height = item.get("height", 0.7)
 			beam.pitch = item.get("pitch", 0.0)
 			beam.reach = item.get("reach", 40.0)
 			beam.stand = item.get("stand", true)
@@ -265,7 +265,7 @@ func _made(item: Dictionary) -> Node3D:
 			return beam
 		"mirror":
 			var mirror := Mirror.new()
-			mirror.height = item.get("height", 1.1)
+			mirror.height = item.get("height", 0.7)
 			mirror.step = item.get("step", 45.0)
 			mirror.turned = int(item.get("turned", 0))
 			mirror.tilt = item.get("tilt", 0.0)
@@ -273,7 +273,7 @@ func _made(item: Dictionary) -> Node3D:
 			return mirror
 		"sundisc":
 			var disc := SunDisc.new()
-			disc.height = item.get("height", 1.1)
+			disc.height = item.get("height", 0.7)
 			disc.latches = item.get("latches", false)
 			return disc
 		"sluice":

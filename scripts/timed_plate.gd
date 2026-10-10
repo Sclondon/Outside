@@ -21,6 +21,10 @@ var _thread: MeshInstance3D
 var _turned := 0.0
 
 
+func _init() -> void:
+	span = Vector3(1.2, 0.5, 1.2)
+
+
 func _ready() -> void:
 	super()
 	var post := Vector3(span.x * 0.5 + 0.28, 0.0, 0.0)
@@ -40,11 +44,11 @@ func _ready() -> void:
 		var out := Vector3(sin(i * TAU / 3.0), 0.0, cos(i * TAU / 3.0)) * 0.11
 		PuzzleKit.rod(_glass, out, 0.01, 0.42, PuzzleKit.bronze(), -1.0, 5)
 	var clear := StandardMaterial3D.new()
-	clear.albedo_color = Color(0.8, 0.92, 0.95, 0.28)
+	clear.albedo_color = Color(0.8, 0.92, 0.95, 0.16)
 	clear.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	clear.roughness = 0.2
 	clear.cull_mode = BaseMaterial3D.CULL_BACK
-	var sand := Toon.surface(Color(0.9, 0.72, 0.36))
+	var sand := Toon.surface(Color(0.8, 0.52, 0.2))
 	# (a bulb is a cone, its point at the waist; the sand in it is a cone inside that)
 	var top := PuzzleKit.rod(_glass, Vector3(0.0, 0.1, 0.0), 0.012, 0.2, clear, 0.095, 12)
 	var bottom := PuzzleKit.rod(_glass, Vector3(0.0, -0.1, 0.0), 0.095, 0.2, clear, 0.012, 12)

@@ -39,7 +39,7 @@ void fragment() {
 ## Whether the light is coming.
 @export var shining := true
 ## How high above this node the light starts.
-@export var height := 1.1
+@export var height := 0.7
 ## How far it is tipped up, degrees.
 @export var pitch := 0.0
 ## How far it goes, mirrors and all.

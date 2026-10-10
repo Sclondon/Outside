@@ -48,7 +48,7 @@ func _ready() -> void:
 
 ## Where the keyhole is, in the world.
 func hole() -> Vector3:
-	return global_transform * Vector3(0.0, HOLE, 0.2)
+	return global_transform * Vector3(0.0, HOLE + 0.02, 0.16)
 
 
 ## As it was when it was made: shut, and its key back where that was put.

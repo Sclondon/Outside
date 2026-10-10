@@ -9,6 +9,7 @@ extends Node3D
 ## in and as a pond lying in the sand to wade into; fire; the guns and things
 ## to shoot; and everyone else: his brother, a cat, and a pen each for the
 ## hounds and the mummy, and two camels. Run `test_yard.tscn`. The camera orbits; drag to turn it.
+## (And the parts puzzles are made of, at two stations: `_build_puzzles` and `_build_light_and_water`.)
 ##
 ## The ground is a `SandGround`, made here from `height_at`: dunes from
 ## `SandDunes` (small ones among the stations, big ones all round), pressed
@@ -34,6 +35,8 @@ const FLATS: Array[Rect2] = [
 	Rect2(-16, 8, 5, 5), Rect2(-26, -8, 9, 8), Rect2(-2, -25, 16, 8), Rect2(32, -26, 7, 7),
 	Rect2(-9, -8, 5, 5), Rect2(-36, 30, 12, 9), Rect2(-42, -32, 9, 9), Rect2(40, 36, 8, 14),
 	Rect2(-44, 6, 7, 6), Rect2(24.5, 27, 7, 6), Rect2(17, -47, 14, 6),
+	# (the puzzle parts: west of the pool, and east of the low bars)
+	Rect2(-50, -12, 10, 7.5), Rect2(54, 12, 7, 8),
 	Rect2(-18, -46, 6, 5),
 	Rect2(44, -44, 6, 5),
 	Rect2(-50, 50, 7, 6),
@@ -69,6 +72,8 @@ var wind: SandWind
 var _dunes: SandDunes
 var _player: Player
 var _marks: Array[Vector3] = []
+# What puts each of the puzzle parts back as it was, when he starts again.
+var _puzzle_resets: Array[Callable] = []
 var _mark := -1
 var _loose: Array[RigidBody3D] = []
 var _loose_starts: Array[Transform3D] = []
@@ -99,6 +104,8 @@ func _ready() -> void:
 	_build_birds(Vector3(-12.0, 0.0, 46.0))
 	_build_dig(Vector3(24.5, 0.0, 27.0))
 	_build_grapple(Vector3(6.0, 0.0, -47.0))
+	_build_puzzles(Vector3(-50.0, 0.0, -12.0))
+	_build_light_and_water(Vector3(54.0, 0.0, 12.0))
 	_build_scarabs(Vector3(-18.0, 0.0, -46.0))
 	_build_glyphs(Vector3(44.0, 0.0, -44.0))
 	_build_railway(Vector3(10.0, 0.0, 58.5))
@@ -858,6 +865,161 @@ walk through the webs, or hold the torch to them", 3.8)
 	drape.dust = 0.7
 
 
+# --- The puzzle parts (two stations: `_build_puzzles` in the west, `_build_light_and_water` in the east) ---
+
+## The puzzle parts, each with a gate that it opens: a lever, and one that
+## springs back; a key and its lock; a seal stone; an offering table and the
+## jar for it; a brazier to light, with a torch that is out and a fire to light
+## it at; and a plate that stays down just long enough to run for its gate.
+func _build_puzzles(at: Vector3) -> void:
+	_mark_here(at + Vector3(9.0, 0.0, 0.0), "PUZZLE PARTS
+every gate has something that opens it
+act pulls a lever  ·  carry a key to its lock", 3.8)
+	# A lever, and one that springs back.
+	var lever := _part(Lever.new(), at + Vector3(5.0, 0.0, -5.5), PI * 0.5) as Lever
+	var lever_gate := _gate(at + Vector3(2.0, 0.0, -5.5), "LEVER\nact pulls it, and pulls it back")
+	lever.changed.connect(func(on: bool) -> void: lever_gate.is_open = on)
+	var sprung := Lever.new()
+	sprung.returns = 5.0
+	_part(sprung, at + Vector3(5.0, 0.0, -1.8), PI * 0.5)
+	var sprung_gate := _gate(at + Vector3(2.0, 0.0, -1.8), "this one springs back")
+	sprung.changed.connect(func(on: bool) -> void: sprung_gate.is_open = on)
+	# A key, and the lock it opens.
+	var key := _part(DoorKey.new(), at + Vector3(6.0, 0.1, 1.8), 0.6) as DoorKey
+	var lock := _part(KeyLock.new(), at + Vector3(2.8, 0.0, 0.2), PI * 0.5) as KeyLock
+	var lock_gate := _gate(at + Vector3(2.0, 0.0, 1.8), "KEY AND LOCK\nbring the key to it")
+	lock.changed.connect(func(on: bool) -> void: lock_gate.is_open = on)
+	_puzzle_resets.append(func() -> void:
+		if key.held_by == null and key != _player.carried:
+			key.go_home())
+	# A plate that stays down for a time: its gate is ten metres off.
+	var timed := TimedPlate.new()
+	timed.seconds = 4.0
+	timed.span = Vector3(1.2, 0.5, 1.2)
+	_part(timed, at + Vector3(7.0, 0.0, 5.6))
+	timed.collision_mask = 2
+	var timed_gate := _gate(at + Vector3(-3.0, 0.0, 5.6), "TIMED PLATE\nstep on it, and run")
+	timed.changed.connect(func(pressed: bool) -> void: timed_gate.is_open = pressed)
+	# A seal stone.
+	var seal := _part(SealStone.new(), at + Vector3(-3.5, 0.0, -5.5), PI * 0.5) as SealStone
+	var seal_gate := _gate(at + Vector3(-6.5, 0.0, -5.5), "SEAL STONE\nonly he presses it, and it stays down")
+	seal.changed.connect(func(pressed: bool) -> void: seal_gate.is_open = pressed)
+	# An offering table, and a jar to set on it.
+	var table := _part(OfferingTable.new(), at + Vector3(-4.2, 0.0, -1.8), PI * 0.5) as OfferingTable
+	var table_gate := _gate(at + Vector3(-6.5, 0.0, -1.8), "OFFERING TABLE\nput the jar down at it")
+	table.changed.connect(func(on: bool) -> void: table_gate.is_open = on)
+	_keep(_set_down("res://props/jar_canopic.tscn", at + Vector3(-1.2, 0.25, -2.6)) as RigidBody3D)
+	# A brazier to light: a torch that is out, and a fire to light it at.
+	var cold := _part(ColdBrazier.new(), at + Vector3(-4.4, 0.0, 1.8)) as ColdBrazier
+	var cold_gate := _gate(at + Vector3(-6.5, 0.0, 1.8), "BRAZIER\nlight the torch at the fire,\nand the brazier with the torch")
+	cold.changed.connect(func(on: bool) -> void: cold_gate.is_open = on)
+	var burning := ColdBrazier.new()
+	burning.on = true
+	_part(burning, at + Vector3(-0.6, 0.0, 3.2))
+	var torch := HandTorch.new()
+	torch.lit = false
+	torch.position = at + Vector3(0.6, 0.02, 2.2)
+	torch.rotation.z = 0.12
+	torch.freeze = true
+	add_child(torch)
+	_keep(torch)
+	_puzzle_resets.append(func() -> void:
+		if torch != _player.carried:
+			torch.lit = false)
+
+
+## Light and mirrors: a lens that throws a beam of sunlight, two mirrors to
+## turn, and a sun disc that opens a gate while the light is on it; a block to
+## push into the light. And a tank of water with a sluice: the lever lets the
+## water down, to get the key that lies on the floor of it (stairs go over the
+## wall), and the key opens the gate beside it.
+func _build_light_and_water(at: Vector3) -> void:
+	_mark_here(at + Vector3(-6.3, 0.0, 0.6))
+	_sign(at + Vector3(0.0, 4.4, -4.0), "LIGHT AND MIRRORS
+act turns a mirror a step  ·  bring the light to the sun disc
+whatever stands in the light stops it")
+	_part(SunBeam.new(), at + Vector3(-5.5, 0.0, -6.5), PI * 0.5)
+	for stand: Array in [[Vector3(4.5, 0.0, -6.5), 1], [Vector3(4.5, 0.0, -1.5), 0]]:
+		var mirror := Mirror.new()
+		mirror.turned = stand[1]
+		_part(mirror, at + stand[0])
+	var disc := _part(SunDisc.new(), at + Vector3(-5.5, 0.0, -1.5)) as SunDisc
+	var disc_gate := _gate(at + Vector3(0.0, 0.0, -4.0))
+	disc.changed.connect(func(on: bool) -> void: disc_gate.is_open = on)
+	_block(at + Vector3(-3.0, 0.45, -5.2))
+
+	# The tank: four walls, a floor, stairs up the outside of one wall and down the inside of it.
+	var tank := at + Vector3(0.0, 0.0, 4.6)
+	var high := 1.9
+	_sign(tank + Vector3(0.0, 3.6, 0.0), "SLUICE\nthe lever lets the water down, and up again\nthe key is at the bottom")
+	for way: float in [-1.0, 1.0]:
+		_solid(tank + Vector3(way * 2.25, high * 0.5, 0.0), Vector3(0.5, high, 4.6), PROP)
+		_solid(tank + Vector3(0.0, high * 0.5, way * 2.05), Vector3(4.0, high, 0.5), PROP)
+	_solid(tank, Vector3(4.0, 0.12, 3.6), DARK)
+	for i in 10:
+		var rise := high * (i + 1) / 10.0
+		for z: float in [-1.4, -2.7]:
+			_solid(tank + Vector3(1.8 - i * 0.4, rise * 0.5, z), Vector3(0.4, rise, 0.8), PROP.darkened(0.06))
+	var pool := Pool.new()
+	pool.size = Vector3(4.0, 1.64, 3.6)
+	pool.position = tank + Vector3(0.0, 1.7, 0.0)
+	add_child(pool)
+	var sluice := Sluice.new()
+	sluice.drop = 1.45
+	_part(sluice, tank + Vector3(2.7, 0.0, 0.6), PI * 0.5)
+	var lever := _part(Lever.new(), tank + Vector3(3.8, 0.0, -1.6), PI * 0.5) as Lever
+	lever.changed.connect(func(on: bool) -> void: sluice.open = on)
+	var key := DoorKey.new()
+	key.which = DoorKey.Metal.BRONZE
+	_part(key, tank + Vector3(-1.0, 0.2, 1.0), 0.8)
+	var lock := KeyLock.new()
+	lock.which = DoorKey.Metal.BRONZE
+	_part(lock, tank + Vector3(4.5, 0.0, 0.1), -PI * 0.5)
+	var gate := _gate(tank + Vector3(5.3, 0.0, 1.7))
+	lock.changed.connect(func(on: bool) -> void: gate.is_open = on)
+	_puzzle_resets.append(func() -> void:
+		if key.held_by == null and key != _player.carried:
+			key.go_home())
+
+
+## One of the puzzle parts, put in the yard: it is put back as it was (`reset`) when he starts again.
+func _part(part: Node3D, at: Vector3, yaw := 0.0) -> Node3D:
+	part.position = at
+	part.rotation.y = yaw
+	add_child(part)
+	if part.has_method(&"reset"):
+		_puzzle_resets.append(Callable(part, &"reset"))
+	return part
+
+
+## A gate between two posts, for something to open, and a sign over it.
+func _gate(at: Vector3, text := "") -> Door:
+	var gate := Door.new(Vector3(0.4, 2.4, 2.0), DARK.lightened(0.1))
+	gate.position = at + Vector3(0.0, 1.2, 0.0)
+	add_child(gate)
+	for z: float in [-1.3, 1.3]:
+		_solid(at + Vector3(0.0, 1.4, z), Vector3(0.6, 2.8, 0.6), PROP)
+	_solid(at + Vector3(0.0, 3.05, 0.0), Vector3(0.6, 0.5, 3.2), PROP)
+	if text != "":
+		# (small: the gates stand close together)
+		var label := Label3D.new()
+		label.text = text
+		label.font_size = 30
+		label.pixel_size = 0.006
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.modulate = Color(1.0, 1.0, 1.0, 0.85)
+		label.outline_size = 6
+		label.outline_modulate = Color(0.0, 0.0, 0.0, 0.5)
+		label.position = at + Vector3(0.0, 3.75, 0.0)
+		add_child(label)
+	return gate
+
+
+func _reset_puzzles() -> void:
+	for put_back in _puzzle_resets:
+		put_back.call()
+
+
 func _set_down(scene: String, at: Vector3, yaw := 0.0) -> Node3D:
 	var made := (load(scene) as PackedScene).instantiate() as Node3D
 	made.position = at
@@ -872,6 +1034,7 @@ func _settle_in() -> void:
 		return
 	_player.respawned.connect(_restore_loose)
 	_player.respawned.connect(_call_off)
+	_player.respawned.connect(_reset_puzzles)
 	_mummy.target = _player
 	for hound in _hounds:
 		hound.target = _player

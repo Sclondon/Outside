@@ -212,7 +212,7 @@ func light() -> void:
 	var disc := place(SunDisc.new(), Vector3(30, 0, 0)) as SunDisc
 	put(Vector3(24.9, 0.05, 6.7), -PI * 0.5)
 	await wait(0.5)
-	check("the light goes out from its lens along +Z", beam.path.size() >= 2 and beam.way().is_equal_approx(Vector3(0, 0, 1)) and absf(beam.path[0].y - 1.1) < 0.01)
+	check("the light goes out from its lens along +Z", beam.path.size() >= 2 and beam.way().is_equal_approx(Vector3(0, 0, 1)) and absf(beam.path[0].y - 0.7) < 0.01)
 	check("a mirror edge on to it stops it", beam.bounces == 0 and not disc.on and Mirror.of(beam.ends_on) == first, "ends on %s" % beam.ends_on)
 	boy._act()
 	await wait(2.0, func() -> bool: return first.is_still())
@@ -221,10 +221,10 @@ func light() -> void:
 	check("and the light goes by two mirrors to the sun disc", beam.bounces == 2 and disc.on and SunDisc.of(beam.ends_on) == disc and beam.path.size() == 4,
 			"%d mirrors, %d points, ends on %s" % [beam.bounces, beam.path.size(), beam.ends_on])
 	if beam.path.size() == 4:
-		check("along the way it should", beam.path[1].distance_to(Vector3(24, 1.1, 6)) < 0.05 and beam.path[2].distance_to(Vector3(30, 1.1, 6)) < 0.05 and beam.path[3].distance_to(Vector3(30, 1.1, 0)) < 0.3,
+		check("along the way it should", beam.path[1].distance_to(Vector3(24, 0.7, 6)) < 0.05 and beam.path[2].distance_to(Vector3(30, 0.7, 6)) < 0.05 and beam.path[3].distance_to(Vector3(30, 0.7, 0)) < 0.3,
 				str(beam.path))
 	# A block in the way.
-	var block := box(Vector3(30, 1.0, 3), Vector3(1, 2, 1))
+	var block := box(Vector3(30, 0.45, 3), Vector3(0.9, 0.9, 0.9))
 	await wait(0.2)
 	check("a block stood in the light stops it", not disc.on and beam.ends_on == block)
 	block.queue_free()
