@@ -175,6 +175,8 @@ const DIVE_IN_TAKES := 0.55
 
 @export_group("Throwing")
 @export var pickup_reach := 1.1
+## How near he must stand to something to work it (a lever, a mirror), over the ground.
+@export var work_reach := 1.25
 ## Speed given to a thrown object: forwards, upwards.
 @export var throw_speed := Vector2(12.0, 4.5)
 ## How long it takes him to stoop for something, and to wind up and throw it.
@@ -2193,10 +2195,43 @@ func _act() -> void:
 		if distance < nearest:
 			nearest = distance
 			found = body
+	# Something to be worked (a lever, a mirror on its stand: whatever is in the
+	# group `workable`) is worked instead, unless there is something to pick up nearer.
+	var handle := _workable(nearest if found else INF)
+	if handle:
+		_picking = null
+		pickup_point = handle.call(&"work_point") if handle.has_method(&"work_point") else handle.global_position
+		pickup_progress = 0.0
+		handle.call(&"work", self)
+		return
 	if found:
 		_picking = found
 		pickup_point = found.global_position
 		pickup_progress = 0.0
+
+
+## What there is to work within his reach, and nearer over the ground than
+## `nearer_than`: the nearest thing in the group `workable` (it has a method
+## `work`, called with him, and may say where his hand goes with `work_point`).
+func _workable(nearer_than: float) -> Node3D:
+	var nearest := minf(work_reach, nearer_than)
+	var found: Node3D
+	for thing: Node in get_tree().get_nodes_in_group(&"workable"):
+		var handle := thing as Node3D
+		if handle == null or not handle.has_method(&"work"):
+			continue
+		var to := handle.global_position - global_position
+		var distance := Vector2(to.x, to.z).length()
+		if distance < nearest and to.y > -1.2 and to.y < 1.0:
+			nearest = distance
+			found = handle
+	return found
+
+
+## Lets go of whatever he holds, where it is: for what takes a thing out of
+## his hand (a lock takes its key).
+func let_go() -> void:
+	_let_go()
 
 
 ## Carries a stoop or a throw through: the thing is in his hand partway through
