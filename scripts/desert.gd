@@ -470,6 +470,9 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		made.connect(&"changed", func(on: bool) -> void: _on[id] = on)
 	elif made is TimedPlate and item.get("only_him", true):
 		(made as Plate).collision_mask = 2
+	# (a plain plate too: its mask is its own until it is in the level, so it is told here)
+	if item["kind"] == "plate" and item.get("what", "") == "" and item.get("only_him", false):
+		(made as Plate).collision_mask = 2
 	if made is RigidBody3D and made.is_in_group(&"throwable"):
 		_loose.append(made)
 		_loose_starts.append(made.global_transform)
