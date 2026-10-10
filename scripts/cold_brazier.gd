@@ -71,7 +71,8 @@ func _switch(to: bool) -> void:
 func _physics_process(_delta: float) -> void:
 	var bowl := global_position + Vector3.UP * BOWL
 	if not on:
-		if torch_near(get_tree(), bowl, WITHIN):
+		# (a torch brought to it, or oil burning at its foot)
+		if torch_near(get_tree(), bowl, WITHIN) or Oil.is_burning_at(global_position, 0.8):
 			_switch(true)
 		return
 	# (and a torch that is out takes fire from it)

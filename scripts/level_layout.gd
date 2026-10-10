@@ -85,6 +85,8 @@ const PALETTE := {
 		["Lever", "lever", ""], ["Key", "key", ""], ["Lock", "lock", ""], ["Timed plate", "plate", "timed"], ["Seal stone", "plate", "seal"],
 		["Sun lens", "beam", ""], ["Mirror", "mirror", ""], ["Sun disc", "sundisc", ""], ["Sluice", "sluice", ""],
 		["Offering table", "offering", ""], ["Brazier to light", "brazier", ""],
+		# Oil (`scripts/oil.gd`): a jar of it to pour and to break, oil already poured, and a dish that knows when oil burns in it.
+		["Oil jar", "oil_jar", ""], ["Oil spill", "oil_spill", ""], ["Fire dish", "oil_mark", ""],
 		["Torch to carry", "torch", ""], ["Grappling hook", "grapple", ""], ["Grapple point", "grapple_point", ""], ["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
 		["Scarab amulet", "amulet", ""], ["Scarab socket", "plate", "scarab"],
 	],
@@ -182,6 +184,10 @@ const FIELDS := {
 		["travel", "Travels", "n", 0.5, 30.0, 0.25, 4.0], ["way", "Which way", "c", ["Forward", "Up", "Sideways"], 0], ["speed", "Speed", "n", 0.3, 8.0, 0.1, 2.0],
 		["links", "Worked by", "links"], ["needs_all", "Needs every one", "b", false], ["inverted", "Out until then", "b", false]],
 	"torch": [["lit", "Burning", "b", true]],
+	# Oil (`scripts/oil.gd`). A spill runs along its own forward; it and the dish are triggers (the far end of the spill has burnt; oil burns in the dish).
+	"oil_jar": [["measures", "Holds", "n", 8.0, 80.0, 4.0, 40.0]],
+	"oil_spill": [["length", "Length (0: a puddle)", "n", 0.0, 30.0, 0.5, 4.0], ["wide", "Width", "n", 0.3, 3.0, 0.1, 0.4], ["bend", "Bends aside", "n", -180.0, 180.0, 5.0, 0.0]],
+	"oil_mark": [["radius", "Width", "n", 0.3, 2.0, 0.05, 0.5]],
 	"rope": [["length", "Length", "n", 2.0, 16.0, 0.25, 5.5]],
 	"grapple": [["reach", "Length of its rope", "n", 4.0, 16.0, 0.5, 9.5]],
 	"grapple_point": [["ring", "Shows an iron ring", "b", true]],

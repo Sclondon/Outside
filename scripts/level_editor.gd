@@ -590,6 +590,9 @@ func _pick(screen: Vector2, ground: Vector3, triggers_only: bool) -> Dictionary:
 
 
 func _is_trigger(item: Dictionary) -> bool:
+	# (oil: a spill that has burnt through, a fire dish that oil burns in, a jar that has been broken)
+	if item["kind"] in ["oil_spill", "oil_mark", "oil_jar"]:
+		return true
 	if item["kind"] == "plate":
 		return true
 	if item["kind"] in PUZZLE_TRIGGERS:

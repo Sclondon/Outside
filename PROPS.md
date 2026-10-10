@@ -335,6 +335,16 @@ Not scenes in `props/` either: made whole in code, and placed by the level edito
 | `Sluice` | A gate of boards in a stone frame 1.5 m wide and 1.85 m high, facing along Z. `open`, `drop`, `speed`; `pool` is the water it works. |
 | `OfferingTable` | A stone table 1.4 by 0.8 by 0.8 m. `on`, `latches`, `changed(on)`; `jar` is what stands on it. |
 | `ColdBrazier` | `props/brazier.tscn`, not burning until a torch is brought. `on`, `changed(on)`. |
+## Oil
+
+Not scenes in `props/`: each is made whole in code, and placed by the level editor (see "Oil" in README.md).
+
+| Class | What it is |
+| --- | --- |
+| `OilJar` | RigidBody3D, a `Breakable`, in the groups `throwable`, `interest` and `kindling`: a clay jar 46 cm tall with two ears and a rag stopper, dark where the oil has run down it, its origin at its foot. Holds `measures` of oil (`left`); pours while whoever carries it ducks; breaks into a puddle. |
+| `OilSpill` | Oil already poured: a trail `length` long and `wide` across from the origin along +Z, turning aside by `bend` degrees over its length; no length, a puddle `wide` across. Gives `burnt` when fire reaches its far end. |
+| `OilMark` | A fire dish: a shallow stone dish `radius` across let into the floor, its middle at the origin, with no collision. `pressed`, and gives `changed`, from the moment oil burns in it. |
+| `Oil` | The oil that lies about and burns. One to a level, made when first asked for (`Oil.of(node)`); nothing to place. |
 
 ## Inscriptions
 

@@ -284,6 +284,10 @@ func _process(delta: float) -> void:
 
 ## Deals with what is in the way. Returns the direction to walk.
 func _negotiate(wish: Vector3) -> Vector3:
+	# It will not walk into burning oil: it stands at the edge of it until it has
+	# burnt out. (One that is in it already walks on out.)
+	if Oil.is_burning_at(global_position + wish * 0.7, 0.35) and not Oil.is_burning_at(global_position, 0.1):
+		return Vector3.ZERO
 	# It will not step into a drop (unless it is one that goes over anything).
 	var ahead := global_position + wish * 0.7
 	var query := PhysicsRayQueryParameters3D.create(ahead + Vector3.UP * 0.6, ahead + Vector3.DOWN * drop, 1)

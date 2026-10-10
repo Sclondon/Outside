@@ -268,6 +268,9 @@ func _work_switches(at: Vector3) -> void:
 			TombPlan.Switch.BRAZIER:
 				var bowl: Node3D = built.switches[trigger.id]
 				now = ColdBrazier.torch_near(get_tree(), bowl.global_position + Vector3.UP * 0.9, LIGHT_WITHIN)
+				# (and so does oil burning at its foot)
+				if Oil.is_burning_at(bowl.global_position, 0.8):
+					now = true
 				if now:
 					ColdBrazier.kindle(bowl)
 			TombPlan.Switch.TREASURE:

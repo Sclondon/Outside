@@ -19,6 +19,8 @@ extends Node3D
 ## target that has been knocked down, a pot that has been smashed) and things
 ## worked by them (a door, a bridge, a sand fall, a hound, the mummy): each of
 ## these keeps `links`, the ids of what works it.
+## Oil is one of the first sort twice over: a spill whose far end has burnt, and
+## a fire dish that oil burns in (`scripts/oil.gd`).
 ##
 ## What else this does: the light on the web, checkpoints, catching, and
 ## putting back loose things that have been lost.
@@ -318,6 +320,21 @@ func _made(item: Dictionary) -> Node3D:
 			var torch := HandTorch.new()
 			torch.lit = item.get("lit", true)
 			return torch
+		# Oil (`scripts/oil.gd`): a jar of it, oil already poured, and a dish that knows when oil burns in it.
+		"oil_jar":
+			var oil_jar := OilJar.new()
+			oil_jar.measures = int(item.get("measures", 40))
+			return oil_jar
+		"oil_spill":
+			var spill := OilSpill.new()
+			spill.length = item.get("length", 4.0)
+			spill.wide = item.get("wide", 0.4)
+			spill.bend = item.get("bend", 0.0)
+			return spill
+		"oil_mark":
+			var dish := OilMark.new()
+			dish.radius = item.get("radius", 0.5)
+			return dish
 		"grapple":
 			var hook := GrappleHook.new()
 			hook.reach = item.get("reach", 9.5)
@@ -473,6 +490,11 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 	# (a plain plate too: its mask is its own until it is in the level, so it is told here)
 	if item["kind"] == "plate" and item.get("what", "") == "" and item.get("only_him", false):
 		(made as Plate).collision_mask = 2
+	# Oil: a spill is on once fire has reached its far end, a fire dish once oil burns in it. (A jar is a `Breakable`: on when it is broken.)
+	if made is OilSpill:
+		(made as OilSpill).burnt.connect(func() -> void: _on[id] = true)
+	if made is OilMark:
+		(made as OilMark).changed.connect(func(pressed: bool) -> void: _on[id] = pressed)
 	if made is RigidBody3D and made.is_in_group(&"throwable"):
 		_loose.append(made)
 		_loose_starts.append(made.global_transform)
