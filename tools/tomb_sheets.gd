@@ -98,6 +98,15 @@ class Map extends Control:
 					draw_rect(Rect2(a, b - a), Color(0.2, 0.45, 0.7, 0.7))
 				"ring":
 					draw_arc(at, 4.0, 0.0, TAU, 12, Color.BLACK, 1.5)
+				"rope":
+					draw_line(at, to_map.call(place.x, place.y - float(part["long"])), Color(0.45, 0.3, 0.1), 1.5)
+				"sand":
+					# (the heap as it will be when it is full, against its face)
+					var cap: float = part["cap"]
+					var face := place.x + TombLayout.SAND_OUT
+					var foot := layout.door_at[part["link"]].y - TombLayout.SAND_RISE
+					draw_colored_polygon(PackedVector2Array([to_map.call(place.x - cap, foot), to_map.call(face, foot + cap * tan(SandPile.SLOPE) * SandPile.PROFILE[0].y), to_map.call(face, foot)]), Color(0.85, 0.7, 0.4, 0.8))
+					draw_line(at, to_map.call(place.x, foot), Color(0.85, 0.7, 0.4), 1.5)
 		# A line from every door to each thing that opens it.
 		for link in plan.links:
 			var door := layout.door_at[link.id]
@@ -124,7 +133,7 @@ class Map extends Control:
 					draw_dashed_line(to_map.call(from.x, from.y + 0.6), to_map.call(to.x, to.y + 0.6), Color(0.1, 0.45, 0.1, 0.8), 1.5, 3.0)
 		# The key, and the way through.
 		var y := origin.y + (layout.depth + 3.0) * scale_y + 40.0
-		draw_string(font, Vector2(16, y), "T torch  H hook  J jar  B block  p plate  S seal stone  o offering table  F brazier  * the falcon  M mummy (kind)   red: a door and what opens it   green: what is carried, and to where   grey room: dark",
+		draw_string(font, Vector2(16, y), "T torch  H hook  J jar  B block  p plate  S seal stone  o offering table  F brazier  * the falcon  M mummy (kind)   red: a door (or the sand) and what opens it   green: what is carried, and to where   grey room: dark",
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.2, 0.2, 0.2))
 		y += 22.0
 		var line := "The way through (%d steps): " % plan.solution.size()

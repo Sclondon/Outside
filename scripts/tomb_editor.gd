@@ -29,8 +29,8 @@ const PANEL := 340.0
 const FOV := 30.0
 const NEAREST := 8.0
 const FURTHEST := 420.0
-const WAY_SHORT := {"open": "doorway", "stairs": "stairs", "crawl": "crawl", "flood": "water", "shaft": "ladder", "gap": "pit, hook"}
-const LOCK_SHORT := {"none": "", "work": "block + plate", "cross": "plate, block from before", "brazier": "brazier", "offering": "block + jar",
+const WAY_SHORT := {"open": "doorway", "stairs": "stairs", "crawl": "crawl", "flood": "water", "shaft": "ladder", "rope": "rope", "gap": "pit, hook", "sand": "up the sand"}
+const LOCK_SHORT := {"none": "", "work": "block + plate", "cross": "plate, block from before", "pair": "two plates, two blocks", "brazier": "brazier", "offering": "block + jar",
 	"lever_above": "stone in a loft", "lever_below": "stone under a well", "bypass": "over the wall"}
 const HELP := "One finger drags the tomb about; two pinch to come nearer. Touch a room to choose it, or use the row along the bottom.\nThe panel at the right changes the chosen room: what it is, what is in it, the way on, and what locks the door on.\nUnder these buttons it says whether the tomb can be finished. Way through shows how."
 
@@ -248,6 +248,9 @@ func _leave_one(what: String) -> void:
 func _hosts(lock: String) -> Array:
 	var hosts: Array = []
 	for i in range(1, chosen + 1):
+		# (and no loft over a room whose way on is up the sand)
+		if lock == "lever_above" and rooms()[i].get("way", "open") == "sand":
+			continue
 		if (rooms()[i]["role"] == "well") == (lock == "lever_below"):
 			hosts.append(i)
 	return hosts
@@ -576,7 +579,7 @@ func _draw_pad() -> void:
 			var lock: String = LOCK_SHORT.get(told.get("lock", "none"), "")
 			if told.get("lock", "none") == "bypass":
 				way = "stairs"
-			var says := way if lock == "" else "%s  ·  door: %s" % [way, lock]
+			var says := way if lock == "" else "%s  ·  %s: %s" % [way, "sand" if told.get("way", "open") == "sand" else "door", lock]
 			var wide := font.get_string_size(says, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16).x
 			var under := Vector2(high.x - wide - 6.0, low.y + 30.0)
 			_pad.draw_string_outline(font, under, says, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, 6, Color(0.0, 0.0, 0.0, 0.8))
@@ -832,12 +835,15 @@ func _show_inspector() -> void:
 	for way: String in ways:
 		way_titles.append(TombSpec.WAY_TITLES[way])
 	_choice("The way on", way_titles, maxi(ways.find(told["way"]), 0), func(picked: int) -> void: set_value("way", ways[picked]))
+	if TombSpec.WAY_NOTES.has(told["way"]):
+		_inspector.add_child(_caption(TombSpec.WAY_NOTES[told["way"]]))
 	if index == 0:
 		return
+	var sand: bool = told["way"] == "sand"
 	var lock_titles: Array = []
 	for lock: String in TombSpec.LOCKS:
-		lock_titles.append(TombSpec.LOCK_TITLES[lock])
-	_choice("What opens the door on", lock_titles, maxi(TombSpec.LOCKS.find(told["lock"]), 0), func(picked: int) -> void: set_value("lock", TombSpec.LOCKS[picked]))
+		lock_titles.append("A seal stone at the foot of the face" if sand and lock == "none" else TombSpec.LOCK_TITLES[lock])
+	_choice("What lets the sand in" if sand else "What opens the door on", lock_titles, maxi(TombSpec.LOCKS.find(told["lock"]), 0), func(picked: int) -> void: set_value("lock", TombSpec.LOCKS[picked]))
 	if TombSpec.LOCK_NOTES[told["lock"]] != "":
 		_inspector.add_child(_caption(TombSpec.LOCK_NOTES[told["lock"]]))
 	if told["lock"] in ["lever_above", "lever_below"]:

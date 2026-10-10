@@ -19,7 +19,7 @@ extends Node3D
 ## start again), and is counted. A finished daily tomb is kept (`TombDaily`).
 ##
 ## It runs the tomb's parts itself: doors open when their switches are done
-## and stay open; mummies wake as he passes and go back when he is far away;
+## and stay open, and sand that makes a way up comes in the same and stays; mummies wake as he passes and go back when he is far away;
 ## what he carries goes back to where he last had it when he dies.
 
 ## Set before the scene is opened. Emptied when it has been read.
@@ -279,12 +279,20 @@ func _work_switches(at: Vector3) -> void:
 					_take_treasure()
 		done[trigger.id] = now
 	for link in plan.links:
-		if not built.doors.has(link.id):
+		if not built.doors.has(link.id) and not built.sands.has(link.id):
 			continue
 		var open := true
 		for id in link.switches:
 			open = open and done[id]
-		(built.doors[link.id] as TombParts.Door).is_open = open
+		if built.doors.has(link.id):
+			(built.doors[link.id] as TombParts.Door).is_open = open
+		else:
+			# Sand comes in until the heap is as big as it gets. Nothing ever
+			# empties it: what is done stays done, and so does the way up.
+			var fall: SandFall = built.sands[link.id]
+			fall.running = open and not (fall.pile != null and fall.pile.is_full())
+			if fall.pile:
+				fall.rate = TombBuilder.sand_rate(fall.pile_cap, fall.pile.radius)
 
 
 func _weighed(plate: Area3D, group: StringName) -> bool:

@@ -13,6 +13,7 @@ const KERB_STONE := Color(0.3, 0.26, 0.2)
 const SAND := Color(0.5, 0.43, 0.3)
 const BLOCK_STONE := Color(0.56, 0.47, 0.32)
 const DOOR_STONE := Color(0.24, 0.21, 0.17)
+const BEAM_WOOD := Color(0.2, 0.14, 0.09)
 
 var layout: TombLayout
 var root: Node3D
@@ -20,6 +21,10 @@ var root: Node3D
 var room_nodes: Array[Node3D] = []
 ## By link: the door, where there is one.
 var doors := {}
+## By link: the sand that pours in to make a way up (a SandFall), where there is one.
+var sands := {}
+## The ropes that hang down shafts.
+var ropes: Array[Rope] = []
 ## By switch: the Plate (a plate, a seal stone, an offering table), or for a
 ## brazier the prop it is.
 var switches := {}
@@ -115,6 +120,8 @@ func _material(made_of: String) -> Material:
 			material = Toon.gold()
 		"sand":
 			material = Toon.surface(SAND)
+		"wood":
+			material = Toon.surface(BEAM_WOOD)
 		_:
 			material = Toon.surface(WALL_STONE)
 	_materials[made_of] = material
@@ -198,6 +205,28 @@ func _part(part: Dictionary) -> void:
 			ladder.position = at
 			ladder.rotation.y = part["yaw"]
 			node.add_child(ladder)
+		"rope":
+			# A beam wedged across under the roof, and the rope made fast to it.
+			_show(node, at + Vector3(0.0, 0.03, (TombLayout.BACK + TombLayout.FRONT) * 0.5), Vector3(0.16, 0.14, TombLayout.FRONT - TombLayout.BACK), "wood")
+			_show(node, at + Vector3(0.0, -0.06, 0.0), Vector3(0.2, 0.08, 0.2), "wood")
+			var rope := Rope.new()
+			rope.length = part["long"]
+			rope.drag = TombLayout.ROPE_DRAG
+			rope.thickness = 0.035
+			rope.position = at
+			node.add_child(rope)
+			ropes.append(rope)
+		"sand":
+			# A slot in the roof, and behind it all the sand the heap will hold.
+			_show(node, at + Vector3(0.0, -0.02, 0.0), Vector3(0.5, 0.06, 0.5), "kerb")
+			var cap: float = part["cap"]
+			var fall := SandFall.new()
+			fall.running = false
+			fall.pile_cap = cap
+			fall.rate = sand_rate(cap, 0.0)
+			fall.position = at
+			node.add_child(fall)
+			sands[part["link"]] = fall
 		"pool":
 			var pool := Pool.new()
 			pool.size = part["size"]
@@ -240,6 +269,14 @@ func _part(part: Dictionary) -> void:
 			var guard := TombHooks.jackal(node, at)
 			if guard:
 				mummies.append({"node": guard, "room": room, "guardian": true, "safe": at.x - 100.0, "east": false, "lost": 0.0})
+
+
+## How much sand a second has to come in for a heap that is `radius` wide to be
+## as wide as `cap` in `TombLayout.SAND_TIME`, getting higher at an even pace
+## (a steady stream would raise it fast at first and then hardly at all).
+static func sand_rate(cap: float, radius: float) -> float:
+	var wide := maxf(radius, 0.4)
+	return tan(SandPile.SLOPE) * PI * wide * wide * cap / TombLayout.SAND_TIME
 
 
 func _scene(name: String, at: Vector3, yaw: float, node: Node3D) -> Node3D:

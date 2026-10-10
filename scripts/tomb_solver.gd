@@ -19,7 +19,8 @@ extends RefCounted
 ##
 ## What it knows of his limits is deliberately the least he can do (see
 ## `TombPlan.carries`): a thing in the hand does not go up a ledge or a ladder
-## or through water. Putting a thing down is only tried where it could matter
+## or a rope or through water (down a rope shaft he can drop with it: then it
+## stays down). Putting a thing down is only tried where it could matter
 ## (where a way out needs free hands, where another thing lies, at an offering
 ## table); elsewhere he could put it down too, and pick it up again.
 

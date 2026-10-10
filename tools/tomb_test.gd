@@ -1,6 +1,6 @@
 extends SceneTree
 ## Not part of the game. Checks the tomb generator with nothing drawn.
-## godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [drive] [seeds=500] [drive_seeds=1,2,3] [show=<seed>:<difficulty>]
+## godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [drive] [templates] [custom] [seeds=500] [drive_seeds=1,2,3] [per=3] [show=<seed>:<difficulty>]
 ##
 ##  plans     every seed from 1 to `seeds` at each difficulty: how many plans passed
 ##            the solver at the first try, why the others were thrown away, how many
@@ -13,13 +13,28 @@ extends SceneTree
 ##            between machines and renderers.
 ##  drive     opens tomb.tscn for a few seeds and plays the solver's way through
 ##            it with the real Player, by the TouchControls node.
+##  templates the same for the first `per` seeds at each difficulty that have a
+##            two-plate door, a rope down a shaft, or a way up over sand: each of
+##            the three, wherever the generator makes it.
 ##  custom    the same for tombs made by hand (`TombSpec`): the one a new tomb
-##            starts as, and one with every kind of lock the editor offers.
+##            starts as, one with every kind of lock the editor offers, and one
+##            with the two-plate door, the rope and the sand, a torch carried
+##            down the one and up the other.
+##            Then the sand by itself: that its face cannot be got up before
+##            the sand is let in, however he jumps at it and kicks off it; how
+##            long the heap takes; and that dying does not empty it.
 ##  show      prints one plan and the way through it.
+##  shots=<folder>  (not headless: `--resolution 1280x720`, and its window is kept
+##            off the screen) saves pictures of the new templates as they are
+##            played, during `templates` and `custom`: the two plates, the rope
+##            going down and up, the sand before, pouring, full and gone over.
 ## With no names: plans, geometry and same. Ends with PASSED or FAILED.
 
 var seeds := 500
 var drive_seeds: Array = [1, 2, 3]
+var per := 3
+var shots := ""
+var shot_count := 0
 var failed := false
 
 
@@ -33,6 +48,13 @@ func _initialize() -> void:
 			drive_seeds = []
 			for part in arg.trim_prefix("drive_seeds=").split(","):
 				drive_seeds.append(int(part))
+		elif arg.begins_with("shots="):
+			shots = arg.trim_prefix("shots=")
+			DirAccess.make_dir_recursive_absolute(shots)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
+			DisplayServer.window_set_position(Vector2i(-6000, -6000))
+		elif arg.begins_with("per="):
+			per = int(arg.trim_prefix("per="))
 		elif arg.begins_with("drive_difficulties="):
 			drive_difficulties = []
 			for part in arg.trim_prefix("drive_difficulties=").split(","):
@@ -58,6 +80,8 @@ func _run(names: Array) -> void:
 		_same()
 	if "drive" in names:
 		await _drive()
+	if "templates" in names:
+		await _drive_templates()
 	if "custom" in names:
 		await _drive_custom()
 	if not names.is_empty():
@@ -247,6 +271,17 @@ func _overlaps(layout: TombLayout) -> PackedStringArray:
 			if span.floor - TombLayout.ROCK < float(info["floor"]) + TombLayout.WELL_DEEP - TombLayout.ROCK - 0.01:
 				wrong.append("room %d: the chamber under the well runs into the floor over it" % room.id)
 				break
+	# The far half of a heap of sand lies in the rock the next room stands on: nothing is cut down into that.
+	for room in layout.plan.spine():
+		var info := layout.rooms[room.id]
+		if not info.has("face"):
+			continue
+		var face: float = info["face"]
+		for span in layout.spans:
+			if span.xb > face + 0.01 and span.xa < face - TombLayout.SAND_OUT + TombLayout.SAND_PILE * TombLayout.SAND_SKIRT - 0.01 \
+					and span.floor < float(info["floor"]) + TombLayout.SAND_RISE - 0.01:
+				wrong.append("room %d: the sand heaped at its far end would come out in what is cut down beyond it" % room.id)
+				break
 	return wrong
 
 
@@ -280,7 +315,10 @@ var touch: TouchControls
 var level: TombLevel
 var space: PhysicsDirectSpaceState3D
 var frames_used := 0
+var tomb_name := ""
 var drive_difficulties: Array = [0, 1, 2]
+## How often each new move was made, and how often a try at it went wrong.
+var tally := {"rope_down": 0, "rope_up": 0, "rope_down_missed": 0, "rope_up_missed": 0, "sand_up": 0, "sand_up_carrying": 0, "sand_down": 0}
 
 
 func _drive() -> void:
@@ -294,6 +332,7 @@ func _drive() -> void:
 			if await _drive_one(seed_value, difficulty):
 				finished += 1
 	print("  finished %d of %d" % [finished, tried])
+	_say_tally()
 	if finished < tried:
 		failed = true
 
@@ -325,10 +364,75 @@ func every_lock() -> Dictionary:
 	return spec
 
 
+## A tomb with the two-plate door, the rope and the sand: the torch for the
+## brazier beyond them is dropped down the shaft with, and carried up the heap.
+func three_new() -> Dictionary:
+	var spec := TombSpec.fresh("Two plates, a rope, the sand")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "hall", "corridor", "gallery", "antechamber", "corridor", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[0]["torch"] = 1
+	rooms[2]["lock"] = "pair"
+	rooms[2]["way"] = "stairs"
+	rooms[3]["way"] = "rope"
+	rooms[4]["way"] = "sand"
+	rooms[5]["lock"] = "brazier"
+	rooms[5]["dark"] = true
+	rooms[5]["way"] = "sand"
+	rooms[6]["way"] = "stairs"
+	spec["rooms"] = rooms
+	return spec
+
+
+# The tombs that have each of the new templates: [seed, difficulty] each, the
+# first `per` of each kind at each difficulty.
+func _with_templates() -> Array:
+	var found: Array = []
+	for difficulty in 3:
+		var counts := {"two_stones": 0, "rope": 0, "sand": 0}
+		for seed_value in range(1, seeds + 1):
+			var plan := TombGenerator.generate(seed_value, difficulty)
+			var wanted := false
+			for link in plan.links:
+				var kind := ""
+				if link.hint == "two_stones":
+					kind = "two_stones"
+				elif link.pass_kind == TombPlan.Pass.ROPE:
+					kind = "rope"
+				elif link.pass_kind == TombPlan.Pass.SAND:
+					kind = "sand"
+				if kind != "" and int(counts[kind]) < per:
+					counts[kind] = int(counts[kind]) + 1
+					wanted = true
+			if wanted:
+				found.append([seed_value, difficulty])
+		print("  %-8s tombs with each among seeds 1..%d, up to %d of each: %s" % [TombGenerator.DIFFICULTY_NAMES[difficulty], seeds, per, str(counts)])
+	return found
+
+
+func _drive_templates() -> void:
+	print("TEMPLATES: tombs with a two-plate door, a rope or the sand, played by the real Player")
+	TombLevel.bare = true
+	var finished := 0
+	var tombs := _with_templates()
+	for tomb: Array in tombs:
+		if await _drive_one(tomb[0], tomb[1]):
+			finished += 1
+	print("  finished %d of %d" % [finished, tombs.size()])
+	_say_tally()
+	if finished < tombs.size():
+		failed = true
+
+
+func _say_tally() -> void:
+	print("  the rope taken hold of %d times going down and %d going up (tries that went wrong: %d and %d); the sand gone up %d times (%d of them with his hands full) and down %d" % [
+			tally["rope_down"], tally["rope_up"], tally["rope_down_missed"], tally["rope_up_missed"], tally["sand_up"], tally["sand_up_carrying"], tally["sand_down"]])
+
+
 func _drive_custom() -> void:
 	print("CUSTOM: tombs made by hand, played by the real Player")
 	TombLevel.bare = true
-	for spec: Dictionary in [TombSpec.fresh(), every_lock()]:
+	for spec: Dictionary in [TombSpec.fresh(), every_lock(), three_new()]:
 		var found := TombSpec.check(spec)
 		if not found["ok"]:
 			print("  %s: %s %s" % [spec["name"], found["says"], str(found["problems"])])
@@ -339,9 +443,93 @@ func _drive_custom() -> void:
 			failed = true
 		if not await _drive_one(0, 0, spec):
 			failed = true
+	if not await _sand_holds():
+		failed = true
+	_say_tally()
+
+
+## A tomb whose only way on is up the sand, which a block on its plate lets in.
+func only_sand() -> Dictionary:
+	var spec := TombSpec.fresh("Only the sand")
+	spec["rooms"] = [TombSpec.room("entrance"), TombSpec.room("corridor"), TombSpec.room("burial")]
+	spec["rooms"][1]["way"] = "sand"
+	spec["rooms"][1]["lock"] = "work"
+	return spec
+
+
+# The sand by itself. Before it is let in he throws himself at the face for ten
+# seconds and must not get up it; then the heap is timed; then he dies, and the
+# heap must be as it was; then the tomb is played through as any other.
+func _sand_holds() -> bool:
+	await _open(0, 0, only_sand())
+	var layout := level.layout
+	var link := level.plan.spine_link(1)
+	var lower: Dictionary = layout.rooms[link.a]
+	var top: float = layout.rooms[link.b]["floor"]
+	var fall: SandFall = level.built.sands[link.id]
+	var block := _block_for(-1, link.switches[0])
+	var sound := true
+	# (round the block, which is not to be pushed yet)
+	if not await _go(Vector3((block["body"] as RigidBody3D).global_position.x + 1.6, float(lower["floor"]), 0.0)) or not await _go(lower["east"]):
+		print("  the sand: he could not get to the foot of the face")
+		sound = false
+	var highest := -INF
+	var presses := 0
+	for i in 600:
+		touch.move = Vector2(1.0, 0.0)
+		# (every way of pressing jump: held long and let go short, on the ground and in the air against the face)
+		touch.jump_held = i % 23 < [14, 4, 22][(i / 23) % 3]
+		if i % 23 == 0 or (i % 23 == 9 and (i / 23) % 2 == 0):
+			player._queue_jump()
+			presses += 1
+		if player.state == Player.State.HANG and i % 10 == 0:
+			player._queue_jump()
+		await _wait(1)
+		highest = maxf(highest, player.global_position.y)
+	_still()
+	await _wait(60)
+	var bare := highest < top - 0.3 and player.global_position.x < float(lower["face"]) and not level.done[link.switches[0]]
+	print("  the sand, before it is let in: %d presses of jump at a face of %.2f got his feet %.2f up it: %s" % [presses, TombLayout.SAND_RISE, highest - float(lower["floor"]), "it holds him" if bare else "HE GOT UP IT"])
+	sound = sound and bare
+	await _shot("sand_face_bare")
+	# Let in, how long until he is over it (in a hurry, hands free), and until it is full.
+	if not await _go(lower["west"]) or not await _push(block, link.switches[0]):
+		print("  the sand: the block was not got onto its plate")
+		sound = false
+	var began := frames_used
+	var over := await _sand_up(link, lower, layout.rooms[link.b])
+	var over_at := frames_used - began
+	for i in 60 * 30:
+		if fall.pile != null and fall.pile.is_full():
+			break
+		await _wait(1)
+	var full_at := frames_used - began
+	var was := fall.pile.height if fall.pile else 0.0
+	print("  the sand, let in: he was over it %.1f s after the plate went down, and the heap was full (%.2f high, %.2f under the lip) after %.1f s: %s" % [
+			over_at / 60.0, was, TombLayout.SAND_RISE - was, full_at / 60.0, "sound" if over and full_at < 60 * 20 else "TOO SLOW, OR NOT AT ALL"])
+	sound = sound and over and full_at < 60 * 20
+	# Dying leaves it as it is.
+	level.give_up()
+	await _wait(180)
+	var now := fall.pile.height if fall.pile else 0.0
+	print("  the sand, after he has died (%d): the heap is %.2f high: %s" % [level.deaths, now, "it stays" if is_equal_approx(now, was) and level.deaths == 1 else "IT WAS EMPTIED"])
+	sound = sound and is_equal_approx(now, was)
+	var done := await _play_through("the sand")
+	level.get_parent().queue_free()
+	await _wait(5)
+	return sound and done
 
 
 func _drive_one(seed_value: int, difficulty: int, spec := {}) -> bool:
+	await _open(seed_value, difficulty, spec)
+	var done := await _play_through("seed %d %-8s" % [seed_value, TombGenerator.DIFFICULTY_NAMES[difficulty]] if spec.is_empty() else "\"%s\"" % spec["name"])
+	level.get_parent().queue_free()
+	await _wait(5)
+	return done
+
+
+# Opens tomb.tscn on a tomb, with the Player and the TouchControls taken hold of.
+func _open(seed_value: int, difficulty: int, spec := {}) -> void:
 	TombLevel.play = {"mode": "random", "seed": seed_value, "difficulty": difficulty}
 	if not spec.is_empty():
 		TombLevel.play = {"mode": "custom", "spec": spec}
@@ -360,6 +548,11 @@ func _drive_one(seed_value: int, difficulty: int, spec := {}) -> bool:
 	await _wait(30)
 	space = player.get_world_3d().direct_space_state
 	frames_used = 0
+	tomb_name = "custom" if not spec.is_empty() else "%d_%d" % [seed_value, difficulty]
+
+
+# Plays the solver's way through the tomb that is open, and says how it went.
+func _play_through(called: String) -> bool:
 	var plan := level.plan
 	var stopped := ""
 	for i in plan.solution.size():
@@ -377,11 +570,9 @@ func _drive_one(seed_value: int, difficulty: int, spec := {}) -> bool:
 			stopped = "the last walk out, at %s" % player.global_position
 		await _wait(10)
 	var done := level.finished and stopped == ""
-	print("  seed %d %-8s %s  %d rooms, %d steps, %.0f m: %s" % [seed_value, TombGenerator.DIFFICULTY_NAMES[difficulty],
+	print("  %s %s  %d rooms, %d steps, %.0f m: %s" % [called,
 			"FINISHED" if done else "STOPPED ", plan.rooms.size(), plan.solution.size(), level.layout.length,
 			("in %s of play, %d deaths" % [TombDaily.time_text(level.time_ms()), level.deaths]) if done else stopped])
-	scene.queue_free()
-	await _wait(5)
 	return done
 
 
@@ -408,6 +599,14 @@ func _do_step(step: Array) -> bool:
 						if to == link.b:
 							return await _go(layout.rooms[to]["east"])
 						return await _go(Vector3(float(layout.rooms[from]["x1"]) + 0.9, float(layout.rooms[to]["floor"]), 0.0))
+				TombPlan.Pass.ROPE:
+					if to == link.b:
+						return await _rope_down(layout.rooms[from], layout.rooms[to])
+					return await _rope_up(layout.rooms[to], layout.rooms[from])
+				TombPlan.Pass.SAND:
+					if to == link.b:
+						return await _sand_up(link, layout.rooms[from], layout.rooms[to])
+					return await _sand_down(layout.rooms[to], layout.rooms[from])
 				TombPlan.Pass.GAP:
 					if not await _swing(layout.rooms[link.a]["gap"], to == link.b):
 						return false
@@ -478,19 +677,29 @@ func _plate_of(block: Dictionary) -> int:
 	return block.get("serves", -1)
 
 
-# Gets behind a block and walks it east until its plate is down.
+# Gets behind a block (over it, if he is beyond it) and walks it east until its plate is down.
 func _push(block: Dictionary, trigger: int) -> bool:
 	if block.is_empty() or trigger < 0:
 		return false
 	if level.done[trigger]:
 		return true
 	var body: RigidBody3D = block["body"]
-	if player.global_position.x > body.global_position.x - 0.5:
-		return false
 	if not await _go(Vector3(body.global_position.x - 0.9, body.global_position.y - TombLayout.BLOCK * 0.5, 0.0)):
 		return false
 	var plate := level.layout.switch_at[trigger]
-	return await _go(Vector3(plate.x + 3.0, plate.y, 0.0), 0.35, func() -> bool: return level.done[trigger], true)
+	var pushed := await _go(Vector3(plate.x + 3.0, plate.y, 0.0), 0.35, func() -> bool: return level.done[trigger], true)
+	if _is_two_plates(trigger):
+		await _wait(40)
+		await _shot("two_plates")
+	return pushed
+
+
+# Whether a plate is one of the two on a two-plate door.
+func _is_two_plates(trigger: int) -> bool:
+	for link in level.plan.links:
+		if link.hint == "two_stones" and trigger in link.switches:
+			return true
+	return false
 
 
 func _put_down() -> bool:
@@ -535,6 +744,164 @@ func _climb_loft(info: Dictionary) -> bool:
 			if player.global_position.x > edge + 1.5:
 				break
 		touch.jump_held = false
+	return false
+
+
+# Down a shaft by its rope: he runs off the lip into it, which is taking hold,
+# and lets himself down with the stick. With his hands full he cannot take
+# hold: he steps off and drops.
+func _rope_down(upper: Dictionary, lower: Dictionary) -> bool:
+	var foot: float = lower["floor"]
+	if not await _go(upper["east"]):
+		return false
+	var full := player.carried != null
+	var on := false
+	for i in 300:
+		touch.move = Vector2(1.0, 0.0)
+		await _wait(1)
+		if player.state == Player.State.ROPE:
+			on = true
+			break
+		if player.is_on_floor() and player.global_position.y < foot + 0.3:
+			break
+	if on:
+		tally["rope_down"] += 1
+		await _shot("rope_down_caught")
+		for i in 900:
+			touch.move = Vector2(0.0, 1.0)
+			await _wait(1)
+			if i == 70:
+				await _shot("rope_down_on_it")
+			if player.state != Player.State.ROPE and player.is_on_floor():
+				break
+	elif not full:
+		tally["rope_down_missed"] += 1
+		print("    he ran off the lip and did not take hold of the rope (at %s)" % player.global_position)
+		return false
+	_still()
+	# (a long drop is a hard landing: he gets up)
+	await _wait(20 if on else 150)
+	await _shot("rope_down_foot")
+	if full and player.carried == null:
+		print("    he dropped what he was carrying, coming down the shaft")
+		return false
+	return await _go(lower["west"])
+
+
+# Up a shaft by its rope: he runs at it and jumps, which is taking hold; climbs
+# it with the stick to the top; and leaps off it towards the lip.
+func _rope_up(upper: Dictionary, lower: Dictionary) -> bool:
+	var rope_x := float(lower["x0"]) + TombLayout.ROPE_OUT
+	var top: float = upper["floor"]
+	if player.carried != null:
+		return false
+	for attempt in 3:
+		if not await _go(Vector3(rope_x + 1.3, float(lower["floor"]), 0.0), 0.2):
+			return false
+		var on := false
+		for i in 150:
+			touch.move = Vector2(-1.0, 0.0)
+			if i == 6:
+				touch.jump_held = true
+				player._queue_jump()
+			await _wait(1)
+			if player.state == Player.State.ROPE:
+				on = true
+				break
+		touch.jump_held = false
+		if on:
+			await _shot("rope_up_caught")
+			for i in 900:
+				touch.move = Vector2(0.0, -1.0)
+				await _wait(1)
+				if i == 120:
+					await _shot("rope_up_on_it")
+				if player.state != Player.State.ROPE or player._rope_at <= 0.41:
+					break
+		if on and player.state == Player.State.ROPE:
+			await _shot("rope_up_top")
+			touch.move = Vector2(-1.0, 0.0)
+			touch.jump_held = true
+			player._queue_jump()
+			for i in 150:
+				await _wait(1)
+				if i == 12:
+					await _shot("rope_up_leap")
+				if player.is_on_floor() and player.state == Player.State.FREE:
+					break
+			touch.jump_held = false
+			if player.is_on_floor() and player.global_position.y > top - 0.2:
+				tally["rope_up"] += 1
+				await _shot("rope_up_off")
+				return await _go(upper["east"])
+		tally["rope_up_missed"] += 1
+		print("    try %d at the rope went wrong: on it %s, now at %s" % [attempt + 1, on, player.global_position])
+		_still()
+		await _wait(120)
+	return false
+
+
+# Up over the sand, as someone in a hurry does it: straight to the face, and
+# jumping at it until the heap under him is high enough. (With his hands free
+# that is when he can catch the lip; with them full, when it is a hop.)
+func _sand_up(link: TombPlan.Link, lower: Dictionary, upper: Dictionary) -> bool:
+	var face: float = lower["face"]
+	var top: float = upper["floor"]
+	var full := player.carried != null
+	var hold_jump := 0
+	# (as far as the foot of it by whatever is in the way)
+	if player.global_position.x < float(lower["east"].x) and not await _go(lower["east"]):
+		return false
+	var fall: SandFall = level.built.sands[link.id]
+	var seen := 0
+	await _shot("sand_foot")
+	for i in 60 * 40:
+		touch.move = Vector2(1.0, 0.0)
+		var at := player.global_position
+		hold_jump -= 1
+		touch.jump_held = hold_jump > 0
+		if player.state == Player.State.HANG:
+			if i % 10 == 0:
+				player._queue_jump()
+		elif player.state == Player.State.FREE and player.is_on_floor() and at.x > face - 0.7 and i % 45 == 0:
+			hold_jump = 20
+			touch.jump_held = true
+			player._queue_jump()
+		await _wait(1)
+		at = player.global_position
+		# (pictures: as he reaches the face, with the heap half grown, and with it full)
+		var high := fall.pile.height if fall.pile else 0.0
+		if (seen == 0 and at.x > face - 1.0) or (seen == 1 and high > 1.3 and player.is_on_floor()) or (seen == 2 and fall.pile != null and fall.pile.is_full() and player.is_on_floor()):
+			seen += 1
+			await _shot("sand_up_%d" % seen)
+		if player.is_on_floor() and player.state == Player.State.FREE and at.y > top - 0.1 and at.x > face:
+			_still()
+			await _shot("sand_over")
+			if full and player.carried == null:
+				print("    he dropped what he was carrying, going up the sand")
+				return false
+			tally["sand_up"] += 1
+			if full:
+				tally["sand_up_carrying"] += 1
+			return await _go(upper["west"])
+	print("    not over the sand: he is at %s, state %d; the heap is %.2f high (full %s), pouring %s" % [player.global_position, player.state, fall.pile.height if fall.pile else -1.0, fall.pile != null and fall.pile.is_full(), fall.running])
+	return false
+
+
+# Back down it: off the lip onto the top of the heap, and down its side.
+func _sand_down(lower: Dictionary, upper: Dictionary) -> bool:
+	if not await _go(upper["west"]):
+		return false
+	var foot := float(lower["face"]) - TombLayout.SAND_PILE * TombLayout.SAND_SKIRT
+	for i in 900:
+		touch.move = Vector2(-1.0, 0.0)
+		await _wait(1)
+		if i == 45:
+			await _shot("sand_down")
+		if player.is_on_floor() and player.global_position.x < foot:
+			tally["sand_down"] += 1
+			return await _go(lower["east"])
+	print("    not down the sand: he is at %s, state %d" % [player.global_position, player.state])
 	return false
 
 
@@ -592,6 +959,18 @@ func _swing(gap: Array, east: bool) -> bool:
 			return true
 		await _wait(200)
 	return false
+
+
+# A picture of the game as it is now, if pictures were asked for.
+func _shot(what: String) -> void:
+	if shots == "":
+		return
+	await process_frame
+	await RenderingServer.frame_post_draw
+	shot_count += 1
+	var name := "%02d_%s_%s" % [shot_count, tomb_name, what]
+	root.get_texture().get_image().save_png(shots.path_join(name + ".png"))
+	print("    SHOT ", name)
 
 
 func _still() -> void:
