@@ -318,6 +318,24 @@ Not scenes in `props/`: each is made whole in code, and placed by the level edit
 | `ScarabSocket` | A stone 0.5 by 0.3 by 0.6 m with a hollow for the amulet, its foot at the origin. A `TombParts.Plate` that only the amulet presses (`changed`). |
 | `Cobweb` | `kind` `CORNER` (the corner is at the origin, `height` above it; one edge runs towards +X along the roof and the other down the wall), `SHEET` (stands on the origin, across X, facing along Z), `HANGING` (hangs from `height` above the origin, spread along X), `DRAPE` (stands on the origin, over something `over` in size). In the group `cobwebs`. |
 
+## Puzzle parts
+
+Not scenes in `props/` either: made whole in code, and placed by the level editor (see "Puzzle parts" in README.md). Each has its foot at its origin unless it says otherwise.
+
+| Class | What it is |
+| --- | --- |
+| `Lever` | A lever in a stone block 0.5 by 0.32 by 0.6 m, pulled over towards +Z. In the groups `interest` and `workable`. `on`, `returns`, `changed(on)`. |
+| `DoorKey` | RigidBody3D, in the groups `throwable`, `interest` and `keys`: a key 30 cm long, its origin its middle and its bit towards +Z. `which` is its metal (`DoorKey.Metal`: iron, bronze, gold). |
+| `KeyLock` | A stone post 1.3 m high with a lock plate of its key's metal, the keyhole 0.95 m up, facing +Z. `on`, `changed(on)`. |
+| `TimedPlate` | A `TombParts.Plate` that stays down for `seconds`; a sand-glass on a post at its +X edge. |
+| `SealStone` | A `TombParts.Plate` with a square of gold in it, that only he presses and that latches. |
+| `SunBeam` | The light: from `height` above the origin, along +Z, tipped up by `pitch`. With `stand`, a lens on a stone stand. `path`, `ends_on`, `bounces`. |
+| `Mirror` | A bronze disc 0.7 m across on a stand, its middle `height` up; turns about Y by `step` degrees a press. In the groups `mirrors` and (unless `fixed`) `workable`. |
+| `SunDisc` | A gold sun between horns on a post, its middle `height` up. `on`, `latches`, `changed(on)`. |
+| `Sluice` | A gate of boards in a stone frame 1.5 m wide and 1.85 m high, facing along Z. `open`, `drop`, `speed`; `pool` is the water it works. |
+| `OfferingTable` | A stone table 1.4 by 0.8 by 0.8 m. `on`, `latches`, `changed(on)`; `jar` is what stands on it. |
+| `ColdBrazier` | `props/brazier.tscn`, not burning until a torch is brought. `on`, `changed(on)`. |
+
 ## Inscriptions
 
 Writing in hieroglyphs is not a prop but a thing made in code (`scripts/inscription.gd`, and "Hieroglyphs" in README.md):

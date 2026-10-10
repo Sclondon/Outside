@@ -81,6 +81,10 @@ const PALETTE := {
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
+		# (more to make puzzles of: README, "More puzzle parts")
+		["Lever", "lever", ""], ["Key", "key", ""], ["Lock", "lock", ""], ["Timed plate", "plate", "timed"], ["Seal stone", "plate", "seal"],
+		["Sun lens", "beam", ""], ["Mirror", "mirror", ""], ["Sun disc", "sundisc", ""], ["Sluice", "sluice", ""],
+		["Offering table", "offering", ""], ["Brazier to light", "brazier", ""],
 		["Torch to carry", "torch", ""], ["Grappling hook", "grapple", ""], ["Grapple point", "grapple_point", ""], ["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
 		["Scarab amulet", "amulet", ""], ["Scarab socket", "plate", "scarab"],
 	],
@@ -151,6 +155,27 @@ const FIELDS := {
 	"person:birds": [["bird", "Kind", "c", ["Sparrows", "Doves", "Hoopoe", "Swallows", "Sacred ibis", "Grey heron", "Cattle egret", "Egyptian goose", "Kestrel", "Pied kingfisher", "Egyptian vulture", "Griffon vulture", "Black kite"], 1],
 		["count", "How many", "n", 1.0, 40.0, 1.0, 8.0], ["roam", "They range", "n", 5.0, 150.0, 1.0, 30.0]],
 	"plate": [["span_x", "Width", "n", 0.6, 8.0, 0.1, 1.6], ["span_z", "Length", "n", 0.6, 8.0, 0.1, 1.6], ["latches", "Stays down", "b", false], ["only_him", "Only he presses it", "b", false]],
+	# --- More puzzle parts. What is on or off, and so works what a plate works: a lever (`Lever`), a lock that has been
+	# given its key (`KeyLock`, `DoorKey`: `which` is the metal, in the order of `DoorKey.Metal`), a plate that stays down
+	# for a time (`TimedPlate`), a seal stone (`SealStone`), a sun disc with the light on it (`SunDisc`), an offering table
+	# with a jar on it (`OfferingTable`), a brazier that has been lit (`ColdBrazier`). And what is worked: the light itself
+	# (`SunBeam`), and a sluice (`Sluice`), which lets down the nearest tank of water. A mirror (`Mirror`) is neither.
+	"lever": [["starts_on", "Pulled already", "b", false], ["returns", "Springs back after (0: stays)", "n", 0.0, 60.0, 0.5, 0.0]],
+	"key": [["which", "Made of", "c", ["Iron", "Bronze", "Gold"], 0]],
+	"lock": [["which", "Opened by the key of", "c", ["Iron", "Bronze", "Gold"], 0]],
+	"plate:timed": [["span_x", "Width", "n", 0.6, 8.0, 0.1, 1.2], ["span_z", "Length", "n", 0.6, 8.0, 0.1, 1.2], ["seconds", "Stays down for", "n", 1.0, 120.0, 0.5, 6.0],
+		["only_him", "Only he presses it", "b", true]],
+	"plate:seal": [["span_x", "Width", "n", 0.6, 8.0, 0.1, 1.1], ["span_z", "Length", "n", 0.6, 8.0, 0.1, 1.6], ["latches", "Stays down", "b", true]],
+	"beam": [["height", "Height of the light", "n", 0.4, 12.0, 0.05, 0.7], ["pitch", "Tipped up", "n", -80.0, 80.0, 1.0, 0.0], ["reach", "Reaches", "n", 2.0, 80.0, 1.0, 40.0],
+		["stand", "On a stand", "b", true], ["shining", "Shining", "b", true], ["links", "Covered and uncovered by", "links"]],
+	"mirror": [["height", "Height", "n", 0.6, 6.0, 0.05, 0.7], ["step", "A press turns it", "n", 5.0, 90.0, 2.5, 45.0], ["turned", "Turned already (presses)", "n", 0.0, 35.0, 1.0, 0.0],
+		["tilt", "Tipped up", "n", -60.0, 60.0, 1.0, 0.0], ["fixed", "He cannot turn it", "b", false]],
+	"sundisc": [["height", "Height", "n", 0.6, 6.0, 0.05, 0.7], ["latches", "Stays lit", "b", false]],
+	"sluice": [["drop", "Lets the water down by", "n", 0.2, 8.0, 0.1, 2.0], ["speed", "Speed", "n", 0.1, 3.0, 0.05, 0.6], ["links", "Opened by", "links"],
+		["needs_all", "Needs every one", "b", false], ["inverted", "Open until then", "b", false]],
+	"offering": [["latches", "Stays on once given", "b", true]],
+	"brazier": [["lit", "Burning already", "b", false]],
+	# --- (the end of them)
 	"door": [["wide", "Width", "n", 0.6, 12.0, 0.1, 3.0], ["tall", "Height", "n", 1.0, 12.0, 0.1, 2.6], ["thick", "Thickness", "n", 0.2, 3.0, 0.05, 0.4],
 		["links", "Opened by", "links"], ["needs_all", "Needs every one", "b", false], ["inverted", "Open until then", "b", false]],
 	"mover": [["wide", "Width", "n", 0.6, 16.0, 0.1, 2.4], ["long", "Length", "n", 0.6, 20.0, 0.1, 4.0], ["thick", "Thickness", "n", 0.1, 3.0, 0.05, 0.3],

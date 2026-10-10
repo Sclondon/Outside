@@ -145,6 +145,8 @@ In the desert, the notebook (top right), Places, then "Edit this level". The gam
 - **Puzzles**: pressure plates, targets and things that smash are either on or off; a door, a bridge or lift, a sand
   fall, a hound or the mummy has "Choose what works it": touch the plates and targets that should, and lines show
   what is joined to what. Also ropes, ladders, blocks to push, checkpoints, signs, and where he starts.
+  Levers, locks and keys, timed plates, light and mirrors, sluices, offering tables, braziers to light and seal
+  stones are there too: see Puzzle parts, below.
 - **Keeping it**: every change is saved on the device as it is made (`user://desert_layout.json`) and is what the
   game plays from then on. "More" shows the whole level as text, to copy off the phone or paste one in, and has
   "Back to the original level". Pasted into `levels/desert.json`, a level becomes the one the game ships with.
@@ -157,6 +159,44 @@ it, and `scripts/level_editor.gd` is the editor. To check the editor without a p
 ```
 godot --path . --resolution 1280x720 --script tools/editor_test.gd -- <folder>
 ```
+
+## Puzzle parts
+
+More to make puzzles of, each a script of its own that is whole from `new()`, on the editor's Puzzle page, and with a
+station in the test yard (west of the pool, and east of the low bars). Those that are on or off work whatever a
+pressure plate works: choose the door (or bridge, sand fall, mummy...) and "Choose what works it".
+
+- **Lever** (`scripts/lever.gd`): he pulls it over with the act button, standing at it with his hands empty, and back
+  again the same way. "Springs back after" makes it creep back by itself and go off after that many seconds. Anything
+  in the group `workable` with a method `work` is worked by the act button in the same way (`Player._act`).
+- **Key** and **Lock** (`scripts/door_key.gd`, `scripts/key_lock.gd`): a key of iron, bronze or gold, carried and
+  thrown like a rock, and a lock on a stone post. Brought to the lock of the same metal (in his hand, or thrown down
+  at it) the key is taken, turned, and the lock is on for good: link a door to it and that is a locked door.
+- **Timed plate** (`scripts/timed_plate.gd`): a pressure plate that stays down for a number of seconds after he steps
+  off it. The sand-glass beside it is turned over when it is pressed and shows what is left; the slab rises as it runs.
+- **Sun lens**, **Mirror** and **Sun disc** (`scripts/sun_beam.gd`, `scripts/mirror.gd`, `scripts/sun_disc.gd`): the
+  lens throws a beam of sunlight along its own +Z (it can be tipped, stand at any height, be had without its stand, and
+  be covered and uncovered by anything linked to it). The beam is followed every step by casting a ray: either face of
+  a mirror sends it on (up to eight mirrors), and anything else stops it, a wall, a pushed block, the boy. A mirror is
+  turned a step (45 degrees, or what it is set to) by the act button. The sun disc is on while the light is on it,
+  or for good with "Stays lit". All three stand 0.7 m high unless told otherwise, so a block to push comes up into
+  the light. The beam is three crossed strips, added to what is behind them: it draws in every renderer.
+- **Sluice** (`scripts/sluice.gd`): stood by a "Tank of water" (it takes the nearest water), it lets the water down
+  by so much while what is linked to it is on, and up again after. It is the `Pool` itself that moves, so he swims
+  where it is still over his chest, wades where it is not, and walks the floor where it has gone.
+- **Offering table**, **Brazier to light** and **Seal stone** (`scripts/offering_table.gd`, `scripts/cold_brazier.gd`,
+  `scripts/seal_stone.gd`): what a tomb has, for a level laid out by hand. The table is on when a canopic jar is put
+  down at it or thrown onto it; the brazier when a burning torch is brought to it (and a torch that is out is lit at a
+  brazier that burns); the seal stone is a plate that only he presses and that stays down. The tombs share the
+  setting down of a jar and the lighting of a brazier with these (`OfferingTable.set_on`, `ColdBrazier.kindle`).
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/puzzle_test.gd
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/puzzle_sheets.gd -- <folder> [parts light water yard]
+```
+
+The first runs every part with nothing drawn, alone and then wired to doors in the desert as the editor makes them,
+and ends PASSED or FAILED. The second draws them.
 
 ## How he moves
 

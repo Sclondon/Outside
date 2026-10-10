@@ -262,19 +262,14 @@ func _work_switches(at: Vector3) -> void:
 				for jar: RigidBody3D in get_tree().get_nodes_in_group(&"tomb_jars"):
 					var from := jar.global_position - table
 					if jar != _player.carried and absf(from.x) < OFFER_WITHIN and absf(from.y) < 1.0 and jar.linear_velocity.length() < 1.5:
-						jar.freeze = true
-						jar.global_transform = Transform3D(Basis.IDENTITY, table + Vector3.UP * 0.23)
-						jar.set_meta(&"offered", true)
+						OfferingTable.set_on(jar, table + Vector3.UP * 0.23)
 						now = true
 						break
 			TombPlan.Switch.BRAZIER:
 				var bowl: Node3D = built.switches[trigger.id]
-				for torch: Node3D in get_tree().get_nodes_in_group(&"torches"):
-					if torch.get(&"lit") and torch.global_position.distance_to(bowl.global_position + Vector3.UP * 0.9) < LIGHT_WITHIN:
-						now = true
+				now = ColdBrazier.torch_near(get_tree(), bowl.global_position + Vector3.UP * 0.9, LIGHT_WITHIN)
 				if now:
-					var flame := bowl.find_child("Flame*", true, false) as Node3D
-					(flame if flame else bowl).add_child(Fire.brazier())
+					ColdBrazier.kindle(bowl)
 			TombPlan.Switch.TREASURE:
 				now = at.distance_to(built.treasure.global_position) < 1.5
 				if now:

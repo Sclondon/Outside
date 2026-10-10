@@ -231,6 +231,65 @@ func _made(item: Dictionary) -> Node3D:
 			var socket := ScarabSocket.new()
 			socket.latches = item.get("latches", true)
 			return socket
+		# --- More puzzle parts (see `LevelLayout.FIELDS`): each is a script of its own, and whole from `new()`.
+		"plate" when what == "timed":
+			var timed := TimedPlate.new()
+			timed.span = Vector3(item.get("span_x", 1.2), 0.5, item.get("span_z", 1.2))
+			timed.seconds = item.get("seconds", 6.0)
+			return timed
+		"plate" when what == "seal":
+			var seal := SealStone.new()
+			seal.span = Vector3(item.get("span_x", 1.1), 0.5, item.get("span_z", 1.6))
+			seal.latches = item.get("latches", true)
+			return seal
+		"lever":
+			var lever := Lever.new()
+			lever.on = item.get("starts_on", false)
+			lever.returns = item.get("returns", 0.0)
+			return lever
+		"key":
+			var key := DoorKey.new()
+			key.which = int(item.get("which", 0)) as DoorKey.Metal
+			return key
+		"lock":
+			var lock := KeyLock.new()
+			lock.which = int(item.get("which", 0)) as DoorKey.Metal
+			return lock
+		"beam":
+			var beam := SunBeam.new()
+			beam.height = item.get("height", 0.7)
+			beam.pitch = item.get("pitch", 0.0)
+			beam.reach = item.get("reach", 40.0)
+			beam.stand = item.get("stand", true)
+			beam.shining = item.get("shining", true)
+			return beam
+		"mirror":
+			var mirror := Mirror.new()
+			mirror.height = item.get("height", 0.7)
+			mirror.step = item.get("step", 45.0)
+			mirror.turned = int(item.get("turned", 0))
+			mirror.tilt = item.get("tilt", 0.0)
+			mirror.fixed = item.get("fixed", false)
+			return mirror
+		"sundisc":
+			var disc := SunDisc.new()
+			disc.height = item.get("height", 0.7)
+			disc.latches = item.get("latches", false)
+			return disc
+		"sluice":
+			var sluice := Sluice.new()
+			sluice.drop = item.get("drop", 2.0)
+			sluice.speed = item.get("speed", 0.6)
+			return sluice
+		"offering":
+			var table := OfferingTable.new()
+			table.latches = item.get("latches", true)
+			return table
+		"brazier":
+			var cold := ColdBrazier.new()
+			cold.on = item.get("lit", false)
+			return cold
+		# --- (the end of them)
 		"plate":
 			var plate := Plate.new()
 			plate.span = Vector3(item.get("span_x", 1.6), 0.5, item.get("span_z", 1.6))
@@ -404,6 +463,13 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as Hyena).caught.connect(_on_caught.bind(made))
 	elif made is Crocodile:
 		(made as Crocodile).caught.connect(_on_caught.bind(made))
+	# The puzzle parts that are on or off say so themselves, as a plate does: a lever, a lock, a sun disc, an offering
+	# table, a brazier to light. (And a timed plate that only he presses is told so here, once it is in the level.)
+	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier:
+		_on[id] = bool(made.get(&"on"))
+		made.connect(&"changed", func(on: bool) -> void: _on[id] = on)
+	elif made is TimedPlate and item.get("only_him", true):
+		(made as Plate).collision_mask = 2
 	if made is RigidBody3D and made.is_in_group(&"throwable"):
 		_loose.append(made)
 		_loose_starts.append(made.global_transform)
@@ -526,6 +592,10 @@ func _physics_process(delta: float) -> void:
 			(node as Door).is_open = worked
 		elif node is SandFall:
 			(node as SandFall).running = bool(item.get("running", true)) != worked
+		elif node is Sluice:
+			(node as Sluice).open = worked
+		elif node is SunBeam:
+			(node as SunBeam).shining = bool(item.get("shining", true)) != worked
 		elif node is Hound:
 			if (worked or near) and not _player.is_limp:
 				(node as Hound).chasing = true
