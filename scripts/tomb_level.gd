@@ -7,6 +7,9 @@ extends Node3D
 ## (`{"mode": "daily"}` or `{"mode": "random", "seed": 12, "difficulty": 1}`),
 ## or from the command line (`-- tomb=daily`, `-- tomb=12:1`). With neither it
 ## is today's tomb, and a card comes up first that offers a random one instead.
+## A tomb made by hand in the tomb editor is `{"mode": "custom", "spec": ...}`
+## (a `TombSpec`), or `-- tomb=custom` for the one last worked on there: it is
+## played and timed like any other, and kept nowhere.
 ##
 ## He goes in, takes the gold falcon from the burial chamber, and comes out the
 ## way he went in. The clock starts at his first step and stops when he is out
@@ -42,6 +45,8 @@ var mode := "daily"
 var day := 0
 var seed_value := 0
 var difficulty := 0
+## The tomb as it was made by hand (a TombSpec), when it was.
+var spec := {}
 var plan: TombPlan
 var layout: TombLayout
 var built: TombBuilder
@@ -72,7 +77,13 @@ var _hud: CanvasLayer
 func _ready() -> void:
 	_read_choice()
 	_build_dark()
-	plan = TombGenerator.generate(seed_value, difficulty)
+	if mode == "custom":
+		plan = TombSpec.compile(spec)
+		var proof := TombSolver.solve(plan)
+		plan.solution = proof["steps"]
+		plan.proof = proof
+	else:
+		plan = TombGenerator.generate(seed_value, difficulty)
 	layout = TombLayout.lay(plan)
 	built = TombBuilder.build(layout, self)
 	done.resize(plan.triggers.size())
@@ -96,7 +107,10 @@ func _read_choice() -> void:
 	play = {}
 	var asked := not chosen.is_empty()
 	for arg in OS.get_cmdline_user_args():
-		if arg == "tomb=daily":
+		if arg == "tomb=custom":
+			chosen = {"mode": "custom", "spec": TombSpec.current()}
+			asked = true
+		elif arg == "tomb=daily":
 			chosen = {"mode": "daily"}
 			asked = true
 		elif arg.begins_with("tomb="):
@@ -105,7 +119,17 @@ func _read_choice() -> void:
 			asked = true
 	mode = chosen.get("mode", "daily")
 	day = int(chosen.get("day", TombDaily.today()))
-	if mode == "daily":
+	if mode == "custom":
+		spec = chosen.get("spec", {})
+		# (one that cannot be built is not played: today's is, in its place)
+		if spec.is_empty() or not TombSpec.problems(spec).is_empty():
+			mode = "daily"
+		else:
+			seed_value = int(spec.get("seed", 1))
+			difficulty = clampi(int(spec.get("difficulty", 0)), 0, 2)
+	if mode == "custom":
+		pass
+	elif mode == "daily":
 		seed_value = TombDaily.seed_for(day)
 		difficulty = TombDaily.difficulty_for(day)
 	else:
@@ -425,15 +449,25 @@ func _finish() -> void:
 	}
 	# (the tools keep nothing: what is kept is the player's own)
 	var said := {"best": false, "first": false, "streak": 0}
-	if not bare:
+	if not bare and mode != "custom":
 		said = TombDaily.keep(run)
-	TombHooks.note(TombDaily.share_text(run), _title())
+	TombHooks.note(_share_text(), _title())
 	print("TOMB FINISHED ", JSON.stringify(TombDaily.submission(run)))
 	if not bare:
 		_show_result(said)
 
 
+# The run in a line, to send to someone.
+func _share_text() -> String:
+	if mode != "custom":
+		return TombDaily.share_text(run)
+	var died := "no deaths" if deaths == 0 else ("1 death" if deaths == 1 else "%d deaths" % deaths)
+	return "Outside tomb \"%s\"  %s  %s" % [spec.get("name", "My tomb"), TombDaily.time_text(int(run["time_ms"])), died]
+
+
 func _title() -> String:
+	if mode == "custom":
+		return str(spec.get("name", "My tomb"))
 	if mode == "daily":
 		return "Daily tomb #%d" % TombDaily.number(day)
 	return "Tomb %d" % seed_value
@@ -472,6 +506,16 @@ func _build_hud() -> void:
 		stuck.offset_top = 12.0
 		stuck.offset_bottom = 54.0
 		_hud.add_child(stuck)
+		if mode == "custom":
+			var edit := _button("Edit", _to_editor)
+			edit.modulate.a = 0.8
+			edit.anchor_left = 1.0
+			edit.anchor_right = 1.0
+			edit.offset_left = -348.0
+			edit.offset_right = -244.0
+			edit.offset_top = 12.0
+			edit.offset_bottom = 54.0
+			_hud.add_child(edit)
 
 
 func _say(text: String, seconds: float) -> void:
@@ -482,7 +526,9 @@ func _say(text: String, seconds: float) -> void:
 
 func _announce() -> void:
 	var hard: String = TombGenerator.DIFFICULTY_NAMES[difficulty]
-	if mode == "daily":
+	if mode == "custom":
+		_say("%s   ·   take the falcon, and get out" % _title(), 6.0)
+	elif mode == "daily":
 		_say("Daily tomb #%d   ·   %s   ·   %s" % [TombDaily.number(day), TombDaily.date_text(day), hard], 6.0)
 	else:
 		_say("Tomb %d   ·   %s" % [seed_value, hard], 6.0)
@@ -518,11 +564,12 @@ func _show_choice() -> void:
 			_open_tomb({"mode": "random", "seed": chosen, "difficulty": level}))
 		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(pick)
+	rows.add_child(_button("Make a tomb of your own", _to_editor))
 
 
 func _show_result(said: Dictionary) -> void:
 	var rows := _open_card("OUT, WITH THE FALCON")
-	var text := TombDaily.share_text(run)
+	var text := _share_text()
 	rows.add_child(_line(text, 22))
 	var more := "To the falcon in %s." % TombDaily.time_text(int(run["goal_ms"]))
 	if said["best"] and not said["first"]:
@@ -538,7 +585,9 @@ func _show_result(said: Dictionary) -> void:
 		copied.text = "Copied")
 	rows.add_child(copied)
 	rows.add_child(_button("Again", func() -> void:
-		_open_tomb({"mode": mode, "day": day, "seed": seed_value, "difficulty": difficulty})))
+		_open_tomb({"mode": mode, "day": day, "seed": seed_value, "difficulty": difficulty, "spec": spec})))
+	if mode == "custom":
+		rows.add_child(_button("Back to the editor", _to_editor))
 	rows.add_child(_button("Another tomb", func() -> void: _open_tomb({})))
 
 
@@ -546,6 +595,12 @@ func _open_tomb(chosen: Dictionary) -> void:
 	TombLevel.play = chosen
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+
+
+## To the tomb editor (`tomb_editor.tscn`), which opens on the tomb last worked on there.
+func _to_editor() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://tomb_editor.tscn")
 
 
 func _open_card(title: String) -> VBoxContainer:

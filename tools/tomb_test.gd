@@ -13,6 +13,8 @@ extends SceneTree
 ##            between machines and renderers.
 ##  drive     opens tomb.tscn for a few seeds and plays the solver's way through
 ##            it with the real Player, by the TouchControls node.
+##  custom    the same for tombs made by hand (`TombSpec`): the one a new tomb
+##            starts as, and one with every kind of lock the editor offers.
 ##  show      prints one plan and the way through it.
 ## With no names: plans, geometry and same. Ends with PASSED or FAILED.
 
@@ -56,6 +58,8 @@ func _run(names: Array) -> void:
 		_same()
 	if "drive" in names:
 		await _drive()
+	if "custom" in names:
+		await _drive_custom()
 	if not names.is_empty():
 		print("FAILED" if failed else "PASSED")
 	quit(1 if failed else 0)
@@ -294,8 +298,53 @@ func _drive() -> void:
 		failed = true
 
 
-func _drive_one(seed_value: int, difficulty: int) -> bool:
+## A tomb with one of every lock the tomb editor offers, and every thing to carry.
+func every_lock() -> Dictionary:
+	var spec := TombSpec.fresh("Every lock")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "hall", "well", "gallery", "corridor", "antechamber", "corridor", "corridor", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[0]["torch"] = 1
+	rooms[0]["jar"] = 1
+	rooms[1]["hook"] = 1
+	rooms[2]["lock"] = "cross"
+	rooms[2]["way"] = "stairs"
+	rooms[3]["lock"] = "lever_below"
+	rooms[3]["stone_in"] = 3
+	rooms[4]["lock"] = "brazier"
+	rooms[4]["dark"] = true
+	rooms[4]["way"] = "stairs"
+	rooms[5]["lock"] = "offering"
+	rooms[6]["lock"] = "lever_above"
+	rooms[6]["stone_in"] = 5
+	rooms[6]["way"] = "stairs"
+	rooms[7]["way"] = "gap"
+	rooms[8]["lock"] = "bypass"
+	rooms[9]["mummy"] = 0
+	spec["rooms"] = rooms
+	return spec
+
+
+func _drive_custom() -> void:
+	print("CUSTOM: tombs made by hand, played by the real Player")
+	TombLevel.bare = true
+	for spec: Dictionary in [TombSpec.fresh(), every_lock()]:
+		var found := TombSpec.check(spec)
+		if not found["ok"]:
+			print("  %s: %s %s" % [spec["name"], found["says"], str(found["problems"])])
+			failed = true
+			continue
+		if not (found["warnings"] as PackedStringArray).is_empty():
+			print("  %s: %s" % [spec["name"], str(found["warnings"])])
+			failed = true
+		if not await _drive_one(0, 0, spec):
+			failed = true
+
+
+func _drive_one(seed_value: int, difficulty: int, spec := {}) -> bool:
 	TombLevel.play = {"mode": "random", "seed": seed_value, "difficulty": difficulty}
+	if not spec.is_empty():
+		TombLevel.play = {"mode": "custom", "spec": spec}
 	var scene: Node = load("res://tomb.tscn").instantiate()
 	root.add_child(scene)
 	player = scene.get_node("Player")

@@ -935,6 +935,9 @@ func _page_places(on: Leaf) -> void:
 	# (a level made from a layout can be changed: see LevelEditor)
 	if get_tree().get_first_node_in_group(&"editable_level") != null:
 		_word(on, "edit", Rect2(28.0, y + 66.0, 464.0, 58.0), "Edit this level", _edit, 26)
+	# (and a tomb can be made by hand: see TombEditor)
+	elif here == "res://tomb.tscn" and ResourceLoader.exists("res://tomb_editor.tscn"):
+		_word(on, "edit", Rect2(28.0, y + 66.0, 464.0, 58.0), "Make a tomb of my own", _go_to.bind("res://tomb_editor.tscn"), 26)
 	# His ticket up from Cairo, tucked into the foot of the page
 	var ticket := Rect2(150.0, 468.0, 300.0, 104.0)
 	Ink.card(on, ticket, -0.045, Color(0.83, 0.66, 0.52))

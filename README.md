@@ -1017,6 +1017,24 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
   `Marker3D` in the group `tomb_hooks`: scarab nests in dark rooms, cobwebs across crawls and lofts, a jackal mummy at
   the burial chamber, an inscription over every locked door (until there are real ones, a panel of plain signs, and the
   hint comes up as a caption when he stands under it), and the notebook, which is given each hint as it is read.
+- **Tombs made by hand**: `tomb_editor.tscn` (`TombEditor`) is an editor for tombs, for a phone. It is reached from the
+  card that comes up at a tomb ("Make a tomb of your own") or from the notebook's Places page while in one. The tomb
+  stands on the screen as the game builds it, seen from the side; one finger drags it about, two pinch. The rooms run
+  along the bottom in their order: touch one to choose it, "+ Room" to put one after it. The panel at the right changes
+  the chosen room: what it is (corridor, well, pillared hall, high gallery, antechamber), dark or lit, a pit, a mummy and
+  what holds it back, the torches, hooks and jars that lie in it, the way on (doorway, stairs, crawl, water, ladder, a
+  pit to swing over) and what locks the door on (the generator's seven rules, by name). Whatever a lock needs that is
+  nowhere before it is left in the room before, and said. After every change the solver is run again and what it found
+  is said under the buttons; "Way through" lists one way, step by step, or what is wrong. Every change is kept on the
+  device (`user://my_tombs.json`), under the tomb's name; "Tombs" has the others, a new one, one of the generator's
+  from a number to change by hand, and the tomb as text to copy out or paste in. "Play" plays it (`TombLevel.play =
+  {"mode": "custom", "spec": ...}`, or `-- tomb=custom` for the one last worked on), timed like any other and kept
+  nowhere; "Edit" there comes back.
+  What it makes is a `TombSpec`: the rooms in order, as plain data. It can say only what the generator's own rules can
+  make, because those are what `TombLayout` knows how to set in stone: `TombSpec.problems` lists whatever is outside
+  them (a locked crawl, a seal stone under a room that is no well), and nothing with a problem is built or played. A
+  tomb that can be built but not finished, or in which he could get himself stuck, can still be played: it is said, not
+  forbidden.
 
 | File | What it does |
 | --- | --- |
@@ -1028,6 +1046,9 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
 | `scripts/tomb_builder.gd` | Makes a layout into nodes |
 | `scripts/tomb_level.gd` | Runs a tomb: doors, mummies, checkpoints, the clock, the cards |
 | `scripts/tomb_daily.gd` | Which tomb a day has, and what is kept of how it went |
+| `scripts/tomb_spec.gd` | A tomb made by hand, as data: what is wrong with it, the plan of it, keeping it |
+| `scripts/tomb_editor.gd` | The tomb editor (`tomb_editor.tscn`) |
+| `tools/tomb_editor_test.gd` | Not part of the game: checks hand-made tombs and the editor (`tools/tomb_editor_shots.gd` takes pictures of it) |
 | `scripts/tomb_hooks.gd` | Where scarabs, cobwebs, jackals, inscriptions and the notebook plug in |
 | `scripts/tomb_random.gd` | The dice |
 | `tools/tomb_test.gd` | Not part of the game: checks plans, geometry and sameness over hundreds of seeds, and plays tombs through with the real Player |
