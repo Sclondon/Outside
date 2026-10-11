@@ -1,7 +1,18 @@
 extends SceneTree
 ## Not part of the game. Checks the tomb generator with nothing drawn.
-## godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [drive] [templates] [custom] [seeds=500] [drive_seeds=1,2,3] [per=3] [show=<seed>:<difficulty>]
+## godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [3d] [plans] [geometry] [same] [drive] [templates] [custom] [grid] [seeds=500] [drive_seeds=1,2,3] [per=3] [show=<seed>:<difficulty>]
 ##
+##  3d        everything after it is asked of the tomb that is walked through
+##            (`TombLayout3D`) and not the one seen from the side: `geometry` and
+##            `same` set it out that way (and also look for air cut through
+##            air, and for anything that stands in stone), and `drive`,
+##            `templates` and `custom` play it that way, steering him about the
+##            floor by the camera as a thumb would. `custom` then also plays a
+##            tomb with every way there is in it, one after another.
+##  grid      (with 3d) a plan whose rooms were given their cells by hand, with
+##            a side chamber and a way that closes a loop: that the cells pass
+##            the rules, that the same rules refuse cells that break them, and
+##            that it is set out, sound, and can be played through.
 ##  plans     every seed from 1 to `seeds` at each difficulty: how many plans passed
 ##            the solver at the first try, why the others were thrown away, how many
 ##            tries the worst seed took, and that what `generate` hands back passes.
@@ -23,16 +34,25 @@ extends SceneTree
 ##            Then the sand by itself: that its face cannot be got up before
 ##            the sand is let in, however he jumps at it and kicks off it; how
 ##            long the heap takes; and that dying does not empty it.
+##  kept      what is kept of a day's tomb finished seen from the side and
+##            finished walked through: apart, with one run of days between them.
+##            (In a file of its own: the player's is not touched.)
 ##  show      prints one plan and the way through it.
 ##  shots=<folder>  (not headless: `--resolution 1280x720`, and its window is kept
 ##            off the screen) saves pictures of the new templates as they are
 ##            played, during `templates` and `custom`: the two plates, the rope
 ##            going down and up, the sand before, pouring, full and gone over.
-## With no names: plans, geometry and same. Ends with PASSED or FAILED.
+## With no names: plans, geometry, same and kept. Ends with PASSED or FAILED.
+
+const Shapes := preload("res://tools/tomb_shapes.gd")
 
 var seeds := 500
+## Whether it is the tomb that is walked through that is asked about.
+var walked := false
 var drive_seeds: Array = [1, 2, 3]
 var per := 3
+## With `custom`: only the tombs whose names have this in them (and not the sand by itself).
+var pick := ""
 var shots := ""
 var shot_count := 0
 var failed := false
@@ -55,6 +75,10 @@ func _initialize() -> void:
 			DisplayServer.window_set_position(Vector2i(-6000, -6000))
 		elif arg.begins_with("per="):
 			per = int(arg.trim_prefix("per="))
+		elif arg == "3d":
+			walked = true
+		elif arg.begins_with("pick="):
+			pick = arg.trim_prefix("pick=").to_lower()
 		elif arg.begins_with("drive_difficulties="):
 			drive_difficulties = []
 			for part in arg.trim_prefix("drive_difficulties=").split(","):
@@ -66,7 +90,7 @@ func _initialize() -> void:
 		else:
 			names.append(arg)
 	if names.is_empty() and not shown:
-		names = ["plans", "geometry", "same"]
+		names = ["plans", "geometry", "same", "kept"]
 	_run.call_deferred(names)
 
 
@@ -78,12 +102,16 @@ func _run(names: Array) -> void:
 		_geometry()
 	if "same" in names:
 		_same()
+	if "kept" in names:
+		_kept()
 	if "drive" in names:
 		await _drive()
 	if "templates" in names:
 		await _drive_templates()
 	if "custom" in names:
 		await _drive_custom()
+	if "grid" in names:
+		await _grid()
 	if not names.is_empty():
 		print("FAILED" if failed else "PASSED")
 	quit(1 if failed else 0)
@@ -222,8 +250,15 @@ func _plans() -> void:
 			failed = true
 
 
+# A plan set out the way that is being asked about.
+func _lay(plan: TombPlan) -> TombLayout:
+	return TombLayout3D.set_out(plan) if walked else TombLayout.lay(plan)
+
+
 func _geometry() -> void:
 	var reach := TombReach.measure()
+	if walked:
+		print("GEOMETRY of the tomb that is walked through. A kick off a wall takes his feet %.2f m higher than a jump, and sends him out from it at %.1f m/s" % [reach["kick"], reach["kick_out"]])
 	print("GEOMETRY: what he can do, from player.tscn: a running jump %.2f m, a ledge %.2f m (asked for no more than %.2f), a hop %.2f, a step %.2f; %.2f tall, %.2f ducked, %.2f wide" % [
 		reach["far"], reach["ledge"], TombReach.LEDGE_MOST, reach["hop"], reach["step"], reach["tall"], reach["crouched"], reach["wide"]])
 	for difficulty in 3:
@@ -235,9 +270,9 @@ func _geometry() -> void:
 		var kinds := {}
 		var first := ""
 		for seed_value in range(1, seeds + 1):
-			var layout := TombLayout.lay(TombGenerator.generate(seed_value, difficulty))
+			var layout := _lay(TombGenerator.generate(seed_value, difficulty))
 			var wrong := TombReach.check(layout, reach)
-			wrong.append_array(_overlaps(layout))
+			wrong.append_array(_overlaps3(layout as TombLayout3D) if walked else _overlaps(layout))
 			if not wrong.is_empty():
 				bad += 1
 				if first == "":
@@ -286,13 +321,13 @@ func _overlaps(layout: TombLayout) -> PackedStringArray:
 
 
 func _same() -> void:
-	print("SAME: each tomb made twice")
+	print("SAME: each tomb made twice%s" % (", walked through" if walked else ""))
 	var differ := 0
 	var count := mini(seeds, 200)
 	for difficulty in 3:
 		for seed_value in range(1, count + 1):
-			var one := TombLayout.lay(TombGenerator.generate(seed_value, difficulty))
-			var two := TombLayout.lay(TombGenerator.generate(seed_value, difficulty))
+			var one := _lay(TombGenerator.generate(seed_value, difficulty))
+			var two := _lay(TombGenerator.generate(seed_value, difficulty))
 			if one.plan.fingerprint() != two.plan.fingerprint() or one.fingerprint() != two.fingerprint():
 				differ += 1
 	print("  %d tombs at each difficulty: %d came out differently the second time" % [count, differ])
@@ -300,10 +335,10 @@ func _same() -> void:
 		failed = true
 	# These are the same on every machine, or the daily tomb is not.
 	for seed_value: int in [1, 2, 3]:
-		var layout := TombLayout.lay(TombGenerator.generate(seed_value, 1))
+		var layout := _lay(TombGenerator.generate(seed_value, 1))
 		print("  seed %d middling: plan %s  stone %s" % [seed_value, layout.plan.fingerprint(), layout.fingerprint()])
 	var today := TombDaily.today()
-	var daily := TombLayout.lay(TombGenerator.generate(TombDaily.seed_for(today), TombDaily.difficulty_for(today)))
+	var daily := _lay(TombGenerator.generate(TombDaily.seed_for(today), TombDaily.difficulty_for(today)))
 	print("  today (day %d, tomb #%d, %s): plan %s  stone %s" % [today, TombDaily.number(today), TombGenerator.DIFFICULTY_NAMES[TombDaily.difficulty_for(today)],
 			daily.plan.fingerprint(), daily.fingerprint()])
 
@@ -322,7 +357,7 @@ var tally := {"rope_down": 0, "rope_up": 0, "rope_down_missed": 0, "rope_up_miss
 
 
 func _drive() -> void:
-	print("DRIVE: the solver's way through, played by the real Player")
+	print("DRIVE: the solver's way through, played by the real Player%s" % (", in the tomb that is walked through" if walked else ""))
 	TombLevel.bare = true
 	var finished := 0
 	var tried := 0
@@ -338,50 +373,15 @@ func _drive() -> void:
 
 
 ## A tomb with one of every lock the tomb editor offers, and every thing to carry.
+## (These three are in `tools/tomb_shapes.gd`, which the picture tools share.)
 func every_lock() -> Dictionary:
-	var spec := TombSpec.fresh("Every lock")
-	var rooms: Array = []
-	for role: String in ["entrance", "corridor", "hall", "well", "gallery", "corridor", "antechamber", "corridor", "corridor", "burial"]:
-		rooms.append(TombSpec.room(role))
-	rooms[0]["torch"] = 1
-	rooms[0]["jar"] = 1
-	rooms[1]["hook"] = 1
-	rooms[2]["lock"] = "cross"
-	rooms[2]["way"] = "stairs"
-	rooms[3]["lock"] = "lever_below"
-	rooms[3]["stone_in"] = 3
-	rooms[4]["lock"] = "brazier"
-	rooms[4]["dark"] = true
-	rooms[4]["way"] = "stairs"
-	rooms[5]["lock"] = "offering"
-	rooms[6]["lock"] = "lever_above"
-	rooms[6]["stone_in"] = 5
-	rooms[6]["way"] = "stairs"
-	rooms[7]["way"] = "gap"
-	rooms[8]["lock"] = "bypass"
-	rooms[9]["mummy"] = 0
-	spec["rooms"] = rooms
-	return spec
+	return Shapes.every_lock()
 
 
 ## A tomb with the two-plate door, the rope and the sand: the torch for the
 ## brazier beyond them is dropped down the shaft with, and carried up the heap.
 func three_new() -> Dictionary:
-	var spec := TombSpec.fresh("Two plates, a rope, the sand")
-	var rooms: Array = []
-	for role: String in ["entrance", "corridor", "hall", "corridor", "gallery", "antechamber", "corridor", "burial"]:
-		rooms.append(TombSpec.room(role))
-	rooms[0]["torch"] = 1
-	rooms[2]["lock"] = "pair"
-	rooms[2]["way"] = "stairs"
-	rooms[3]["way"] = "rope"
-	rooms[4]["way"] = "sand"
-	rooms[5]["lock"] = "brazier"
-	rooms[5]["dark"] = true
-	rooms[5]["way"] = "sand"
-	rooms[6]["way"] = "stairs"
-	spec["rooms"] = rooms
-	return spec
+	return Shapes.three_new()
 
 
 # The tombs that have each of the new templates: [seed, difficulty] each, the
@@ -425,14 +425,21 @@ func _drive_templates() -> void:
 
 
 func _say_tally() -> void:
+	print("  of the %d mummies in those tombs, %d woke as he went by or took the falcon" % [mummies_met, mummies_woken])
 	print("  the rope taken hold of %d times going down and %d going up (tries that went wrong: %d and %d); the sand gone up %d times (%d of them with his hands full) and down %d" % [
 			tally["rope_down"], tally["rope_up"], tally["rope_down_missed"], tally["rope_up_missed"], tally["sand_up"], tally["sand_up_carrying"], tally["sand_down"]])
 
 
 func _drive_custom() -> void:
-	print("CUSTOM: tombs made by hand, played by the real Player")
+	print("CUSTOM: tombs made by hand, played by the real Player%s" % (", in the tomb that is walked through" if walked else ""))
 	TombLevel.bare = true
-	for spec: Dictionary in [TombSpec.fresh(), every_lock(), three_new()]:
+	var specs: Array = [TombSpec.fresh(), every_lock(), three_new()]
+	if walked:
+		specs.append(Shapes.every_way())
+	if pick != "":
+		specs = specs.filter(func(spec: Dictionary) -> bool: return pick in String(spec["name"]).to_lower())
+	var finished := 0
+	for spec: Dictionary in specs:
 		var found := TombSpec.check(spec)
 		if not found["ok"]:
 			print("  %s: %s %s" % [spec["name"], found["says"], str(found["problems"])])
@@ -441,20 +448,22 @@ func _drive_custom() -> void:
 		if not (found["warnings"] as PackedStringArray).is_empty():
 			print("  %s: %s" % [spec["name"], str(found["warnings"])])
 			failed = true
-		if not await _drive_one(0, 0, spec):
+		if await _drive_one(0, 0, spec):
+			finished += 1
+		else:
 			failed = true
-	if not await _sand_holds():
+	print("  finished %d of %d" % [finished, specs.size()])
+	var held := pick != "" or (await _sand_holds3() if walked else await _sand_holds())
+	if not held:
+		failed = true
+	if walked and pick == "" and not await _carried_back3():
 		failed = true
 	_say_tally()
 
 
 ## A tomb whose only way on is up the sand, which a block on its plate lets in.
 func only_sand() -> Dictionary:
-	var spec := TombSpec.fresh("Only the sand")
-	spec["rooms"] = [TombSpec.room("entrance"), TombSpec.room("corridor"), TombSpec.room("burial")]
-	spec["rooms"][1]["way"] = "sand"
-	spec["rooms"][1]["lock"] = "work"
-	return spec
+	return Shapes.only_sand()
 
 
 # The sand by itself. Before it is let in he throws himself at the face for ten
@@ -529,10 +538,13 @@ func _drive_one(seed_value: int, difficulty: int, spec := {}) -> bool:
 
 
 # Opens tomb.tscn on a tomb, with the Player and the TouchControls taken hold of.
-func _open(seed_value: int, difficulty: int, spec := {}) -> void:
+func _open(seed_value: int, difficulty: int, spec := {}, given: TombPlan = null) -> void:
 	TombLevel.play = {"mode": "random", "seed": seed_value, "difficulty": difficulty}
 	if not spec.is_empty():
 		TombLevel.play = {"mode": "custom", "spec": spec}
+	if given:
+		TombLevel.play = {"mode": "plan", "plan": given}
+	TombLevel.play["view"] = "3d" if walked else "side"
 	var scene: Node = load("res://tomb.tscn").instantiate()
 	root.add_child(scene)
 	player = scene.get_node("Player")
@@ -547,6 +559,8 @@ func _open(seed_value: int, difficulty: int, spec := {}) -> void:
 			Input.action_release(action)
 	await _wait(30)
 	space = player.get_world_3d().direct_space_state
+	woken = {}
+	layout3 = level.layout as TombLayout3D
 	frames_used = 0
 	tomb_name = "custom" if not spec.is_empty() else "%d_%d" % [seed_value, difficulty]
 
@@ -566,17 +580,22 @@ func _play_through(called: String) -> bool:
 	_still()
 	await _wait(30)
 	if stopped == "" and not level.finished:
-		if not await _go(level.layout.start):
+		var out := await _go3(level.layout.start) if walked else await _go(level.layout.start)
+		if not out:
 			stopped = "the last walk out, at %s" % player.global_position
 		await _wait(10)
 	var done := level.finished and stopped == ""
 	print("  %s %s  %d rooms, %d steps, %.0f m: %s" % [called,
 			"FINISHED" if done else "STOPPED ", plan.rooms.size(), plan.solution.size(), level.layout.length,
 			("in %s of play, %d deaths" % [TombDaily.time_text(level.time_ms()), level.deaths]) if done else stopped])
+	mummies_met += level.built.mummies.size()
+	mummies_woken += woken.size()
 	return done
 
 
 func _do_step(step: Array) -> bool:
+	if walked:
+		return await _do_step3(step)
 	var plan := level.plan
 	var layout := level.layout
 	match step[0]:
@@ -983,6 +1002,12 @@ func _wait(count: int) -> void:
 	for i in count:
 		await physics_frame
 		frames_used += 1
+		# (which mummies have been up, for the count at the end)
+		if frames_used % 6 == 0 and is_instance_valid(level) and level.built:
+			for n in level.built.mummies.size():
+				var mummy: Node3D = level.built.mummies[n]["node"]
+				if mummy.has_method(&"is_awake") and mummy.call(&"is_awake"):
+					woken[n] = true
 
 
 func _ray(from: Vector3, to: Vector3) -> Dictionary:
@@ -1080,3 +1105,898 @@ func _go(target: Vector3, near := 0.35, until := Callable(), pushing := false) -
 			since = 0
 	_still()
 	return false
+
+
+# --- The same, in a tomb that is walked through
+#
+# There he is steered over the floor, not along a line, and what is asked of
+# the stick is turned to how the camera is looking, as a thumb's push is. He
+# goes by the lines the layout says he is expected to walk
+# (`TombLayout3D.walk_lines`): onto the nearest, along them from corner to
+# corner, and off the last to where he is going. Each straight stretch is gone
+# along as `_go` goes along the whole of a tomb seen from the side, with the
+# same jumping, hopping, ducking, climbing and swimming.
+
+const ARRIVED := 1
+const LOST := 0
+## He was thrown back to a door on the way (he died): the way has to be found again.
+const THROWN := 2
+
+var layout3: TombLayout3D
+## Which mummies of the tomb that is open have been awake, and the count over every tomb played.
+var woken := {}
+var mummies_met := 0
+var mummies_woken := 0
+
+
+# The stick, for going `way` over the ground, as the camera now looks.
+func _stick(way: Vector3, push := 0.92) -> Vector2:
+	var flat := Vector3(way.x, 0.0, way.z)
+	if flat.length() < 0.001:
+		return Vector2.ZERO
+	flat = flat.normalized() * push
+	var right := Vector3.RIGHT
+	var forward := Vector3.FORWARD
+	var camera := player.get_viewport().get_camera_3d()
+	if camera:
+		var view := camera.global_basis
+		right = Vector3(view.x.x, 0.0, view.x.z).normalized()
+		forward = Vector3(-view.z.x, 0.0, -view.z.z)
+		if forward.length_squared() < 0.001:
+			forward = Vector3(view.y.x, 0.0, view.y.z)
+		forward = forward.normalized()
+	return Vector2(flat.dot(right), -flat.dot(forward))
+
+
+func _flat(from: Vector3, to: Vector3) -> Vector3:
+	return Vector3(to.x - from.x, 0.0, to.z - from.z)
+
+
+# Straight to a place, doing whatever is in the way (see _go).
+func _leg(target: Vector3, near := 0.35, until := Callable(), pushing := false) -> int:
+	var limit := int(_flat(player.global_position, target).length() * 70.0) + 1500
+	var checked := player.global_position
+	var since := 0
+	var hold_jump := 0
+	var back_off := -1000
+	var deaths := level.deaths
+	var way := Vector3.ZERO
+	for frame in limit:
+		var at := player.global_position
+		if until.is_valid() and until.call():
+			_still()
+			return ARRIVED
+		var to := _flat(at, target)
+		var far := to.length()
+		if not until.is_valid() and far < near and absf(target.y - at.y) < 0.7 and player.is_on_floor() and player.state == Player.State.FREE:
+			_still()
+			return ARRIVED
+		if level.deaths != deaths:
+			_still()
+			return THROWN
+		if far > 0.08:
+			way = to / far
+		back_off -= 1
+		touch.move = _stick(-way if back_off > 0 else way)
+		touch.duck_held = false
+		hold_jump -= 1
+		touch.jump_held = hold_jump > 0
+		if player.is_limp:
+			await _wait(1)
+			continue
+		match player.state:
+			Player.State.LADDER:
+				var up := target.y > at.y + 0.05
+				touch.move = Vector2(0.0, -1.0 if up else 1.0)
+				# (at the foot of it, he lets go)
+				if not up and is_instance_valid(player._ladder) and at.y < player._ladder.bottom_y() + 0.12:
+					touch.duck_held = true
+			Player.State.HANG:
+				if target.y > at.y + 0.4 or far > 1.5:
+					if frame % 10 == 0:
+						player._queue_jump()
+				else:
+					touch.duck_held = true
+			Player.State.SWIM:
+				if frame % 20 == 0 and Vector2(player.velocity.x, player.velocity.z).length() < 0.4:
+					player._queue_jump()
+			Player.State.FREE:
+				if player.is_on_floor():
+					var feet := at + Vector3.UP * 0.2
+					var low := _ray(feet, feet + way * 0.65)
+					# (what lies about loose is stepped over or kicked along, not jumped;
+					# and what is beyond where he is going is nothing to him)
+					if not low.is_empty() and low["collider"] is RigidBody3D and not (low["collider"] as Node).is_in_group(&"tomb_blocks"):
+						low = {}
+					if not low.is_empty() and feet.distance_to(low["position"]) > far + 0.25:
+						low = {}
+					var chest := _ray(at + Vector3.UP * 1.0, at + Vector3.UP * 1.0 + way * 0.65)
+					var head := _ray(at + way * 0.5 + Vector3.UP * 0.5, at + way * 0.5 + Vector3.UP * 1.45)
+					var over := _ray(at + Vector3.UP * 0.5, at + Vector3.UP * 1.45)
+					var ground := _ray(at + way * 0.5 + Vector3.UP * 0.5, at + way * 0.5 + Vector3.DOWN * 1.0)
+					var going_down := target.y < at.y - 1.2 and far < 4.5
+					if not head.is_empty() or not over.is_empty():
+						touch.duck_held = true
+					elif ground.is_empty() and not going_down and far > 0.5:
+						if Vector2(player.velocity.x, player.velocity.z).length() < 3.4 and back_off < -90:
+							# (too slow to clear it from here: back a few steps for a run at it)
+							back_off = 32
+						elif back_off <= 0:
+							hold_jump = 22
+							touch.jump_held = true
+							player._queue_jump()
+					elif not low.is_empty():
+						var block := (low["collider"] as Node).is_in_group(&"tomb_blocks")
+						if block and pushing:
+							pass
+						elif block or chest.is_empty():
+							hold_jump = 12
+							touch.jump_held = true
+							player._queue_jump()
+						elif target.y > at.y + 0.5:
+							# (a wall with something to catch at the top of it)
+							hold_jump = 20
+							touch.jump_held = true
+							player._queue_jump()
+		await _wait(1)
+		since += 1
+		if OS.has_environment("TOMB_TRACE") and frame % 6 == 0:
+			print("      at %s v %.1f state %d floor %s to %s" % [player.global_position, player.velocity.length(), player.state, player.is_on_floor(), target])
+		if since >= 120:
+			if player.global_position.distance_to(checked) < 0.25 and player.state == Player.State.FREE and player.is_on_floor() and not pushing:
+				hold_jump = 15
+				player._queue_jump()
+			checked = player.global_position
+			since = 0
+	_still()
+	return LOST
+
+
+# The place on his lines nearest to `at`: `line` (which) and `at` (where on it).
+func _on_line(at: Vector3) -> Dictionary:
+	var room := layout3.plan_room_at(at)
+	var best := {}
+	for pass_number in 2:
+		var least := INF
+		for n in layout3.walk_lines.size():
+			var line := layout3.walk_lines[n]
+			if pass_number == 0 and layout3.walk_rooms[line.x] != room and layout3.walk_rooms[line.y] != room:
+				continue
+			var one := layout3.walk_points[line.x]
+			var other := layout3.walk_points[line.y]
+			var along := other - one
+			var share := clampf((at - one).dot(along) / maxf(along.length_squared(), 0.0001), 0.0, 1.0)
+			var nearest := one + along * share
+			var off := Vector3(nearest.x - at.x, (nearest.y - at.y) * 3.0, nearest.z - at.z).length()
+			if off < least:
+				least = off
+				best = {"line": n, "at": nearest}
+		if not best.is_empty():
+			break
+	return best
+
+
+# The places to go by, in order, to get to `target` by his lines.
+func _route(target: Vector3) -> Array[Vector3]:
+	var from := player.global_position
+	var out: Array[Vector3] = []
+	var a := _on_line(from)
+	var b := _on_line(target)
+	if a.is_empty() or b.is_empty() or _flat(from, target).length() < 1.0:
+		out.append(target)
+		return out
+	out.append(a["at"])
+	if a["line"] != b["line"]:
+		# The shortest way along the lines from the one he is on to the one it is on.
+		var count := layout3.walk_points.size()
+		var cost: Array[float] = []
+		cost.resize(count)
+		cost.fill(INF)
+		var came: Array[int] = []
+		came.resize(count)
+		came.fill(-1)
+		var first := layout3.walk_lines[a["line"]]
+		for end: int in [first.x, first.y]:
+			cost[end] = (a["at"] as Vector3).distance_to(layout3.walk_points[end])
+		var open: Array[int] = [first.x, first.y]
+		while not open.is_empty():
+			var least := 0
+			for i in open.size():
+				if cost[open[i]] < cost[open[least]]:
+					least = i
+			var here: int = open[least]
+			open.remove_at(least)
+			for line in layout3.walk_lines:
+				if line.x != here and line.y != here:
+					continue
+				var there := line.y if line.x == here else line.x
+				var by := cost[here] + layout3.walk_points[here].distance_to(layout3.walk_points[there])
+				if by < cost[there] - 0.001:
+					cost[there] = by
+					came[there] = here
+					if not there in open:
+						open.append(there)
+		var last := layout3.walk_lines[b["line"]]
+		var end := last.x
+		if cost[last.y] + (b["at"] as Vector3).distance_to(layout3.walk_points[last.y]) < cost[last.x] + (b["at"] as Vector3).distance_to(layout3.walk_points[last.x]):
+			end = last.y
+		if cost[end] < INF:
+			var back: Array[Vector3] = []
+			var at := end
+			while at != -1:
+				back.append(layout3.walk_points[at])
+				at = came[at]
+			back.reverse()
+			out.append_array(back)
+	out.append(b["at"])
+	out.append(target)
+	# (a place hardly a step from the one before it is not worth stopping at)
+	var kept: Array[Vector3] = []
+	var before := from
+	for i in out.size():
+		if i == out.size() - 1 or _flat(before, out[i]).length() > 0.45 or absf(before.y - out[i].y) > 0.5:
+			kept.append(out[i])
+			before = out[i]
+	return kept
+
+
+# To a place, by his lines. `avoid` is something that stands where the last
+# few steps would take him through it (a block he is getting behind): he goes round.
+func _go3(target: Vector3, near := 0.35, avoid := Vector3.INF) -> bool:
+	for attempt in 8:
+		var route := _route(target)
+		if avoid != Vector3.INF:
+			var from := route[-2] if route.size() > 1 else player.global_position
+			var along := _flat(from, target)
+			var share := clampf(_flat(from, avoid).dot(along) / maxf(along.length_squared(), 0.0001), 0.0, 1.0)
+			if _flat(from + along * share, avoid).length() < 0.85:
+				var across := Vector3(-along.z, 0.0, along.x).normalized()
+				for side: float in [1.4, -1.4]:
+					var one := from + across * side
+					var other := Vector3(target.x, from.y, target.z) + across * side
+					var up := Vector3.UP * 0.5
+					if _ray(from + up, one + up).is_empty() and _ray(one + up, other + up).is_empty() and _ray(other + up, Vector3(target.x, from.y, target.z) + up).is_empty():
+						route.insert(route.size() - 1, one)
+						route.insert(route.size() - 1, other)
+						break
+		var again := false
+		for i in route.size():
+			var got := await _leg(route[i], near if i == route.size() - 1 else 0.3)
+			if got == ARRIVED:
+				continue
+			again = true
+			if got == THROWN:
+				# (he is back at a door: when he is on his feet, the way is found again from there)
+				await _wait(150)
+			elif attempt >= 2:
+				return false
+			break
+		if not again:
+			return true
+	return false
+
+
+func _along(link: TombPlan.Link) -> Vector3:
+	return Vector3(TombLayout3D.TURNS[int(layout3.ways[link.id]["turn"])])
+
+
+# Where a way brings him to in the room it goes to: just inside its way in, or its bay.
+func _arrival(link: TombPlan.Link, to: int) -> Vector3:
+	var info := layout3.rooms[to]
+	if to == link.b and layout3._in[to] == link.id:
+		return info["west"]
+	return info["east"]
+
+
+func _do_step3(step: Array) -> bool:
+	var plan := level.plan
+	match step[0]:
+		"go":
+			var link: TombPlan.Link = plan.links[step[1]]
+			var from: int = step[2]
+			var to: int = step[3]
+			match link.pass_kind:
+				TombPlan.Pass.CLIMB:
+					var loft := layout3.rooms[link.b]
+					var along := Vector3(TombLayout3D.TURNS[int(loft["turn"])])
+					var edge: Vector3 = loft["edge"]
+					if to == link.b:
+						return await _climb_loft3(loft)
+					if not await _go3(loft["west"]):
+						return false
+					return await _leg(Vector3(edge.x, float(layout3.rooms[to]["floor"]), edge.z) - along * 1.4) == ARRIVED
+				TombPlan.Pass.DROP:
+					if not await _go3(layout3.rooms[from]["east"]):
+						return false
+					return await _leg(layout3.rooms[to]["west"]) == ARRIVED
+				TombPlan.Pass.SHAFT:
+					if plan.rooms[link.b].role == TombPlan.Role.CRYPT:
+						var crypt := layout3.rooms[link.b]
+						if to == link.b:
+							if not await _go3(crypt["before"]):
+								return false
+							return await _leg(crypt["east"]) == ARRIVED
+						if not await _go3(crypt["east"]):
+							return false
+						return await _leg(crypt["over"]) == ARRIVED
+				TombPlan.Pass.ROPE:
+					if to == link.b:
+						if not await _rope_down3(link):
+							return false
+					elif not await _rope_up3(link):
+						return false
+				TombPlan.Pass.SAND:
+					if to == link.b:
+						if not await _sand_up3(link):
+							return false
+					elif not await _sand_down3(link):
+						return false
+				TombPlan.Pass.GAP:
+					if not await _swing3(link, to == link.b):
+						return false
+			return await _go3(_arrival(link, to))
+		"push":
+			var block := _block_for(step[2], -1)
+			return await _push3(block, _plate_of(block))
+		"take":
+			var body: RigidBody3D = level.built.items[step[1]]
+			for attempt in 3:
+				var lies := body.global_position
+				var beside := _on_line(lies)
+				if not beside.is_empty() and _flat(player.global_position, lies).length() > 1.2 and not await _go3(beside["at"]):
+					return false
+				if await _leg(Vector3(lies.x, player.global_position.y, lies.z), 0.5) != ARRIVED:
+					continue
+				_still()
+				await _wait(12)
+				player._act()
+				for i in 120:
+					await _wait(1)
+					if player.carried == body and player.pickup_progress >= 1.0:
+						return true
+			print("    could not take %s lying at %s (he is at %s, holding %s)" % [body.name, body.global_position, player.global_position, player.carried])
+			return false
+		"drop":
+			return await _put_down()
+		"do":
+			var trigger: TombPlan.Trigger = plan.triggers[step[1]]
+			if level.done[trigger.id]:
+				return true
+			var at := layout3.switch_at[trigger.id]
+			var stand := layout3.stand_at[trigger.id]
+			match trigger.kind:
+				TombPlan.Switch.WORK_PLATE:
+					return await _push3(_block_for(-1, trigger.id), trigger.id)
+				TombPlan.Switch.PLATE:
+					return await _push3(_block_for(-2, trigger.id), trigger.id)
+				TombPlan.Switch.OFFERING:
+					if not await _go3(stand, 0.15):
+						return false
+					# (turned to face it)
+					touch.move = _stick(_flat(stand, at), 0.3)
+					await _wait(8)
+					if not await _put_down():
+						return false
+				_:
+					if not await _go3(stand):
+						return false
+			_still()
+			for i in 180:
+				await _wait(1)
+				if level.done[trigger.id]:
+					return true
+			print("    %s not done: he is at %s holding %s, it is at %s" % [TombPlan.SWITCH_NAMES[trigger.kind], player.global_position, player.carried, at])
+			return false
+	return false
+
+
+# Gets behind a block, round it if it is in the way, and walks it along its lane until its plate is down.
+func _push3(block: Dictionary, trigger: int) -> bool:
+	if block.is_empty() or trigger < 0:
+		return false
+	if level.done[trigger]:
+		return true
+	var body: RigidBody3D = block["body"]
+	var stands := body.global_position
+	var plate := layout3.switch_at[trigger]
+	var to := _flat(stands, plate)
+	var along := Vector3(signf(to.x), 0.0, 0.0) if absf(to.x) > absf(to.z) else Vector3(0.0, 0.0, signf(to.z))
+	var behind := Vector3(stands.x, stands.y - TombLayout.BLOCK * 0.5, stands.z) - along * 0.95
+	if not await _go3(behind, 0.2, stands):
+		return false
+	var pushed := await _leg(plate + along * 3.0, 0.35, func() -> bool: return level.done[trigger], true) == ARRIVED
+	if _is_two_plates(trigger):
+		await _wait(40)
+		await _shot("two_plates")
+	return pushed
+
+
+# Runs at the lip of a loft, jumps for it and gets up onto it.
+func _climb_loft3(loft: Dictionary) -> bool:
+	var along := Vector3(TombLayout3D.TURNS[int(loft["turn"])])
+	var edge: Vector3 = loft["edge"]
+	var top: float = loft["floor"]
+	for attempt in 3:
+		if not await _go3(Vector3(edge.x, top - TombLayout.LOFT_TOP, edge.z) - along * 0.62, 0.12):
+			return false
+		for i in 240:
+			touch.move = _stick(along, 1.0)
+			if player.state == Player.State.FREE and player.is_on_floor() and i % 30 == 5:
+				touch.jump_held = true
+				player._queue_jump()
+			if player.state == Player.State.HANG:
+				touch.jump_held = false
+				player._queue_jump()
+			await _wait(1)
+			if player.is_on_floor() and player.global_position.y > top - 0.3:
+				touch.jump_held = false
+				return await _go3(loft["west"])
+			if _flat(edge, player.global_position).dot(along) > 1.5:
+				break
+		touch.jump_held = false
+	return false
+
+
+# Down a shaft by its rope: he runs off the lip into it, which is taking hold,
+# and lets himself down with duck. With his hands full he cannot take hold: he
+# steps off and drops.
+func _rope_down3(link: TombPlan.Link) -> bool:
+	var way := layout3.ways[link.id]
+	var along := _along(link)
+	var hangs: Vector3 = way["rope"]
+	var foot: float = (way["lower"] as Vector3).y
+	if not await _go3(way["upper"]):
+		return false
+	var full := player.carried != null
+	var on := false
+	for i in 300:
+		var to := _flat(player.global_position, hangs)
+		touch.move = _stick(to if to.dot(along) > 0.3 else along, 1.0)
+		await _wait(1)
+		if player.state == Player.State.ROPE:
+			on = true
+			break
+		if player.is_on_floor() and player.global_position.y < foot + 0.3:
+			break
+	if on:
+		tally["rope_down"] += 1
+		await _shot("rope_down_caught")
+		for i in 900:
+			touch.move = Vector2.ZERO
+			touch.duck_held = true
+			await _wait(1)
+			if player.state != Player.State.ROPE and player.is_on_floor():
+				break
+	elif not full:
+		tally["rope_down_missed"] += 1
+		print("    he ran off the lip and did not take hold of the rope (at %s)" % player.global_position)
+		return false
+	_still()
+	# (a long drop is a hard landing: he gets up)
+	await _wait(20 if on else 150)
+	if full and player.carried == null:
+		print("    he dropped what he was carrying, coming down the shaft")
+		return false
+	return true
+
+
+# Up a shaft by its rope: he runs at it and jumps, which is taking hold; climbs
+# it with act held, to the top; and leaps off it towards the lip.
+func _rope_up3(link: TombPlan.Link) -> bool:
+	var way := layout3.ways[link.id]
+	var along := _along(link)
+	var hangs: Vector3 = way["rope"]
+	var top: float = (way["lip"] as Vector3).y
+	if player.carried != null:
+		return false
+	for attempt in 3:
+		if not await _go3(way["lower"], 0.2):
+			return false
+		var on := false
+		for i in 150:
+			var to := _flat(player.global_position, hangs)
+			touch.move = _stick(to if to.length() > 0.15 else -along, 1.0)
+			if i == 6:
+				touch.jump_held = true
+				player._queue_jump()
+			await _wait(1)
+			if player.state == Player.State.ROPE:
+				on = true
+				break
+		touch.jump_held = false
+		if on:
+			await _shot("rope_up_caught")
+			touch.move = Vector2.ZERO
+			# (he climbs with act held: but act has to be let go once he is on it, and pressed again)
+			await _wait(4)
+			for i in 900:
+				touch.act_held = true
+				await _wait(1)
+				if OS.has_environment("ROPE_TRACE") and i % 20 == 0:
+					print("      climbing: state %d, hands %.2f down, at %s, act %s" % [player.state, player._rope_at, player.global_position, player._rope_act])
+				if player.state != Player.State.ROPE or player._rope_at <= 0.41:
+					break
+			if OS.has_environment("ROPE_TRACE"):
+				print("      at the top of the rope: state %d, hands %.2f down it, at %s" % [player.state, player._rope_at, player.global_position])
+			touch.act_held = false
+		if on and player.state == Player.State.ROPE:
+			await _shot("rope_up_top")
+			touch.jump_held = true
+			player._queue_jump()
+			for i in 150:
+				touch.move = _stick(-along, 1.0)
+				await _wait(1)
+				if player.is_on_floor() and player.state == Player.State.FREE:
+					break
+			touch.jump_held = false
+			if player.is_on_floor() and player.global_position.y > top - 0.2:
+				tally["rope_up"] += 1
+				_still()
+				return true
+		tally["rope_up_missed"] += 1
+		print("    try %d at the rope went wrong: on it %s, now at %s" % [attempt + 1, on, player.global_position])
+		_still()
+		await _wait(120)
+	return false
+
+
+# Up over the sand, as someone in a hurry does it: straight to the face, and
+# jumping at it until the heap under him is high enough.
+func _sand_up3(link: TombPlan.Link) -> bool:
+	var way := layout3.ways[link.id]
+	var along := _along(link)
+	var face: Vector3 = way["face"]
+	var top: float = (way["top"] as Vector3).y
+	var full := player.carried != null
+	var hold_jump := 0
+	if _flat(way["before"], player.global_position).dot(along) < 0.0 and not await _go3(way["before"]):
+		return false
+	var fall: SandFall = level.built.sands[link.id]
+	var seen := 0
+	await _shot("sand_foot")
+	for i in 60 * 40:
+		var at := player.global_position
+		touch.move = _stick(_flat(at, face + along * 1.5), 1.0)
+		hold_jump -= 1
+		touch.jump_held = hold_jump > 0
+		if player.state == Player.State.HANG:
+			if i % 10 == 0:
+				player._queue_jump()
+		elif player.state == Player.State.FREE and player.is_on_floor() and _flat(at, face).dot(along) < 0.7 and i % 45 == 0:
+			hold_jump = 20
+			touch.jump_held = true
+			player._queue_jump()
+		await _wait(1)
+		at = player.global_position
+		var high := fall.pile.height if fall.pile else 0.0
+		if (seen == 0 and _flat(at, face).dot(along) < 1.0) or (seen == 1 and high > 1.3 and player.is_on_floor()) or (seen == 2 and fall.pile != null and fall.pile.is_full() and player.is_on_floor()):
+			seen += 1
+			await _shot("sand_up_%d" % seen)
+		if player.is_on_floor() and player.state == Player.State.FREE and at.y > top - 0.1 and _flat(face, at).dot(along) > 0.0:
+			_still()
+			await _shot("sand_over")
+			if full and player.carried == null:
+				print("    he dropped what he was carrying, going up the sand")
+				return false
+			tally["sand_up"] += 1
+			if full:
+				tally["sand_up_carrying"] += 1
+			return true
+	print("    not over the sand: he is at %s, state %d; the heap is %.2f high (full %s), pouring %s" % [player.global_position, player.state, fall.pile.height if fall.pile else -1.0, fall.pile != null and fall.pile.is_full(), fall.running])
+	return false
+
+
+# Back down it: off the lip onto the top of the heap, and down its side.
+func _sand_down3(link: TombPlan.Link) -> bool:
+	var way := layout3.ways[link.id]
+	var along := _along(link)
+	var face: Vector3 = way["face"]
+	if not await _go3(way["top"]):
+		return false
+	for i in 900:
+		touch.move = _stick(_flat(player.global_position, way["before"]), 1.0)
+		await _wait(1)
+		if player.is_on_floor() and _flat(face, player.global_position).dot(along) < -TombLayout.SAND_PILE * TombLayout.SAND_SKIRT + 0.6:
+			tally["sand_down"] += 1
+			_still()
+			return true
+	print("    not down the sand: he is at %s, state %d" % [player.global_position, player.state])
+	return false
+
+
+# Over the pit on the hook: throws it at the ring, pumps the swing, and lets go at the front of it.
+func _swing3(link: TombPlan.Link, forward: bool) -> bool:
+	var gap: Array = layout3.ways[link.id]["gap"]
+	var way := _along(link) * (1.0 if forward else -1.0)
+	var from: Vector3 = (gap[0] if forward else gap[1]) - way * 0.7
+	var far: Vector3 = gap[1] if forward else gap[0]
+	if player.carried == null or not player.carried.is_in_group(&"grapples"):
+		return false
+	for attempt in 3:
+		if not await _go3(from, 0.2):
+			return false
+		touch.move = _stick(way, 0.3)
+		await _wait(10)
+		_still()
+		await _wait(30)
+		player._act()
+		var on := false
+		for i in 150:
+			await _wait(1)
+			if player.state == Player.State.ROPE:
+				on = true
+				break
+		if not on:
+			continue
+		var peaks := 0
+		var side := 0.0
+		var before := 0.0
+		for i in 1200:
+			if player.state != Player.State.ROPE:
+				break
+			var hold: Vector3 = player._rope.point_at(player._rope_at) - player._rope.global_position
+			var angle := rad_to_deg(atan2(hold.dot(way), -hold.y))
+			var going := player.velocity.dot(way)
+			touch.move = _stick(way * (signf(going) if absf(going) > 0.2 else 1.0), 1.0)
+			if signf(angle) != side and absf(angle) > 0.5:
+				peaks += 1
+				side = signf(angle)
+			if peaks >= 4 and going > 0.0 and angle > 22.0 and before <= 22.0:
+				break
+			before = angle
+			await _wait(1)
+		touch.move = _stick(way, 1.0)
+		touch.jump_held = true
+		player._queue_jump()
+		for i in 240:
+			touch.move = _stick(way, 1.0)
+			await _wait(1)
+			if player.is_on_floor():
+				break
+		touch.jump_held = false
+		_still()
+		# (he comes down hard, and the hook is wound in)
+		await _wait(150)
+		if _flat(far, player.global_position).dot(way) > 0.0 and not player.is_limp and absf(player.global_position.y - far.y) < 1.0:
+			return true
+		await _wait(200)
+	return false
+
+
+# Air cut through air, and anything standing in stone: what a tomb that is
+# walked through could get wrong that one seen from the side could not.
+func _overlaps3(layout: TombLayout3D) -> PackedStringArray:
+	var wrong: PackedStringArray = []
+	if not layout.wrong.is_empty():
+		wrong.append("its cells were refused: %s" % layout.wrong[0])
+	for i in layout.areas.size():
+		var one := layout.areas[i]
+		for j in range(i + 1, layout.areas.size()):
+			var other := layout.areas[j]
+			if one.x0 < other.x1 - 0.001 and other.x0 < one.x1 - 0.001 and one.z0 < other.z1 - 0.001 and other.z0 < one.z1 - 0.001 \
+					and one.floor < other.ceil - 0.001 and other.floor < one.ceil - 0.001:
+				wrong.append("rooms %d and %d: two pieces of air are cut through each other at %.1f, %.1f" % [one.room, other.room, maxf(one.x0, other.x0), maxf(one.z0, other.z0)])
+				break
+	for part in layout.parts:
+		if part["kind"] not in ["item", "block", "plate", "lever", "offering", "brazier", "treasure", "mummy", "check", "ladder", "prop", "pillar", "torch"]:
+			continue
+		var at: Vector3 = part["at"]
+		var inside := false
+		for area in layout.areas:
+			if at.x > area.x0 - 0.06 and at.x < area.x1 + 0.06 and at.z > area.z0 - 0.06 and at.z < area.z1 + 0.06 and at.y > area.floor - 0.06 and at.y < area.ceil:
+				inside = true
+				break
+		if not inside:
+			wrong.append("room %d: a %s at %s is in the stone" % [part["room"], part["kind"], at])
+	# Every place on his lines is somewhere he can stand.
+	for n in layout.walk_points.size():
+		var at := layout.walk_points[n]
+		var stood := false
+		for area in layout.areas:
+			if at.x >= area.x0 and at.x <= area.x1 and at.z >= area.z0 and at.z <= area.z1 and absf(at.y - area.floor) < 0.05 and not area.deadly:
+				stood = true
+				break
+		for box: Array in layout.boxes:
+			if box[2] == "loft" and absf(at.y - ((box[0] as Vector3).y + (box[1] as Vector3).y * 0.5)) < 0.05:
+				stood = true
+		if not stood:
+			wrong.append("room %d: a place on his line at %s has no floor under it" % [layout.walk_rooms[n], at])
+	return wrong
+
+
+# A plan whose rooms were given cells: the rules pass it, and refuse it broken; and it is built and played.
+func _grid() -> void:
+	print("GRID: a plan given its cells, with a side chamber and a way that closes a loop")
+	var plan: TombPlan = Shapes.branching()
+	var said := TombLayout3D.cells_wrong(plan)
+	print("  the plan as it is: %s; the solver: %s (%d steps, %d positions)" % ["its cells pass" if said.is_empty() else "REFUSED %s" % said, "it can be finished" if plan.proof["ok"] else "IT CANNOT (%s)" % plan.proof["reason"], plan.solution.size(), plan.proof["positions"]])
+	if not said.is_empty() or not plan.proof["ok"]:
+		failed = true
+	# Broken four ways: each must be refused.
+	var breaks: Array = [
+		["two rooms on one square", func(broken: TombPlan) -> void: broken.rooms[5].cell = broken.rooms[4].cell],
+		["a way between squares that do not touch", func(broken: TombPlan) -> void: broken.rooms[6].cell = Vector3i(6, 2, 0)],
+		["stairs that go nowhere down", func(broken: TombPlan) -> void: broken.rooms[1].cell = Vector3i(1, 0, 0)],
+		["a level doorway between two levels", func(broken: TombPlan) -> void: broken.rooms[5].cell = Vector3i(3, 2, 1)],
+	]
+	for entry: Array in breaks:
+		var broken: TombPlan = Shapes.branching()
+		(entry[1] as Callable).call(broken)
+		var found := TombLayout3D.cells_wrong(broken)
+		print("  %-42s %s" % [entry[0], "refused (%s)" % found[0] if not found.is_empty() else "WRONGLY PASSED"])
+		if found.is_empty():
+			failed = true
+	var layout := TombLayout3D.set_out(plan)
+	var wrong := TombReach.check(layout, TombReach.measure())
+	wrong.append_array(_overlaps3(layout))
+	var kept := true
+	for room in plan.rooms:
+		kept = kept and layout.cells[room.id] == room.cell
+	print("  set out: %d pieces of air, %d of stone, %.0f m of floor; its cells %s; %s" % [layout.areas.size(), layout.boxes.size(), layout.length,
+			"are the plan's own" if kept else "WERE NOT KEPT", "sound" if wrong.is_empty() else "FAULTS %s" % wrong])
+	if not wrong.is_empty() or not kept:
+		failed = true
+	if not walked:
+		print("  (not played: that is asked for with 3d)")
+		return
+	TombLevel.bare = true
+	await _open(0, 0, {}, plan)
+	tomb_name = "grid"
+	var done := await _play_through("the plan with a loop")
+	level.get_parent().queue_free()
+	await _wait(5)
+	if not done:
+		failed = true
+
+
+# The sand, in the tomb that is walked through: there its chamber has walls
+# beside the face, and a kick off a wall takes him higher than a jump. Before
+# it is let in he throws himself at the face for ten seconds, and then at each
+# corner of the chamber by the face for ten more, kicking off the one wall
+# and steering at the other, and must not get up it; then the heap is timed;
+# then he dies, and the heap must be as it was; then the tomb is played through.
+func _sand_holds3() -> bool:
+	await _open(0, 0, only_sand())
+	var link := level.plan.spine_link(1)
+	var way := layout3.ways[link.id]
+	var along := _along(link)
+	var across := Vector3(-along.z, 0.0, along.x)
+	var face: Vector3 = way["face"]
+	var top: float = (way["top"] as Vector3).y
+	var fall: SandFall = level.built.sands[link.id]
+	var block := _block_for(-1, link.switches[0])
+	var sound := true
+	if not await _go3(way["before"]):
+		print("  the sand: he could not get to the foot of the face")
+		sound = false
+	var half := TombLayout3D.PASSAGE * 0.5 + TombLayout3D.SAND_SIDE
+	var highest := -INF
+	var presses := 0
+	var kicks := [0]
+	player.kicked_off.connect(func() -> void: kicks[0] += 1)
+	# [where he starts from, what he steers at before a jump, and after one]: the face head on, then each corner.
+	var tries: Array = [[face - along * 2.5, along, along]]
+	for side: float in [-1.0, 1.0]:
+		var corner := face + across * (side * half - TombLayout3D.WALK)
+		tries.append([corner - along * 2.2 - across * side * 2.2, (along + across * side).normalized(), (along - across * side * 0.6).normalized()])
+		tries.append([corner - along * 0.6 - across * side * 2.6, across * side, (along * 2.0 - across * side).normalized()])
+	for attempt: Array in tries:
+		if await _leg(attempt[0]) != ARRIVED:
+			print("  the sand: he could not get to %s to try the face from" % attempt[0])
+			sound = false
+		for i in 600:
+			var airborne := not player.is_on_floor() and player.state == Player.State.FREE
+			touch.move = _stick(attempt[2] if airborne and i % 46 > 30 else attempt[1], 1.0)
+			touch.jump_held = i % 23 < [14, 4, 22][(i / 23) % 3]
+			# (every way of pressing jump: on the ground, and again and again in the air against whatever wall is there)
+			if i % 23 == 0 or i % 23 == 9 or i % 23 == 15 or (airborne and i % 5 == 0):
+				player._queue_jump()
+				presses += 1
+			if player.state == Player.State.HANG and i % 10 == 0:
+				player._queue_jump()
+			await _wait(1)
+			highest = maxf(highest, player.global_position.y)
+		_still()
+		await _wait(60)
+	var foot: float = face.y
+	var bare := highest < top - 0.3 and player.global_position.y < top - 1.0 and not level.done[link.switches[0]]
+	print("  the sand, before it is let in: %d presses of jump at a face of %.2f, head on and at both its corners (%d of them kicks off a wall), got his feet %.2f up it: %s" % [
+			presses, TombLayout.SAND_RISE, kicks[0], highest - foot, "it holds him" if bare else "HE GOT UP IT"])
+	sound = sound and bare
+	await _shot("sand_face_bare")
+	if not await _push3(block, link.switches[0]):
+		print("  the sand: the block was not got onto its plate")
+		sound = false
+	var began := frames_used
+	var over := await _sand_up3(link)
+	var over_at := frames_used - began
+	for i in 60 * 30:
+		if fall.pile != null and fall.pile.is_full():
+			break
+		await _wait(1)
+	var full_at := frames_used - began
+	var was := fall.pile.height if fall.pile else 0.0
+	print("  the sand, let in: he was over it %.1f s after the plate went down, and the heap was full (%.2f high, %.2f under the lip) after %.1f s: %s" % [
+			over_at / 60.0, was, TombLayout.SAND_RISE - was, full_at / 60.0, "sound" if over and full_at < 60 * 20 else "TOO SLOW, OR NOT AT ALL"])
+	sound = sound and over and full_at < 60 * 20
+	level.give_up()
+	await _wait(180)
+	var now := fall.pile.height if fall.pile else 0.0
+	print("  the sand, after he has died (%d): the heap is %.2f high: %s" % [level.deaths, now, "it stays" if is_equal_approx(now, was) and level.deaths == 1 else "IT WAS EMPTIED"])
+	sound = sound and is_equal_approx(now, was)
+	var done := await _play_through("the sand")
+	level.get_parent().queue_free()
+	await _wait(5)
+	return sound and done
+
+
+# What is kept of a day's tomb seen from the side and of the same tomb walked
+# through must not run together. (Kept in a file of its own for the test: the
+# player's is not touched.)
+func _kept() -> void:
+	print("KEPT: a day's tomb finished each way")
+	var was := TombDaily.path
+	TombDaily.path = "user://tombs_test.json"
+	DirAccess.remove_absolute(TombDaily.path)
+	var day := 30000
+	var run := {"mode": "daily", "view": "side", "day": day, "seed": 1, "difficulty": 1, "time_ms": 60000, "deaths": 0}
+	var first := TombDaily.keep(run)
+	run["view"] = "3d"
+	run["time_ms"] = 90000
+	var second := TombDaily.keep(run)
+	run["time_ms"] = 80000
+	run["deaths"] = 2
+	var third := TombDaily.keep(run)
+	var side := TombDaily.day_record(day, "side")
+	var through := TombDaily.day_record(day, "3d")
+	var apart := int(side.get("best_ms", 0)) == 60000 and int(side.get("runs", 0)) == 1 and int(through.get("best_ms", 0)) == 80000 \
+			and int(through.get("first_ms", 0)) == 90000 and int(through.get("runs", 0)) == 2 and int(through.get("best_deaths", -1)) == 2
+	var firsts: bool = first["first"] and second["first"] and not third["first"] and third["best"]
+	# (one run of days, whichever way: the same day twice is one day, and the next day by the other way goes on from it)
+	var one_day: bool = int(first["streak"]) == 1 and int(second["streak"]) == 1
+	run["day"] = day + 1
+	var next := TombDaily.keep(run)
+	var runs_on: bool = int(next["streak"]) == 2
+	var practice := {"mode": "random", "view": "side", "day": 0, "seed": 5, "difficulty": 1, "time_ms": 50000, "deaths": 0}
+	TombDaily.keep(practice)
+	practice["view"] = "3d"
+	practice["time_ms"] = 70000
+	var walked_first: bool = TombDaily.keep(practice)["best"]
+	var bests: Dictionary = TombDaily.load_all()["random_best"]
+	var practice_apart := int(bests.get("5:1", 0)) == 50000 and int(bests.get("5:1:3d", 0)) == 70000 and walked_first
+	var said := TombDaily.share_text(run)
+	var says := "walked through" in said and not "walked through" in TombDaily.share_text({"mode": "daily", "day": day, "time_ms": 1, "deaths": 0})
+	DirAccess.remove_absolute(TombDaily.path)
+	TombDaily.path = was
+	print("  the day's times %s; each has its own first and best: %s; the run of days counts a day once (%s) and goes on (%s); practice bests %s; the line to send says which (\"%s\"): %s" % [
+			"are kept apart" if apart else "RAN TOGETHER", firsts, one_day, runs_on, "are kept apart" if practice_apart else "RAN TOGETHER", said, says])
+	if not (apart and firsts and one_day and runs_on and practice_apart and says):
+		failed = true
+
+
+# Dying, in the tomb that is walked through: he starts again at the last door
+# he went through, across the room from wherever he went through it, and what
+# he was carrying is back there where he last had it.
+func _carried_back3() -> bool:
+	await _open(0, 0, three_new())
+	var plan := level.plan
+	var torch: RigidBody3D = level.built.items[0]
+	var sound := await _do_step3(["take", 0])
+	var door: Vector3 = layout3.rooms[1]["west"]
+	# (down the stairs and into the next room, on the far side of it from his line)
+	sound = await _go3(door + Vector3(0.0, 0.0, 0.0)) and sound
+	var across := Vector3(-_along(plan.spine_link(0)).z, 0.0, _along(plan.spine_link(0)).x)
+	sound = await _leg(door + across * 2.6) == ARRIVED and sound
+	var on := Vector3(TombLayout3D.TURNS[int(layout3.rooms[1]["turn"])])
+	await _leg(door + across * 2.6 + on * 3.0)
+	var had := player.carried == torch
+	level.give_up()
+	await _wait(150)
+	var back := _flat(player.global_position, door).length() < 1.0 and absf(player.global_position.y - door.y) < 0.5
+	var lies := _flat(torch.global_position, door).length() < 1.5 and player.carried == null
+	print("  dying with a torch in his hand, three metres past a door he went through at the far wall: he had it %s, deaths %d, he is back at that door: %s, and the torch is there: %s" % [
+			had, level.deaths, back, lies])
+	var once := level.deaths == 1
+	level.get_parent().queue_free()
+	await _wait(5)
+	return sound and had and back and lies and once

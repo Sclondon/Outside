@@ -23,7 +23,8 @@ extends Node3D
 ##
 ## KEEPING IT. Every change is saved on the device under the tomb's name.
 ## "Tombs" has the others, a new one, one of the generator's from a number to
-## change, and the tomb as text. "Play" plays it; from there "Edit" comes back.
+## change, and the tomb as text. "Play" plays it, seen from the side as it is here,
+## and "Walk it" plays it walked through (see TombLayout3D); from there "Edit" comes back.
 
 const PANEL := 340.0
 const FOV := 30.0
@@ -278,14 +279,15 @@ func _keep() -> void:
 
 # --- Playing it, and the others
 
-func play() -> void:
+## Plays it: seen from the side, or (`view` "3d") walked through.
+func play(view := "side") -> void:
 	if _dirty >= 0.0:
 		rebuild()
 	if not (found["problems"] as PackedStringArray).is_empty():
 		_say("It cannot be built yet: %s" % found["problems"][0], 6.0)
 		return
 	_keep()
-	TombLevel.play = {"mode": "custom", "spec": spec.duplicate(true)}
+	TombLevel.play = {"mode": "custom", "spec": spec.duplicate(true), "view": view}
 	get_tree().change_scene_to_file("res://tomb.tscn")
 
 
@@ -637,6 +639,7 @@ func _build_ui() -> void:
 	top.add_theme_constant_override("separation", 7)
 	_ui.add_child(top)
 	top.add_child(_button("Play", play))
+	top.add_child(_button("Walk it", play.bind("3d")))
 	top.add_child(_button("Undo", undo))
 	top.add_child(_button("Redo", redo))
 	top.add_child(_button("Tombs", show_tombs.bind(true)))

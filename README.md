@@ -291,7 +291,7 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/player.gd` | The controller: movement, jumping, stairs, pushing crates, respawn |
 | `scripts/character_rig.gd` | Animates the model in code: gait, leg IK, a jointed back, hands, looking about, and the swing of hair and hem |
 | `scripts/touch_controls.gd` | Floating stick and jump area |
-| `scripts/follow_camera.gd` | The camera: a fixed side view (the tomb) or a third-person orbit (the yard) |
+| `scripts/follow_camera.gd` | The camera: a fixed side view (the tomb seen from the side) or a third-person orbit (the yard), which with `indoors` set keeps itself this side of walls and roofs (the tomb walked through) |
 | `scripts/desert.gd` | The desert (`desert.tscn`): makes the level from its layout, and runs its puzzles, checkpoints and people |
 | `scripts/level_layout.gd`, `scripts/level_editor.gd` | What a level is made of, as data; and the editor inside the game that changes it |
 | `scripts/desert_terrain.gd` | The desert's ground: dunes, level ground, and water cut into it |
@@ -1074,13 +1074,20 @@ again; the clock runs from his first step until he is out of the door with it. I
 add `["Tombs", "res://tomb.tscn"],` to `LEVELS` in `scripts/menu.gd`. Opened like that, or by itself
 (`godot res://tomb.tscn`), it is today's tomb, and a card comes up first that offers a random one instead. To open it on a
 tomb of your choosing, set `TombLevel.play` first (`{"mode": "daily"}` or `{"mode": "random", "seed": 12, "difficulty": 1}`),
-or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
+or pass `-- tomb=daily` or `-- tomb=12:1` on the command line. Either takes how it is to be seen as well: `"view": "side"`
+(what it is with nothing said) or `"view": "3d"`, and `view=3d` on the command line (`-- tomb=12:1 view=3d`). The card
+has the two as "Side-on" and "Walk through", and remembers the last one chosen until the game is closed.
 
-- **The view** is from the side, the tomb cut open towards the camera like the section drawings of the tombs in the
+- **Seen from the side**, the tomb is cut open towards the camera like the section drawings of the tombs in the
   Valley of the Kings: its axis runs away to the right and down, he keeps to one line (`SIDE_SCROLL`), and nothing needs
   steering but him. Rooms off the axis are above (a loft: jump at its lip and he takes hold; walk, and he goes under it)
-  and below (the chamber at the foot of the well).
-- **The plan** (`TombPlan`, made by `TombGenerator`) knows nothing of that view: rooms, the ways between them, what can be
+  and below (the chamber at the foot of the well). This is `TombLayout`.
+- **Walked through**, the same plan is rooms with four walls and a roof on a floor plan that turns corners, and the
+  camera is the one that follows him about the desert, at his back (drag the right of the screen to look about). This
+  is `TombLayout3D`; "Tombs walked through", below, has how it is set out. Everything else in this list is true of
+  both: the same plans with the same fingerprints, the same locks and keys, the same proof. Only the stone differs, and
+  so does what it is to get through: a day's tomb finished the one way is not mixed with the other.
+- **The plan** (`TombPlan`, made by `TombGenerator`) knows nothing of either view: rooms, the ways between them, what can be
   carried, and what opens each door. The rooms are a royal tomb's in their order (entrance, corridors, a well, pillared
   halls, a high gallery, antechamber, burial chamber). Locks are put in each with its key somewhere before it:
 
@@ -1132,7 +1139,10 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
   of play, not of the wall clock. Dying puts him back at the last door he went through (each end of each room), with
   what he carried back where he last had it at a door, and is counted; "Stuck" does the same when he asks. The best and
   first time for each day and the run of days in a row are kept in `user://tombs.json` (on the web, the browser's
-  storage). At the end the result can be copied as a line, `Outside daily tomb #9  1:22.8  1 death`.
+  storage): a day's times seen from the side under `days`, and walked through under `days_3d`, apart (and a practice
+  tomb's best likewise); the run of days is one, and a day counts once whichever way its tomb was finished. At the end
+  the result can be copied as a line, `Outside daily tomb #9  1:22.8  1 death`, or
+  `Outside daily tomb #9, walked through  3:05.0  no deaths`.
 - **A leaderboard** is not there, but the finished run is the record one would be sent (`TombDaily.submission`: day, seed,
   difficulty, generator version, the two fingerprints, ticks, the time to the falcon, deaths, when each room was first
   reached). As it stands nothing in it can be trusted: the game runs on the player's machine. To make times worth
@@ -1158,7 +1168,8 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
   device (`user://my_tombs.json`), under the tomb's name; "Tombs" has the others, a new one, one of the generator's
   from a number to change by hand, and the tomb as text to copy out or paste in. "Play" plays it (`TombLevel.play =
   {"mode": "custom", "spec": ...}`, or `-- tomb=custom` for the one last worked on), timed like any other and kept
-  nowhere; "Edit" there comes back.
+  nowhere; "Edit" there comes back. "Walk it" plays it walked through (`"view": "3d"`, or `-- tomb=custom view=3d`);
+  the editor itself shows it only from the side.
   What it makes is a `TombSpec`: the rooms in order, as plain data. It can say only what the generator's own rules can
   make, because those are what `TombLayout` knows how to set in stone: `TombSpec.problems` lists whatever is outside
   them (a locked crawl, a seal stone under a room that is no well, a loft at the foot of the sand, a mummy at the top of
@@ -1166,26 +1177,99 @@ or pass `-- tomb=daily` or `-- tomb=12:1` on the command line.
   tomb that can be built but not finished, or in which he could get himself stuck, can still be played: it is said, not
   forbidden.
 
+### Tombs walked through
+
+`TombLayout3D` (`scripts/tomb_layout_3d.gd`) sets a plan out a second way, and `TombBuilder` and `TombLevel` take
+either: it is a `TombLayout`, and answers the same questions (which room he is in, whether he is out, whether a thing is
+lost, whether a mummy can still get at him).
+
+- **Cells.** Every room that is not a loft or a crypt stands on a square of a floor plan: `TombPlan.Room.cell`, a
+  `Vector3i` whose x and z are the square and whose y is the level, counted downwards from the entrance at 0 (a level
+  is 1.6 m). A plan whose rooms all have cells is set out as it says. One with none, which is every plan the generator
+  makes today, has them worked out by the layout: down the axis from the entrance, each room ahead of the last or
+  round a corner from it as the dice say, never onto a square that is taken. The plan itself is not touched, so its
+  fingerprint is the one it has seen from the side. The squares are as big as what stands on them: each column and
+  each row of the plan is as wide as its widest room, and a way is made up with plain passage where its rooms are
+  further apart than it needs.
+- **The rules a plan with cells must keep** (`TombLayout3D.cells_wrong(plan)` lists whatever it does not; a plan that
+  breaks them has its cells worked out afresh, and the layout says so in `wrong`):
+  - no two rooms on the same square, whatever their levels (a loft and a crypt are part of the room they are off, and
+    need no cell);
+  - a way joins squares that share a side, and is written going in (`a` nearer the entrance). The first way that ends
+    at a room is its way in; the room is laid along it; every other way it has leaves from the bay at its far end,
+    ahead, left or right, never beside its way in. So a room has up to three ways on, and a way that closes a loop
+    arrives at a bay;
+  - how many levels down from `a` to `b`: a doorway, a crawl, water and the pit 0; stairs 1 or more (a flight of eight
+    steps each); a ladder shaft and a rope shaft 3; the sand -2 (up);
+  - a climb is from a room to its own loft and a shaft to a crypt from a well to its own crypt; a drop is from a loft
+    into a room next to the loft's own, which that room must also have a way to, at least two levels down (stairs of
+    two flights): the loft goes on over that way as a cutting;
+  - a block for the plate of another room stands in the bay in line with the way to that room, which is level: one
+    such block to a room.
+
+  `tools/tomb_shapes.gd` has a plan with a side chamber and a loop (`branching`), which nothing generates yet;
+  `tools/tomb_test.gd -- 3d grid` checks the rules on it, breaks it four ways, builds it and plays it.
+- **A room** is laid along the way he comes in, as a run of floors from wall to wall, exactly as the tomb seen from the
+  side is a run of spans: so a trench, a kerb or a pit cannot be walked round. A corridor is 5 m wide, a gallery 6, an
+  antechamber 7, a hall and the burial chamber 9, with pillars down both sides; the entrance is a court cut into the
+  rock, open to the sky. The line he is expected to walk is a metre left of the middle, which leaves the middle for a
+  block pushed through from the room before and the right for the room's own block and plate, its offering table, its
+  brazier and what lies about to be picked up. A block keeps to its lane, whichever way that runs.
+- **A way** between rooms is a passage 3.6 m wide with the whole of what it is in it: a doorway and its door, stairs,
+  a crawl 1.4 m wide, water from wall to wall, the head of a ladder or a rope, the sand. A loft is over the bay, so a
+  doorway under it is a low one; where a loft drops him into the next room it runs on over the door and the stairs.
+- **Walls give him something to kick off**, which the tomb seen from the side has none of beside its ways. A kick off
+  a wall takes his feet a metre higher than a jump, so in a corner he can catch a lip 3.7 m up. So the chamber the
+  sand comes into is 3.5 m wider on each side than the way on over its face, and the face goes on up to the roof
+  beside that way; the pit the hook crosses is wider than the passage to it, its side walls too far apart to go from
+  one to the other; and the drop from a loft is two flights (5.1 m), not one. `TombReach` holds all three against the
+  Player's numbers, and `tools/tomb_test.gd -- 3d custom` throws him at the face and its corners for fifty seconds.
+- **The stone** is cut round all the air at once (`TombLayout3D._shell`): the air is laid on a grid of its own edges,
+  and a floor, a roof or a wall is drawn for each square of the grid that touches air, each in one piece from top to
+  bottom, then joined to its neighbours. Nothing overlaps, and no face he can jump at has a seam across it for his
+  hands to find. `TombBuilder` makes the stone of each room one mesh for each thing it is made of (a handful of draws
+  a room, where the boxes would be thirty or forty), and the rooms within two ways of his are drawn. A room has at most
+  three torches along its walls (one more in a loft or a crypt, and one or two in a long way out of it), none of which
+  casts a shadow. Measured with `tools/tomb3d_sheets.gd -- <folder> cost` on four tombs in the web's renderer, a frame
+  walked through took 72 to 81 draws on average and 146 at most, against 53 to 65 and 85 seen from the side.
+- **The camera** (`FollowCamera` with `indoors`) is the desert's, 5 m back. Where the view it is asked for is shut off
+  by a roof or a wall it comes down flatter behind him before it comes in closer; where the roof is on his back (a
+  crawl) it watches him lower; and it asks how far it can stand back five times over, at the middle of what it sees
+  and towards each corner, so that no edge of the picture is in stone. Pillars it looks straight past. The faint
+  light that keeps him from being a shadow comes from wherever the camera is.
+
 | File | What it does |
 | --- | --- |
 | `scripts/tomb_plan.gd` | What a tomb is before it is built: rooms, ways, things, switches |
 | `scripts/tomb_generator.gd` | Makes a plan from a seed; never hands back one that fails |
 | `scripts/tomb_solver.gd` | Proves a plan can be finished, by trying everything |
-| `scripts/tomb_layout.gd` | Sets a plan out as a tomb seen from the side: every stone and part, as numbers |
+| `scripts/tomb_layout.gd` | Sets a plan out as a tomb seen from the side: every stone and part, as numbers; and what a level asks of either layout |
+| `scripts/tomb_layout_3d.gd` | Sets the same plan out as a tomb to be walked through: the cells and their rules, rooms and ways, the stone cut round them, and the lines he is expected to walk |
 | `scripts/tomb_reach.gd` | What he can do, from the Player's own numbers, and a layout held against it |
-| `scripts/tomb_builder.gd` | Makes a layout into nodes |
-| `scripts/tomb_level.gd` | Runs a tomb: doors, mummies, checkpoints, the clock, the cards |
-| `scripts/tomb_daily.gd` | Which tomb a day has, and what is kept of how it went |
+| `scripts/tomb_builder.gd` | Makes either layout into nodes |
+| `scripts/tomb_level.gd` | Runs a tomb, seen either way: doors, mummies, checkpoints, the clock, the cards |
+| `scripts/tomb_daily.gd` | Which tomb a day has, and what is kept of how it went, for each way of seeing it |
 | `scripts/tomb_spec.gd` | A tomb made by hand, as data: what is wrong with it, the plan of it, keeping it |
 | `scripts/tomb_editor.gd` | The tomb editor (`tomb_editor.tscn`) |
 | `tools/tomb_editor_test.gd` | Not part of the game: checks hand-made tombs and the editor (`tools/tomb_editor_shots.gd` takes pictures of it) |
 | `scripts/tomb_hooks.gd` | Where scarabs, cobwebs, jackals, inscriptions and the notebook plug in |
 | `scripts/tomb_random.gd` | The dice |
-| `tools/tomb_test.gd` | Not part of the game: checks plans, geometry and sameness over hundreds of seeds, and plays tombs through with the real Player |
-| `tools/tomb_sheets.gd` | Not part of the game: draws a tomb's plan, the whole of it as built, and each room as he sees it |
+| `tools/tomb_test.gd` | Not part of the game: checks plans, geometry and sameness over hundreds of seeds, and plays tombs through with the real Player, seen from the side or (`3d`) walked through |
+| `tools/tomb_sheets.gd` | Not part of the game: draws a tomb's plan, the whole of it as built, and each room as he sees it (from the side) |
+| `tools/tomb3d_sheets.gd` | Not part of the game: the same for a tomb walked through (its floor plan, the whole of it from overhead, each room through his camera), and with `kinds` a sheet of every kind of way, switch and barrier as he comes to it |
+| `tools/tomb3d_probe.gd` | Not part of the game: prints how a tomb is set out to be walked through (cells, rooms, air, parts, his lines) |
+| `tools/tomb_shapes.gd` | Not part of the game: tombs made by hand that the tools share (every lock; the two plates, the rope and the sand; every way; a plan with cells, a side chamber and a loop) |
 
 ```
-godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [drive] [templates] [custom] [seeds=500] [drive_seeds=1,2,3] [per=3]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [kept] [drive] [templates] [custom] [seeds=500] [drive_seeds=1,2,3] [per=3]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- 3d [geometry] [same] [drive] [templates] [custom] [grid] [seeds=500] [drive_seeds=1,2,3] [per=3] [pick=<part of a name>]
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_test.gd -- templates custom shots=<folder>
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_sheets.gd -- <folder> [seed:difficulty ...] [daily]
+godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb3d_sheets.gd -- <folder> [seed:difficulty ...] [daily] [custom] [grid] [kinds]
+godot --headless --path . --script tools/tomb3d_probe.gd -- <seed>:<difficulty> [areas] [parts] [lines]
 ```
+
+Everything after `3d` is asked of the tomb that is walked through. There the automated player is steered about the
+floor by the camera, as a thumb's push is: it goes by the lines the layout says he is expected to walk
+(`TombLayout3D.walk_lines`), onto the nearest, from corner to corner along them, and off the last to where it is going;
+and where the way is not a walk (a rope, the sand, the hook, up into a loft, down into a crypt) it does what he would.

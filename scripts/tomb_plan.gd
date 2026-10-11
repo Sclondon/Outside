@@ -4,8 +4,10 @@ extends RefCounted
 ## the things that can be carried or pushed, and the things that open doors.
 ## `TombGenerator` makes one from a seed, `TombSolver` proves it can be
 ## finished, and `TombBuilder` turns it into stone. Nothing here knows which
-## way the camera looks or how big a room is: a builder with free rooms and an
-## orbiting camera could be given the same plan.
+## way the camera looks or how big a room is, and the same plan is set out two
+## ways: as a section seen from the side (`TombLayout`), and as rooms to be
+## walked through with the camera at his back (`TombLayout3D`, which is what a
+## room's `cell` is for).
 ##
 ## The rooms follow a royal tomb of the New Kingdom, in order down its axis:
 ## an entrance, corridors, sometimes a well, a pillared hall, an antechamber
@@ -47,6 +49,8 @@ const PASS_NAMES := ["open", "stairs", "crawl", "flood", "gap", "shaft", "climb"
 const ITEM_NAMES := ["torch", "hook", "jar", "block"]
 const SWITCH_NAMES := ["lever", "work_plate", "plate", "offering", "brazier", "treasure"]
 const BARRIER_NAMES := ["none", "trench", "kerb", "narrow"]
+## A room's `cell` until it is given one.
+const NO_CELL := Vector3i(-9999, -9999, -9999)
 
 
 class Room:
@@ -65,6 +69,12 @@ class Room:
 	var guardian := false
 	## Whether it has a pit across it that kills (a trench does not).
 	var pit := false
+	## Where it is on the floor plan of a tomb that is walked through: x and z
+	## are the square it stands on and y its level, counted downwards (see
+	## `TombLayout3D`, which has the rules, and which works the cells out
+	## itself for a plan that has none). The tomb seen from the side takes no
+	## notice of it.
+	var cell := NO_CELL
 
 
 class Link:
@@ -233,6 +243,9 @@ func describe() -> String:
 			line += " pit"
 		if room.mummy >= 0:
 			line += " mummy=%d behind=%s%s" % [room.mummy, BARRIER_NAMES[room.barrier], " guardian" if room.guardian else ""]
+		# (only a plan that was given cells says so: one that was not is the plan it always was)
+		if room.cell != NO_CELL:
+			line += " cell=%d,%d,%d" % [room.cell.x, room.cell.y, room.cell.z]
 		lines.append(line)
 	for link in links:
 		var line := "link %d %d>%d %s" % [link.id, link.a, link.b, PASS_NAMES[link.pass_kind]]

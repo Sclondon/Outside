@@ -45,6 +45,16 @@ static func measure() -> Dictionary:
 		"hook_steep": hook.steep,
 		"rope_near": player.rope_reach.x,
 		"rope_far": player.rope_reach.y,
+		# A kick off a wall: how much higher than a jump it takes his feet, how
+		# fast it sends him out from the wall, how long it carries him up, and
+		# how hard he then falls.
+		"kick": player.jump_height * player.wall_kick.y * player.wall_kick.y,
+		"kick_out": player.run_speed * player.wall_kick.x,
+		"kick_rise": player.time_to_apex * player.wall_kick.y,
+		"fall": gravity * player.fall_gravity_scale,
+		"sprint": player.sprint_speed,
+		"apex": player.time_to_apex,
+		"air": player.air_acceleration,
 	}
 	hook.free()
 	player.free()
@@ -90,6 +100,24 @@ static func check(layout: TombLayout, reach: Dictionary) -> PackedStringArray:
 			"drop":
 				if size <= float(reach["ledge"]):
 					bad = "a drop of %.2f that should be one way could be climbed back up" % size
+				# (with a wall beside its lip, as every lip has in a tomb that is
+				# walked through, a kick off that wall gets him higher)
+				elif move.get("walled", false) and size <= float(reach["ledge"]) + float(reach["kick"]) + 0.25:
+					bad = "a drop of %.2f between walls could be got back up by a kick off one of them" % size
+			"corner":
+				# A lip that is past catching from a jump, but not from a kick off a
+				# wall: it must be further from any wall than he flies from one
+				# while it is still within his reach.
+				var peak := float(reach["hop"]) + float(reach["kick"])
+				var need := size - float(reach["catch_high"])
+				if peak > need:
+					var time := float(reach["kick_rise"]) + sqrt(2.0 * (peak - need) / float(reach["fall"]))
+					var flown := float(reach["wide"]) * 0.5 + float(reach["kick_out"]) * time
+					if float(move["aside"]) < flown + 0.5:
+						bad = "a lip %.2f up is %.2f from a corner: a kick off the wall there carries him %.2f while he can still catch it" % [size, move["aside"], flown]
+			"beside", "door":
+				if size < float(reach["wide"]) + 0.3:
+					bad = "%.2f is too little room for him to get by" % size
 			"swing":
 				var across := size * 0.5
 				var up := float(move["high"]) - float(reach["hang"])
@@ -98,6 +126,24 @@ static func check(layout: TombLayout, reach: Dictionary) -> PackedStringArray:
 					bad = "the ring over a gap of %.2f is out of the hook's reach from its edge" % size
 				if size <= float(reach["far"]):
 					bad = "a gap of %.2f that should want the hook can be jumped" % size
+				if move.has("apart"):
+					# Between walls (a tomb that is walked through) there is a kick off one
+					# of them to be had on the way over. It stops him dead and sends him out
+					# from the wall, and he has only what he can get up again in the air
+					# before the far edge is out of his reach: that, after the longest
+					# jump he can take to the wall, must still fall short. And the walls
+					# must be too far apart for a second kick, off the other.
+					var peak := float(reach["hop"]) + float(reach["kick"])
+					var time := float(reach["kick_rise"]) + sqrt(2.0 * (peak + float(reach["catch_high"])) / float(reach["fall"]))
+					var gathering := minf(time, float(reach["sprint"]) / float(reach["air"]))
+					var flown := float(reach["sprint"]) * float(reach["apex"]) + 0.5 * float(reach["air"]) * gathering * gathering \
+							+ float(reach["sprint"]) * (time - gathering)
+					var across_time := (float(move["apart"]) - float(reach["wide"])) / float(reach["kick_out"])
+					var fallen := 0.5 * float(reach["fall"]) * maxf(across_time - float(reach["kick_rise"]), 0.0) ** 2 - float(reach["kick"])
+					if flown > size - 0.3:
+						bad = "a gap of %.2f between walls: a kick off one of them carries him %.2f of the way" % [size, flown]
+					elif fallen < float(reach["hop"]) + float(reach["catch_high"]) + 1.0:
+						bad = "the walls of a gap are %.2f apart: he could kick off the one and then the other" % move["apart"]
 			"rope":
 				# Stepping off the lip he must be within reach of it, and hang clear
 				# of the face; from the floor below its end must be no higher than

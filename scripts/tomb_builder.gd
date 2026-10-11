@@ -1,9 +1,13 @@
 class_name TombBuilder
 extends RefCounted
-## Makes a tomb's layout (`TombLayout`) into stone and working parts under a
-## node, and keeps hold of everything a level needs to run it (`TombLevel`).
+## Makes a tomb's layout (`TombLayout`, or `TombLayout3D` for one that is
+## walked through) into stone and working parts under a node, and keeps hold of
+## everything a level needs to run it (`TombLevel`).
 ## Each room on the axis is a node of its own (`room_nodes`), with one solid
-## body for all its stone, so that rooms far from him can be put away.
+## body for all its stone, so that rooms far from him can be put away. In a
+## tomb that is walked through the stone of a room is also one mesh for each
+## thing it is made of, however many boxes that is: he is inside it there, and
+## sees a good deal more of it at once.
 
 const WALL_STONE := Color(0.5, 0.42, 0.3)
 const FLOOR_STONE := Color(0.4, 0.34, 0.25)
@@ -34,12 +38,15 @@ var blocks: Array[Dictionary] = []
 ## By thing: what he carries. And where each goes back to.
 var items := {}
 var item_homes := {}
-## Each mummy: `node`, `room`, `guardian`, `safe` (how far along he is out of its reach) and `east` (whether that is the far side).
+## Each mummy: `node`, `room`, `guardian`, and `part` (its own in the layout,
+## which says where he is out of its reach: `TombLayout.is_past`).
 var mummies: Array[Dictionary] = []
+## What stands free in a room and is thin (a pillar): the camera looks past these.
+var slender: Array[RID] = []
 var treasure: Area3D
 ## Pits: he dies in these.
 var deaths: Array[Area3D] = []
-## Where he starts again: `room` and `at`.
+## Where he starts again: `room`, `at`, and `part` (its own in the layout).
 var checks: Array[Dictionary] = []
 ## Inscriptions: `at`, `hint`, `room`.
 var writings: Array[Dictionary] = []
@@ -48,6 +55,9 @@ var hooked: Array[Node3D] = []
 
 var _materials := {}
 var _bodies := {}
+## In a tomb that is walked through: by room and then by what it is made of,
+## the boxes ([middle, size] each) that are to be one mesh.
+var _heaps := {}
 
 
 static func build(from: TombLayout, under: Node3D) -> TombBuilder:
@@ -61,7 +71,7 @@ static func build(from: TombLayout, under: Node3D) -> TombBuilder:
 func _build() -> void:
 	var plan := layout.plan
 	room_nodes.resize(plan.rooms.size())
-	for room in plan.spine():
+	for room in layout.placed():
 		var node := Node3D.new()
 		node.name = "Room%d_%s" % [room.id, TombPlan.ROLE_NAMES[room.role]]
 		root.add_child(node)
@@ -71,13 +81,14 @@ func _build() -> void:
 		node.add_child(body)
 		_bodies[room.id] = body
 	for room in plan.rooms:
-		if room.spine < 0:
+		if room_nodes[room.id] == null:
 			room_nodes[room.id] = room_nodes[room.parent]
 			_bodies[room.id] = _bodies[room.parent]
 	for box: Array in layout.boxes:
 		_stone(box[0], box[1], box[2], box[3], box[4])
 	for part in layout.parts:
 		_part(part)
+	_gather()
 
 
 func _stone(at: Vector3, size: Vector3, made_of: String, solid: bool, room: int) -> void:
@@ -90,6 +101,13 @@ func _stone(at: Vector3, size: Vector3, made_of: String, solid: bool, room: int)
 		(_bodies[room] as StaticBody3D).add_child(collider)
 	if made_of == "":
 		return
+	if layout.walked():
+		if not _heaps.has(room):
+			_heaps[room] = {}
+		if not _heaps[room].has(made_of):
+			_heaps[room][made_of] = []
+		(_heaps[room][made_of] as Array).append([at, size])
+		return
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	var visual := MeshInstance3D.new()
@@ -97,6 +115,48 @@ func _stone(at: Vector3, size: Vector3, made_of: String, solid: bool, room: int)
 	visual.material_override = _material(made_of)
 	visual.position = at
 	room_nodes[room].add_child(visual)
+
+
+# The stone of each room that was kept back, made one mesh for each thing it
+# is made of (a face for each side of each box, and no more: what is hidden
+# costs nothing to speak of, and the web draws the room in a handful of calls).
+func _gather() -> void:
+	var faces: Array = [[Vector3.RIGHT, Vector3.UP], [Vector3.LEFT, Vector3.UP], [Vector3.UP, Vector3.BACK],
+			[Vector3.DOWN, Vector3.FORWARD], [Vector3.BACK, Vector3.UP], [Vector3.FORWARD, Vector3.UP]]
+	for room: int in _heaps:
+		for made_of: String in _heaps[room]:
+			var points := PackedVector3Array()
+			var normals := PackedVector3Array()
+			var order := PackedInt32Array()
+			for box: Array in _heaps[room][made_of]:
+				var at: Vector3 = box[0]
+				var half: Vector3 = (box[1] as Vector3) * 0.5
+				for face: Array in faces:
+					var out: Vector3 = face[0]
+					var up: Vector3 = face[1]
+					var across := up.cross(out)
+					var middle := at + out * half.dot(out.abs())
+					var rise := up * half.dot(up.abs())
+					var run := across * half.dot(across.abs())
+					var first := points.size()
+					for corner: Vector3 in [-run - rise, run - rise, run + rise, -run + rise]:
+						points.append(middle + corner)
+						normals.append(out)
+					for n: int in [0, 2, 1, 0, 3, 2]:
+						order.append(first + n)
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = points
+			arrays[Mesh.ARRAY_NORMAL] = normals
+			arrays[Mesh.ARRAY_INDEX] = order
+			var mesh := ArrayMesh.new()
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			var visual := MeshInstance3D.new()
+			visual.name = "Stone_" + made_of
+			visual.mesh = mesh
+			visual.material_override = _material(made_of)
+			room_nodes[room].add_child(visual)
+	_heaps.clear()
 
 
 func _material(made_of: String) -> Material:
@@ -136,6 +196,7 @@ func _part(part: Dictionary) -> void:
 		"torch":
 			var torch := TombParts.Torch.new()
 			torch.position = at
+			torch.rotation.y = part.get("yaw", 0.0)
 			node.add_child(torch)
 		"bowl":
 			var bowl := _scene("brazier", at, 0.0, node)
@@ -145,8 +206,24 @@ func _part(part: Dictionary) -> void:
 			var high: float = part["high"]
 			for piece: Array in [[high * 0.5, Vector3(0.6, high, 0.6)], [high - 0.2, Vector3(0.85, 0.4, 0.85)], [0.15, Vector3(0.85, 0.3, 0.85)]]:
 				_show(node, at + Vector3.UP * float(piece[0]), piece[1], "loft")
+			if part.get("solid", false):
+				# (it stands out in the room: he walks round it, and the camera looks past it)
+				var post := StaticBody3D.new()
+				var shaft := BoxShape3D.new()
+				shaft.size = Vector3(0.6, high, 0.6)
+				var held := CollisionShape3D.new()
+				held.shape = shaft
+				post.add_child(held)
+				post.position = at + Vector3.UP * high * 0.5
+				node.add_child(post)
+				slender.append(post.get_rid())
 		"glyphs":
-			node.add_child(_signs(at, part["long"]))
+			var band := _signs(at, part["long"])
+			band.rotation.y = part.get("yaw", 0.0)
+			# (seen from close to, they are cut shallow)
+			if layout.walked():
+				band.scale.z = 0.3
+			node.add_child(band)
 		"prop":
 			_scene(part["scene"], at, part["yaw"], node)
 		"door":
@@ -159,14 +236,14 @@ func _part(part: Dictionary) -> void:
 			node.add_child(door)
 			doors[part["link"]] = door
 		"plate":
-			var plate := _plate(node, at, Vector3(1.5, 0.5, TombLayout.FRONT - TombLayout.BACK - 0.3), false, 1)
+			var plate := _plate(node, at, part.get("size", Vector3(1.5, 0.5, TombLayout.FRONT - TombLayout.BACK - 0.3)), false, 1)
 			switches[part["trigger"]] = plate
 		"lever":
-			var stone := _plate(node, at, Vector3(1.1, 0.5, 1.6), true, 2)
+			var stone := _plate(node, at, part.get("size", Vector3(1.1, 0.5, 1.6)), true, 2)
 			_show(stone, Vector3(0.0, 0.02, 0.0), Vector3(0.5, 0.03, 0.5), "gold")
 			switches[part["trigger"]] = stone
 		"offering":
-			var table := _plate(node, at, Vector3(TombLayout.TABLE_LONG - 0.2, 0.6, 2.0), false, 1)
+			var table := _plate(node, at, part.get("size", Vector3(TombLayout.TABLE_LONG - 0.2, 0.6, 2.0)), false, 1)
 			switches[part["trigger"]] = table
 		"brazier":
 			switches[part["trigger"]] = _scene("brazier", at, 0.0, node)
@@ -176,8 +253,12 @@ func _part(part: Dictionary) -> void:
 			block.add_to_group(&"tomb_blocks")
 			block.mass = 20.0
 			block.lock_rotation = true
-			# (it keeps to his line, so that it cannot be lost against the back wall)
-			block.axis_lock_linear_z = true
+			# (it keeps to his line, so that it cannot be lost against the back wall;
+			# in a tomb that is walked through, to the lane it is pushed along)
+			if part.get("lane", 0) == 0:
+				block.axis_lock_linear_z = true
+			else:
+				block.axis_lock_linear_x = true
 			var surface := PhysicsMaterial.new()
 			surface.friction = 0.6
 			block.physics_material_override = surface
@@ -188,15 +269,17 @@ func _part(part: Dictionary) -> void:
 			block.add_child(collider)
 			_show(block, Vector3.ZERO, shape.size, "block")
 			block.position = at
-			node.add_child(block)
+			# (one that is pushed on into the next room is no part of the room it starts in: that is put away when he has gone on)
+			(root if int(part["thing"]) >= 0 else node).add_child(block)
 			blocks.append({"body": block, "home": Transform3D(Basis.IDENTITY, at), "thing": part["thing"], "serves": part["serves"]})
 		"item":
 			var thing := _item(part["what"], at)
-			thing.axis_lock_linear_z = true
+			thing.axis_lock_linear_z = not layout.walked()
 			# (the stone stops it, but nothing trips over it: he is on one line and cannot go round)
 			thing.collision_layer = 16
 			thing.collision_mask = 1
-			node.add_child(thing)
+			# (nor is anything he carries off: it would be put away with the room, in his hand)
+			root.add_child(thing)
 			items[part["thing"]] = thing
 			item_homes[part["thing"]] = thing.transform
 		"ladder":
@@ -207,7 +290,10 @@ func _part(part: Dictionary) -> void:
 			node.add_child(ladder)
 		"rope":
 			# A beam wedged across under the roof, and the rope made fast to it.
-			_show(node, at + Vector3(0.0, 0.03, (TombLayout.BACK + TombLayout.FRONT) * 0.5), Vector3(0.16, 0.14, TombLayout.FRONT - TombLayout.BACK), "wood")
+			if part.has("beam"):
+				_show(node, part["beam_at"], part["beam"], "wood")
+			else:
+				_show(node, at + Vector3(0.0, 0.03, (TombLayout.BACK + TombLayout.FRONT) * 0.5), Vector3(0.16, 0.14, TombLayout.FRONT - TombLayout.BACK), "wood")
 			_show(node, at + Vector3(0.0, -0.06, 0.0), Vector3(0.2, 0.08, 0.2), "wood")
 			var rope := Rope.new()
 			rope.length = part["long"]
@@ -242,7 +328,7 @@ func _part(part: Dictionary) -> void:
 			mummy.kind = part["what"] as Mummy.Kind
 			mummy.position = at + Vector3.UP * 0.05
 			node.add_child(mummy)
-			mummies.append({"node": mummy, "room": room, "guardian": part["guardian"], "safe": part["safe"], "east": part["east"], "lost": 0.0})
+			mummies.append({"node": mummy, "room": room, "guardian": part["guardian"], "part": part, "lost": 0.0})
 		"treasure":
 			_treasure(node, at)
 		"death":
@@ -257,18 +343,23 @@ func _part(part: Dictionary) -> void:
 			node.add_child(area)
 			deaths.append(area)
 		"check":
-			checks.append({"room": room, "at": at})
+			checks.append({"room": room, "at": at, "part": part})
 		"inscription":
-			TombHooks.inscription(node, at, part["hint"], TombRandom.mix([layout.plan.seed_value, int(at.x * 10.0)]))
+			var carved := TombHooks.inscription(node, at, part["hint"], TombRandom.mix([layout.plan.seed_value, int(at.x * 10.0)]))
+			carved.rotation.y = part.get("yaw", 0.0)
 			writings.append({"at": at, "hint": part["hint"], "room": room})
 		"scarabs":
 			hooked.append(TombHooks.scarabs(node, at))
 		"cobweb":
-			hooked.append(TombHooks.cobweb(node, at, part["size"]))
+			var web := TombHooks.cobweb(node, at, part["size"])
+			if part.has("yaw"):
+				web.rotation.y = part["yaw"]
+			hooked.append(web)
 		"jackal":
 			var guard := TombHooks.jackal(node, at)
 			if guard:
-				mummies.append({"node": guard, "room": room, "guardian": true, "safe": at.x - 100.0, "east": false, "lost": 0.0})
+				# (nothing holds it back: he is never out of its reach)
+				mummies.append({"node": guard, "room": room, "guardian": true, "part": {"safe": at.x - 100.0, "east": false}, "lost": 0.0})
 
 
 ## How much sand a second has to come in for a heap that is `radius` wide to be
