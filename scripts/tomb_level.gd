@@ -190,6 +190,10 @@ func _read_choice() -> void:
 		else:
 			seed_value = int(spec.get("seed", 1))
 			difficulty = clampi(int(spec.get("difficulty", 0)), 0, 2)
+			# (one made on a floor plan is a tomb that branches, and is walked through)
+			if TombSpec.is_branching(spec):
+				shape = "branching"
+				view = "3d"
 	if mode == "plan":
 		# (a plan handed over whole and already solved, by a tool or by whatever
 		# makes plans of its own: `{"mode": "plan", "plan": ...}`. Nothing of it is kept.)
