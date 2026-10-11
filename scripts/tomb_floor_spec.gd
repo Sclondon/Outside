@@ -479,6 +479,11 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 					wrong.append("%s: there is no room before %s to bring a block from." % [into, TombSpec.room_title(spec, from)])
 				elif rooms[from].get("way", "open") != "open" or rooms[from].get("lock", "none") == "bypass":
 					wrong.append("%s: its block is pushed into %s from %s, so the way between those two has to be a level doorway." % [into, TombSpec.room_title(spec, from), TombSpec.room_title(spec, before)])
+				elif cell_of(rooms[from]) - cell_of(rooms[before]) == cell_of(rooms[before]) - cell_of(rooms[int(rooms[before]["from"])]) \
+						and (ways_on(spec, before).size() > 1 or not joins_of(spec, before).is_empty()):
+					# (see `TombBranching`: the strip of floor a side way leaves at the end of the bay catches a block pushed straight on)
+					wrong.append("%s: its block is pushed straight on out of the far end of %s, and would catch where another way leaves that room. Give %s no other way on, or have the way to %s turn a corner out of it." % [
+							into, TombSpec.room_title(spec, before), TombSpec.room_title(spec, before), TombSpec.room_title(spec, from)])
 				else:
 					_claim(plates, spec, from, i, "plates for a block from the room before", wrong)
 					_claim(blocks, spec, before, i, "blocks for other rooms", wrong)

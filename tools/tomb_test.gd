@@ -1748,6 +1748,9 @@ func _push3(block: Dictionary, trigger: int) -> bool:
 	if not await _go3(behind, 0.2, stands):
 		return false
 	var pushed := await _leg(plate + along * 3.0, 0.35, func() -> bool: return level.done[trigger], true) == ARRIVED
+	if not pushed:
+		var ahead := _ray(body.global_position, body.global_position + along * 2.0)
+		print("    the block is at %s (it began at %s), its plate at %s; ahead of it within 2 m: %s" % [body.global_position, stands, plate, ("%s at %s" % [(ahead["collider"] as Node).get_path(), ahead["position"]]) if not ahead.is_empty() else "nothing"])
 	if _is_two_plates(trigger):
 		await _wait(40)
 		await _shot("two_plates")

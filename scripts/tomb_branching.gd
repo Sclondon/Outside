@@ -603,6 +603,15 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			var way := plan.links[int(_way_in[here])]
 			if way.pass_kind != TombPlan.Pass.OPEN or way.fixed:
 				return false
+			# (Pushed straight on out of the far end of its room, the block has to
+			# cross the strip of floor that a way off to the side leaves at the end
+			# of the bay, and it catches there: so that room has no way off to
+			# either side, now or later. Pushed out to the side, there is no strip.)
+			var ahead := int(_heading[here]) == int(_heading[before])
+			if ahead and _ways_on(before) > 1:
+				return false
+			if ahead:
+				_shut[before] = true
 			way.fixed = true
 			plan.add_thing(TombPlan.Item.BLOCK, before).dest = here
 			link.switches = [plan.add_trigger(TombPlan.Switch.PLATE, here).id]
@@ -724,6 +733,15 @@ func _only_way_on(room: int, link: TombPlan.Link) -> bool:
 		if other.a == room and other.id != link.id:
 			return false
 	return true
+
+
+# How many ways on a room has (a loft or a crypt is not one).
+func _ways_on(room: int) -> int:
+	var found := 0
+	for link in plan.links:
+		if link.a == room and not TombLayout3D.is_side(plan.rooms[link.b]):
+			found += 1
+	return found
 
 
 func _count(kind: TombPlan.Pass) -> int:
@@ -911,12 +929,13 @@ func _closers() -> void:
 			made += 1
 
 
-# (not the court, not the burial chamber, and not a room with a loft: a way
+# (not the court, not the burial chamber, not a room nothing more is to be made
+# off, which a dark one is, and not a room with a loft: a way
 # that closes a loop comes into the bay, which a loft is over)
 func _may_close(room: int) -> bool:
 	var role := plan.rooms[room].role
 	return role != TombPlan.Role.ENTRANCE and role != TombPlan.Role.BURIAL and not TombLayout3D.is_side(plan.rooms[room]) \
-			and plan.side_room(room, TombPlan.Role.LOFT) == null and not plan.rooms[room].dark
+			and plan.side_room(room, TombPlan.Role.LOFT) == null and not _shut.has(room)
 
 
 func _close(one: int, other: int) -> bool:

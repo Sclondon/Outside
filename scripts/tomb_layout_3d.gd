@@ -175,6 +175,10 @@ var _last_room := -1
 ## By link: how far to either side of its middle the widest part of it reaches.
 var _wides := {}
 var _most := 0.0
+## Whether the plan came with its cells: rooms then stand to every side of one
+## another, and the edges of one cut the stone round another into thin pieces
+## (see `_shell`: there a roof looks further than the next square for higher air).
+var _crowded := false
 
 
 ## Sets out `plan` as a tomb to be walked through.
@@ -290,6 +294,8 @@ func _lay() -> void:
 		wrong = cells_wrong(plan)
 	if not given or not wrong.is_empty():
 		_own_cells()
+	else:
+		_crowded = true
 	for room in plan.rooms:
 		if is_side(room):
 			cells[room.id] = cells[room.parent]
@@ -1200,6 +1206,14 @@ func _shell() -> void:
 				walls[key + by] = true
 		var first := areas[here[0]]
 		var last := areas[here[-1]]
+		if _crowded:
+			# Where a low room meets higher air (the foot of a loft's drop, a tall
+			# chamber) the stone over the low room is a wall to that air, as thick
+			# as the square it is over; and in a plan with cells a square can be a
+			# hand's breadth, cut by the edge of a room off to one side. A wall
+			# that thin he could reach over, to the top of the low roof behind it.
+			# So here the roof stands as high as any air within a wall's thickness.
+			highest = maxf(highest, _highest_near(key, xl, zl, air, high))
 		_piece(pieces, key, lowest - ROCK, first.floor, "sand" if first.sky else "floor", first.room)
 		for n in range(1, here.size()):
 			var under := areas[here[n - 1]]
@@ -1262,6 +1276,32 @@ func _shell() -> void:
 		if area.deadly:
 			parts.append({"kind": "death", "room": area.room, "at": Vector3((area.x0 + area.x1) * 0.5, area.floor + 1.5, (area.z0 + area.z1) * 0.5),
 					"size": Vector3(area.x1 - area.x0, 3.0, area.z1 - area.z0)})
+
+
+# The highest roof of any air within a wall's thickness of a square of the
+# grid (`xl`, `zl`: the grid's lines, in thousandths of a metre).
+func _highest_near(key: int, xl: Array, zl: Array, air: Dictionary, high: Dictionary) -> float:
+	var i := key / 100000
+	var j := key % 100000
+	var reach := roundi(THICK * 1000.0)
+	var i0 := i
+	while i0 > 0 and int(xl[i]) - int(xl[i0]) < reach:
+		i0 -= 1
+	var i1 := i
+	while i1 < xl.size() - 2 and int(xl[i1 + 1]) - int(xl[i + 1]) < reach:
+		i1 += 1
+	var j0 := j
+	while j0 > 0 and int(zl[j]) - int(zl[j0]) < reach:
+		j0 -= 1
+	var j1 := j
+	while j1 < zl.size() - 2 and int(zl[j1 + 1]) - int(zl[j + 1]) < reach:
+		j1 += 1
+	var found := -INF
+	for a in range(i0, i1 + 1):
+		for b in range(j0, j1 + 1):
+			if air.has(a * 100000 + b):
+				found = maxf(found, high[a * 100000 + b])
+	return found
 
 
 func _piece(pieces: Dictionary, key: int, bottom: float, top: float, made_of: String, room: int) -> void:
