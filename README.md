@@ -1288,9 +1288,10 @@ same stone from the same numbers (`TombGenerator.VERSION` is still 2; `TombBranc
   the same with a ladder), and against a thorough way of its own (`solve(plan, true)`: a thing may be put down in
   any room, not only where it could matter), which has to give the same answer. It was given a limit to pass in
   (`TombBranching.MOST_POSITIONS`, 30000): a plan that takes more positions than that to prove is thrown away as
-  too tangled, since it is proved on a phone as the tomb is opened. On the machine these were measured on, a hard
-  tomb took 15 ms to prove on average and 180 ms at worst (29370 positions), and 26 ms and 285 ms to make with
-  whatever tries were thrown away; a middling one 3 ms and 177 ms; an easy one a tenth of a millisecond.
+  too tangled, since it is proved on a phone as the tomb is opened. On the machine these were measured on (a desktop, with other tests running beside), a hard
+  tomb took 19 ms to prove on average and 281 ms at worst (29370 positions), and 33 ms and 339 ms to make with
+  whatever tries were thrown away; a middling one 4 ms and 278 ms to prove (28502 positions); an easy one a tenth of a
+  millisecond, 65 positions at most. (With nothing else running the worst were about 180 ms.)
 - **What the layout had to learn.** Nothing for most of it: a plan with cells was already set out as it said.
   Two things came of rooms standing to every side of one another, and both are only done for a plan that came
   with its cells, so that the stone of every other tomb is what it was. Where a low room meets higher air (the
