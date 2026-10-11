@@ -17,7 +17,7 @@ inside the game, and the test yard (`test_yard.tscn`), where every mechanic has 
 ## What he can do
 
 `test_yard.tscn` is a yard among dunes with a station for each of these set out round it, a sign over each. The camera
-orbits there: drag the upper right of the screen, hold the right mouse button, or use a right stick.
+orbits there: drag anywhere on the right of the screen off the buttons (an eye mark shows where; two quick taps there bring the camera back behind him; jump is its own button), hold the right mouse button, or use a right stick.
 
 - **Sprint** by keeping up a full run for a moment (`sprint_delay`, `sprint_speed` on the Player): he throws himself
   forward and claps a hand to his cap to keep it on: whichever hand is towards the camera. Sprint for long and he is

@@ -58,6 +58,7 @@ var _reach := 6.0
 var _tilt := 0.4
 var _watch := 0.9
 var _since_look := 10.0
+var _swing := false
 var _touch: TouchControls
 
 
@@ -79,6 +80,15 @@ func _find_touch() -> void:
 	_touch = get_tree().get_first_node_in_group(&"touch_controls") as TouchControls
 	if _touch:
 		_touch.look_enabled = mode == Mode.ORBIT
+		if not _touch.look_reset.is_connected(look_behind):
+			_touch.look_reset.connect(look_behind)
+
+
+## Brings an orbiting camera round behind him, the way he is facing (two quick
+## taps where the camera is turned do this).
+func look_behind() -> void:
+	_swing = true
+	_since_look = 0.0
 
 
 func snap() -> void:
@@ -134,6 +144,12 @@ func _orbit(delta: float) -> void:
 	if stick.length_squared() > 0.0:
 		_turn(stick * stick_speed * delta)
 	_since_look += delta
+	if _swing:
+		var behind_him := target.facing_yaw + PI
+		_yaw = lerp_angle(_yaw, behind_him, 1.0 - exp(-9.0 * delta))
+		_pitch = lerpf(_pitch, 0.4, 1.0 - exp(-9.0 * delta))
+		if absf(angle_difference(_yaw, behind_him)) < 0.03:
+			_swing = false
 
 	# Left alone while he is on the move, drift round behind him. (Not on a rope:
 	# there he goes back and forth, and the stick means what it meant when he
@@ -150,6 +166,7 @@ func _orbit(delta: float) -> void:
 func _turn(by: Vector2) -> void:
 	if by == Vector2.ZERO:
 		return
+	_swing = false
 	_yaw -= by.x
 	_pitch = clampf(_pitch + by.y, pitch_limits.x, pitch_limits.y)
 	_since_look = 0.0
