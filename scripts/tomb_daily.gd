@@ -19,6 +19,8 @@ extends RefCounted
 ## run as it would be sent to a leaderboard.
 
 const FILE := "user://tombs.json"
+## Where it is kept now: `FILE`, unless a test has said otherwise.
+static var path := FILE
 ## The day of tomb number 1: 1 October 2026.
 const FIRST_DAY := 20727
 ## How hard each day of the week is, Sunday first.
@@ -57,9 +59,9 @@ static func time_text(ms: int) -> String:
 
 static func load_all() -> Dictionary:
 	var kept := {"version": 1, "days": {}, "days_3d": {}, "streak": {"last": 0, "length": 0, "best": 0}, "random_best": {}}
-	if not FileAccess.file_exists(FILE):
+	if not FileAccess.file_exists(path):
 		return kept
-	var file := FileAccess.open(FILE, FileAccess.READ)
+	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return kept
 	var read: Variant = JSON.parse_string(file.get_as_text())
@@ -71,7 +73,7 @@ static func load_all() -> Dictionary:
 
 
 static func save_all(kept: Dictionary) -> void:
-	var file := FileAccess.open(FILE, FileAccess.WRITE)
+	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(kept, "\t"))
 

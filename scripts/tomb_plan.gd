@@ -4,8 +4,10 @@ extends RefCounted
 ## the things that can be carried or pushed, and the things that open doors.
 ## `TombGenerator` makes one from a seed, `TombSolver` proves it can be
 ## finished, and `TombBuilder` turns it into stone. Nothing here knows which
-## way the camera looks or how big a room is: a builder with free rooms and an
-## orbiting camera could be given the same plan.
+## way the camera looks or how big a room is, and the same plan is set out two
+## ways: as a section seen from the side (`TombLayout`), and as rooms to be
+## walked through with the camera at his back (`TombLayout3D`, which is what a
+## room's `cell` is for).
 ##
 ## The rooms follow a royal tomb of the New Kingdom, in order down its axis:
 ## an entrance, corridors, sometimes a well, a pillared hall, an antechamber

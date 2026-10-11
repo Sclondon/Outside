@@ -868,6 +868,11 @@ func is_past(part: Dictionary, at: Vector3) -> bool:
 	return (at.x > float(part["safe"])) == bool(part["east"])
 
 
+## Whether he is at a place to start again from (`part` is its own, from `parts`).
+func is_at_check(part: Dictionary, at: Vector3, within: float) -> bool:
+	return at.distance_to(part["at"]) < within
+
+
 ## Where a thing he was carrying is put when he starts again from `spot`.
 func beside(spot: Vector3) -> Vector3:
 	return spot + Vector3(0.5, 0.3, 0.0)

@@ -1,6 +1,6 @@
 extends SceneTree
 ## Not part of the game. Draws tombs that are walked through (`TombLayout3D`), to be looked at.
-## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb3d_sheets.gd -- <folder> [seed:difficulty ...] [daily] [custom] [grid] [kinds] [rooms=0] [gl]
+## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb3d_sheets.gd -- <folder> [seed:difficulty ...] [daily] [custom] [grid] [kinds] [cost] [rooms=0]
 ##
 ## For each tomb named (by default 1:0 2:1 3:2):
 ##   <name>_plan.png      its floor plan as a map: every room on its square, the ways between them, what is in
@@ -16,6 +16,8 @@ extends SceneTree
 ## a plate and its block, a plate for a block from the room before, the two plates, an offering table, a
 ## brazier in a dark room with the torch in his hand, the falcon; a loft from below and from on it, a crypt, a
 ## corner, and a mummy behind each thing that holds one.
+## `cost` draws nothing: for each tomb named it prints how many draws a frame takes and how many lights are lit,
+## from just inside each room, seen from the side and walked through.
 ## Its window is kept off the screen and takes no input.
 
 const CELL := Vector2i(640, 360)
@@ -25,6 +27,7 @@ var out := ""
 var tombs: Array = []
 var with_rooms := true
 var with_kinds := false
+var with_cost := false
 
 
 class Map extends Control:
@@ -164,6 +167,8 @@ func _initialize() -> void:
 			tombs.append({"mode": "plan", "plan": Shapes.branching()})
 		elif arg == "kinds":
 			with_kinds = true
+		elif arg == "cost":
+			with_cost = true
 		elif arg.begins_with("rooms="):
 			with_rooms = arg != "rooms=0"
 		else:
@@ -187,6 +192,10 @@ var kind_names: Array = []
 
 func run() -> void:
 	TombLevel.bare = true
+	if with_cost:
+		await _count_cost()
+		quit()
+		return
 	for chosen: Dictionary in tombs:
 		await _draw_tomb(chosen)
 	if with_kinds:
@@ -194,9 +203,9 @@ func run() -> void:
 	quit()
 
 
-func _open(chosen: Dictionary) -> void:
+func _open(chosen: Dictionary, seen := "3d") -> void:
 	var asked := chosen.duplicate()
-	asked["view"] = "3d"
+	asked["view"] = seen
 	TombLevel.play = asked
 	scene = load("res://tomb.tscn").instantiate()
 	root.add_child(scene)
@@ -549,3 +558,49 @@ func _save(image: Image, name: String) -> void:
 	var path := out.path_join(name + ".png")
 	image.save_png(path)
 	print("  saved ", path)
+
+
+# What each tomb costs to draw, seen each way: from just inside every room, how many draws the frame took and
+# how many lights were lit.
+func _count_cost() -> void:
+	for chosen: Dictionary in tombs:
+		for seen: String in ["side", "3d"]:
+			await _open(chosen, seen)
+			var draws: Array[int] = []
+			var lights: Array[int] = []
+			for room in level.layout.placed():
+				var info := level.layout.rooms[room.id]
+				player.global_position = (info["west"] as Vector3) + Vector3.UP * 0.05
+				player.velocity = Vector3.ZERO
+				player.set_spawn(player.global_position)
+				player.respawn()
+				camera.snap()
+				await _frames(30)
+				await RenderingServer.frame_post_draw
+				draws.append(int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)))
+				lights.append(_lit(scene))
+			var most_draws := 0
+			var sum_draws := 0
+			var most_lights := 0
+			for i in draws.size():
+				most_draws = maxi(most_draws, draws[i])
+				sum_draws += draws[i]
+				most_lights = maxi(most_lights, lights[i])
+			print("COST %s %s: %d rooms; draws a frame on average %d, at most %d; lights lit at most %d; %d pieces of stone in all" % [
+					_name_of(chosen), "seen from the side" if seen == "side" else "walked through", draws.size(), sum_draws / maxi(draws.size(), 1), most_draws, most_lights, level.layout.boxes.size()])
+			await _close()
+
+
+func _lit(node: Node) -> int:
+	var count := 0
+	if node is Light3D and (node as Light3D).is_visible_in_tree():
+		count += 1
+	for child in node.get_children():
+		count += _lit(child)
+	return count
+
+
+func _name_of(chosen: Dictionary) -> String:
+	if chosen["mode"] == "random":
+		return "tomb_%d_%d" % [chosen["seed"], chosen["difficulty"]]
+	return "grid" if chosen["mode"] == "plan" else str(chosen["mode"])

@@ -552,14 +552,15 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 	var entry := _area(2.6)
 	var west := frame.at(entry.u0 + 1.0, _y, WALK)
 	if _sky:
-		west = frame.at(entry.u0 + 2.2, _y, WALK)
+		# (well out in the court, with room behind him for the camera)
+		west = frame.at(entry.u0 + 6.0, _y, WALK)
 		start = west
 		exit_at = frame.at(entry.u0 + 3.4, _y, 0.0)
 		exit_way = -frame.dir()
 		_area(5.0)
 	info["west"] = west
 	info["w"] = _point(west, room.id)
-	parts.append({"kind": "check", "room": _room, "at": west})
+	parts.append({"kind": "check", "room": _room, "at": west, "along": frame.dir(), "wide": _w})
 	# (the plate first: nothing may lie in the way of the block that is pushed to it)
 	for trigger in plan.triggers:
 		if trigger.room == room.id and trigger.kind == TombPlan.Switch.PLATE:
@@ -692,7 +693,10 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 	info["e"] = _point(info["east"], room.id)
 	_line(info["w"], info["e"])
 	info["centre"] = frame.at(middle, _y, 0.0)
-	parts.append({"kind": "check", "room": _room, "at": info["east"]})
+	parts.append({"kind": "check", "room": _room, "at": info["east"], "along": frame.dir(), "wide": _w})
+	if _sky:
+		# (he is out once he is clear of the bay before the door)
+		exit_at = frame.at(bay.u0 - 0.5, _y, 0.0)
 
 	if loft:
 		var top := _y + LOFT_TOP
@@ -881,7 +885,7 @@ func _set_way(link: TombPlan.Link, frame: Frame, filler: float) -> float:
 		gulf.deadly = true
 		_area(1.6, high)
 		parts.append({"kind": "ring", "room": _room, "at": frame.at((gulf.u0 + gulf.u1) * 0.5, _y + RING_HIGH, WALK)})
-		moves.append({"kind": "swing", "is": GAP_WIDE, "room": _room, "high": RING_HIGH})
+		moves.append({"kind": "swing", "is": GAP_WIDE, "room": _room, "high": RING_HIGH, "apart": PASSAGE + GAP_SIDE * 2.0})
 		way["gap"] = [frame.at(approach.u1, _y, WALK), frame.at(gulf.u1, _y, WALK)]
 		var near := _point(frame.at(approach.u1 - 0.7, _y, WALK), a.id)
 		_line(last, near)
@@ -1360,3 +1364,10 @@ func is_past(part: Dictionary, at: Vector3) -> bool:
 
 func beside(spot: Vector3) -> Vector3:
 	return spot + Vector3(0.0, 0.3, 0.0)
+
+
+func is_at_check(part: Dictionary, at: Vector3, within: float) -> bool:
+	# (anywhere across the room, as he goes by: he is not kept to the line it is on)
+	var from: Vector3 = at - (part["at"] as Vector3)
+	var along: Vector3 = part["along"]
+	return absf(from.dot(along)) < within and absf(from.dot(Vector3(-along.z, 0.0, along.x))) < float(part["wide"]) * 0.5 + 0.5 and absf(from.y) < 1.2

@@ -395,7 +395,7 @@ func _keep_things(at: Vector3) -> void:
 	if _player.is_on_floor() and not _player.is_limp:
 		for check in built.checks:
 			var spot: Vector3 = check["at"]
-			if at.distance_to(spot) < CHECK_WITHIN:
+			if layout.is_at_check(check["part"], at, CHECK_WITHIN):
 				_player.set_spawn(spot + Vector3.UP * 0.05)
 				for id: int in built.items:
 					if built.items[id] == _player.carried:

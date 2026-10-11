@@ -1223,13 +1223,15 @@ lost, whether a mummy can still get at him).
   sand comes into is 3.5 m wider on each side than the way on over its face, and the face goes on up to the roof
   beside that way; the pit the hook crosses is wider than the passage to it, its side walls too far apart to go from
   one to the other; and the drop from a loft is two flights (5.1 m), not one. `TombReach` holds all three against the
-  Player's numbers, and `tools/tomb_test.gd -- 3d custom` throws him at the face and its corners for forty seconds.
+  Player's numbers, and `tools/tomb_test.gd -- 3d custom` throws him at the face and its corners for fifty seconds.
 - **The stone** is cut round all the air at once (`TombLayout3D._shell`): the air is laid on a grid of its own edges,
   and a floor, a roof or a wall is drawn for each square of the grid that touches air, each in one piece from top to
   bottom, then joined to its neighbours. Nothing overlaps, and no face he can jump at has a seam across it for his
-  hands to find. `TombBuilder` makes the stone of each room one mesh for each thing it is made of (five or six draws a
-  room, where the boxes would be sixty), and the rooms within two ways of his are drawn. No room has more than three
-  torches, none of which casts a shadow.
+  hands to find. `TombBuilder` makes the stone of each room one mesh for each thing it is made of (a handful of draws
+  a room, where the boxes would be thirty or forty), and the rooms within two ways of his are drawn. A room has at most
+  three torches along its walls (one more in a loft or a crypt, and one or two in a long way out of it), none of which
+  casts a shadow. Measured with `tools/tomb3d_sheets.gd -- <folder> cost` on four tombs in the web's renderer, a frame
+  walked through took 72 to 81 draws on average and 146 at most, against 53 to 65 and 85 seen from the side.
 - **The camera** (`FollowCamera` with `indoors`) is the desert's, 5 m back. Where the view it is asked for is shut off
   by a roof or a wall it comes down flatter behind him before it comes in closer; where the roof is on his back (a
   crawl) it watches him lower; and it asks how far it can stand back five times over, at the middle of what it sees
@@ -1259,7 +1261,7 @@ lost, whether a mummy can still get at him).
 | `tools/tomb_shapes.gd` | Not part of the game: tombs made by hand that the tools share (every lock; the two plates, the rope and the sand; every way; a plan with cells, a side chamber and a loop) |
 
 ```
-godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [drive] [templates] [custom] [seeds=500] [drive_seeds=1,2,3] [per=3]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [kept] [drive] [templates] [custom] [seeds=500] [drive_seeds=1,2,3] [per=3]
 godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- 3d [geometry] [same] [drive] [templates] [custom] [grid] [seeds=500] [drive_seeds=1,2,3] [per=3] [pick=<part of a name>]
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_test.gd -- templates custom shots=<folder>
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_sheets.gd -- <folder> [seed:difficulty ...] [daily]

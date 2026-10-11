@@ -46,7 +46,7 @@ var slender: Array[RID] = []
 var treasure: Area3D
 ## Pits: he dies in these.
 var deaths: Array[Area3D] = []
-## Where he starts again: `room` and `at`.
+## Where he starts again: `room`, `at`, and `part` (its own in the layout).
 var checks: Array[Dictionary] = []
 ## Inscriptions: `at`, `hint`, `room`.
 var writings: Array[Dictionary] = []
@@ -343,7 +343,7 @@ func _part(part: Dictionary) -> void:
 			node.add_child(area)
 			deaths.append(area)
 		"check":
-			checks.append({"room": room, "at": at})
+			checks.append({"room": room, "at": at, "part": part})
 		"inscription":
 			var carved := TombHooks.inscription(node, at, part["hint"], TombRandom.mix([layout.plan.seed_value, int(at.x * 10.0)]))
 			carved.rotation.y = part.get("yaw", 0.0)

@@ -34,12 +34,15 @@ extends SceneTree
 ##            Then the sand by itself: that its face cannot be got up before
 ##            the sand is let in, however he jumps at it and kicks off it; how
 ##            long the heap takes; and that dying does not empty it.
+##  kept      what is kept of a day's tomb finished seen from the side and
+##            finished walked through: apart, with one run of days between them.
+##            (In a file of its own: the player's is not touched.)
 ##  show      prints one plan and the way through it.
 ##  shots=<folder>  (not headless: `--resolution 1280x720`, and its window is kept
 ##            off the screen) saves pictures of the new templates as they are
 ##            played, during `templates` and `custom`: the two plates, the rope
 ##            going down and up, the sand before, pouring, full and gone over.
-## With no names: plans, geometry and same. Ends with PASSED or FAILED.
+## With no names: plans, geometry, same and kept. Ends with PASSED or FAILED.
 
 const Shapes := preload("res://tools/tomb_shapes.gd")
 
@@ -87,7 +90,7 @@ func _initialize() -> void:
 		else:
 			names.append(arg)
 	if names.is_empty() and not shown:
-		names = ["plans", "geometry", "same"]
+		names = ["plans", "geometry", "same", "kept"]
 	_run.call_deferred(names)
 
 
@@ -99,6 +102,8 @@ func _run(names: Array) -> void:
 		_geometry()
 	if "same" in names:
 		_same()
+	if "kept" in names:
+		_kept()
 	if "drive" in names:
 		await _drive()
 	if "templates" in names:
@@ -420,6 +425,7 @@ func _drive_templates() -> void:
 
 
 func _say_tally() -> void:
+	print("  of the %d mummies in those tombs, %d woke as he went by or took the falcon" % [mummies_met, mummies_woken])
 	print("  the rope taken hold of %d times going down and %d going up (tries that went wrong: %d and %d); the sand gone up %d times (%d of them with his hands full) and down %d" % [
 			tally["rope_down"], tally["rope_up"], tally["rope_down_missed"], tally["rope_up_missed"], tally["sand_up"], tally["sand_up_carrying"], tally["sand_down"]])
 
@@ -449,6 +455,8 @@ func _drive_custom() -> void:
 	print("  finished %d of %d" % [finished, specs.size()])
 	var held := pick != "" or (await _sand_holds3() if walked else await _sand_holds())
 	if not held:
+		failed = true
+	if walked and pick == "" and not await _carried_back3():
 		failed = true
 	_say_tally()
 
@@ -551,6 +559,7 @@ func _open(seed_value: int, difficulty: int, spec := {}, given: TombPlan = null)
 			Input.action_release(action)
 	await _wait(30)
 	space = player.get_world_3d().direct_space_state
+	woken = {}
 	layout3 = level.layout as TombLayout3D
 	frames_used = 0
 	tomb_name = "custom" if not spec.is_empty() else "%d_%d" % [seed_value, difficulty]
@@ -579,6 +588,8 @@ func _play_through(called: String) -> bool:
 	print("  %s %s  %d rooms, %d steps, %.0f m: %s" % [called,
 			"FINISHED" if done else "STOPPED ", plan.rooms.size(), plan.solution.size(), level.layout.length,
 			("in %s of play, %d deaths" % [TombDaily.time_text(level.time_ms()), level.deaths]) if done else stopped])
+	mummies_met += level.built.mummies.size()
+	mummies_woken += woken.size()
 	return done
 
 
@@ -991,6 +1002,12 @@ func _wait(count: int) -> void:
 	for i in count:
 		await physics_frame
 		frames_used += 1
+		# (which mummies have been up, for the count at the end)
+		if frames_used % 6 == 0 and is_instance_valid(level) and level.built:
+			for n in level.built.mummies.size():
+				var mummy: Node3D = level.built.mummies[n]["node"]
+				if mummy.has_method(&"is_awake") and mummy.call(&"is_awake"):
+					woken[n] = true
 
 
 func _ray(from: Vector3, to: Vector3) -> Dictionary:
@@ -1106,6 +1123,10 @@ const LOST := 0
 const THROWN := 2
 
 var layout3: TombLayout3D
+## Which mummies of the tomb that is open have been awake, and the count over every tomb played.
+var woken := {}
+var mummies_met := 0
+var mummies_woken := 0
 
 
 # The stick, for going `way` over the ground, as the camera now looks.
@@ -1907,3 +1928,75 @@ func _sand_holds3() -> bool:
 	level.get_parent().queue_free()
 	await _wait(5)
 	return sound and done
+
+
+# What is kept of a day's tomb seen from the side and of the same tomb walked
+# through must not run together. (Kept in a file of its own for the test: the
+# player's is not touched.)
+func _kept() -> void:
+	print("KEPT: a day's tomb finished each way")
+	var was := TombDaily.path
+	TombDaily.path = "user://tombs_test.json"
+	DirAccess.remove_absolute(TombDaily.path)
+	var day := 30000
+	var run := {"mode": "daily", "view": "side", "day": day, "seed": 1, "difficulty": 1, "time_ms": 60000, "deaths": 0}
+	var first := TombDaily.keep(run)
+	run["view"] = "3d"
+	run["time_ms"] = 90000
+	var second := TombDaily.keep(run)
+	run["time_ms"] = 80000
+	run["deaths"] = 2
+	var third := TombDaily.keep(run)
+	var side := TombDaily.day_record(day, "side")
+	var through := TombDaily.day_record(day, "3d")
+	var apart := int(side.get("best_ms", 0)) == 60000 and int(side.get("runs", 0)) == 1 and int(through.get("best_ms", 0)) == 80000 \
+			and int(through.get("first_ms", 0)) == 90000 and int(through.get("runs", 0)) == 2 and int(through.get("best_deaths", -1)) == 2
+	var firsts: bool = first["first"] and second["first"] and not third["first"] and third["best"]
+	# (one run of days, whichever way: the same day twice is one day, and the next day by the other way goes on from it)
+	var one_day: bool = int(first["streak"]) == 1 and int(second["streak"]) == 1
+	run["day"] = day + 1
+	var next := TombDaily.keep(run)
+	var runs_on: bool = int(next["streak"]) == 2
+	var practice := {"mode": "random", "view": "side", "day": 0, "seed": 5, "difficulty": 1, "time_ms": 50000, "deaths": 0}
+	TombDaily.keep(practice)
+	practice["view"] = "3d"
+	practice["time_ms"] = 70000
+	var walked_first: bool = TombDaily.keep(practice)["best"]
+	var bests: Dictionary = TombDaily.load_all()["random_best"]
+	var practice_apart := int(bests.get("5:1", 0)) == 50000 and int(bests.get("5:1:3d", 0)) == 70000 and walked_first
+	var said := TombDaily.share_text(run)
+	var says := "walked through" in said and not "walked through" in TombDaily.share_text({"mode": "daily", "day": day, "time_ms": 1, "deaths": 0})
+	DirAccess.remove_absolute(TombDaily.path)
+	TombDaily.path = was
+	print("  the day's times %s; each has its own first and best: %s; the run of days counts a day once (%s) and goes on (%s); practice bests %s; the line to send says which (\"%s\"): %s" % [
+			"are kept apart" if apart else "RAN TOGETHER", firsts, one_day, runs_on, "are kept apart" if practice_apart else "RAN TOGETHER", said, says])
+	if not (apart and firsts and one_day and runs_on and practice_apart and says):
+		failed = true
+
+
+# Dying, in the tomb that is walked through: he starts again at the last door
+# he went through, across the room from wherever he went through it, and what
+# he was carrying is back there where he last had it.
+func _carried_back3() -> bool:
+	await _open(0, 0, three_new())
+	var plan := level.plan
+	var torch: RigidBody3D = level.built.items[0]
+	var sound := await _do_step3(["take", 0])
+	var door: Vector3 = layout3.rooms[1]["west"]
+	# (down the stairs and into the next room, on the far side of it from his line)
+	sound = await _go3(door + Vector3(0.0, 0.0, 0.0)) and sound
+	var across := Vector3(-_along(plan.spine_link(0)).z, 0.0, _along(plan.spine_link(0)).x)
+	sound = await _leg(door + across * 2.6) == ARRIVED and sound
+	var on := Vector3(TombLayout3D.TURNS[int(layout3.rooms[1]["turn"])])
+	await _leg(door + across * 2.6 + on * 3.0)
+	var had := player.carried == torch
+	level.give_up()
+	await _wait(150)
+	var back := _flat(player.global_position, door).length() < 1.0 and absf(player.global_position.y - door.y) < 0.5
+	var lies := _flat(torch.global_position, door).length() < 1.5 and player.carried == null
+	print("  dying with a torch in his hand, three metres past a door he went through at the far wall: he had it %s, deaths %d, he is back at that door: %s, and the torch is there: %s" % [
+			had, level.deaths, back, lies])
+	var once := level.deaths == 1
+	level.get_parent().queue_free()
+	await _wait(5)
+	return sound and had and back and lies and once
