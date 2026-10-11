@@ -80,6 +80,16 @@ const MUMMY_TITLES := ["Shambler", "Priest", "Brute", "Crawler", "Child", "Royal
 const BARRIER_TITLES := {"auto": "What suits it", "trench": "A trench", "kerb": "A kerb", "narrow": "A narrow gap", "none": "Nothing"}
 
 static var _reach := {}
+## Where they are kept. The tools set another, or one is given on the command
+## line (`-- tombs_file=<file>`), so that nothing they do is written over the
+## player's own (as `TombDaily.path`).
+static var path := FILE
+
+
+static func _static_init() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("tombs_file="):
+			path = arg.trim_prefix("tombs_file=")
 
 
 ## Whether it is a tomb that branches: rooms on a floor plan (see `TombFloorSpec`).
@@ -427,9 +437,9 @@ static func step_words(spec: Dictionary, plan: TombPlan, step: Array) -> String:
 ## Everything kept on this device: `tombs` (each by its name) and `current` (the name of the one last worked on).
 static func load_all() -> Dictionary:
 	var kept := {"version": VERSION, "current": "", "tombs": {}}
-	if not FileAccess.file_exists(FILE):
+	if not FileAccess.file_exists(path):
 		return kept
-	var file := FileAccess.open(FILE, FileAccess.READ)
+	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return kept
 	var read: Variant = JSON.parse_string(file.get_as_text())
@@ -441,7 +451,7 @@ static func load_all() -> Dictionary:
 
 
 static func save_all(kept: Dictionary) -> bool:
-	var file := FileAccess.open(FILE, FileAccess.WRITE)
+	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return false
 	file.store_string(JSON.stringify(kept, "\t"))

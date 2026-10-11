@@ -36,11 +36,21 @@ extends Node3D
 ## loop, and "Remove" takes it away. The panel is the same, but for the way
 ## and the lock, which here are of the way INTO the chosen room, and may be
 ## opened from any room of the tomb. Such a tomb is only ever walked through.
+##
+## ON A PHONE (wherever the touch controls are shown: a touch screen, or the
+## web build; `-- phone` on the command line asks for it anywhere, `-- desk`
+## for the other) none of the bar, the row of rooms, the panel and the sheet
+## spoken of above is made: `TombPhoneUI` is, in their place, with everything
+## big enough for a thumb. What the editor does to a tomb is the same; only
+## what is touched to ask for it differs.
 
 const PANEL := 340.0
 const FOV := 30.0
 const NEAREST := 8.0
 const FURTHEST := 420.0
+## On a phone, how big the marks on a floor plan are (half across): a "+", and one with a word in it.
+const MARK_PLUS := 46.0
+const MARK_WORD := 54.0
 const WAY_SHORT := {"open": "doorway", "stairs": "stairs", "crawl": "crawl", "flood": "water", "shaft": "ladder", "rope": "rope", "gap": "pit, hook", "sand": "up the sand"}
 const LOCK_SHORT := {"none": "", "work": "block + plate", "cross": "plate, block from before", "pair": "two plates, two blocks", "brazier": "brazier", "offering": "block + jar",
 	"lever_above": "stone in a loft", "lever_below": "stone under a well", "bypass": "over the wall"}
@@ -49,6 +59,8 @@ const HELP_FLOOR := "A tomb that branches, seen from overhead. One finger drags 
 
 ## For the tools: nothing is written to the device.
 static var keeps := true
+## Which layout the next editor is to have: "phone", "desk", or "" to see for itself (`wants_phone`). For the tools.
+static var layout := ""
 
 ## The tomb being made (see TombSpec), which room of it is chosen, and what
 ## `TombSpec.check` last said of it.
@@ -86,6 +98,8 @@ var _side: PanelContainer
 var _inspector: VBoxContainer
 var _sheet: PanelContainer
 var _rows: VBoxContainer
+## On a phone, everything that is touched (see TombPhoneUI); null where there is a mouse.
+var _phone: TombPhoneUI
 
 
 func _ready() -> void:
@@ -95,7 +109,24 @@ func _ready() -> void:
 	take(TombSpec.current())
 	rebuild()
 	look_at_room(chosen)
-	_say("One finger drags the tomb about, two pinch. Touch a room to choose it.  ( ? for more )", 7.0)
+	if _phone:
+		_say("One finger drags the tomb about, two pinch. Touch a room to choose it.", 6.0)
+	else:
+		_say("One finger drags the tomb about, two pinch. Touch a room to choose it.  ( ? for more )", 7.0)
+
+
+## Whether the editor is to be laid out for a phone: where the touch controls
+## are shown (as `TouchControls` decides: a touch screen, or the web build), or
+## where it is asked for (`layout`, or `-- phone` and `-- desk` on the command line).
+static func wants_phone() -> bool:
+	if layout != "":
+		return layout == "phone"
+	var args := OS.get_cmdline_user_args()
+	if "phone" in args:
+		return true
+	if "desk" in args:
+		return false
+	return DisplayServer.is_touchscreen_available() or OS.has_feature("web")
 
 
 # --- The tomb itself
@@ -224,11 +255,14 @@ func remove() -> void:
 		return
 	_remember()
 	var at := chosen
+	var was := TombSpec.room_title(spec, at)
 	rooms().remove_at(at)
 	_renumber(func(index: int) -> int: return index - 1 if index > at else index)
 	chosen = mini(chosen, rooms().size() - 2)
 	_changed()
 	_show_inspector()
+	if _phone:
+		_say("%s is taken away. Undo puts it back." % was, 5.0)
 
 
 ## Moves the chosen room one place earlier (-1) or later (1).
@@ -345,8 +379,119 @@ func leave() -> void:
 	get_tree().change_scene_to_file("res://tomb.tscn")
 
 
+## Another name for the tomb being made (one no kept tomb has).
+func rename(wanted: String) -> void:
+	wanted = wanted.strip_edges()
+	if wanted == "" or wanted == spec["name"]:
+		return
+	if keeps:
+		TombSpec.forget(spec["name"])
+	spec["name"] = TombSpec.free_name(wanted) if keeps else wanted
+	_keep()
+	_show_strip()
+
+
+## A new tomb to work on: down one axis, or one that branches.
+func new_tomb(branching: bool) -> void:
+	_open(TombFloorSpec.fresh(TombSpec.free_name("My branching tomb")) if branching else TombSpec.fresh(TombSpec.free_name("My tomb")))
+
+
+## One of the generator's, from a number and at a difficulty, as a tomb to change by hand.
+func from_number(number: int, difficulty: int, branching: bool) -> void:
+	var made := TombFloorSpec.from_seed(number, difficulty) if branching else TombSpec.from_seed(number, difficulty)
+	made["name"] = TombSpec.free_name(made["name"])
+	_open(made)
+
+
+## Opens a tomb kept on this device.
+func open_tomb(name: String) -> void:
+	var kept := TombSpec.open(name)
+	if kept.is_empty():
+		_say("%s could not be opened." % name, 4.0)
+		return
+	_open(kept)
+
+
+## A second tomb like one that is kept (or like the one being made), under a name of its own, to work on.
+func copy_tomb(name: String) -> void:
+	var twin := spec.duplicate(true) if name == spec["name"] else TombSpec.open(name)
+	if twin.is_empty():
+		return
+	_keep()
+	# ("My tomb copy", and of that "My tomb copy 2")
+	var base := name
+	var cut := base.rfind(" copy")
+	if cut > 0 and (base.substr(cut + 5).strip_edges() == "" or base.substr(cut + 5).strip_edges().is_valid_int()):
+		base = base.left(cut)
+	twin["name"] = TombSpec.free_name(base + " copy")
+	_open(twin)
+	_say("This is %s, a copy: %s is kept as it was." % [twin["name"], name], 5.0)
+
+
+## Takes a kept tomb off this device.
+func forget_tomb(name: String) -> void:
+	TombSpec.forget(name)
+	_show_strip()
+
+
+## Every room cut to another size; nothing else of the tomb changes.
+func other_sizes() -> void:
+	_remember()
+	spec["seed"] = int(spec.get("seed", 1)) + 1
+	_changed()
+
+
+## Makes the tomb being made the one that text says, under the name it has. Says whether the text was a tomb.
+func use_text(text: String) -> bool:
+	var brought := TombSpec.from_text(text)
+	if brought.is_empty():
+		_say("That text is not a tomb.", 4.0)
+		return false
+	_remember()
+	var name_now: String = spec["name"]
+	spec = brought
+	spec["name"] = name_now
+	chosen = clampi(chosen, 0, rooms().size() - 1)
+	mode = ""
+	_changed()
+	rebuild()
+	_show_inspector()
+	return true
+
+
+# Takes a tomb to work on, stands it up and looks at it.
+func _open(tomb: Dictionary) -> void:
+	take(tomb)
+	rebuild()
+	if _floor:
+		look_at_all()
+	else:
+		look_at_room(chosen)
+
+
+## Which room something said of the tomb is about (the first it names), or -1: `TombSpec.problems` and the
+## rest name a room by its number and what it is, as "5 Corridor".
+func room_of(text: String) -> int:
+	var first := -1
+	var where := text.length()
+	for index in rooms().size():
+		var title := TombSpec.room_title(spec, index)
+		var at := text.find(title)
+		while at >= 0:
+			# (not the end of another room's number: "2 Corridor" in "12 Corridor")
+			if (at == 0 or not text[at - 1].is_valid_int()) and at < where:
+				where = at
+				first = index
+				break
+			at = text.find(title, at + 1)
+	return first
+
+
 ## One way through, step by step; or what is wrong.
 func show_way() -> void:
+	if _phone:
+		_phone.open("works")
+		return
 	if _dirty >= 0.0:
 		rebuild()
 	var rows := _open_sheet("Whether it works")
@@ -369,6 +514,12 @@ func show_way() -> void:
 
 ## The tombs kept on this device, a new one, one from a number, and this one as text.
 func show_tombs(open: bool) -> void:
+	if _phone:
+		if open:
+			_phone.open("tombs")
+		else:
+			_phone.close()
+		return
 	if not open:
 		_close_sheet()
 		return
@@ -378,18 +529,12 @@ func show_tombs(open: bool) -> void:
 	name.text = spec.get("name", "")
 	name.custom_minimum_size.y = 50.0
 	name.add_theme_font_size_override("font_size", 20)
-	var rename := func(_text := "") -> void:
-		var wanted := name.text.strip_edges()
-		if wanted == "" or wanted == spec["name"]:
-			return
-		if keeps:
-			TombSpec.forget(spec["name"])
-		spec["name"] = TombSpec.free_name(wanted) if keeps else wanted
+	var renamed := func(_text := "") -> void:
+		rename(name.text)
 		name.text = spec["name"]
 		name.release_focus()
-		_keep()
-	name.text_submitted.connect(rename)
-	name.focus_exited.connect(rename)
+	name.text_submitted.connect(renamed)
+	name.focus_exited.connect(renamed)
 	rows.add_child(name)
 	for other: String in TombSpec.names():
 		if other == spec["name"]:
@@ -407,8 +552,7 @@ func show_tombs(open: bool) -> void:
 			TombSpec.forget(other)
 			show_tombs(true)))
 	rows.add_child(_button("A new tomb", func() -> void:
-		take(TombSpec.fresh(TombSpec.free_name("My tomb")))
-		look_at_room(chosen)
+		new_tomb(false)
 		_close_sheet()))
 	rows.add_child(_caption("Or begin from one of the generator's: a number, then how hard."))
 	var number := LineEdit.new()
@@ -420,11 +564,7 @@ func show_tombs(open: bool) -> void:
 	rows.add_child(hard)
 	for level in 3:
 		var pick := _button(TombGenerator.DIFFICULTY_NAMES[level], func() -> void:
-			var from := int(number.text) if number.text.is_valid_int() else randi_range(1, 999999)
-			var made := TombSpec.from_seed(from, level)
-			made["name"] = TombSpec.free_name(made["name"])
-			take(made)
-			look_at_room(chosen)
+			from_number(int(number.text) if number.text.is_valid_int() else randi_range(1, 999999), level, false)
 			_close_sheet())
 		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hard.add_child(pick)
@@ -434,27 +574,18 @@ func show_tombs(open: bool) -> void:
 	branching.add_theme_constant_override("separation", 6)
 	rows.add_child(branching)
 	var new_plan := _button("A new one", func() -> void:
-		take(TombFloorSpec.fresh(TombSpec.free_name("My branching tomb")))
-		rebuild()
-		look_at_all()
+		new_tomb(true)
 		_close_sheet())
 	new_plan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	branching.add_child(new_plan)
 	for level in 3:
 		var pick := _button(TombGenerator.DIFFICULTY_NAMES[level], func() -> void:
-			var from := int(number.text) if number.text.is_valid_int() else randi_range(1, 999999)
-			var made := TombFloorSpec.from_seed(from, level)
-			made["name"] = TombSpec.free_name(made["name"])
-			take(made)
-			rebuild()
-			look_at_all()
+			from_number(int(number.text) if number.text.is_valid_int() else randi_range(1, 999999), level, true)
 			_close_sheet())
 		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		branching.add_child(pick)
 	rows.add_child(_button("Other sizes for the rooms", func() -> void:
-		_remember()
-		spec["seed"] = int(spec.get("seed", 1)) + 1
-		_changed()
+		other_sizes()
 		_close_sheet()))
 	rows.add_child(_caption("The tomb as text: copy it to keep it anywhere else or to send it; paste one here and press Use this text to bring it in."))
 	var text := TextEdit.new()
@@ -470,18 +601,8 @@ func show_tombs(open: bool) -> void:
 		_say("Copied.")))
 	row.add_child(_button("Paste", func() -> void: text.text = DisplayServer.clipboard_get()))
 	row.add_child(_button("Use this text", func() -> void:
-		var brought := TombSpec.from_text(text.text)
-		if brought.is_empty():
-			_say("That text is not a tomb.", 4.0)
-			return
-		_remember()
-		var name_now: String = spec["name"]
-		spec = brought
-		spec["name"] = name_now
-		chosen = clampi(chosen, 0, rooms().size() - 1)
-		_changed()
-		_show_inspector()
-		_close_sheet()))
+		if use_text(text.text):
+			_close_sheet()))
 	rows.add_child(_button("Close", _close_sheet))
 
 
@@ -489,6 +610,10 @@ func show_tombs(open: bool) -> void:
 
 ## Goes to a room: it fills most of the view.
 func look_at_room(index: int) -> void:
+	if _phone:
+		var roomy := 150.0 if _floor and _phone.page == "" else 50.0
+		_frame(_room_box(index), roomy, 34.0 if _floor else 16.0, 110.0)
+		return
 	if _floor:
 		var box := _box_of(index)
 		if box.size != Vector2.ZERO:
@@ -503,6 +628,18 @@ func look_at_room(index: int) -> void:
 
 
 func look_at_all() -> void:
+	if _phone:
+		var whole := Rect2()
+		if _floor:
+			for index in rooms().size():
+				var box := _box_of(index)
+				if box.size != Vector2.ZERO:
+					whole = box if whole.size == Vector2.ZERO else whole.merge(box)
+		elif _layout:
+			whole = Rect2(-4.0, -_layout.depth - 2.0, _layout.length + 8.0, _layout.depth + 10.0)
+		# (with room round it for the places a room could be moved to, while one is being moved)
+		_frame(whole, 150.0 if mode == "move" else 50.0, 34.0 if _floor else 22.0, FURTHEST)
+		return
 	if _floor and _layout is TombLayout3D:
 		var all := Rect2()
 		for index in rooms().size():
@@ -523,6 +660,36 @@ func look_at_all() -> void:
 # How much of the width of the screen the panel at the right covers.
 func _hidden() -> float:
 	return PANEL + 16.0 if _side and _side.visible else 0.0
+
+
+## Nearer (less than 1) or further off (more), for a hand that cannot pinch.
+func zoom(by: float) -> void:
+	_reach = clampf(_reach * by, NEAREST, FURTHEST)
+
+
+# The part of the tomb a room takes up, in metres: across and south on a floor plan; seen from the side, across
+# and up, with what is written over and under it. None if it does not stand.
+func _room_box(index: int) -> Rect2:
+	if _floor:
+		return _box_of(index)
+	var span := _span_of(index)
+	if span.is_empty():
+		return Rect2()
+	return Rect2(span[0], span[2] - 2.0, span[1] - span[0], span[3] - span[2] + 4.5)
+
+
+# On a phone: brings a part of the tomb to the middle of the part of the screen that is open (see
+# `TombPhoneUI.open_rect`), as large as fits with `clear` pixels round it, no nearer than `least` nor further than `most`.
+func _frame(box: Rect2, clear: float, least: float, most: float) -> void:
+	if box.size == Vector2.ZERO:
+		return
+	var open := _phone.open_rect()
+	var each := maxf(box.size.x / maxf(open.size.x - 2.0 * clear, 80.0), box.size.y / maxf(open.size.y - 2.0 * clear, 80.0))
+	_reach = clampf(each * _reach / _per_pixel(), least, most)
+	each = _per_pixel()
+	var off := open.get_center() - _pad.size * 0.5
+	var middle := box.get_center()
+	_focus = Vector2(middle.x - off.x * each, middle.y - off.y * each if _floor else middle.y + off.y * each)
 
 
 # Where a room on the axis is, as it stands: from x, to x, its floor, its ceiling. Empty if it does not stand.
@@ -562,8 +729,10 @@ func _process(delta: float) -> void:
 		_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 		_cam.rotation = Vector3.ZERO
 		if _layout:
-			_focus.x = clampf(_focus.x, -12.0, _layout.length + 12.0)
-			_focus.y = clampf(_focus.y, -_layout.depth - 12.0, 16.0)
+			# (on a phone the tomb is seen in a part of the screen, which may be well off to one side of it)
+			var slack := 12.0 + (_pad.size.x * 0.5 * _per_pixel() if _phone else 0.0)
+			_focus.x = clampf(_focus.x, -slack, _layout.length + slack)
+			_focus.y = clampf(_focus.y, -_layout.depth - slack, 4.0 + slack)
 		_cam.position = Vector3(_focus.x, _focus.y, _reach)
 	# Only what is in sight is drawn.
 	if built and _layout and not _floor:
@@ -573,8 +742,9 @@ func _process(delta: float) -> void:
 			var node := built.room_nodes[room.id]
 			if is_instance_valid(node) and info.has("x1"):
 				node.visible = float(info["x1"]) > _focus.x - half and float(info["x0"]) < _focus.x + half
-	_status.text = _status_line()
-	_status.modulate = Color(1.0, 0.72, 0.6) if not found.get("ok", true) and Time.get_ticks_msec() * 0.001 >= _hint_until else Color.WHITE
+	if _status:
+		_status.text = _status_line()
+		_status.modulate = Color(1.0, 0.72, 0.6) if not found.get("ok", true) and Time.get_ticks_msec() * 0.001 >= _hint_until else Color.WHITE
 	_pad.queue_redraw()
 
 
@@ -644,18 +814,47 @@ func _tapped(screen: Vector2) -> void:
 				(mark[2] as Callable).call()
 				return
 		var room := _room_on_floor(_focus + (screen - _pad.size * 0.5) * _per_pixel())
+		if room < 0 and _phone:
+			room = _room_near(screen)
 		if room >= 0 and mode == "join" and room != chosen:
 			join_with(room)
 		elif room >= 0:
-			mode = ""
-			choose(room)
+			_touched_room(room)
 		return
 	if _layout == null:
 		return
 	var x := _focus.x + (screen.x - _pad.size.x * 0.5) * _per_pixel()
 	var room := _layout.room_at(x)
 	if room >= 0:
-		choose(_layout.plan.rooms[room].spine)
+		_touched_room(_layout.plan.rooms[room].spine)
+
+
+# A touch on a room chooses it. On a phone, a touch on the room that is chosen already opens its page.
+func _touched_room(index: int) -> void:
+	if _phone and index == chosen and mode == "" and _phone.page == "":
+		_phone.open("room")
+		return
+	mode = ""
+	choose(index)
+
+
+# On a phone, seen from far off, a room on the floor plan may be smaller than a thumb: a touch beside one is
+# taken for it if it is within what a thumb needs of it (the nearest, if there are several).
+func _room_near(screen: Vector2) -> int:
+	var nearest := -1
+	var least := INF
+	for index in rooms().size():
+		var box := _box_of(index)
+		if box.size == Vector2.ZERO:
+			continue
+		var seen := Rect2(_to_screen(box.position.x, box.position.y), box.size / _per_pixel())
+		seen = seen.grow_individual(maxf(TombPhoneUI.TOUCH - seen.size.x, 0.0) * 0.5, maxf(TombPhoneUI.TOUCH - seen.size.y, 0.0) * 0.5,
+				maxf(TombPhoneUI.TOUCH - seen.size.x, 0.0) * 0.5, maxf(TombPhoneUI.TOUCH - seen.size.y, 0.0) * 0.5)
+		var far := screen.distance_to(seen.get_center())
+		if seen.has_point(screen) and far < least:
+			least = far
+			nearest = index
+	return nearest
 
 
 # What is drawn over the tomb: each room's number and name, what the way on from it is, and the chosen one ringed.
@@ -686,18 +885,34 @@ func _draw_pad() -> void:
 			_pad.draw_line(Vector2(low.x, low.y), Vector2(low.x, low.y + 16.0), colour, 2.0)
 		var at := Vector2(low.x + 8.0, high.y - 10.0)
 		var title := str(i + 1) if far else TombSpec.room_title(spec, i)
-		_pad.draw_string_outline(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 20, 7, Color(0.0, 0.0, 0.0, 0.8))
-		_pad.draw_string(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 20, colour)
-		if i < count - 1 and not far:
+		# (on a phone the words are larger, and a room has its name over it only where that fits, or it is the chosen one)
+		var big := TombPhoneUI.TEXT if _phone else 20
+		var small := TombPhoneUI.TEXT if _phone else 16
+		var room_wide := high.x - low.x - 14.0
+		if _phone:
+			title = TombSpec.room_title(spec, i)
+			if not is_chosen and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big).x > room_wide:
+				title = str(i + 1)
+			elif is_chosen and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big).x > room_wide:
+				# (wider than its room: a line higher, over its neighbours' numbers)
+				at.y -= 32.0
+		_pad.draw_string_outline(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big, 7, Color(0.0, 0.0, 0.0, 0.8))
+		_pad.draw_string(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big, colour)
+		if i < count - 1 and (not far or _phone):
 			var way: String = WAY_SHORT.get(told.get("way", "open"), "")
 			var lock: String = LOCK_SHORT.get(told.get("lock", "none"), "")
 			if told.get("lock", "none") == "bypass":
 				way = "stairs"
 			var says := way if lock == "" else "%s  ·  %s: %s" % [way, "sand" if told.get("way", "open") == "sand" else "door", lock]
-			var wide := font.get_string_size(says, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16).x
+			var wide := font.get_string_size(says, HORIZONTAL_ALIGNMENT_LEFT, -1.0, small).x
 			var under := Vector2(high.x - wide - 6.0, low.y + 30.0)
-			_pad.draw_string_outline(font, under, says, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, 6, Color(0.0, 0.0, 0.0, 0.8))
-			_pad.draw_string(font, under, says, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, Color(0.7, 0.95, 0.6) if lock != "" else Color(0.8, 0.85, 1.0, 0.8))
+			if _phone:
+				if wide > room_wide and not is_chosen:
+					continue
+				# (the chosen room's is always said: a line lower where it is wider than the room, clear of its neighbours')
+				under = Vector2(high.x - wide - 6.0, low.y + 36.0) if wide <= room_wide else Vector2(maxf(low.x, 4.0), low.y + 72.0)
+			_pad.draw_string_outline(font, under, says, HORIZONTAL_ALIGNMENT_LEFT, -1.0, small, 6, Color(0.0, 0.0, 0.0, 0.8))
+			_pad.draw_string(font, under, says, HORIZONTAL_ALIGNMENT_LEFT, -1.0, small, Color(0.7, 0.95, 0.6) if lock != "" else Color(0.8, 0.85, 1.0, 0.8))
 
 
 # --- The floor plan (a tomb that branches)
@@ -729,6 +944,14 @@ func start(what: String) -> void:
 		_say(TombFloorSpec.fixed_because(spec, chosen), 5.0)
 		mode = ""
 	_show_inspector()
+	# (on a phone the marks are brought into the part of the screen between the bars)
+	if _phone and mode == "move":
+		look_at_all()
+	elif _phone and mode == "join":
+		var about := _box_of(chosen)
+		for pair: Array in joinable():
+			about = about.merge(_box_of(pair[0]))
+		_frame(about, 110.0, 34.0, FURTHEST)
 
 
 ## Moves the chosen room to that side of the room `off`: it is entered from there.
@@ -762,6 +985,14 @@ func set_join(join: Dictionary, key: String, value: Variant) -> void:
 	_settle()
 
 
+## Whether one of the chosen room's second ways has a door that opens only from one of its two rooms (`from`), or none.
+func set_join_door(join: Dictionary, from: int, shut: bool) -> void:
+	_remember()
+	join["seal"] = from
+	join["lock"] = "within" if shut else "none"
+	_settle()
+
+
 # After the plan itself has changed: stood up again at once, since every room's number may have changed.
 func _settle() -> void:
 	_changed()
@@ -780,10 +1011,13 @@ func _remove_from_floor() -> void:
 		return
 	_remember()
 	var parent := int(rooms()[chosen]["from"])
+	var was := TombSpec.room_title(spec, chosen)
 	TombFloorSpec.remove_room(spec, chosen)
 	chosen = parent if parent < chosen else parent - 1
 	mode = ""
 	_settle()
+	if _phone:
+		_say("%s is taken away. Undo puts it back." % was, 5.0)
 
 
 # What has to follow from a change to the chosen room of a tomb that branches.
@@ -916,34 +1150,99 @@ func _draw_floor() -> void:
 		var spot: Vector3 = info.get("west", Vector3.ZERO)
 		var at := _to_screen(spot.x, spot.z) + Vector2(-10.0, 6.0)
 		var title := str(i + 1) if far else TombSpec.room_title(spec, i)
-		_pad.draw_string_outline(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 19, 7, Color(0.0, 0.0, 0.0, 0.85))
-		_pad.draw_string(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 19, colour)
+		var big := 19
+		if _phone:
+			# (larger words, and its name only where the room is wide enough for it, or it is the chosen one)
+			big = TombPhoneUI.TEXT
+			title = TombSpec.room_title(spec, i)
+			if not is_chosen and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big).x > high.x - low.x:
+				title = str(i + 1)
+		_pad.draw_string_outline(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big, 7, Color(0.0, 0.0, 0.0, 0.85))
+		_pad.draw_string(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big, colour)
 	if chosen >= count:
 		return
+	var wanted: Array = []
 	match mode:
 		"":
 			for side: int in TombFloorSpec.free_sides(spec, chosen):
-				_mark(_mark_at(chosen, side), "+", Color(0.55, 0.9, 0.5), add_off.bind(side))
+				wanted.append([_mark_at(chosen, side), "+", Color(0.55, 0.9, 0.5), add_off.bind(side)])
 		"move":
-			# (every side of every other room that would be free with this one lifted off the plan)
-			var lifted := spec.duplicate(true)
-			lifted["rooms"][chosen]["cell"] = [-9999, -9999]
-			for other in count:
-				if other == chosen:
-					continue
-				for side: int in TombFloorSpec.free_sides(lifted, other):
-					_mark(_mark_at(other, side), "here", Color(1.0, 0.8, 0.4), move_to.bind(other, side))
+			# (where two or more would stand on top of one another on a phone, one mark stands for them, and a touch on it lists them)
+			var spots: Array = []
+			for place: Array in places():
+				var at := _mark_at(place[0], place[1])
+				var taken := false
+				for spot: Array in spots:
+					if _phone and at.distance_to(spot[0]) < 2.0 * MARK_WORD + TombPhoneUI.GAP + 2.0:
+						(spot[1] as Array).append(place)
+						taken = true
+						break
+				if not taken:
+					spots.append([at, [place]])
+			for spot: Array in spots:
+				var here: Array = spot[1]
+				if here.size() == 1:
+					wanted.append([spot[0], "here", Color(1.0, 0.8, 0.4), move_to.bind(here[0][0], here[0][1])])
+				else:
+					wanted.append([spot[0], "%d here" % here.size(), Color(1.0, 0.8, 0.4), _phone.open_places.bind(here)])
 		"join":
-			for other in count:
-				if other == chosen:
-					continue
-				var joined := false
-				for join: Dictionary in TombFloorSpec.joins_of(spec, chosen):
-					joined = joined or int(join["a"]) == other or int(join["b"]) == other
-				if not joined and TombFloorSpec.join_wrong(spec, chosen, other) != "":
-					continue
-				var middle := _box_of(other).get_center()
-				_mark(_to_screen(middle.x, middle.y), "unjoin" if joined else "join", Color(1.0, 0.6, 0.4) if joined else Color(0.5, 0.85, 1.0), join_with.bind(other))
+			for pair: Array in joinable():
+				var middle := _box_of(pair[0]).get_center()
+				wanted.append([_to_screen(middle.x, middle.y), "unjoin" if pair[1] else "join", Color(1.0, 0.6, 0.4) if pair[1] else Color(0.5, 0.85, 1.0), join_with.bind(pair[0])])
+	# On a phone a mark is as big as a thumb however far off the plan is seen from: any that would stand on one
+	# another are moved apart, each the same way, until there is a gap between them.
+	if _phone:
+		var apart := 2.0 * (MARK_PLUS if mode == "" else MARK_WORD) + TombPhoneUI.GAP + 2.0
+		for turn in 16:
+			var moved := false
+			for i in wanted.size():
+				for j in i:
+					var one: Vector2 = wanted[i][0]
+					var other: Vector2 = wanted[j][0]
+					if one == Vector2.INF or other == Vector2.INF or one.distance_to(other) >= apart - 0.5:
+						continue
+					var push := (one - other).normalized() if one.distance_to(other) > 0.01 else Vector2.RIGHT
+					var short := (apart - one.distance_to(other)) * 0.5
+					wanted[i][0] = one + push * short
+					wanted[j][0] = other - push * short
+					moved = true
+			if not moved:
+				break
+	for mark: Array in wanted:
+		_mark(mark[0], mark[1], mark[2], mark[3])
+
+
+## Every place the chosen room could be moved to: each [the room it would be entered from, on which side of
+## that room]. (Every side of every other room that would be free with this one lifted off the plan.)
+func places() -> Array:
+	var found_places: Array = []
+	if not _floor or TombFloorSpec.fixed_because(spec, chosen) != "":
+		return found_places
+	var lifted := spec.duplicate(true)
+	lifted["rooms"][chosen]["cell"] = [-9999, -9999]
+	for other in rooms().size():
+		if other == chosen:
+			continue
+		for side: int in TombFloorSpec.free_sides(lifted, other):
+			found_places.append([other, side])
+	return found_places
+
+
+## The rooms a second way could be made to from the chosen one, or has one that could be taken away: each
+## [which room, whether they are joined already].
+func joinable() -> Array:
+	var beside: Array = []
+	if not _floor:
+		return beside
+	for other in rooms().size():
+		if other == chosen:
+			continue
+		var joined := false
+		for join: Dictionary in TombFloorSpec.joins_of(spec, chosen):
+			joined = joined or int(join["a"]) == other or int(join["b"]) == other
+		if joined or TombFloorSpec.join_wrong(spec, chosen, other) == "":
+			beside.append([other, joined])
+	return beside
 
 
 # A mark on the floor plan that a touch lands on: a disc with a word in it.
@@ -952,12 +1251,15 @@ func _mark(at: Vector2, word: String, colour: Color, touched: Callable) -> void:
 		return
 	var font := ThemeDB.fallback_font
 	var radius := 24.0 if word.length() <= 1 else 32.0
-	_pad.draw_circle(at, radius, Color(0.05, 0.05, 0.07, 0.8))
-	_pad.draw_arc(at, radius, 0.0, TAU, 28, colour, 2.5)
 	var size := 30 if word.length() <= 1 else 15
+	if _phone:
+		radius = MARK_PLUS if word.length() <= 1 else MARK_WORD
+		size = 44 if word.length() <= 1 else TombPhoneUI.TEXT
+	_pad.draw_circle(at, radius, Color(0.05, 0.05, 0.07, 0.8))
+	_pad.draw_arc(at, radius, 0.0, TAU, 28, colour, 4.0 if _phone else 2.5)
 	var wide := font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
 	_pad.draw_string(font, at + Vector2(-wide * 0.5, size * 0.36), word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, colour)
-	_marks.append([at, radius + 8.0, touched])
+	_marks.append([at, radius if _phone else radius + 8.0, touched])
 
 
 # What can be changed about the chosen room of a tomb that branches.
@@ -1111,6 +1413,12 @@ func _build_ui() -> void:
 	layer.add_child(_ui)
 	get_viewport().size_changed.connect(_keep_clear)
 	_keep_clear.call_deferred()
+	if wants_phone():
+		# On a phone, everything that is touched is TombPhoneUI's; none of what follows is made.
+		_phone = TombPhoneUI.new()
+		_phone.editor = self
+		_ui.add_child(_phone)
+		return
 
 	# Along the top: what is done to the whole tomb.
 	var top := HBoxContainer.new()
@@ -1211,10 +1519,15 @@ func _keep_clear() -> void:
 		edges = [safe.position.x * scale, safe.position.y * scale, (window.x - safe.end.x) * scale, (window.y - safe.end.y) * scale]
 	elif OS.has_feature("web") and DisplayServer.is_touchscreen_available():
 		edges = [30.0, 0.0, 30.0, 6.0]
-	_ui.offset_left = clampf(edges[0], 0.0, 90.0)
-	_ui.offset_top = clampf(edges[1], 0.0, 60.0)
-	_ui.offset_right = -clampf(edges[2], 0.0, 90.0)
-	_ui.offset_bottom = -clampf(edges[3], 0.0, 60.0)
+	var least := [0.0, 0.0, 0.0, 0.0]
+	if _phone:
+		# (on a phone, never nearer the sides than its corners and notch need, whatever it says of itself, nor the
+		# bottom than the swipe that belongs to the system)
+		least = [TombPhoneUI.EDGE, TombPhoneUI.HEAD, TombPhoneUI.EDGE, TombPhoneUI.FOOT]
+	_ui.offset_left = clampf(edges[0], least[0], 90.0)
+	_ui.offset_top = clampf(edges[1], least[1], 60.0)
+	_ui.offset_right = -clampf(edges[2], least[2], 90.0)
+	_ui.offset_bottom = -clampf(edges[3], least[3], 60.0)
 
 
 # What a panel stands on: dark enough that the tomb behind does not show through the words.
@@ -1249,6 +1562,8 @@ func _close_sheet() -> void:
 
 # The rooms along the bottom, and between each two the way from one to the next.
 func _show_strip() -> void:
+	if _phone:
+		_phone.refresh()
 	if _strip == null:
 		return
 	for old in _strip.get_children():
@@ -1268,6 +1583,8 @@ func _show_strip() -> void:
 
 # What can be changed about the chosen room.
 func _show_inspector() -> void:
+	if _phone:
+		_phone.refresh()
 	if _inspector == null:
 		return
 	for old in _inspector.get_children():

@@ -23,6 +23,8 @@ func snap(name: String) -> void:
 
 func run() -> void:
 	TombEditor.keeps = false
+	TombEditor.layout = "desk"
+	TombSpec.path = "user://shots_my_tombs.json"
 	var editor := (load("res://tomb_editor.tscn") as PackedScene).instantiate() as TombEditor
 	root.add_child(editor)
 	await process_frame

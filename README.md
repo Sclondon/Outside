@@ -1179,6 +1179,43 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   it), and nothing with a problem is built or played. A
   tomb that can be built but not finished, or in which he could get himself stuck, can still be played: it is said, not
   forbidden.
+- **The tomb editor on a phone** (`TombPhoneUI`, `scripts/tomb_phone_ui.gd`) is the same editor with other things to
+  touch, for a phone held on its side and worked with two thumbs. It is what `tomb_editor.tscn` opens as wherever the
+  touch controls are shown (a touch screen, or the web build: `TombEditor.wants_phone`), and anywhere with `-- phone`
+  on the command line (`-- desk` for the other, which is what is described above and is as it was). Nothing in it is
+  smaller than 88 by 88 of the 720 the screen is high (about 8 mm on a 6 inch phone) or nearer than 12 to the next
+  thing, no words are smaller than 26, and nothing stands within 48 of the left and right edges or 24 of the bottom.
+  - *The tomb has the screen.* Down the left edge is one bar for the whole tomb: Play, Undo, Redo, Rooms, Tombs, More.
+    Down the right edge are the buttons of the chosen room: Edit and Add, then Copy, Earlier, Later and Remove (a tomb
+    down one axis) or Move, Join and Remove (a floor plan). Along the top one strip says what is chosen and what a
+    touch will do, and under that whether the tomb can be finished, or the first thing wrong with it; a touch on the
+    strip opens the whole list, and a touch on anything in the list goes to the room it is about. At the bottom are
+    further off, all of it, and nearer, which do what a pinch does.
+  - *Everything else is a page* over the tomb, one at a time, with Done (or Back, on a page opened from another) at
+    its top right every time, and dragged up and down with a finger. Rooms lists the rooms, each with what is in it.
+    Tombs has the name (the keyboard comes up for that, and for pasted text, and for nothing else; the field is at
+    the top of the screen, over it), a new tomb of either shape, the generator's (a number to step or draw afresh,
+    then how hard and which shape), a copy of this one, the tomb as text, and the others kept: open, copy, forget
+    (which asks). More has Walk it, the way through, other sizes for the rooms, help, and Leave.
+  - *A room's page* is opened by Edit, or by a second touch on the chosen room. It leaves a strip of the tomb showing
+    at the left with that room in it, and its two arrows go to the room before and the room after, so a tomb can be
+    gone through without closing it. What a room is, its mummy, what holds the mummy back, the way and the lock (and
+    the room a lock or its stone is in) are each a row that says what it is now; a touch opens a page of rows to
+    choose from, each with what it is called and a line about it. Dark and the pit are switches as wide as the page;
+    torches, hooks and jars are a minus, the number and a plus.
+  - *On a floor plan* the marks are as big as a thumb however far off the plan is seen from: those round a room are
+    moved apart until there is a gap between them, and where two or more places a room could be moved to would stand
+    on one another, one mark stands for them ("3 here") and a touch on it lists them. Move and Join bring their marks
+    into the part of the screen between the bars, and each has List (the same as rows: "North of 3 Antechamber") and
+    Cancel; Add, where there is more than one free side, asks which. A touch just beside a room too small to hit is
+    taken for it. Remove says the room can be brought back, and Undo is always in the bar.
+  - It is a layout and nothing else: what is kept (`user://my_tombs.json`) is what it was, and a tomb made in one
+    opens in the other. `tools/tomb_phone_shots.gd` takes a picture of every state of both views and measures each;
+    `tools/tomb_editor_test.gd` makes a tomb of each shape with fingers alone and measures as it goes. Neither has been
+    held in a hand: the on-screen keyboard, the browser's clipboard and how the edges of a real phone fall are not
+    things they can see.
+- **Where hand-made tombs are kept** can be set, for the tools: `TombSpec.path` (as `TombDaily.path`), or
+  `-- tombs_file=<file>` on the command line. The tools that open the editor all keep to a file of their own.
 
 ### Tombs walked through
 
@@ -1365,7 +1402,10 @@ same stone from the same numbers (`TombGenerator.VERSION` is still 2; `TombBranc
 | `scripts/tomb_floor_spec.gd` | The part of that which is about a tomb that branches: where each room stands, what it is entered from, second ways; what is wrong with it in plain words; and what the editor does to a floor plan |
 | `scripts/tomb_map.gd` | The map on the HUD of a tomb that branches |
 | `scripts/tomb_editor.gd` | The tomb editor (`tomb_editor.tscn`): a tomb down one axis from the side, one that branches as a floor plan from overhead |
-| `tools/tomb_editor_test.gd` | Not part of the game: checks hand-made tombs and the editor (`tools/tomb_editor_shots.gd` takes pictures of it) |
+| `scripts/tomb_phone_ui.gd` | What is touched in the tomb editor on a phone: the two bars, the strip, and the pages |
+| `tools/tomb_editor_test.gd` | Not part of the game: checks hand-made tombs and the editor, and works the editor as it is on a phone by touches alone, in both views (`tools/tomb_editor_shots.gd` takes pictures of it with a mouse, `tools/tomb_phone_shots.gd` on a phone) |
+| `tools/tomb_phone_shots.gd` | Not part of the game: a picture of every state of the editor on a phone, each measured |
+| `tools/tomb_phone_probe.gd` | Not part of the game: measures what can be touched on the phone layout against what a thumb needs (88 by 88, 12 apart, clear of the edges, words of 26) |
 | `scripts/tomb_hooks.gd` | Where scarabs, cobwebs, jackals, inscriptions and the notebook plug in |
 | `scripts/tomb_random.gd` | The dice |
 | `tools/tomb_test.gd` | Not part of the game: checks plans, geometry and sameness over hundreds of seeds, and plays tombs through with the real Player, seen from the side or (`3d`) walked through |
@@ -1386,6 +1426,9 @@ godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- branchin
 godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- 3d doors
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_branch_shots.gd -- <folder> [seed:difficulty] [name=<prefix>]
 godot --path . --fixed-fps 60 --resolution 1280x720 res://tomb.tscn -- tomb=12:1 shape=branching
+godot --headless --path . --fixed-fps 60 --script tools/tomb_editor_test.gd -- [seeds=60] [fuzz=400] [size=1280x720]
+godot --path . --fixed-fps 60 --resolution 1560x720 --script tools/tomb_phone_shots.gd -- <folder> [only=<part of a name>]
+godot --path . --resolution 1560x720 res://tomb_editor.tscn -- phone [tombs_file=<file>]
 ```
 
 Everything after `3d` is asked of the tomb that is walked through. There the automated player is steered about the
