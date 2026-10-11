@@ -108,6 +108,9 @@ static func generate(seed_value: int, difficulty: int) -> TombPlan:
 		if not wrong.is_empty():
 			rejected.append("its cells break the rules (%s)" % wrong[0])
 			continue
+		if not _forks(made):
+			rejected.append("it does not fork")
+			continue
 		var result := TombSolver.solve(made, false, MOST_POSITIONS)
 		if result["ok"]:
 			made.solution = result["steps"]
@@ -121,6 +124,17 @@ static func generate(seed_value: int, difficulty: int) -> TombPlan:
 	proof["rejected"] = rejected
 	plain_plan.proof = proof
 	return plain_plan
+
+
+# Whether some room of a plan has more than one way on (a loft or a crypt is not one).
+static func _forks(made: TombPlan) -> bool:
+	var ways_on := {}
+	for link in made.links:
+		if not TombLayout3D.is_side(made.rooms[link.a]) and not TombLayout3D.is_side(made.rooms[link.b]):
+			ways_on[link.a] = int(ways_on.get(link.a, 0)) + 1
+			if int(ways_on[link.a]) >= 2:
+				return true
+	return false
 
 
 ## One try at a plan, not yet checked.
@@ -523,11 +537,13 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			# brought, from somewhere he need not go through the dark to get to.
 			if _busy.has(here) or not _has_room_for(1, 1) or not _only_way_on(here, link):
 				return false
-			var from := _host_for_item(link, 3, here, false, false)
+			var kept := _old_thing(TombPlan.Item.TORCH, here, link, [here], here)
+			var from := plan.things[kept].room if kept != -1 else _host_for_item(link, 3, here, false, false)
 			if from == -1 or not _reaches_all({link.id: [here, from]}):
 				return false
-			var torch := plan.add_thing(TombPlan.Item.TORCH, from)
-			_uses[torch.id] = [here]
+			if kept == -1:
+				var torch := plan.add_thing(TombPlan.Item.TORCH, from)
+				_uses[torch.id] = [here]
 			plan.rooms[here].dark = true
 			link.switches = [plan.add_trigger(TombPlan.Switch.BRAZIER, here).id]
 			link.hint = "fire"
@@ -547,11 +563,15 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			if host == -1 or not _is_leaf(host):
 				return false
 			var into := plan.links[int(_way_in[host])]
-			var from := _host_for_item(into, 3, host, false)
+			var kept := _old_thing(TombPlan.Item.TORCH, host, link, [host], host)
+			var from := plan.things[kept].room if kept != -1 else _host_for_item(into, 3, host, false)
 			if from == -1 or from == host or _inside(from, beyond) or not _reaches_all({link.id: [host, from]}):
+				if kept != -1:
+					(_uses[kept] as Array).pop_back()
 				return false
-			var torch := plan.add_thing(TombPlan.Item.TORCH, from)
-			_uses[torch.id] = [host]
+			if kept == -1:
+				var torch := plan.add_thing(TombPlan.Item.TORCH, from)
+				_uses[torch.id] = [host]
 			plan.rooms[host].dark = true
 			link.switches = [plan.add_trigger(TombPlan.Switch.BRAZIER, host).id]
 			link.hint = "fire_afar"
@@ -596,17 +616,27 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			return true
 		"gap":
 			# No door: a pit too wide to jump, and a grappling hook somewhere before it.
-			if not _has_room_for(1, 0) or _count(TombPlan.Pass.GAP) >= 2:
-				return false
-			var from := _host_for_item(link, 3, here, true)
-			if from == -1 or not _reaches_all({link.id: [from]}):
+			# (One hook does for every pit it can be brought to.)
+			if _count(TombPlan.Pass.GAP) >= 2:
 				return false
 			link.pass_kind = TombPlan.Pass.GAP
-			if not _carry_sound():
+			var kept := _old_thing(TombPlan.Item.HOOK, here, link, [], -1)
+			var from := -1
+			if kept != -1:
+				from = plan.things[kept].room
+			else:
 				link.pass_kind = TombPlan.Pass.OPEN
-				return false
-			var hook := plan.add_thing(TombPlan.Item.HOOK, from)
-			_uses[hook.id] = [here]
+				if not _has_room_for(1, 0):
+					return false
+				from = _host_for_item(link, 3, here, true)
+				if from == -1 or not _reaches_all({link.id: [from]}):
+					return false
+				link.pass_kind = TombPlan.Pass.GAP
+				if not _carry_sound():
+					link.pass_kind = TombPlan.Pass.OPEN
+					return false
+				var hook := plan.add_thing(TombPlan.Item.HOOK, from)
+				_uses[hook.id] = [here]
 			link.fixed = true
 			link.hint = "hook"
 			_needs[link.id] = [from]
@@ -666,6 +696,26 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			_sealed[beyond] = true
 			return true
 	return false
+
+
+# A torch or a hook that is in the tomb already and would do for one more
+# place (`use`: the room it would have to be brought to as well): its id, with
+# that place added to what it is for, or -1. Three times in four, where there
+# is one: a second torch would leave one of the two with nothing to do, and
+# the side chamber it lies in with it. (`also`: what else the lock on `link`
+# needs. `beyond`: a room it must not lie in or past, or -1.)
+func _old_thing(kind: TombPlan.Item, use: int, link: TombPlan.Link, also: Array, beyond: int) -> int:
+	if not _rng.chance(75):
+		return -1
+	for thing in plan.things:
+		if thing.kind != kind or (beyond != -1 and _inside(thing.room, beyond)):
+			continue
+		var uses: Array = _uses[thing.id]
+		uses.append(use)
+		if _carry_sound() and _reaches_all({link.id: also + [thing.room]}):
+			return thing.id
+		uses.pop_back()
+	return -1
 
 
 # Whether the way on `link` is the only one out of `room` besides its way in.

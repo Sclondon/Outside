@@ -592,6 +592,13 @@ func _drive() -> void:
 			tried += 1
 			if await _drive_one(seed_value, difficulty):
 				finished += 1
+	if branch:
+		# (and the day's own: the tomb that branches that everyone has today)
+		var today := TombDaily.today()
+		print("  today's (day %d, tomb #%d):" % [today, TombDaily.number(today)])
+		tried += 1
+		if await _drive_one(TombDaily.seed_for(today), TombDaily.difficulty_for(today)):
+			finished += 1
 	print("  finished %d of %d" % [finished, tried])
 	_say_tally()
 	if finished < tried:
