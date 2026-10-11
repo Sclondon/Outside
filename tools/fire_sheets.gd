@@ -100,7 +100,7 @@ func run() -> void:
 		for i in fires.size():
 			var tall: float = fires[i].size
 			var watch: Vector3 = fires[i].position + Vector3.UP * tall * 0.8
-			cam.global_position = watch + Vector3(0.0, tall * 0.4 + 0.1, 0.9 + tall * 3.2)
+			cam.global_position = watch + Vector3(0.0, tall * 0.4 + 0.1, 0.5 + tall * 2.6)
 			cam.look_at(watch)
 			cam.fov = 40.0
 			await frames(40)

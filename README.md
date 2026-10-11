@@ -821,7 +821,11 @@ godot --headless --path . --export-release Web build/index.html
 
 ## Fire and the torch
 
-`Fire` (`scripts/fire.gd`) is restless: each tongue leaps and sinks in its own time and throws off licks that go up alone;
+`Fire` (`scripts/fire.gd`) is made of particles: a few dozen soft licks of flame, each lit pale at the foot of the fire,
+carried up, cooling through orange to dark red and coming apart, each showing the frame for its age from an animated
+sheet of flame pictures (`textures/fire_sheet.res`, 8 x 8 frames of flame in red and of smoke in green, painted by
+`tools/bake_fire_sheet.gd`; run that again to change how a lick looks). A carried fire streams out behind (`streams`).
+Burning oil draws its flames with the same shader (`Fire.flame_shader()`). Smoke is soft puffs from the same sheet;
 sparks stream up and wink, and now and then it spits a handful of embers that fall (`sparks`, `spits`); it glows (`glow`,
 `glow_reach`: a soft light drawn in the air round it); and the light it casts gutters (`flicker`) and reaches now further
 and now less far (`breathing`). `tools/fire_sheets.gd -- <folder>` draws each kind by day and in the dark, a few frames apart.

@@ -1,41 +1,40 @@
 class_name Fire
 extends Node3D
-## A fire, drawn flat: tongues of flame cut out of noise that streams upwards,
-## in three tones (a pale core, orange, dark red at the tips). It is restless,
-## as a fire is: each tongue leaps and sinks in its own time, is torn by the
-## air, and throws off licks that go up alone and go out. Sparks stream up
-## from it in the hot air, wandering and winking; now and then it spits, and a
-## handful of embers are thrown out and fall. It glows (a soft light in the air
-## round it, drawn, since a phone has no bloom), and the light it casts gutters
-## and reaches now further and now less far. A little smoke. This node is at
-## its foot.
+## A fire, made of a great many small pictures of flame: each one a lick that
+## is lit low down in the fire, hot and pale, is carried up, drawn out to a
+## point, cools through orange to a dark red, comes apart and is gone, while
+## others are lit under it. The pictures are frames of one sheet
+## (`textures/fire_sheet.res`, painted by `tools/bake_fire_sheet.gd`), each
+## lick showing the frame for its age; they are soft, and run into one
+## another. A fire that is carried leaves its flame streaming behind it.
+## Sparks stream up from it in the hot air, wandering and winking; now and
+## then it spits, and a handful of embers are thrown out and fall. It glows (a
+## soft light in the air round it, drawn, since a phone has no bloom), and the
+## light it casts gutters and reaches now further and now less far. Smoke goes
+## up from it in soft puffs that thin as they go. This node is at its foot.
 ##
 ##     add_child(Fire.torch())        # or candle(), brazier(), bonfire()
 ##
 ## or `Fire.new()` and set `size` (the height of the flame, in metres) and the
 ## rest. A fire is three draw calls (its flames; its sparks and smoke; its
-## glow) and one light. Everything that moves in the flame is worked out in its
-## shader; the sparks and smoke are moved here, a few dozen of them, and drawn
-## at once.
+## glow) and one light. Where each lick of flame is and how old is worked out
+## in its shader, from the clock; the sparks and smoke are moved here, a few
+## dozen of them, and drawn at once.
 
 ## How tall the flame is, in metres: 0.07 a candle, 0.3 a torch, 0.7 a brazier, 2 a bonfire.
 @export var size := 0.3: set = _set_size
 ## How wide the fire is at its foot, as a share of its height.
 @export var spread := 0.5: set = _set_spread
-## How many tongues of flame it is made of (0: as many as suits its size and spread).
+## How many licks of flame it is made of (0: as many as suits its size and spread).
 @export var tongues := 0: set = _set_tongues
 
 @export_group("Colour")
 ## The colours, from the heart of the flame outwards.
-@export var core := Color(1.0, 0.94, 0.62): set = _set_core
+@export var core := Color(1.0, 0.95, 0.68): set = _set_core
 @export var body := Color(1.0, 0.56, 0.12): set = _set_body
 @export var tip := Color(0.78, 0.16, 0.05): set = _set_tip
-## Cut the flame into flat tones with hard edges. Off, they run into one another.
-@export var banded := true: set = _set_banded
 ## How bright it all is: the flame, the sparks and the light together.
 @export var intensity := 1.0: set = _set_intensity
-## A faint haze of its own colour round the flame (0: none).
-@export_range(0.0, 1.0) var halo := 0.22: set = _set_halo
 ## The glow in the air round the whole fire (0: none), and how far out it
 ## reaches, as a multiple of the height of the flame.
 @export_range(0.0, 1.0) var glow := 0.5
@@ -48,6 +47,9 @@ extends Node3D
 @export var lean := 0.0: set = _set_lean
 ## How torn the flame is: 1 a fire, 0.3 a candle flame, which barely stirs.
 @export_range(0.0, 1.5) var ragged := 1.0: set = _set_ragged
+## How far the flame streams out behind a fire that is being carried, as a
+## multiple of its height (0: it does not).
+@export var streams := 1.6
 ## Sparks going up from it, and smoke.
 @export var embers := true
 @export var smoke := true
@@ -72,28 +74,37 @@ extends Node3D
 @export_range(0.0, 0.5) var breathing := 0.16
 
 const MOTES := 72
+const SHEET := "res://textures/fire_sheet.res"
+## The flames. Each instance is one lick: it stands at the foot of a fire (the
+## instance's place), which is as wide as the instance's X scale and as tall
+## as its Y scale, and its custom data holds a number of its own in x. It is
+## lit, rises and goes out over and over, each time somewhere else in the foot.
 const FLAME := """
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled, skip_vertex_transform;
 
-uniform vec3 core : source_color = vec3(1.0, 0.94, 0.62);
+uniform sampler2D sheet : filter_linear, repeat_disable;
+uniform vec3 core : source_color = vec3(1.0, 0.95, 0.68);
 uniform vec3 body : source_color = vec3(1.0, 0.56, 0.12);
 uniform vec3 tip : source_color = vec3(0.78, 0.16, 0.05);
-uniform float banded = 1.0;
 uniform float intensity = 1.0;
-uniform float halo = 0.22;
 // Seconds, from the script, already scaled by how fast this fire streams.
 uniform float clock = 0.0;
 uniform float lean = 0.0;
-// How torn the flame is by the noise (a candle: hardly).
+// How much the licks wander (a candle: hardly).
 uniform float ragged = 1.0;
 // The fire as a whole flaring up (above nought) or sinking, from the script.
 uniform float flare = 0.0;
+// How far behind the fire a lick has been left by the end of its life (in
+// the world, in metres): a fire that is carried streams out behind.
+uniform vec3 trail = vec3(0.0);
 
-varying float seed;
-varying float tall;
+varying float age;
+varying float flip;
+varying float own;
+varying float outer;
 
-// (worked out in whole numbers: the same on every renderer, and no seams)
+// (worked out in whole numbers: the same on every renderer)
 float hash(vec2 p) {
 	ivec2 c = ivec2(round(p));
 	uint h = uint(c.x) * 668265261u ^ (uint(c.y) * 374761393u);
@@ -105,98 +116,90 @@ float hash(vec2 p) {
 	return float(h) / 4294967295.0;
 }
 
-float vnoise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-			mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-
-float cut(float value, float edge) {
-	float pixel = max(fwidth(value), 0.0005);
-	return smoothstep(edge - pixel, edge + pixel, value);
-}
-
 void vertex() {
-	seed = INSTANCE_CUSTOM.x;
-	tall = INSTANCE_CUSTOM.y;
-	// Each tongue is a card standing on its foot and turned about its upright
-	// to face the camera. Looked down on, it tips back towards the eye, so
-	// that it is not seen edge on.
+	float seed = INSTANCE_CUSTOM.x;
+	float number = floor(seed * 4093.0);
+	// Each lick lives a little longer or shorter than the next, so that they
+	// never fall into step; and each life of it is its own.
+	float life = mix(0.75, 1.35, hash(vec2(number, 1.0)));
+	float phase = clock / life + seed * 29.0;
+	float turn_of = floor(phase);
+	age = phase - turn_of;
+	vec2 key = vec2(number, turn_of + 2.0);
+	float a = hash(key);
+	float b = hash(key + vec2(11.0, 0.0));
+	float c = hash(key + vec2(23.0, 0.0));
+	float d = hash(key + vec2(37.0, 0.0));
+	own = c;
+	outer = b;
+	flip = d > 0.5 ? 1.0 : -1.0;
+
 	vec3 foot = MODEL_MATRIX[3].xyz;
+	float wide = length(MODEL_MATRIX[0].xyz);
+	float high = length(MODEL_MATRIX[1].xyz) * (1.0 + 0.16 * flare);
 	vec3 up = normalize(MODEL_MATRIX[1].xyz);
-	vec3 to_eye = normalize(CAMERA_POSITION_WORLD - foot);
-	up = normalize(mix(up, INV_VIEW_MATRIX[1].xyz, smoothstep(0.55, 0.98, abs(dot(to_eye, up))) * 0.85));
-	vec3 side = normalize(cross(up, to_eye) + vec3(0.00001, 0.0, 0.0));
-	vec3 world = foot + side * VERTEX.x * length(MODEL_MATRIX[0].xyz) + up * VERTEX.y * length(MODEL_MATRIX[1].xyz);
+	vec3 across = normalize(MODEL_MATRIX[0].xyz);
+	vec3 along = normalize(cross(across, up));
+	// It is lit somewhere in the foot of the fire, and is drawn in to the
+	// middle as it goes up: a fire comes to a point.
+	// (small when it is lit, soon full, and less again as it goes)
+	float big = (high * 0.3 + wide * 0.22) * mix(0.5, 1.0, smoothstep(0.0, 0.25, age)) * mix(1.0, 0.55, smoothstep(0.3, 1.0, age)) * (0.8 + 0.4 * b);
+	float round_it = a * 6.2832;
+	float out_from = wide * 0.5 * sqrt(b) * (1.0 - 0.8 * age);
+	float rise = big * 0.5 + high * (0.02 + (0.7 + 0.4 * c) * pow(age, 0.9));
+	float sway = (sin(clock * 3.3 + seed * 40.0) * 0.07 + (d - 0.5) * 0.22) * ragged * high * age;
+	vec3 centre = foot + (across * cos(round_it) + along * sin(round_it)) * out_from + up * rise
+			+ across * (sway + lean * high * age * age) + trail * pow(age, 1.4);
+
+	// Its card stands up along the fire and is turned about that to face the
+	// camera. Looked down on, it tips back towards the eye, so that it is not
+	// seen edge on; and it lies over along the way it has been left behind.
+	vec3 to_eye = normalize(CAMERA_POSITION_WORLD - centre);
+	vec3 stand = normalize(up * high - trail * 1.2 * age + across * lean * high * age);
+	stand = normalize(mix(stand, INV_VIEW_MATRIX[1].xyz, smoothstep(0.55, 0.98, abs(dot(to_eye, stand))) * 0.85));
+	vec3 side = normalize(cross(stand, to_eye) + vec3(0.00001, 0.0, 0.0));
+	vec2 corner = vec2(UV.x - 0.5, 0.5 - UV.y);
+	vec3 world = centre + side * corner.x * big + stand * corner.y * big * 1.3;
 	VERTEX = (VIEW_MATRIX * vec4(world, 1.0)).xyz;
 	NORMAL = mat3(VIEW_MATRIX) * to_eye;
 }
 
+float frame(float index, vec2 at) {
+	vec2 cell = vec2(mod(index, 8.0), floor(index / 8.0));
+	return texture(sheet, (cell + at) / 8.0).r;
+}
+
 void fragment() {
-	// Across the card from -0.5 to 0.5, and up it from 0 to 1.
-	vec2 at = vec2(UV.x - 0.5, clamp(1.0 - UV.y, 0.0, 1.0));
-	float t = clock + seed * 17.0;
-	// It leaps and sinks: each tongue in its own time, by a third of its
-	// height and more, in quick uneven starts; and all of them with the fire.
-	float leap = 0.8 + 0.34 * vnoise(vec2(t * 2.6, seed * 51.0)) + 0.16 * vnoise(vec2(t * 6.3, seed * 77.0 + 3.0)) + 0.14 * flare;
-	at.y /= mix(1.0, leap, min(ragged, 1.0));
-	// The whole tongue wags, the top of it most.
-	float wag = (vnoise(vec2(t * 1.1, seed * 91.0)) - 0.5) * 0.34 + (vnoise(vec2(t * 3.4, seed * 37.0 + 5.0)) - 0.5) * 0.16 + lean;
-	at.x -= wag * at.y * at.y;
-	// (and it snakes: each height of it is pushed its own way, and the push
-	// travels up; a slow push, and a quick small one that shivers its edge)
-	at.x += (vnoise(vec2(at.y * 2.6 - t * 1.7, seed * 13.0)) - 0.5) * 0.26 * at.y * ragged;
-	at.x += (vnoise(vec2(at.y * 7.0 - t * 4.3, seed * 29.0)) - 0.5) * 0.1 * at.y * ragged;
-	// Noise streaming up through it: big licks, small ones going faster, and a shiver.
-	float big = vnoise(vec2(at.x * 4.2 + seed * 31.0, at.y * 2.6 * tall - t * 1.9));
-	float fine = vnoise(vec2(at.x * 9.5 + seed * 57.0, at.y * 5.4 * tall - t * 3.6));
-	float tiny = vnoise(vec2(at.x * 21.0 + seed * 83.0, at.y * 11.0 * tall - t * 6.2));
-	float n = big * 0.52 + fine * 0.32 + tiny * 0.16;
-	// The shape it is cut from: round at the foot, drawn in to a point at the top.
-	float wide = 0.36 * (0.1 + 0.9 * pow(1.0 - at.y, 1.1)) * sqrt(smoothstep(-0.02, 0.16, at.y));
-	float bell = 1.0 - abs(at.x) / max(wide, 0.0001);
-	// How hot: hottest low down in the middle; the noise eats at it more the higher it is.
-	// (high up it eats right through, and what is left above the gap is a
-	// lick of flame going up by itself)
-	float heat = bell * (1.1 - at.y * 0.55) + (n - 0.5) * (0.55 + at.y * 2.5) * ragged - at.y * 0.34;
-	heat = min(heat, bell * 2.5 + 0.2);
-	// (nothing of it reaches the top of the card it is drawn on)
-	heat -= smoothstep(0.84, 1.0, at.y) * 2.0;
-	float flame;
-	vec3 colour;
-	if (banded > 0.5) {
-		flame = cut(heat, 0.1);
-		colour = mix(mix(tip, body, cut(heat, 0.34)), core, cut(heat, 0.72));
-	} else {
-		flame = smoothstep(0.02, 0.2, heat);
-		colour = mix(mix(tip, body, smoothstep(0.1, 0.45, heat)), core, smoothstep(0.45, 0.85, heat));
-	}
-	// A haze round it.
-	float from_middle = length(vec2(at.x * 2.4, (at.y - 0.3) * 1.5));
-	float haze = (1.0 - smoothstep(0.0, 1.0, from_middle)) * halo;
-	haze *= haze * 3.0 * (0.85 + 0.3 * big);
-	ALBEDO = mix(body, colour, flame) * intensity;
-	// (and nothing of it shows at the edges of its card)
-	float inside = smoothstep(0.0, 0.05, UV.y) * smoothstep(0.0, 0.05, UV.x) * smoothstep(0.0, 0.05, 1.0 - UV.x);
-	ALPHA = max(flame, haze) * inside;
+	vec2 at = clamp(vec2(flip > 0.0 ? UV.x : 1.0 - UV.x, UV.y), vec2(0.01), vec2(0.99));
+	// The picture for its age, run into the next one.
+	float along = age * 63.0;
+	float first = floor(along);
+	float heat = mix(frame(first, at), frame(min(first + 1.0, 63.0), at), along - first);
+	// It cools as it goes up: pale where a new lick is hottest, then orange,
+	// and a dark red at the last. Its edges are not drawn: it thins away to
+	// nothing there, and one lick runs into the next.
+	float cool = 0.12 + outer * 0.22 + age * (0.8 + 0.3 * own) + (1.0 - heat * heat) * 0.3;
+	vec3 colour = mix(core, body, smoothstep(0.2, 0.55, cool));
+	colour = mix(colour, tip, smoothstep(0.62, 1.05, cool));
+	ALBEDO = colour * intensity;
+	ALPHA = smoothstep(0.0, 0.8, heat) * smoothstep(0.0, 0.2, age) * (1.0 - smoothstep(0.78, 1.0, age)) * 0.8;
 }
 """
 
 ## Sparks and smoke: flat shapes turned to the camera. A spark is a small
-## bright fleck with a glow round it, that winks as it goes and does not need
-## lighting; a puff of smoke is a dark, ragged cloud in two tones that is lit
-## by what is about, and thins to a ring.
+## bright point with a glow round it, that winks as it goes and does not need
+## lighting; a puff of smoke is a frame of the sheet, soft and dark, that is
+## lit by what is about and thins as it ages.
 const MOTE := """
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
 
+uniform sampler2D sheet : filter_linear, repeat_disable;
 uniform vec3 spark : source_color = vec3(1.0, 0.6, 0.15);
 uniform vec3 hot : source_color = vec3(1.0, 0.94, 0.62);
 uniform vec3 soot : source_color = vec3(0.2, 0.18, 0.17);
 uniform float intensity = 1.0;
-uniform float thickness = 0.22;
+uniform float thickness = 0.34;
 
 varying float age;
 varying float seed;
@@ -211,9 +214,9 @@ void vertex() {
 	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
 }
 
-float cut(float value, float edge) {
-	float pixel = max(fwidth(value), 0.0005);
-	return smoothstep(edge - pixel, edge + pixel, value);
+float frame(float index, vec2 at) {
+	vec2 cell = vec2(mod(index, 8.0), floor(index / 8.0));
+	return texture(sheet, (cell + at) / 8.0).g;
 }
 
 void fragment() {
@@ -221,25 +224,30 @@ void fragment() {
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 	if (kind < 0.5 || kind > 1.5) {
-		// A spark: a small diamond in the middle of its card, pale while it is
+		// A spark: a bright point in the middle of its card, pale while it is
 		// new, then orange, then a dull red and gone; and a glow round it. It
 		// winks: brighter and dimmer many times a second, each in its own time.
-		float fleck = cut(0.36 - (abs(at.x) + abs(at.y)), 0.0);
+		float from_middle = length(at);
+		float point = 1.0 - smoothstep(0.12, 0.34, from_middle);
 		float wink = 0.6 + 0.4 * sin(TIME * (17.0 + seed * 23.0) + seed * 90.0) * sin(TIME * (7.0 + seed * 11.0));
-		float round_it = 1.0 - smoothstep(0.0, 1.0, length(at));
+		float round_it = 1.0 - smoothstep(0.0, 1.0, from_middle);
 		ALBEDO = vec3(0.0);
 		vec3 colour = mix(mix(hot, spark, smoothstep(0.0, 0.35, age)), spark * vec3(0.8, 0.35, 0.2), smoothstep(0.6, 1.0, age));
-		EMISSION = colour * intensity * wink * (1.0 + fleck);
-		ALPHA = max(fleck, round_it * round_it * 0.45) * wink * (1.0 - smoothstep(0.7, 1.0, age));
+		EMISSION = colour * intensity * wink * (1.0 + point);
+		ALPHA = max(point, round_it * round_it * 0.45) * wink * (1.0 - smoothstep(0.7, 1.0, age));
 	} else {
-		float around = atan(at.y, at.x);
-		float rim = 0.84 + 0.11 * sin(around * 5.0 + seed * 40.0) + 0.05 * sin(around * 9.0 - seed * 23.0);
-		float from_middle = length(at) / rim;
-		float cloud = cut(1.0 - from_middle, 0.0);
-		ALBEDO = soot * mix(0.7, 1.0, cut(at.y - at.x * 0.4 + 0.25, 0.0));
+		// (each puff turned its own way round, so that no two look alike)
+		float turn = seed * 6.2832;
+		vec2 turned = vec2(at.x * cos(turn) - at.y * sin(turn), at.x * sin(turn) + at.y * cos(turn));
+		vec2 on_sheet = clamp(turned * 0.5 + 0.5, vec2(0.01), vec2(0.99));
+		float along = clamp(age * 1.15, 0.0, 1.0) * 63.0;
+		float first = floor(along);
+		float dense = mix(frame(first, on_sheet), frame(min(first + 1.0, 63.0), on_sheet), along - first);
+		dense *= 1.0 - smoothstep(0.7, 1.0, length(turned));
+		ALBEDO = soot * mix(0.75, 1.1, at.y * 0.5 + 0.5);
 		// (lit a little from below by the fire while it is new)
-		EMISSION = spark * 0.12 * intensity * (1.0 - smoothstep(0.0, 0.3, age));
-		ALPHA = cloud * thickness * smoothstep(0.0, 0.15, age) * (1.0 - smoothstep(0.35, 1.0, age));
+		EMISSION = spark * 0.14 * intensity * (1.0 - smoothstep(0.0, 0.3, age));
+		ALPHA = dense * thickness * smoothstep(0.0, 0.12, age) * (1.0 - smoothstep(0.55, 1.0, age));
 	}
 }
 
@@ -274,6 +282,27 @@ static var _flame_shader: Shader
 static var _mote_shader: Shader
 static var _glow_shader: Shader
 
+
+## The shader the flames are drawn with, with the sheet of pictures in it:
+## for anything else that burns (oil does) to draw its flames the same way.
+static func flame_shader() -> Shader:
+	_shaders()
+	return _flame_shader
+
+
+static func _shaders() -> void:
+	if _flame_shader:
+		return
+	var sheet: Texture2D = load(SHEET)
+	_flame_shader = Shader.new()
+	_flame_shader.code = FLAME
+	_flame_shader.set_default_texture_parameter(&"sheet", sheet)
+	_mote_shader = Shader.new()
+	_mote_shader.code = MOTE
+	_mote_shader.set_default_texture_parameter(&"sheet", sheet)
+	_glow_shader = Shader.new()
+	_glow_shader.code = GLOW
+
 var _flames: MultiMeshInstance3D
 var _motes: MultiMeshInstance3D
 var _lamp: OmniLight3D
@@ -284,6 +313,8 @@ var _spit_due := 1.0
 var _flame_material: ShaderMaterial
 var _mote_material: ShaderMaterial
 var _time := 0.0
+var _was := Vector3.ZERO
+var _moving := Vector3.ZERO
 var _clock := 0.0
 ## Each spark or puff: where, which way it is going, how big, how old (1:
 ## spent), a number of its own, and which it is (0: spark, 1: smoke).
@@ -335,6 +366,7 @@ func _ready() -> void:
 	_time = randf() * 50.0
 	_clock = randf() * 50.0
 	_build()
+	_was = global_position
 
 
 func _process(delta: float) -> void:
@@ -348,6 +380,17 @@ func _process(delta: float) -> void:
 	var shudder := (_wander(_time * 7.5 + 40.0) * 2.0 - 1.0) * 0.6 + (_wander(_time * 19.0 + 90.0) * 2.0 - 1.0) * 0.4
 	var waver := clampf(0.45 * heave + 0.75 * shudder, -1.0, 1.0)
 	_flame_material.set_shader_parameter(&"flare", waver)
+	# Carried, its flame streams out behind: each lick is left where it was lit.
+	if delta > 0.0:
+		var now := global_position
+		var going := (now - _was) / delta
+		_was = now
+		# (set down or snatched across the level, it has not flown there)
+		if going.length() > 40.0:
+			going = Vector3.ZERO
+		_moving = _moving.lerp(going, 1.0 - exp(-9.0 * delta))
+	var left := -_moving * pow(maxf(size, 0.02), 0.4) / (1.15 * maxf(speed, 0.05))
+	_flame_material.set_shader_parameter(&"trail", left.limit_length(size * streams))
 	if _lamp:
 		_lamp.light_energy = light_energy * intensity * (1.0 + flicker * waver)
 		# (and the light it throws reaches further and less far: slowly, with a little of the shudder in it)
@@ -374,30 +417,17 @@ static func _chance(n: int) -> float:
 	return float((n ^ (n >> 16)) & 0xffff) / 65535.0
 
 
-## The height of the card a tongue of flame is drawn on: the flame itself
-## reaches about four fifths of the way up it.
-func _reach() -> float:
-	return size * 1.3
-
-
 func _build() -> void:
 	for child in [_flames, _motes, _lamp, _glow]:
 		if child:
 			child.queue_free()
 	_lamp = null
 	_glow = null
-	if _flame_shader == null:
-		_flame_shader = Shader.new()
-		_flame_shader.code = FLAME
-		_mote_shader = Shader.new()
-		_mote_shader.code = MOTE
-		_glow_shader = Shader.new()
-		_glow_shader.code = GLOW
+	_shaders()
 
 	_flame_material = ShaderMaterial.new()
 	_flame_material.shader = _flame_shader
 	var card := QuadMesh.new()
-	card.center_offset = Vector3(0.0, 0.5, 0.0)
 	card.material = _flame_material
 	_flames = MultiMeshInstance3D.new()
 	_flames.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -407,24 +437,18 @@ func _build() -> void:
 	mesh.mesh = card
 	var count := tongues
 	if count <= 0:
-		# (a narrow flame is one tongue; a wide fire needs several to fill it)
-		count = clampi(roundi(spread * 5.0 + size * 1.5 - 1.6), 1, 8)
+		# (a candle is a few licks; a bonfire a great many)
+		count = clampi(roundi(5.0 + sqrt(size) * 34.0 * (0.4 + spread)), 5, 72)
 	mesh.instance_count = count
-	var foot := size * spread
 	var random := RandomNumberGenerator.new()
 	random.seed = hash(get_path()) if is_inside_tree() else 1
+	# (every lick is at the foot of the fire; the shader spreads them over it)
+	var foot := Basis.from_scale(Vector3(maxf(size * spread, 0.001), size, 1.0))
 	for i in count:
-		# The first stands in the middle, full height; the rest round it, shorter.
-		var round := i * 2.4 + random.randf() * 0.6
-		var out := 0.0 if i == 0 else foot * 0.45 * sqrt(float(i) / count)
-		var tall := 1.0 if i == 0 else random.randf_range(0.6, 0.88)
-		# (a tongue is always the same shape: `spread` sets how many there are
-		# and how far apart they stand, not how fat each is)
-		var basis := Basis.from_scale(Vector3(_reach() * tall * 0.8, _reach() * tall, 1.0))
-		mesh.set_instance_transform(i, Transform3D(basis, Vector3(cos(round) * out, 0.0, sin(round) * out)))
-		mesh.set_instance_custom_data(i, Color(random.randf(), 1.0, 0.0, 0.0))
+		mesh.set_instance_transform(i, Transform3D(foot, Vector3.ZERO))
+		mesh.set_instance_custom_data(i, Color((i + random.randf()) / count, 1.0, 0.0, 0.0))
 	_flames.multimesh = mesh
-	_flames.extra_cull_margin = _reach()
+	_flames.extra_cull_margin = size * (2.0 + streams)
 	add_child(_flames)
 
 	_mote_material = ShaderMaterial.new()
@@ -477,9 +501,8 @@ func _build() -> void:
 func _dress() -> void:
 	if _flame_material == null:
 		return
-	for setting: StringName in [&"core", &"body", &"tip", &"intensity", &"halo", &"lean", &"ragged"]:
+	for setting: StringName in [&"core", &"body", &"tip", &"intensity", &"lean", &"ragged"]:
 		_flame_material.set_shader_parameter(setting, get(setting))
-	_flame_material.set_shader_parameter(&"banded", 1.0 if banded else 0.0)
 	_mote_material.set_shader_parameter(&"spark", body)
 	_mote_material.set_shader_parameter(&"hot", core)
 	_mote_material.set_shader_parameter(&"intensity", intensity)
@@ -596,16 +619,8 @@ func _set_tip(value: Color) -> void:
 	tip = value
 	_dress()
 
-func _set_banded(value: bool) -> void:
-	banded = value
-	_dress()
-
 func _set_intensity(value: float) -> void:
 	intensity = value
-	_dress()
-
-func _set_halo(value: float) -> void:
-	halo = value
 	_dress()
 
 func _set_speed(value: float) -> void:

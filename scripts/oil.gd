@@ -313,8 +313,7 @@ func _ready() -> void:
 	if _blob_shader == null:
 		_blob_shader = Shader.new()
 		_blob_shader.code = BLOB
-		_flame_shader = Shader.new()
-		_flame_shader.code = Fire.FLAME
+		_flame_shader = Fire.flame_shader()
 
 	# The stain, the oil, and the deep of the oil: the same cards, drawn three times.
 	var card := PlaneMesh.new()
@@ -340,7 +339,7 @@ func _ready() -> void:
 		drawn.extra_cull_margin = 16384.0
 		add_child(drawn)
 
-	# The flames: a tongue or two to each patch that is alight.
+	# The flames: a few licks to each patch that is alight.
 	_flame_material = ShaderMaterial.new()
 	_flame_material.shader = _flame_shader
 	var tongue := QuadMesh.new()
@@ -350,7 +349,7 @@ func _ready() -> void:
 	_flames.transform_format = MultiMesh.TRANSFORM_3D
 	_flames.use_custom_data = true
 	_flames.mesh = tongue
-	_flames.instance_count = MOST
+	_flames.instance_count = MOST * 4
 	_flames.visible_instance_count = 0
 	var flames := MultiMeshInstance3D.new()
 	flames.multimesh = _flames
@@ -724,11 +723,12 @@ func _process(delta: float) -> void:
 		# A flame leaps up as it catches, and sinks away at the end.
 		var life := smoothstep(0.0, 0.35, since) * (0.25 + 0.75 * smoothstep(0.0, 1.8, left)) * smoothstep(0.0, 0.3, left)
 		var tall := (0.42 + _wide[i] * 1.5) * life
-		for part in (2 if _wide[i] > 0.3 else 1):
-			if shown >= MOST:
+		# (several licks to a patch, so that the flames along a line of oil run together)
+		for part in (4 if _wide[i] > 0.3 else 3):
+			if shown >= MOST * 4:
 				break
 			var own := fposmod(_seed[i] * (7.0 + part * 3.0), 1.0)
-			var out := Vector2.from_angle(own * TAU) * _wide[i] * (0.25 + 0.45 * part)
+			var out := Vector2.from_angle(own * TAU) * _wide[i] * (0.15 + 0.2 * part)
 			var high := tall * (0.75 + 0.5 * own) * (1.0 if part == 0 else 0.7)
 			_flames.set_instance_transform(shown, Transform3D(Basis.from_scale(Vector3(high * 0.8, high, 1.0)), _at[i] + Vector3(out.x, 0.0, out.y)))
 			_flames.set_instance_custom_data(shown, Color(own, 1.0, 0.0, 0.0))
