@@ -9,8 +9,9 @@ extends TombLayout
 ## THE CELLS. Every room that is not a loft or a crypt stands on a square of
 ## a floor plan, its `cell` (`TombPlan.Room.cell`): x and z say which square, y
 ## which level, counted downwards from the entrance at 0. A plan whose rooms
-## all have cells is set out as it says; one with none (every plan the
-## generator makes today) has them worked out here, down its axis, turning as
+## all have cells is set out as it says (`TombBranching` makes those, and a tomb
+## made by hand on a floor plan has them); one with none (every plan that
+## `TombGenerator` makes) has them worked out here, down its axis, turning as
 ## the dice say (`_own_cells`), and the plan itself is left as it was. What a
 ## plan with cells must keep to (`cells_wrong` lists whatever it does not):
 ##
@@ -175,6 +176,10 @@ var _last_room := -1
 ## By link: how far to either side of its middle the widest part of it reaches.
 var _wides := {}
 var _most := 0.0
+## Whether the plan came with its cells: rooms then stand to every side of one
+## another, and the edges of one cut the stone round another into thin pieces
+## (see `_shell`: there a roof looks further than the next square for higher air).
+var _crowded := false
 
 
 ## Sets out `plan` as a tomb to be walked through.
@@ -290,6 +295,8 @@ func _lay() -> void:
 		wrong = cells_wrong(plan)
 	if not given or not wrong.is_empty():
 		_own_cells()
+	else:
+		_crowded = true
 	for room in plan.rooms:
 		if is_side(room):
 			cells[room.id] = cells[room.parent]
@@ -1200,6 +1207,14 @@ func _shell() -> void:
 				walls[key + by] = true
 		var first := areas[here[0]]
 		var last := areas[here[-1]]
+		if _crowded:
+			# Where a low room meets higher air (the foot of a loft's drop, a tall
+			# chamber) the stone over the low room is a wall to that air, as thick
+			# as the square it is over; and in a plan with cells a square can be a
+			# hand's breadth, cut by the edge of a room off to one side. A wall
+			# that thin he could reach over, to the top of the low roof behind it.
+			# So here the roof stands as high as any air within a wall's thickness.
+			highest = maxf(highest, _highest_near(key, xl, zl, air, high))
 		_piece(pieces, key, lowest - ROCK, first.floor, "sand" if first.sky else "floor", first.room)
 		for n in range(1, here.size()):
 			var under := areas[here[n - 1]]
@@ -1262,6 +1277,32 @@ func _shell() -> void:
 		if area.deadly:
 			parts.append({"kind": "death", "room": area.room, "at": Vector3((area.x0 + area.x1) * 0.5, area.floor + 1.5, (area.z0 + area.z1) * 0.5),
 					"size": Vector3(area.x1 - area.x0, 3.0, area.z1 - area.z0)})
+
+
+# The highest roof of any air within a wall's thickness of a square of the
+# grid (`xl`, `zl`: the grid's lines, in thousandths of a metre).
+func _highest_near(key: int, xl: Array, zl: Array, air: Dictionary, high: Dictionary) -> float:
+	var i := key / 100000
+	var j := key % 100000
+	var reach := roundi(THICK * 1000.0)
+	var i0 := i
+	while i0 > 0 and int(xl[i]) - int(xl[i0]) < reach:
+		i0 -= 1
+	var i1 := i
+	while i1 < xl.size() - 2 and int(xl[i1 + 1]) - int(xl[i + 1]) < reach:
+		i1 += 1
+	var j0 := j
+	while j0 > 0 and int(zl[j]) - int(zl[j0]) < reach:
+		j0 -= 1
+	var j1 := j
+	while j1 < zl.size() - 2 and int(zl[j1 + 1]) - int(zl[j + 1]) < reach:
+		j1 += 1
+	var found := -INF
+	for a in range(i0, i1 + 1):
+		for b in range(j0, j1 + 1):
+			if air.has(a * 100000 + b):
+				found = maxf(found, high[a * 100000 + b])
+	return found
 
 
 func _piece(pieces: Dictionary, key: int, bottom: float, top: float, made_of: String, room: int) -> void:
@@ -1333,6 +1374,28 @@ func rooms_apart(one: int, other: int) -> int:
 
 func drawn_within() -> int:
 	return 2
+
+
+## In a plan that came with its cells a room has ways to every side, and the
+## rooms within two ways of his can be ten: too many to draw on a phone, and
+## most of them round a corner. There the rooms next to his are drawn, and of
+## those two ways off only the ones straight on through a room next to his
+## (on three squares in a line), which is as far as he sees through two doorways.
+func is_drawn(room: int, here: int) -> bool:
+	var apart := rooms_apart(room, here)
+	if not _crowded or apart <= 1:
+		return apart <= drawn_within()
+	if apart > 2:
+		return false
+	for link in _joins():
+		if link.a != here and link.b != here:
+			continue
+		var between := link.b if link.a == here else link.a
+		var step := cells[between] - cells[here]
+		var on := cells[room] - cells[between]
+		if rooms_apart(between, room) == 1 and step.x == on.x and step.z == on.z:
+			return true
+	return false
 
 
 func apart(one: Vector3, other: Vector3) -> float:

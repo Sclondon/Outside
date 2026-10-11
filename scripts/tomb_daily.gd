@@ -15,6 +15,10 @@ extends RefCounted
 ## apart, `days` for the one and `days_3d` for the other, and a practice tomb's
 ## best likewise. The run of days in a row is one: a day counts once, whichever
 ## way its tomb was finished.
+## A tomb that branches (`run["shape"]` is "branching": `TombBranching`) is a
+## third tomb for the same day, made from the same seed by another generator
+## and only ever walked through: its runs are kept under `days_branching`, and
+## count towards the same run of days.
 ## A finished run is a Dictionary (see `TombLevel`), and `submission` is that
 ## run as it would be sent to a leaderboard.
 
@@ -58,7 +62,7 @@ static func time_text(ms: int) -> String:
 
 
 static func load_all() -> Dictionary:
-	var kept := {"version": 1, "days": {}, "days_3d": {}, "streak": {"last": 0, "length": 0, "best": 0}, "random_best": {}}
+	var kept := {"version": 1, "days": {}, "days_3d": {}, "days_branching": {}, "streak": {"last": 0, "length": 0, "best": 0}, "random_best": {}}
 	if not FileAccess.file_exists(path):
 		return kept
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -78,14 +82,17 @@ static func save_all(kept: Dictionary) -> void:
 		file.store_string(JSON.stringify(kept, "\t"))
 
 
-## What is kept of a day as it was seen (`view`: "side" or "3d"), or an empty
+## What is kept of a day as it was seen (`view`: "side" or "3d"; `shape`:
+## "line", or "branching" for the day's tomb that branches), or an empty
 ## Dictionary: `best_ms`, `best_deaths`, `first_ms`, `first_deaths`, `runs`.
-static func day_record(day: int, view := "side") -> Dictionary:
-	return load_all()[days_key(view)].get(str(day), {})
+static func day_record(day: int, view := "side", shape := "line") -> Dictionary:
+	return load_all()[days_key(view, shape)].get(str(day), {})
 
 
-## Where a day's runs are kept, for each way of seeing its tomb.
-static func days_key(view: String) -> String:
+## Where a day's runs are kept, for each way of seeing its tomb, and for the tomb that branches.
+static func days_key(view: String, shape := "line") -> String:
+	if shape == "branching":
+		return "days_branching"
 	return "days_3d" if view == "3d" else "days"
 
 
@@ -102,8 +109,9 @@ static func keep(run: Dictionary) -> Dictionary:
 	var kept := load_all()
 	var said := {"best": false, "first": false, "streak": 0}
 	var walked: bool = run.get("view", "side") == "3d"
+	var shape: String = run.get("shape", "line")
 	if run["mode"] != "daily":
-		var key := "%d:%d%s" % [run["seed"], run["difficulty"], ":3d" if walked else ""]
+		var key := "%d:%d%s" % [run["seed"], run["difficulty"], ":branching" if shape == "branching" else (":3d" if walked else "")]
 		var before: int = int(kept["random_best"].get(key, 0))
 		said["best"] = before == 0 or int(run["time_ms"]) < before
 		if said["best"]:
@@ -111,7 +119,7 @@ static func keep(run: Dictionary) -> Dictionary:
 		save_all(kept)
 		return said
 	var day := str(int(run["day"]))
-	var days: Dictionary = kept[days_key("3d" if walked else "side")]
+	var days: Dictionary = kept[days_key("3d" if walked else "side", shape)]
 	var record: Dictionary = days.get(day, {})
 	said["first"] = record.is_empty()
 	if record.is_empty():
@@ -134,11 +142,14 @@ static func keep(run: Dictionary) -> Dictionary:
 
 
 ## The run in a line, to send to someone: `Outside daily tomb #123  2:41.3  1 death`
-## (and `Outside daily tomb #123, walked through  3:05.0  no deaths`).
+## (and `Outside daily tomb #123, walked through  3:05.0  no deaths`, and
+## `Outside daily tomb #123, branching  4:10.2  2 deaths`).
 static func share_text(run: Dictionary) -> String:
 	var deaths := int(run["deaths"])
 	var died := "no deaths" if deaths == 0 else ("1 death" if deaths == 1 else "%d deaths" % deaths)
 	var how := ", walked through" if run.get("view", "side") == "3d" else ""
+	if run.get("shape", "line") == "branching":
+		how = ", branching"
 	if run["mode"] == "daily":
 		return "Outside daily tomb #%d%s  %s  %s" % [number(int(run["day"])), how, time_text(int(run["time_ms"])), died]
 	return "Outside tomb %d (%s)%s  %s  %s" % [run["seed"], TombGenerator.DIFFICULTY_NAMES[int(run["difficulty"])], how, time_text(int(run["time_ms"])), died]
@@ -157,5 +168,9 @@ static func submission(run: Dictionary) -> Dictionary:
 		"generator": TombGenerator.VERSION, "plan": run["plan"], "stone": run["stone"],
 		"ticks": run["ticks"], "time_ms": run["time_ms"], "goal_ms": run["goal_ms"], "deaths": run["deaths"], "splits": run["splits"],
 	}
+	# (a tomb that branches says so, and gives the version of its own generator)
+	if run.get("shape", "line") == "branching":
+		sent["shape"] = "branching"
+		sent["generator"] = TombBranching.VERSION
 	sent["check"] = TombRandom.fingerprint(JSON.stringify(sent))
 	return sent

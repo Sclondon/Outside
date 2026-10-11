@@ -127,6 +127,15 @@ class Door extends AnimatableBody3D:
 	var height := 2.4
 	var speed := 1.5
 	var _closed_y := 0.0
+	## How much higher than the slab what he runs into is, while the door is
+	## shut: in a tomb that is walked through, as high as the wall over it.
+	## (Where the slab's top is under a wall, his hands would find that seam and
+	## take it for a ledge: looking down for one from inside the wall, the wall
+	## is not seen, and the top of the slab is.)
+	var guard := 0.0
+	var _collider: CollisionShape3D
+	var _guarded := false
+	var _tall := 2.4
 
 	func _init(size: Vector3, color: Color) -> void:
 		height = size.y
@@ -135,6 +144,8 @@ class Door extends AnimatableBody3D:
 		var collider := CollisionShape3D.new()
 		collider.shape = shape
 		add_child(collider)
+		_collider = collider
+		_tall = size.y
 		var mesh := BoxMesh.new()
 		mesh.size = size
 		var slab := MeshInstance3D.new()
@@ -151,3 +162,9 @@ class Door extends AnimatableBody3D:
 
 	func _physics_process(delta: float) -> void:
 		position.y = move_toward(position.y, _closed_y + (height if is_open else 0.0), speed * delta)
+		var shut := guard > 0.0 and not is_open and is_equal_approx(position.y, _closed_y)
+		if shut != _guarded:
+			_guarded = shut
+			var box := _collider.shape as BoxShape3D
+			box.size.y = _tall + (guard if shut else 0.0)
+			_collider.position.y = guard * 0.5 if shut else 0.0

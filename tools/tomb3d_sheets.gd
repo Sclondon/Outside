@@ -1,6 +1,7 @@
 extends SceneTree
 ## Not part of the game. Draws tombs that are walked through (`TombLayout3D`), to be looked at.
-## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb3d_sheets.gd -- <folder> [seed:difficulty ...] [daily] [custom] [grid] [kinds] [cost] [rooms=0]
+## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb3d_sheets.gd -- <folder> [seed:difficulty ...] [b<seed>:<difficulty> ...] [daily] [bdaily] [custom] [grid] [kinds] [cost] [rooms=0]
+## (`b12:1` is the tomb that branches from that number, and `bdaily` the day's: `TombBranching`.)
 ##
 ## For each tomb named (by default 1:0 2:1 3:2):
 ##   <name>_plan.png      its floor plan as a map: every room on its square, the ways between them, what is in
@@ -159,7 +160,12 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	out = args[0] if not args.is_empty() else "."
 	for arg: String in args.slice(1):
-		if arg == "daily":
+		if arg == "bdaily":
+			tombs.append({"mode": "daily", "shape": "branching"})
+		elif arg.begins_with("b") and arg.substr(1, 1).is_valid_int():
+			var said := arg.substr(1).split(":")
+			tombs.append({"mode": "random", "seed": int(said[0]), "difficulty": int(said[1]) if said.size() > 1 else 1, "shape": "branching"})
+		elif arg == "daily":
 			tombs.append({"mode": "daily"})
 		elif arg == "custom":
 			tombs.append({"mode": "custom", "spec": Shapes.every_lock()})
@@ -229,7 +235,7 @@ func _close() -> void:
 func _draw_tomb(chosen: Dictionary) -> void:
 	await _open(chosen)
 	var layout := level.layout as TombLayout3D
-	var name := "daily" if chosen["mode"] == "daily" else ("custom" if chosen["mode"] == "custom" else ("grid" if chosen["mode"] == "plan" else "tomb_%d_%d" % [chosen["seed"], chosen["difficulty"]]))
+	var name := _name_of(chosen)
 	print("%s: %s" % [name, level.plan.describe().replace("\n", " | ")])
 	if not layout.wrong.is_empty():
 		print("  CELLS REFUSED: ", layout.wrong)
@@ -601,6 +607,9 @@ func _lit(node: Node) -> int:
 
 
 func _name_of(chosen: Dictionary) -> String:
+	var branching: bool = chosen.get("shape", "line") == "branching"
 	if chosen["mode"] == "random":
-		return "tomb_%d_%d" % [chosen["seed"], chosen["difficulty"]]
+		return "%s_%d_%d" % ["branch" if branching else "tomb", chosen["seed"], chosen["difficulty"]]
+	if chosen["mode"] == "daily" and branching:
+		return "branch_daily"
 	return "grid" if chosen["mode"] == "plan" else str(chosen["mode"])

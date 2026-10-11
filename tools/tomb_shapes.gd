@@ -85,12 +85,12 @@ static func every_way() -> Dictionary:
 	return spec
 
 
-## A plan whose rooms have been given their cells, as a generator of branching
-## tombs will give them: a side chamber off the hall, reached by a crawl, and a
+## A plan whose rooms have been given their cells by hand, as `TombBranching`
+## gives them to the tombs it makes: a side chamber off the hall, reached by a crawl, and a
 ## way on from it that comes round to the room beyond the hall, so that there
 ## are two ways to there. The door to the burial chamber is opened from the
-## room at the far corner of that loop. Nothing the generator makes today has a
-## room with more than one way on. (Already solved: `solution` is its way through.)
+## room at the far corner of that loop. (It was written before there was a
+## generator for such tombs, and is kept as one whose every number is known. Already solved: `solution` is its way through.)
 static func branching() -> TombPlan:
 	var plan := TombPlan.new()
 	plan.seed_value = 7001

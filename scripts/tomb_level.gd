@@ -19,6 +19,13 @@ extends Node3D
 ## true of both; but they are different tombs to get through, and a day's times
 ## are kept apart (`TombDaily`).
 ##
+## And there is a third kind of tomb, which branches (`"shape": "branching"`,
+## or `shape=branching` on the command line; with nothing said, `"line"`): made
+## by `TombBranching` from the same seed, with ways off to either side, side
+## chambers, dead ends and loops. It is only ever walked through (the view is
+## "3d" whatever is asked), it has a map on the HUD (`TombMap`), and a day's
+## times in it are kept apart from the other two.
+##
 ## He goes in, takes the gold falcon from the burial chamber, and comes out the
 ## way he went in. The clock starts at his first step and stops when he is out
 ## of the door with it; it counts sixtieths of a second of play, not of the
@@ -36,6 +43,8 @@ static var play := {}
 static var bare := false
 ## The view last chosen on the card, which the card opens showing.
 static var last_view := "side"
+## And the shape last chosen there: "line" or "branching".
+static var last_shape := "line"
 
 const NIGHT := Color(0.02, 0.025, 0.04)
 ## How near a mummy he must come (along the tomb) to wake it.
@@ -54,6 +63,8 @@ const READ_WITHIN := 2.6
 var mode := "daily"
 ## How it is seen: "side" or "3d".
 var view := "side"
+## What kind of tomb it is: "line" (rooms down an axis) or "branching".
+var shape := "line"
 var day := 0
 var seed_value := 0
 var difficulty := 0
@@ -88,6 +99,11 @@ var _caption: Label
 var _caption_time := 0.0
 var _card: Control
 var _hud: CanvasLayer
+## The map, in a tomb whose rooms were given their squares; which rooms he has
+## stood in (by the plan's room), and which ways are open now (by link).
+var _map: TombMap
+var _seen: Array[bool] = []
+var _open: Array[bool] = []
 
 
 func _ready() -> void:
@@ -111,7 +127,7 @@ func _ready() -> void:
 		seed_value = plan.seed_value
 		difficulty = plan.difficulty
 	else:
-		plan = TombGenerator.generate(seed_value, difficulty)
+		plan = TombBranching.generate(seed_value, difficulty) if shape == "branching" else TombGenerator.generate(seed_value, difficulty)
 	layout = TombLayout3D.set_out(plan) if view == "3d" else TombLayout.lay(plan)
 	built = TombBuilder.build(layout, self)
 	if camera:
@@ -120,6 +136,10 @@ func _ready() -> void:
 	done.fill(false)
 	splits.resize(plan.rooms.size())
 	splits.fill(-1)
+	_seen.resize(plan.rooms.size())
+	_seen.fill(false)
+	_open.resize(plan.links.size())
+	_open.fill(false)
 	for area in built.deaths:
 		area.body_entered.connect(_fell_in)
 	for entry in built.mummies:
@@ -138,6 +158,7 @@ func _read_choice() -> void:
 	var asked := not chosen.is_empty()
 	# (with nothing asked for, the card comes up over the tomb as it was last chosen to be seen)
 	var seen: String = chosen.get("view", last_view if chosen.is_empty() else "side")
+	var shaped: String = chosen.get("shape", last_shape if chosen.is_empty() else "line")
 	for arg in OS.get_cmdline_user_args():
 		if arg == "tomb=custom":
 			chosen = {"mode": "custom", "spec": TombSpec.current()}
@@ -145,6 +166,8 @@ func _read_choice() -> void:
 		elif arg == "tomb=daily":
 			chosen = {"mode": "daily"}
 			asked = true
+		elif arg.begins_with("shape="):
+			shaped = arg.trim_prefix("shape=")
 		elif arg.begins_with("view="):
 			seen = arg.trim_prefix("view=")
 		elif arg.begins_with("tomb="):
@@ -152,9 +175,12 @@ func _read_choice() -> void:
 			chosen = {"mode": "random", "seed": int(parts[0]), "difficulty": int(parts[1]) if parts.size() > 1 else 1}
 			asked = true
 	mode = chosen.get("mode", "daily")
-	view = "3d" if seen == "3d" else "side"
+	shape = "branching" if shaped == "branching" else "line"
+	# (a tomb that branches is only ever walked through)
+	view = "3d" if seen == "3d" or shape == "branching" else "side"
 	if not asked:
 		last_view = view
+		last_shape = shape
 	day = int(chosen.get("day", TombDaily.today()))
 	if mode == "custom":
 		spec = chosen.get("spec", {})
@@ -164,6 +190,10 @@ func _read_choice() -> void:
 		else:
 			seed_value = int(spec.get("seed", 1))
 			difficulty = clampi(int(spec.get("difficulty", 0)), 0, 2)
+			# (one made on a floor plan is a tomb that branches, and is walked through)
+			if TombSpec.is_branching(spec):
+				shape = "branching"
+				view = "3d"
 	if mode == "plan":
 		# (a plan handed over whole and already solved, by a tool or by whatever
 		# makes plans of its own: `{"mode": "plan", "plan": ...}`. Nothing of it is kept.)
@@ -267,6 +297,8 @@ func _physics_process(delta: float) -> void:
 	if _started:
 		ticks += 1
 	_room = layout.plan_room_at(at)
+	if _room >= 0:
+		_seen[_room] = true
 	if _room >= 0 and splits[_room] == -1:
 		splits[_room] = ticks
 	_put_away(layout.room_of(at))
@@ -274,6 +306,7 @@ func _physics_process(delta: float) -> void:
 	_work_mummies(at)
 	_keep_things(at)
 	_read_walls(at, delta)
+	_show_on_map()
 	if has_treasure and layout.is_out(at) and _player.is_on_floor() and not _player.is_limp:
 		_finish()
 	_label.text = "%s   %s%s" % [TombDaily.time_text(time_ms()), "deaths %d" % deaths, "   the falcon" if has_treasure else ""]
@@ -289,7 +322,7 @@ func _put_away(here: int) -> void:
 	if here < 0:
 		here = plan.entrance()
 	for room in layout.placed():
-		built.room_nodes[room.id].visible = layout.rooms_apart(room.id, here) <= layout.drawn_within()
+		built.room_nodes[room.id].visible = layout.is_drawn(room.id, here)
 
 
 func _work_switches(at: Vector3) -> void:
@@ -330,6 +363,7 @@ func _work_switches(at: Vector3) -> void:
 		var open := true
 		for id in link.switches:
 			open = open and done[id]
+		_open[link.id] = open
 		if built.doors.has(link.id):
 			(built.doors[link.id] as TombParts.Door).is_open = open
 		else:
@@ -494,7 +528,7 @@ func give_up() -> void:
 func _finish() -> void:
 	finished = true
 	run = {
-		"mode": mode, "view": view, "day": day if mode == "daily" else 0, "seed": seed_value, "difficulty": difficulty,
+		"mode": mode, "view": view, "shape": shape, "day": day if mode == "daily" else 0, "seed": seed_value, "difficulty": difficulty,
 		"plan": plan.fingerprint(), "stone": layout.fingerprint(),
 		"ticks": ticks, "time_ms": time_ms(), "goal_ms": goal_ticks * 1000 / 60, "deaths": deaths, "splits": splits.duplicate(),
 	}
@@ -546,6 +580,15 @@ func _build_hud() -> void:
 	_caption.add_theme_constant_override("outline_size", 8)
 	_caption.visible = false
 	_hud.add_child(_caption)
+	# In a tomb whose rooms stand where a plan put them (one that branches), a map of where he has been.
+	if layout is TombLayout3D and _has_cells():
+		_map = TombMap.new()
+		_map.layout = layout as TombLayout3D
+		_map.seen = _seen
+		_map.open = _open
+		# (not while the card that comes up first is over the tomb)
+		_map.visible = not _held
+		_hud.add_child(_map)
 	# A way out of any corner he has got himself into.
 	if not bare:
 		var stuck := _button("Stuck", give_up)
@@ -569,6 +612,31 @@ func _build_hud() -> void:
 			_hud.add_child(edit)
 
 
+# Whether the plan came with a square for every room (see `TombLayout3D`): the
+# generator of tombs that branch gives them, and so may a tomb made by hand.
+func _has_cells() -> bool:
+	for room in plan.rooms:
+		if not TombLayout3D.is_side(room) and room.cell == TombPlan.NO_CELL:
+			return false
+	return true
+
+
+# The map is told where he is and which way the camera looks, and drawn again
+# a few times a second (and at once when he comes into another room).
+func _show_on_map() -> void:
+	if _map == null:
+		return
+	var moved := _map.here != _room or _map.has_treasure != has_treasure or not _map.visible
+	_map.visible = true
+	_map.here = _room
+	_map.has_treasure = has_treasure
+	if _eye:
+		var forward := -_eye.global_basis.z
+		_map.heading = Vector2(forward.x, forward.z)
+	if moved or Engine.get_physics_frames() % 10 == 0:
+		_map.queue_redraw()
+
+
 func _say(text: String, seconds: float) -> void:
 	_caption.text = text
 	_caption.visible = true
@@ -580,33 +648,34 @@ func _announce() -> void:
 	if mode == "custom":
 		_say("%s   ·   take the falcon, and get out" % _title(), 6.0)
 	elif mode == "daily":
-		_say("Daily tomb #%d   ·   %s   ·   %s" % [TombDaily.number(day), TombDaily.date_text(day), hard], 6.0)
+		_say("Daily tomb #%d   ·   %s   ·   %s%s" % [TombDaily.number(day), TombDaily.date_text(day), hard, "   ·   branching" if shape == "branching" else ""], 6.0)
 	else:
-		_say("Tomb %d   ·   %s" % [seed_value, hard], 6.0)
+		_say("Tomb %d   ·   %s%s" % [seed_value, hard, "   ·   branching" if shape == "branching" else ""], 6.0)
 
 
 # The card that comes up first: today's tomb, or one for practice.
 func _show_choice() -> void:
 	var rows := _open_card("TOMBS")
-	var record := TombDaily.day_record(day, view)
+	var record := TombDaily.day_record(day, view, shape)
 	var today_line := "Daily tomb #%d  ·  %s  ·  %s" % [TombDaily.number(day), TombDaily.date_text(day), TombGenerator.DIFFICULTY_NAMES[difficulty]]
 	rows.add_child(_line(today_line, 22))
 	if record.is_empty():
 		rows.add_child(_line("Not yet finished today.   Days in a row: %d" % TombDaily.streak(), 17))
 	else:
 		rows.add_child(_line("Your best today: %s   Days in a row: %d" % [TombDaily.time_text(int(record["best_ms"])), TombDaily.streak()], 17))
-	# How it is seen. The tomb behind the card is already the one chosen: the
-	# other is opened in its place, with this card over it again.
+	# How it is seen, and which kind of tomb. The tomb behind the card is already
+	# the one chosen: another is opened in its place, with this card over it again.
 	var views := HBoxContainer.new()
 	rows.add_child(views)
-	for way: Array in [["side", "Side-on"], ["3d", "Walk through"]]:
-		var see := _button(way[1], func() -> void:
+	for way: Array in [["side", "line", "Side-on"], ["3d", "line", "Walk through"], ["3d", "branching", "Branching"]]:
+		var see := _button(way[2], func() -> void:
 			TombLevel.last_view = way[0]
+			TombLevel.last_shape = way[1]
 			_open_tomb({}))
 		see.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		see.disabled = way[0] == view
+		see.disabled = way[0] == view and way[1] == shape
 		views.add_child(see)
-	rows.add_child(_line("Seen from the side he keeps to one line. Walked through, the camera is at his back: drag the right of the screen to look about. Times are kept for each." , 15))
+	rows.add_child(_line("Seen from the side he keeps to one line. Walked through, the camera is at his back: drag the right of the screen to look about. Branching is another tomb for the day, with ways off to either side and a map: touch it to make it large. Times are kept for each." , 15))
 	rows.add_child(_button("Play today's tomb", func() -> void:
 		_close_card()
 		_held = false
@@ -624,7 +693,7 @@ func _show_choice() -> void:
 		var pick := _button(TombGenerator.DIFFICULTY_NAMES[level], func() -> void:
 			# (choosing a tomb at random is not making one: the engine's dice will do)
 			var chosen := int(number.text) if number.text.is_valid_int() else randi_range(1, 999999)
-			_open_tomb({"mode": "random", "seed": chosen, "difficulty": level, "view": view}))
+			_open_tomb({"mode": "random", "seed": chosen, "difficulty": level, "view": view, "shape": shape}))
 		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(pick)
 	rows.add_child(_button("Make a tomb of your own", _to_editor))
@@ -648,7 +717,7 @@ func _show_result(said: Dictionary) -> void:
 		copied.text = "Copied")
 	rows.add_child(copied)
 	rows.add_child(_button("Again", func() -> void:
-		_open_tomb({"mode": mode, "day": day, "seed": seed_value, "difficulty": difficulty, "spec": spec, "plan": _given, "view": view})))
+		_open_tomb({"mode": mode, "day": day, "seed": seed_value, "difficulty": difficulty, "spec": spec, "plan": _given, "view": view, "shape": shape})))
 	if mode == "custom":
 		rows.add_child(_button("Back to the editor", _to_editor))
 	rows.add_child(_button("Another tomb", func() -> void: _open_tomb({})))

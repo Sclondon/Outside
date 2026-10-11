@@ -41,7 +41,11 @@ const THINGS_SHIFT := POS_BITS + HAND_BITS + DONE_BITS
 ## `steps` (one shortest way through: see below) and `unreached` (rooms).
 ## A step is an Array: ["go", link, from, to], ["push", link, thing, from, to],
 ## ["take", thing], ["drop", thing] or ["do", switch].
-static func solve(plan: TombPlan) -> Dictionary:
+## (`thorough`: putting a thing down is tried in every room, not only where it
+## could matter. Many more positions for the same answer: it is there for the
+## tests to hold the quick way against. `most`: how many positions it will
+## visit before it calls the plan too tangled.)
+static func solve(plan: TombPlan, thorough := false, most := MAX_POSITIONS) -> Dictionary:
 	var result := {"ok": false, "reason": "", "positions": 0, "dead": 0, "steps": [], "unreached": []}
 	if plan.rooms.size() > (1 << POS_BITS) or plan.things.size() > (1 << HAND_BITS) - 1 or plan.triggers.size() > DONE_BITS:
 		result["reason"] = "too big to check"
@@ -96,7 +100,7 @@ static func solve(plan: TombPlan) -> Dictionary:
 		head += 1
 		if first_win == -1 and state & goal_bit and (state & room_mask) == home:
 			first_win = state
-		var moves := _moves(plan, state, ways, switches_in, hands_free, door_masks)
+		var moves := _moves(plan, state, ways, switches_in, hands_free, door_masks, thorough)
 		var onward := PackedInt64Array()
 		for move: Array in moves:
 			var to: int = move[0]
@@ -106,7 +110,7 @@ static func solve(plan: TombPlan) -> Dictionary:
 				how[to] = move[1]
 				order.append(to)
 		nexts[state] = onward
-		if order.size() > MAX_POSITIONS:
+		if order.size() > most:
 			result["reason"] = "too tangled to check"
 			result["positions"] = order.size()
 			return result
@@ -167,7 +171,7 @@ static func solve(plan: TombPlan) -> Dictionary:
 
 
 # Everything that can be done from a position: [position after, step] each.
-static func _moves(plan: TombPlan, state: int, ways: Array, switches_in: Array, hands_free: Array[bool], door_masks: Array[int]) -> Array:
+static func _moves(plan: TombPlan, state: int, ways: Array, switches_in: Array, hands_free: Array[bool], door_masks: Array[int], thorough := false) -> Array:
 	var moves: Array = []
 	var room_mask := (1 << ROOM_BITS) - 1
 	var pos := state & room_mask
@@ -204,7 +208,7 @@ static func _moves(plan: TombPlan, state: int, ways: Array, switches_in: Array, 
 		others = true
 		if hand < 0:
 			moves.append([state | ((thing.id + 1) << HAND_SHIFT), ["take", thing.id]])
-	if hand >= 0 and (hands_free[pos] or others):
+	if hand >= 0 and (thorough or hands_free[pos] or others):
 		moves.append([state & ~(((1 << HAND_BITS) - 1) << HAND_SHIFT), ["drop", hand]])
 
 	# The switches in the room.

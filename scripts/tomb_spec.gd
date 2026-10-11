@@ -26,6 +26,13 @@ extends RefCounted
 ## Where the way on is up the sand (`sand`), the lock is what lets the sand in,
 ## and with no lock it is a seal stone at the foot of the face.
 ## `seed`, `difficulty` and `sub` only settle the sizes of the rooms.
+##
+## A tomb that branches says `"shape": "branching"`, and of each room which
+## square of a floor plan it stands on and which room it is entered from, with
+## `joins` for second ways between rooms (loops). That part is `TombFloorSpec`,
+## which has what such a spec says and means; `problems`, `compile`, `check`
+## and `tidy` here go to it for one. A spec that does not say so is a tomb down
+## one axis, as every spec was before there were any that branch.
 
 const VERSION := 1
 const FILE := "user://my_tombs.json"
@@ -73,6 +80,11 @@ const MUMMY_TITLES := ["Shambler", "Priest", "Brute", "Crawler", "Child", "Royal
 const BARRIER_TITLES := {"auto": "What suits it", "trench": "A trench", "kerb": "A kerb", "narrow": "A narrow gap", "none": "Nothing"}
 
 static var _reach := {}
+
+
+## Whether it is a tomb that branches: rooms on a floor plan (see `TombFloorSpec`).
+static func is_branching(spec: Dictionary) -> bool:
+	return spec.get("shape", "line") == "branching"
 
 
 # --- Making one
@@ -149,6 +161,8 @@ static func room_title(spec: Dictionary, index: int) -> String:
 
 ## Everything in it that could not be built; empty if it can be.
 static func problems(spec: Dictionary) -> PackedStringArray:
+	if is_branching(spec):
+		return TombFloorSpec.problems(spec)
 	var wrong: PackedStringArray = []
 	var rooms: Array = spec.get("rooms", [])
 	var count := rooms.size()
@@ -244,6 +258,8 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 
 ## The plan it describes. (Ask `problems` first: this takes it as it is.)
 static func compile(spec: Dictionary) -> TombPlan:
+	if is_branching(spec):
+		return TombFloorSpec.compile(spec)
 	var plan := TombPlan.new()
 	plan.seed_value = int(spec.get("seed", 1))
 	plan.difficulty = clampi(int(spec.get("difficulty", 0)), 0, 2)
@@ -343,7 +359,7 @@ static func check(spec: Dictionary) -> Dictionary:
 	var solved := TombSolver.solve(plan)
 	plan.solution = solved["steps"]
 	plan.proof = solved
-	var layout := TombLayout.lay(plan)
+	var layout: TombLayout = TombLayout3D.set_out(plan) if is_branching(spec) else TombLayout.lay(plan)
 	if _reach.is_empty():
 		_reach = TombReach.measure()
 	found["plan"] = plan
@@ -506,6 +522,9 @@ static func tidy(spec: Dictionary) -> bool:
 		return false
 	spec["version"] = VERSION
 	spec["name"] = str(spec.get("name", "My tomb"))
+	if is_branching(spec):
+		spec["shape"] = "branching"
+		TombFloorSpec.tidy_joins(spec)
 	for key: String in ["seed", "difficulty", "sub"]:
 		spec[key] = int(spec.get(key, 1 if key == "seed" else 0))
 	var rooms: Array = spec["rooms"]
@@ -520,5 +539,7 @@ static func tidy(spec: Dictionary) -> bool:
 			elif typeof(value) != typeof(whole[key]):
 				value = whole[key]
 			whole[key] = value
+		if is_branching(spec):
+			TombFloorSpec.tidy_room(rooms[i], whole, i)
 		rooms[i] = whole
 	return true

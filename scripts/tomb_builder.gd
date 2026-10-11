@@ -233,6 +233,9 @@ func _part(part: Dictionary) -> void:
 			if part["sinks"]:
 				# (it goes down into the floor: there is a loft over it)
 				door.height = -size.y - 0.05
+			if layout.walked():
+				# (shut, it is as high to run into as the wall over it, or the loft's floor: see `TombParts.Door.guard`)
+				door.guard = TombLayout.LOFT_SLAB if part["sinks"] else 4.0
 			node.add_child(door)
 			doors[part["link"]] = door
 		"plate":

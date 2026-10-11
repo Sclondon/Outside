@@ -40,6 +40,12 @@ const HINTS := {
 	"sand_above": "The seal that lets the desert in is over your head. Climb what it brings.",
 	"sand_below": "The seal that lets the desert in lies at the foot of the well.",
 	"treasure": "Take what is here, and what sleeps here wakes.",
+	# (in a tomb that branches: what opens the door is down another way)
+	"weight_afar": "The floor that gives is not here. A stone waits for it in another chamber.",
+	"seal_afar": "The seal of this door lies in another chamber. Go back, and take the other way.",
+	"fire_afar": "A cold bowl stands in the dark of another chamber. Bring it fire, and this door gives way.",
+	"sand_afar": "The seal that lets the desert in lies in another chamber. Climb what it brings.",
+	"from_within": "This door opens only from within. There is a longer way round to the back of it.",
 }
 
 ## What has been read this run and could not be given to a notebook: [meaning, where].
