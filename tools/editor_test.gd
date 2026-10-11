@@ -18,6 +18,7 @@ func _initialize() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	DisplayServer.window_set_position(Vector2i(-6000, -6000))
 	out = OS.get_cmdline_user_args()[0]
+	DirAccess.make_dir_recursive_absolute(out)
 	run.call_deferred()
 
 

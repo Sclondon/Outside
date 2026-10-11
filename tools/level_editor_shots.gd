@@ -13,7 +13,7 @@ var editor: LevelEditor
 var level: Desert
 var states := 0
 var wrong := 0
-var least := 9999.0
+var least := 1.0e9
 var least_name := ""
 var least_text := 999
 
@@ -34,8 +34,8 @@ func snap(name: String) -> void:
 	var result := Audit.measure(editor, editor.phone)
 	print(Audit.line(name, result))
 	states += 1
-	if result["count"] > 0 and result["least"] < least:
-		least = result["least"]
+	if result["count"] > 0 and result["area"] < least:
+		least = result["area"]
 		least_name = "%s (in %s)" % [result["smallest"], name]
 	least_text = mini(least_text, result["text"])
 	if editor.phone and (result["small"] > 0 or result["close"] > 0 or result["edge"] > 0 or result["text"] < Audit.TEXT):

@@ -74,19 +74,21 @@ static func _name(control: Control) -> String:
 	return words.replace("\n", " ")
 
 
-## Measures a state of the screen. Gives back {count, least (the smallest side of anything), smallest (its name),
+## Measures a state of the screen. Gives back {count, least (the smallest side of anything), smallest (the name and
+## size of the thing with the shortest side: of the smallest of them, if several have it), area (how big that is),
 ## small (how many are under LEAST), close (how many pairs overlap or stand nearer than APART), edge (how many are in
 ## the margins), text (the smallest writing), lines (what is wrong, in words)}.
 static func measure(from: Node, margins := true) -> Dictionary:
 	var all := touchables(from)
 	var screen := from.get_viewport().get_visible_rect().size
-	var result := {"count": all.size(), "least": 9999.0, "smallest": "", "small": 0, "close": 0, "edge": 0, "text": smallest_text(from), "lines": []}
+	var result := {"count": all.size(), "least": 9999.0, "area": 1.0e9, "smallest": "", "small": 0, "close": 0, "edge": 0, "text": smallest_text(from), "lines": []}
 	for entry: Array in all:
 		var control: Control = entry[0]
 		var whole: Rect2 = entry[1]
 		var side := minf(whole.size.x, whole.size.y)
-		if side < result["least"]:
-			result["least"] = side
+		if side < result["least"] - 0.5 or (side < result["least"] + 0.5 and whole.get_area() < result["area"]):
+			result["least"] = minf(side, result["least"])
+			result["area"] = whole.get_area()
 			result["smallest"] = "%s %dx%d" % [_name(control), int(whole.size.x), int(whole.size.y)]
 		if whole.size.x < LEAST - 0.5 or whole.size.y < LEAST - 0.5:
 			result["small"] += 1

@@ -17,7 +17,7 @@ var ui: LevelEditorPhone
 var level: Desert
 var failed := 0
 var shot := 0
-var least := 9999.0
+var least := 1.0e9
 var least_name := ""
 var least_text := 999
 
@@ -44,9 +44,9 @@ func state(name: String) -> void:
 	root.get_texture().get_image().save_png(out.path_join("%02d_%s.png" % [shot, name]))
 	shot += 1
 	var result := Audit.measure(editor)
-	if result["count"] > 0 and result["least"] < least:
-		least = result["least"]
-		least_name = "%s (in %s)" % [result["smallest"], name]
+	if result["count"] > 0 and result["area"] < least:
+		least = result["area"]
+		least_name = "%s (in '%s')" % [result["smallest"], name]
 	least_text = mini(least_text, result["text"])
 	var good: bool = result["small"] == 0 and result["close"] == 0 and result["edge"] == 0 and result["text"] >= Audit.TEXT
 	check("to touch in '%s'" % name, good, Audit.line("", result).strip_edges())
@@ -249,7 +249,7 @@ func run() -> void:
 	await press("Another kind")
 	check("Another kind goes back for another", ui.panel == "kind")
 	await press("Door")
-	check("touching Door says what to do next", ui.panel == "place" and ui._line.text.contains("put door there"), ui._line.text)
+	check("touching Door says what to do next", ui.panel == "place" and ui._line.text.begins_with("Door: tap the ground"), ui._line.text)
 	await state("placing")
 	await tap(middle + Vector2(-40, 30))
 	var door: Dictionary = editor.chosen

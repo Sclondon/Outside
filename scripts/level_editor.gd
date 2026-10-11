@@ -1190,8 +1190,10 @@ func _draw_overlay() -> void:
 				if is_chosen:
 					for point: Vector3 in line:
 						if not cam.is_position_behind(point):
-							over.draw_circle(cam.unproject_position(point), 15.0, Color(colour, 0.9))
-							over.draw_arc(cam.unproject_position(point), 15.0, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 2.0, true)
+							# (each point is a thing to drag: bigger, for a thumb)
+							var knob := 26.0 if phone else 15.0
+							over.draw_circle(cam.unproject_position(point), knob, Color(colour, 0.9))
+							over.draw_arc(cam.unproject_position(point), knob, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 3.0 if phone else 2.0, true)
 			"pool":
 				var half := Vector2(item.get("size_x", 6.0), item.get("size_z", 6.0)) * 0.5
 				var corner := Vector2(item["at"][0], item["at"][1])

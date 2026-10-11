@@ -91,6 +91,8 @@ var _words := {}
 var _entry: LineEdit
 var _level_text: TextEdit
 var _change_at := 0.0
+# Which thing the sheet of arrows is moving (its id).
+var _moving := -1
 
 
 func _ready() -> void:
@@ -356,12 +358,13 @@ func keep_clear(left: float, top: float, right: float, bottom: float) -> void:
 func _status() -> String:
 	if Time.get_ticks_msec() * 0.001 < editor._hint_until:
 		return editor._hint
-	if editor._shape_in >= 0.0:
+	# (the ground is made again a moment after it is changed: said, unless there is something to be told to do)
+	if editor._shape_in >= 0.0 and panel in ["", "thing", "view"]:
 		return "Making the ground..."
 	var name := LevelLayout.label(editor.chosen).to_lower() if not editor.chosen.is_empty() else ""
 	match panel:
 		"place":
-			return "Tap the ground to put %s there. Or bring the cross to the place and tap Put here." % String(editor._armed[0]).to_lower()
+			return "%s: tap the ground where it goes. Or bring the cross there and tap Put here." % String(editor._armed[0])
 		"thing":
 			if editor.chosen.get("kind", "") == "river":
 				return "The river is chosen. Drag any of its points to move it."
@@ -485,6 +488,9 @@ func _rest() -> void:
 ## Told by the editor that a thing has been chosen, or that nothing now is.
 func chose() -> void:
 	if not editor.chosen.is_empty():
+		# (touched again while it is being moved, it is still being moved)
+		if panel == "move" and int(editor.chosen["id"]) == _moving:
+			return
 		_show("thing")
 	elif panel in OF_A_THING or (panel in ["number", "change"] and not _of_level):
 		_show("")
@@ -559,6 +565,7 @@ func _sheet_thing() -> void:
 func _sheet_move() -> void:
 	var row := _open_sheet()
 	var item := editor.chosen
+	_moving = int(item["id"])
 	for way: Array in [["Left", "left", Vector2(-1, 0)], ["Far", "far", Vector2(0, -1)], ["Near", "near", Vector2(0, 1)], ["Right", "right", Vector2(1, 0)]]:
 		var arrow := _tile(way[0], way[1], Callable())
 		_hold(arrow, func(_times: float) -> void: editor.nudge(way[2]))
