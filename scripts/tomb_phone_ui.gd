@@ -1214,7 +1214,9 @@ func _fill_more() -> void:
 	if editor._dirty >= 0.0:
 		editor.rebuild()
 	if not editor._floor:
-		_row("more:walk", "Walk it", "", "Play it walked through, the camera at his back. (Play, at the left, plays it from the side.)", func() -> void: editor.play("3d"))
+		_row("more:walk", "Walk it", "", "Play it walked through, the camera at his back. (Play, at the left, plays it from the side.)", func() -> void:
+			close()
+			editor.play("3d"))
 	_row("more:way", "Whether it works, and one way through", "", String(verdict_now()[0]), open.bind("works", {}, true))
 	_row("more:sizes", "Other sizes for the rooms", "", "Every room is cut to another size; nothing else changes. Undo puts them back.", func() -> void:
 		editor.other_sizes()
