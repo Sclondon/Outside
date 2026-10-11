@@ -109,7 +109,7 @@ func _jump_centre() -> Vector2:
 
 ## Where the mark for turning the camera is drawn.
 func _look_centre() -> Vector2:
-	return Vector2(size.x * 0.82, size.y * 0.3)
+	return Vector2(size.x * 0.72, size.y * 0.3)
 
 
 func _press(index: int, pos: Vector2) -> void:

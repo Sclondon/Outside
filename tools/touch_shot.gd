@@ -13,6 +13,10 @@ func _initialize() -> void:
 func run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var scene := args[1] if args.size() > 1 else "res://test_yard.tscn"
+	# (a third word: a branching tomb, straight in, to see its map beside the controls)
+	if args.size() > 2:
+		TombLevel.play = {"mode": "random", "seed": 3, "difficulty": 2, "shape": "branching"}
+		TombLevel.bare = true
 	change_scene_to_file(scene)
 	for i in 90:
 		await process_frame
