@@ -595,20 +595,23 @@ func _build_hud() -> void:
 		stuck.modulate.a = 0.8
 		stuck.anchor_left = 1.0
 		stuck.anchor_right = 1.0
-		stuck.offset_left = -236.0
-		stuck.offset_right = -132.0
-		stuck.offset_top = 12.0
-		stuck.offset_bottom = 54.0
+		# (big enough for a thumb, and clear of the map under it)
+		stuck.offset_left = -332.0
+		stuck.offset_right = -196.0
+		stuck.offset_top = 6.0
+		stuck.offset_bottom = 68.0
+		stuck.add_theme_font_size_override("font_size", 24)
 		_hud.add_child(stuck)
 		if mode == "custom":
 			var edit := _button("Edit", _to_editor)
 			edit.modulate.a = 0.8
 			edit.anchor_left = 1.0
 			edit.anchor_right = 1.0
-			edit.offset_left = -348.0
-			edit.offset_right = -244.0
-			edit.offset_top = 12.0
-			edit.offset_bottom = 54.0
+			edit.offset_left = -480.0
+			edit.offset_right = -344.0
+			edit.offset_top = 6.0
+			edit.offset_bottom = 68.0
+			edit.add_theme_font_size_override("font_size", 24)
 			_hud.add_child(edit)
 
 
