@@ -117,6 +117,8 @@ func _run(names: Array) -> void:
 		await _drive_templates()
 	if "custom" in names:
 		await _drive_custom()
+	if "doors" in names:
+		await _doors_hold()
 	if "grid" in names:
 		await _grid()
 	if not names.is_empty():
@@ -769,6 +771,8 @@ func _open(seed_value: int, difficulty: int, spec := {}, given: TombPlan = null)
 	if given:
 		TombLevel.play = {"mode": "plan", "plan": given}
 	TombLevel.play["view"] = "3d" if walked else "side"
+	if branch and spec.is_empty() and given == null:
+		TombLevel.play["shape"] = "branching"
 	var scene: Node = load("res://tomb.tscn").instantiate()
 	root.add_child(scene)
 	player = scene.get_node("Player")
@@ -1512,6 +1516,12 @@ func _route(target: Vector3) -> Array[Vector3]:
 	out.append(a["at"])
 	if a["line"] != b["line"]:
 		# The shortest way along the lines from the one he is on to the one it is on.
+		# (In a tomb that branches there is often another way round, through
+		# rooms he has no business in and doors that may be shut: only the lines
+		# of the room he is in and of the room he is going to are gone by.)
+		var fenced := level.shape == "branching"
+		var mine := layout3.plan_room_at(from)
+		var its := layout3.plan_room_at(target)
 		var count := layout3.walk_points.size()
 		var cost: Array[float] = []
 		cost.resize(count)
@@ -1534,6 +1544,8 @@ func _route(target: Vector3) -> Array[Vector3]:
 				if line.x != here and line.y != here:
 					continue
 				var there := line.y if line.x == here else line.x
+				if fenced and layout3.walk_rooms[there] != mine and layout3.walk_rooms[there] != its:
+					continue
 				var by := cost[here] + layout3.walk_points[here].distance_to(layout3.walk_points[there])
 				if by < cost[there] - 0.001:
 					cost[there] = by
@@ -2026,6 +2038,64 @@ func _overlaps3(layout: TombLayout3D) -> PackedStringArray:
 		if not stood:
 			wrong.append("room %d: a place on his line at %s has no floor under it" % [layout.walk_rooms[n], at])
 	return wrong
+
+
+# Shut doors, jumped at from both sides (a door that opens only from within is
+# come to from behind while it is shut, in a tomb that branches): he must get
+# no higher than a jump takes him, and not through.
+func _doors_hold() -> void:
+	print("DOORS: every shut door of a few tombs, jumped at from in front and from behind")
+	TombLevel.bare = true
+	var tried := 0
+	var held := 0
+	for seed_value: int in drive_seeds:
+		for difficulty: int in drive_difficulties:
+			await _open(seed_value, difficulty)
+			for link in level.plan.links:
+				# (not a door with a loft's cutting over it: the floor over that one is somewhere he may be)
+				if not level.built.doors.has(link.id) or (level.built.doors[link.id] as TombParts.Door).height < 0.0:
+					continue
+				var door: Vector3 = layout3.door_at[link.id]
+				var along := _along(link)
+				for side: float in [-1.0, 1.0]:
+					var spot := door - along * side * 1.3
+					var under := _ray(spot, spot + Vector3.DOWN * 5.0)
+					if under.is_empty():
+						continue
+					var foot: Vector3 = under["position"]
+					player.state = Player.State.FREE
+					player.global_position = foot + Vector3.UP * 0.05
+					player.velocity = Vector3.ZERO
+					level._player.set_spawn(foot + Vector3.UP * 0.05)
+					await _wait(20)
+					var highest := -INF
+					var through := false
+					for i in 420:
+						touch.move = _stick(along * side, 1.0)
+						touch.jump_held = i % 23 < [14, 4, 22][(i / 23) % 3]
+						if i % 23 == 0 or i % 23 == 9 or (not player.is_on_floor() and i % 5 == 0):
+							player._queue_jump()
+						if player.state == Player.State.HANG and i % 10 == 0:
+							player._queue_jump()
+						await _wait(1)
+						highest = maxf(highest, player.global_position.y)
+						if OS.has_environment("TOMB_TRACE") and i % 4 == 0:
+							print("      door %d side %.0f: at %s state %d floor %s (door %s, foot %s)" % [link.id, side, player.global_position, player.state, player.is_on_floor(), door, foot])
+						through = through or _flat(door, player.global_position).dot(along * side) > 0.6
+					_still()
+					tried += 1
+					var shut: bool = not (level.built.doors[link.id] as TombParts.Door).is_open
+					# (a jump, and a kick off the side of the doorway, take his feet no higher than this)
+					if highest < foot.y + 2.5 and not through and shut:
+						held += 1
+					else:
+						print("  seed %d %s, the door on link %d (%s), from %s: his feet got %.2f m up, through it: %s, it stayed shut: %s" % [seed_value, TombGenerator.DIFFICULTY_NAMES[difficulty],
+								link.id, link.hint, "in front" if side > 0.0 else "behind", highest - foot.y, through, shut])
+			level.get_parent().queue_free()
+			await _wait(5)
+	print("  held %d of %d" % [held, tried])
+	if held < tried:
+		failed = true
 
 
 # A plan whose rooms were given cells: the rules pass it, and refuse it broken; and it is built and played.

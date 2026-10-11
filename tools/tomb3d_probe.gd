@@ -1,12 +1,15 @@
 extends SceneTree
 ## Not part of the game. Prints how a tomb is set out to be walked through: its cells, rooms, air and parts.
-## godot --headless --path . --script tools/tomb3d_probe.gd -- <seed>:<difficulty> [areas] [parts] [lines]
+## godot --headless --path . --script tools/tomb3d_probe.gd -- <seed>:<difficulty> [branching] [areas] [parts] [lines]
+## (`branching`: the tomb that branches, from `TombBranching`.)
 
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	var said := (args[0] if not args.is_empty() else "1:1").split(":")
 	var plan := TombGenerator.generate(int(said[0]), int(said[1]) if said.size() > 1 else 1)
+	if "branching" in args:
+		plan = TombBranching.generate(int(said[0]), int(said[1]) if said.size() > 1 else 1)
 	var layout := TombLayout3D.set_out(plan)
 	print(plan.describe())
 	for room in plan.rooms:
