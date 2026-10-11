@@ -120,12 +120,18 @@ The ground of a level is a `SandGround` (`scripts/sand_ground.gd`), drawn by the
 
 In the desert, the notebook (top right), Places, then "Edit this level". The game stands still and the view goes up over him.
 
+It is laid out two ways. Where there is a touch screen, and on the web (wherever the touch controls are shown), it is
+laid out for a phone held sideways: see "The level editor on a phone", below. Elsewhere it has panels for a desk, which
+are what the rest of this part describes. `-- phone` on the command line asks for the first anywhere, `-- desk` for
+the second. They are one editor (`scripts/level_editor.gd`) with two screens, do the same things to the same level,
+and keep it in the same form.
+
 - **Looking about**: one finger drags the ground; two pinch to come nearer, turn to turn, and slid up or down together
   tip the view. For one hand there are + and - and a slider at the left. (Mouse: drag, wheel, right button.)
-- **On a phone**: everything is sized for a thumb and kept clear of the ends of the screen. "Panel" puts the panel at
-  the right away to see more of the level (choosing a thing brings it back); a thing is dragged by its ring and moves as
-  far as the finger does, or a step at a time with the arrows in its panel (the step is beside them); the pages down
-  the left scroll; "?" says all this again. Text (a sign, a level pasted in) brings up the phone's keyboard.
+- **With a finger on the panels for a desk**: "Panel" puts the panel at the right away to see more of the level
+  (choosing a thing brings it back); a thing is dragged by its ring and moves as far as the finger does, or a step at a
+  time with the arrows in its panel (the step is beside them); the pages down the left scroll; "?" says all this again.
+  A touch on the ring that goes nowhere is a touch, not a move: it chooses whatever is nearest it.
 - **Putting things in**: the pages down the left (Ground, Water, Stone, Camp, Dig, People, Puzzle, Guns) fill the strip
   along the bottom. Touch one, then touch the ground.
 - **Changing them**: touch a thing to choose it; its sliders come up at the right, with Move to, Copy, Remove. Drag it
@@ -154,11 +160,69 @@ In the desert, the notebook (top right), Places, then "Edit this level". The gam
   from the middle of the view.
 
 The layout is plain data (`scripts/level_layout.gd` says what is in it); `scripts/desert.gd` makes the level from
-it, and `scripts/level_editor.gd` is the editor. To check the editor without a phone:
+it, and `scripts/level_editor.gd` is the editor. To check the editor without a phone (each needs a window, and a
+folder for its pictures; neither touches a level made in the game, which they keep clear of by saving to a file of
+their own, `LevelLayout.saved_at`):
 
 ```
 godot --path . --resolution 1280x720 --script tools/editor_test.gd -- <folder>
+godot --path . --resolution 1560x720 --script tools/editor_phone_test.gd -- <folder> phone
+godot --path . --resolution 1560x720 --script tools/level_editor_shots.gd -- <folder>
 ```
+
+The first works the panels for a desk. The second works the layout for a phone with nothing but touches (below).
+The third takes a picture of every state of the layout for a phone and measures what there is to touch in each;
+with `desk` after the folder it takes the same pictures of the panels for a desk, and only reports.
+
+### The level editor on a phone
+
+A phone held sideways is about 1560 by 720 of the game's pixels, and 720 of them are about 65 mm: a button 45 high is
+4 mm, and a thumb wants 8. So on a phone the editor has a screen of its own (`scripts/level_editor_phone.gd`,
+`LevelEditorPhone`) with these rules, which the tomb editor keeps too:
+
+- nothing to touch is under **88 by 88**, or nearer the next than **12**; no writing is under **26**; nothing is
+  within **48** of the left and right ends of the screen (more, where the phone says more is cut away) or on its
+  bottom edge;
+- **the level has the screen**. Along the top is one bar of six buttons, always there: **Add, Level, Undo, View, Play,
+  More**. Under it one line of words says what a touch will do now. Everything else is either a **sheet** (one row of
+  buttons along the bottom, the level in sight over it) or a **page** (which covers the screen with big rows, dragged
+  up and down by a finger anywhere on them). Only one is ever open, and its way out is always at its top right: Done;
+- nothing is small, hovered over or held down to find: a number has a minus and a plus (held, they run, slowly and
+  then fast) and a slider with a grip a thumb can hold; yes or no is a switch; one of a list is a page of the list;
+  the keyboard comes up only for words, on a page whose line is at the top, clear of it.
+
+What is done, by touch:
+
+- **Looking about**: one finger drags the ground, two pinch and turn, and slid up or down together tip the view.
+  **View** is a sheet with a button for each (Nearer, Further, Above, Side, and the two ways to turn), for one hand.
+- **Putting a thing in**: **Add**, then the kind of thing (Ground, Water, Stone, Camp, Dig, People, Puzzle, Guns,
+  Railway), then the thing: each a page of big buttons. Then touch the ground where it goes; or drag the ground until
+  the cross in the middle of the screen is on the place, and touch **Put here**. It is put in and chosen. (Cancel is
+  the way out; Undo takes back a thing put in the wrong place, or it is dragged to the right one.)
+- **Choosing and moving**: touch a thing. A ring with four arrows is put round its mark, and its sheet comes up:
+  **Move, Change**, what works it, **Copy, Remove, Find** (which brings the view over it), Done. It is dragged by the
+  ring, and moves as far as the finger does. **Move** is a sheet of arrows (Left, Far, Near, Right, as the view is
+  turned: a step each, held to keep going), **Step** (0.1, 0.5, 1 or 5 m), **Lower** and **Raise**, the two ways to
+  **Turn** it (15 degrees), and **Here**, which brings it to the cross. A river is dragged by its points; **Points**
+  adds more (a touch, or Add here at the cross) and takes the last away.
+- **Changing it**: **Change** is a page of everything about it, a row each. A touch on a number's name puts the page
+  away and brings up a slider instead, to change it with the thing in sight.
+- **Joining**: choose the door (or bridge, sluice, hound, train...) and touch **Opened by** (the button is named for
+  what the thing calls it), then touch each plate, lever, lock or target that should work it. Or the other way about:
+  choose the plate, touch **Works**, then touch each door. What can be touched is ringed, the line of words says what
+  to touch next and how many are joined so far, a touch on one again undoes it, and lines show what is joined.
+- **Removing**: **Remove** takes it away at once, and the line says "Undo brings it back": Undo is on the bar.
+- **The level itself**: **Level** is the page of the desert's size, dunes, wind, heat and weather.
+- **Keeping it, and playing**: as ever, each change is saved as it is made. **Play** starts the level from its start.
+  **More** has Redo, Save now, Play from here, the level as text (Copy it, Paste, Use this text), the way back to the
+  level the game came with (which asks first), and all of this in words. To come back from playing: the notebook,
+  Places, Edit this level.
+
+`tools/editor_phone_test.gd` does all of that with touches sent through the game's own input, finding each button on
+the screen by its word and touching its middle; `tools/touch_audit.gd` is the measure both it and the pictures use.
+It has only been tried so: with touches made up by a test, in a window on a desk, with the desk's renderer and the
+web's (`--rendering-method gl_compatibility`). How the keyboard of a phone's browser behaves over the page for words,
+and how the pages feel under a real thumb, have still to be seen on a phone.
 
 ## Puzzle parts
 
@@ -294,6 +358,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/follow_camera.gd` | The camera: a fixed side view (the tomb seen from the side) or a third-person orbit (the yard), which with `indoors` set keeps itself this side of walls and roofs (the tomb walked through) |
 | `scripts/desert.gd` | The desert (`desert.tscn`): makes the level from its layout, and runs its puzzles, checkpoints and people |
 | `scripts/level_layout.gd`, `scripts/level_editor.gd` | What a level is made of, as data; and the editor inside the game that changes it |
+| `scripts/level_editor_phone.gd` | The editor's screen for a phone: a bar, and one sheet or page at a time, all sized for a thumb |
+| `tools/editor_test.gd`, `tools/editor_phone_test.gd`, `tools/level_editor_shots.gd`, `tools/touch_audit.gd` | Not part of the game: work the level editor's panels for a desk, and its layout for a phone by touch alone; take a picture of every state of either; and measure what there is to touch on a screen |
 | `scripts/desert_terrain.gd` | The desert's ground: dunes, level ground, and water cut into it |
 | `scripts/pyramid.gd` | A pyramid made from numbers: stepped core, smooth casing, gold cap, ruin (fallen corners, rubble, missing and slipped blocks), a doorway; its mesh and what is solid |
 | `scripts/sandstone.gd` | Stone drawn by a shader: blocks in courses, strata, weathering, cracks, rubble; and gold (`Toon.sandstone`, `Toon.gold`) |

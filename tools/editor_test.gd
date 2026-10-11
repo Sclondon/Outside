@@ -3,7 +3,8 @@ extends SceneTree
 ## menu does, and works it: puts in a pond, a river, a dune, a door and the plate
 ## that opens it, a hound; changes the ground; undoes; saves; and checks at each
 ## step that the level is as it should be. Saves a picture of the screen at each.
-## Whatever was saved on this device before is put back at the end.
+## What it makes is kept in a file of its own, not where the game keeps a level made on this device.
+## (It works the panels for a desk: `tools/editor_phone_test.gd` works the layout for a phone.)
 ## godot --path . --resolution 1280x720 --script tools/editor_test.gd -- <outdir>
 
 var out := ""
@@ -17,6 +18,7 @@ func _initialize() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	DisplayServer.window_set_position(Vector2i(-6000, -6000))
 	out = OS.get_cmdline_user_args()[0]
+	DirAccess.make_dir_recursive_absolute(out)
 	run.call_deferred()
 
 
@@ -74,7 +76,7 @@ func entry(page: String, name: String) -> Array:
 
 
 func run() -> void:
-	var kept := FileAccess.get_file_as_string(LevelLayout.SAVED) if LevelLayout.has_saved() else ""
+	LevelLayout.saved_at = "user://editor_test.json"
 	LevelLayout.forget_saved()
 	var scene: Node = load("res://desert.tscn").instantiate()
 	root.add_child(scene)
@@ -82,6 +84,7 @@ func run() -> void:
 		await physics_frame
 	level = scene.get_node("Level")
 	editor = LevelEditor.new()
+	editor.phone = false
 	scene.get_node("HUD").add_child(editor)
 	editor.open()
 	await wait(0.3)
@@ -231,10 +234,6 @@ func run() -> void:
 	check("the level goes to text and comes back the same", LevelLayout.to_text(LevelLayout.from_text(text)) == text)
 
 	LevelLayout.forget_saved()
-	if kept != "":
-		var file := FileAccess.open(LevelLayout.SAVED, FileAccess.WRITE)
-		file.store_string(kept)
-		file.close()
 	print("EDITOR TEST: %s" % ("all passed" if failed == 0 else "%d FAILED" % failed))
 	paused = false
 	quit()
