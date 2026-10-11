@@ -10,6 +10,11 @@ extends RefCounted
 ##
 ## What is kept is in `user://tombs.json` (on the web, the browser's storage):
 ## for each day, the best time and the first; and the run of days in a row.
+## A day's tomb seen from the side and the same tomb walked through are two
+## different runs (`run["view"]`, "side" or "3d"): what is kept of each is kept
+## apart, `days` for the one and `days_3d` for the other, and a practice tomb's
+## best likewise. The run of days in a row is one: a day counts once, whichever
+## way its tomb was finished.
 ## A finished run is a Dictionary (see `TombLevel`), and `submission` is that
 ## run as it would be sent to a leaderboard.
 
@@ -51,7 +56,7 @@ static func time_text(ms: int) -> String:
 
 
 static func load_all() -> Dictionary:
-	var kept := {"version": 1, "days": {}, "streak": {"last": 0, "length": 0, "best": 0}, "random_best": {}}
+	var kept := {"version": 1, "days": {}, "days_3d": {}, "streak": {"last": 0, "length": 0, "best": 0}, "random_best": {}}
 	if not FileAccess.file_exists(FILE):
 		return kept
 	var file := FileAccess.open(FILE, FileAccess.READ)
@@ -71,10 +76,15 @@ static func save_all(kept: Dictionary) -> void:
 		file.store_string(JSON.stringify(kept, "\t"))
 
 
-## What is kept of a day, or an empty Dictionary: `best_ms`, `best_deaths`,
-## `first_ms`, `first_deaths`, `runs`.
-static func day_record(day: int) -> Dictionary:
-	return load_all()["days"].get(str(day), {})
+## What is kept of a day as it was seen (`view`: "side" or "3d"), or an empty
+## Dictionary: `best_ms`, `best_deaths`, `first_ms`, `first_deaths`, `runs`.
+static func day_record(day: int, view := "side") -> Dictionary:
+	return load_all()[days_key(view)].get(str(day), {})
+
+
+## Where a day's runs are kept, for each way of seeing its tomb.
+static func days_key(view: String) -> String:
+	return "days_3d" if view == "3d" else "days"
 
 
 ## The run of days in a row as it stands today (0 if yesterday was missed and today is not done).
@@ -89,8 +99,9 @@ static func streak() -> int:
 static func keep(run: Dictionary) -> Dictionary:
 	var kept := load_all()
 	var said := {"best": false, "first": false, "streak": 0}
+	var walked: bool = run.get("view", "side") == "3d"
 	if run["mode"] != "daily":
-		var key := "%d:%d" % [run["seed"], run["difficulty"]]
+		var key := "%d:%d%s" % [run["seed"], run["difficulty"], ":3d" if walked else ""]
 		var before: int = int(kept["random_best"].get(key, 0))
 		said["best"] = before == 0 or int(run["time_ms"]) < before
 		if said["best"]:
@@ -98,36 +109,41 @@ static func keep(run: Dictionary) -> Dictionary:
 		save_all(kept)
 		return said
 	var day := str(int(run["day"]))
-	var record: Dictionary = kept["days"].get(day, {})
+	var days: Dictionary = kept[days_key("3d" if walked else "side")]
+	var record: Dictionary = days.get(day, {})
 	said["first"] = record.is_empty()
 	if record.is_empty():
 		record = {"first_ms": run["time_ms"], "first_deaths": run["deaths"], "best_ms": run["time_ms"], "best_deaths": run["deaths"], "runs": 0}
 		var streak_kept: Dictionary = kept["streak"]
-		streak_kept["length"] = int(streak_kept["length"]) + 1 if int(streak_kept["last"]) == int(run["day"]) - 1 else 1
-		streak_kept["last"] = int(run["day"])
-		streak_kept["best"] = maxi(int(streak_kept["best"]), int(streak_kept["length"]))
+		# (the day may be counted already: its tomb finished the other way)
+		if int(streak_kept["last"]) != int(run["day"]):
+			streak_kept["length"] = int(streak_kept["length"]) + 1 if int(streak_kept["last"]) == int(run["day"]) - 1 else 1
+			streak_kept["last"] = int(run["day"])
+			streak_kept["best"] = maxi(int(streak_kept["best"]), int(streak_kept["length"]))
 	said["best"] = said["first"] or int(run["time_ms"]) < int(record["best_ms"])
 	if said["best"]:
 		record["best_ms"] = run["time_ms"]
 		record["best_deaths"] = run["deaths"]
 	record["runs"] = int(record["runs"]) + 1
-	kept["days"][day] = record
+	days[day] = record
 	said["streak"] = int(kept["streak"]["length"])
 	save_all(kept)
 	return said
 
 
 ## The run in a line, to send to someone: `Outside daily tomb #123  2:41.3  1 death`
+## (and `Outside daily tomb #123, walked through  3:05.0  no deaths`).
 static func share_text(run: Dictionary) -> String:
 	var deaths := int(run["deaths"])
 	var died := "no deaths" if deaths == 0 else ("1 death" if deaths == 1 else "%d deaths" % deaths)
+	var how := ", walked through" if run.get("view", "side") == "3d" else ""
 	if run["mode"] == "daily":
-		return "Outside daily tomb #%d  %s  %s" % [number(int(run["day"])), time_text(int(run["time_ms"])), died]
-	return "Outside tomb %d (%s)  %s  %s" % [run["seed"], TombGenerator.DIFFICULTY_NAMES[int(run["difficulty"])], time_text(int(run["time_ms"])), died]
+		return "Outside daily tomb #%d%s  %s  %s" % [number(int(run["day"])), how, time_text(int(run["time_ms"])), died]
+	return "Outside tomb %d (%s)%s  %s  %s" % [run["seed"], TombGenerator.DIFFICULTY_NAMES[int(run["difficulty"])], how, time_text(int(run["time_ms"])), died]
 
 
 ## The run as a leaderboard would be sent it: everything needed to know which
-## tomb it was (day, seed, difficulty, the generator's version, and the
+## tomb it was (day, seed, difficulty, how it was seen, the generator's version, and the
 ## fingerprints of the plan and of the stone, which a server that made the
 ## tomb itself would check), what was done in it (the time in sixtieths of a
 ## second of play, the time to the treasure, deaths, and the time each room was
@@ -135,7 +151,7 @@ static func share_text(run: Dictionary) -> String:
 ## catches a damaged record: anyone can work it out. See README, "Tombs".
 static func submission(run: Dictionary) -> Dictionary:
 	var sent := {
-		"v": 1, "mode": run["mode"], "day": run["day"], "seed": run["seed"], "difficulty": run["difficulty"],
+		"v": 1, "mode": run["mode"], "view": run.get("view", "side"), "day": run["day"], "seed": run["seed"], "difficulty": run["difficulty"],
 		"generator": TombGenerator.VERSION, "plan": run["plan"], "stone": run["stone"],
 		"ticks": run["ticks"], "time_ms": run["time_ms"], "goal_ms": run["goal_ms"], "deaths": run["deaths"], "splits": run["splits"],
 	}

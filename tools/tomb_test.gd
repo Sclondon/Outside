@@ -48,6 +48,8 @@ var seeds := 500
 var walked := false
 var drive_seeds: Array = [1, 2, 3]
 var per := 3
+## With `custom`: only the tombs whose names have this in them (and not the sand by itself).
+var pick := ""
 var shots := ""
 var shot_count := 0
 var failed := false
@@ -72,6 +74,8 @@ func _initialize() -> void:
 			per = int(arg.trim_prefix("per="))
 		elif arg == "3d":
 			walked = true
+		elif arg.begins_with("pick="):
+			pick = arg.trim_prefix("pick=").to_lower()
 		elif arg.begins_with("drive_difficulties="):
 			drive_difficulties = []
 			for part in arg.trim_prefix("drive_difficulties=").split(","):
@@ -364,50 +368,15 @@ func _drive() -> void:
 
 
 ## A tomb with one of every lock the tomb editor offers, and every thing to carry.
+## (These three are in `tools/tomb_shapes.gd`, which the picture tools share.)
 func every_lock() -> Dictionary:
-	var spec := TombSpec.fresh("Every lock")
-	var rooms: Array = []
-	for role: String in ["entrance", "corridor", "hall", "well", "gallery", "corridor", "antechamber", "corridor", "corridor", "burial"]:
-		rooms.append(TombSpec.room(role))
-	rooms[0]["torch"] = 1
-	rooms[0]["jar"] = 1
-	rooms[1]["hook"] = 1
-	rooms[2]["lock"] = "cross"
-	rooms[2]["way"] = "stairs"
-	rooms[3]["lock"] = "lever_below"
-	rooms[3]["stone_in"] = 3
-	rooms[4]["lock"] = "brazier"
-	rooms[4]["dark"] = true
-	rooms[4]["way"] = "stairs"
-	rooms[5]["lock"] = "offering"
-	rooms[6]["lock"] = "lever_above"
-	rooms[6]["stone_in"] = 5
-	rooms[6]["way"] = "stairs"
-	rooms[7]["way"] = "gap"
-	rooms[8]["lock"] = "bypass"
-	rooms[9]["mummy"] = 0
-	spec["rooms"] = rooms
-	return spec
+	return Shapes.every_lock()
 
 
 ## A tomb with the two-plate door, the rope and the sand: the torch for the
 ## brazier beyond them is dropped down the shaft with, and carried up the heap.
 func three_new() -> Dictionary:
-	var spec := TombSpec.fresh("Two plates, a rope, the sand")
-	var rooms: Array = []
-	for role: String in ["entrance", "corridor", "hall", "corridor", "gallery", "antechamber", "corridor", "burial"]:
-		rooms.append(TombSpec.room(role))
-	rooms[0]["torch"] = 1
-	rooms[2]["lock"] = "pair"
-	rooms[2]["way"] = "stairs"
-	rooms[3]["way"] = "rope"
-	rooms[4]["way"] = "sand"
-	rooms[5]["lock"] = "brazier"
-	rooms[5]["dark"] = true
-	rooms[5]["way"] = "sand"
-	rooms[6]["way"] = "stairs"
-	spec["rooms"] = rooms
-	return spec
+	return Shapes.three_new()
 
 
 # The tombs that have each of the new templates: [seed, difficulty] each, the
@@ -461,6 +430,8 @@ func _drive_custom() -> void:
 	var specs: Array = [TombSpec.fresh(), every_lock(), three_new()]
 	if walked:
 		specs.append(Shapes.every_way())
+	if pick != "":
+		specs = specs.filter(func(spec: Dictionary) -> bool: return pick in String(spec["name"]).to_lower())
 	var finished := 0
 	for spec: Dictionary in specs:
 		var found := TombSpec.check(spec)
@@ -476,7 +447,7 @@ func _drive_custom() -> void:
 		else:
 			failed = true
 	print("  finished %d of %d" % [finished, specs.size()])
-	var held := await _sand_holds3() if walked else await _sand_holds()
+	var held := pick != "" or (await _sand_holds3() if walked else await _sand_holds())
 	if not held:
 		failed = true
 	_say_tally()
@@ -484,11 +455,7 @@ func _drive_custom() -> void:
 
 ## A tomb whose only way on is up the sand, which a block on its plate lets in.
 func only_sand() -> Dictionary:
-	var spec := TombSpec.fresh("Only the sand")
-	spec["rooms"] = [TombSpec.room("entrance"), TombSpec.room("corridor"), TombSpec.room("burial")]
-	spec["rooms"][1]["way"] = "sand"
-	spec["rooms"][1]["lock"] = "work"
-	return spec
+	return Shapes.only_sand()
 
 
 # The sand by itself. Before it is let in he throws himself at the face for ten
@@ -1619,11 +1586,17 @@ func _rope_up3(link: TombPlan.Link) -> bool:
 		if on:
 			await _shot("rope_up_caught")
 			touch.move = Vector2.ZERO
+			# (he climbs with act held: but act has to be let go once he is on it, and pressed again)
+			await _wait(4)
 			for i in 900:
 				touch.act_held = true
 				await _wait(1)
+				if OS.has_environment("ROPE_TRACE") and i % 20 == 0:
+					print("      climbing: state %d, hands %.2f down, at %s, act %s" % [player.state, player._rope_at, player.global_position, player._rope_act])
 				if player.state != Player.State.ROPE or player._rope_at <= 0.41:
 					break
+			if OS.has_environment("ROPE_TRACE"):
+				print("      at the top of the rope: state %d, hands %.2f down it, at %s" % [player.state, player._rope_at, player.global_position])
 			touch.act_held = false
 		if on and player.state == Player.State.ROPE:
 			await _shot("rope_up_top")

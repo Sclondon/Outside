@@ -220,6 +220,9 @@ func _part(part: Dictionary) -> void:
 		"glyphs":
 			var band := _signs(at, part["long"])
 			band.rotation.y = part.get("yaw", 0.0)
+			# (seen from close to, they are cut shallow)
+			if layout.walked():
+				band.scale.z = 0.3
 			node.add_child(band)
 		"prop":
 			_scene(part["scene"], at, part["yaw"], node)
@@ -266,7 +269,8 @@ func _part(part: Dictionary) -> void:
 			block.add_child(collider)
 			_show(block, Vector3.ZERO, shape.size, "block")
 			block.position = at
-			node.add_child(block)
+			# (one that is pushed on into the next room is no part of the room it starts in: that is put away when he has gone on)
+			(root if int(part["thing"]) >= 0 else node).add_child(block)
 			blocks.append({"body": block, "home": Transform3D(Basis.IDENTITY, at), "thing": part["thing"], "serves": part["serves"]})
 		"item":
 			var thing := _item(part["what"], at)
@@ -274,7 +278,8 @@ func _part(part: Dictionary) -> void:
 			# (the stone stops it, but nothing trips over it: he is on one line and cannot go round)
 			thing.collision_layer = 16
 			thing.collision_mask = 1
-			node.add_child(thing)
+			# (nor is anything he carries off: it would be put away with the room, in his hand)
+			root.add_child(thing)
 			items[part["thing"]] = thing
 			item_homes[part["thing"]] = thing.transform
 		"ladder":

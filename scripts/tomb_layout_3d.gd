@@ -140,7 +140,8 @@ var turns: Array[int] = []
 var areas: Array[Area] = []
 ## Where a thing cannot be carried out again (the water, the well and what is under it).
 var holes: Array[AABB] = []
-## By link: `turn`, and whatever of these it has: `gap` (the two edges of the
+## By link: `turn` (which way it goes), `from` and `to` (where it leaves the bay
+## and where it comes to the next room, on his line), and whatever of these it has: `gap` (the two edges of the
 ## pit, on his line), `lip`, `rope`, `upper` and `lower` (a rope: the edge he
 ## steps off, where it hangs, and where he stands at its head and its foot),
 ## `before`, `face` and `top` (the sand: short of the heap, the foot of the
@@ -838,7 +839,7 @@ func _set_way(link: TombPlan.Link, frame: Frame, filler: float) -> float:
 	var way_high := LOFT_TOP - LOFT_SLAB if loft else DOORWAY
 	var top := _y + LOFT_TOP
 	var roof := top + LOFT_ROOM if over else _y + PASSAGE_HIGH
-	var way := {"turn": frame.turn}
+	var way := {"turn": frame.turn, "from": frame.at(0.0, _y, WALK)}
 	var turned := (frame.turn - maxi(turns[a.id], 0) + 4) % 4
 	var last := -1
 	if rooms[a.id].has("e"):
@@ -1004,6 +1005,7 @@ func _set_way(link: TombPlan.Link, frame: Frame, filler: float) -> float:
 	var into: Dictionary = rooms[b.id]
 	if into.has("w") and last >= 0:
 		_line(last, into["w"] if _in[b.id] == link.id else into["e"])
+	way["to"] = frame.at(_u, _y, WALK)
 	ways[link.id] = way
 	_wides[link.id] = _most
 	return _u

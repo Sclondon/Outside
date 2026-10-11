@@ -77,6 +77,9 @@ var run := {}
 
 var _player: Player
 var _given: TombPlan
+var _fill: DirectionalLight3D
+## The camera, in a tomb that is walked through.
+var _eye: FollowCamera
 var _started := false
 var _held := false
 var _room := -1
@@ -97,6 +100,7 @@ func _ready() -> void:
 		camera.indoors = true
 		camera.distance = 5.0
 		camera.near = 0.08
+		_eye = camera
 	if mode == "custom":
 		plan = TombSpec.compile(spec)
 		var proof := TombSolver.solve(plan)
@@ -132,7 +136,8 @@ func _read_choice() -> void:
 	var chosen := play.duplicate()
 	play = {}
 	var asked := not chosen.is_empty()
-	var seen: String = chosen.get("view", "side")
+	# (with nothing asked for, the card comes up over the tomb as it was last chosen to be seen)
+	var seen: String = chosen.get("view", last_view if chosen.is_empty() else "side")
 	for arg in OS.get_cmdline_user_args():
 		if arg == "tomb=custom":
 			chosen = {"mode": "custom", "spec": TombSpec.current()}
@@ -148,6 +153,8 @@ func _read_choice() -> void:
 			asked = true
 	mode = chosen.get("mode", "daily")
 	view = "3d" if seen == "3d" else "side"
+	if not asked:
+		last_view = view
 	day = int(chosen.get("day", TombDaily.today()))
 	if mode == "custom":
 		spec = chosen.get("spec", {})
@@ -181,6 +188,9 @@ func _build_dark() -> void:
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.42, 0.4, 0.46)
 	environment.ambient_light_energy = 0.3
+	if view == "3d":
+		# (walked through, most of what he sees does not face the camera: what no torch reaches is still to be made out)
+		environment.ambient_light_energy = 0.62
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	var world := WorldEnvironment.new()
 	world.environment = environment
@@ -191,6 +201,7 @@ func _build_dark() -> void:
 	fill.light_color = Color(0.85, 0.8, 0.75)
 	fill.light_energy = 0.22
 	add_child(fill)
+	_fill = fill
 	# The moon over the way in.
 	var moon := OmniLight3D.new()
 	moon.name = "Moon"
@@ -239,6 +250,13 @@ func _settle_in() -> void:
 
 
 # --- Running it
+
+# In a tomb that is walked through there is no one side it is seen from: the
+# faint light that keeps him from being a bare shadow comes from wherever the camera is.
+func _process(_delta: float) -> void:
+	if _eye and _fill:
+		_fill.global_basis = _eye.global_basis
+
 
 func _physics_process(delta: float) -> void:
 	if _player == null or _held or finished:
@@ -495,7 +513,7 @@ func _share_text() -> String:
 	if mode != "custom":
 		return TombDaily.share_text(run)
 	var died := "no deaths" if deaths == 0 else ("1 death" if deaths == 1 else "%d deaths" % deaths)
-	return "Outside tomb \"%s\"  %s  %s" % [spec.get("name", "My tomb"), TombDaily.time_text(int(run["time_ms"])), died]
+	return "Outside tomb \"%s\"%s  %s  %s" % [spec.get("name", "My tomb"), ", walked through" if view == "3d" else "", TombDaily.time_text(int(run["time_ms"])), died]
 
 
 func _title() -> String:
@@ -570,13 +588,25 @@ func _announce() -> void:
 # The card that comes up first: today's tomb, or one for practice.
 func _show_choice() -> void:
 	var rows := _open_card("TOMBS")
-	var record := TombDaily.day_record(day)
+	var record := TombDaily.day_record(day, view)
 	var today_line := "Daily tomb #%d  ·  %s  ·  %s" % [TombDaily.number(day), TombDaily.date_text(day), TombGenerator.DIFFICULTY_NAMES[difficulty]]
 	rows.add_child(_line(today_line, 22))
 	if record.is_empty():
 		rows.add_child(_line("Not yet finished today.   Days in a row: %d" % TombDaily.streak(), 17))
 	else:
 		rows.add_child(_line("Your best today: %s   Days in a row: %d" % [TombDaily.time_text(int(record["best_ms"])), TombDaily.streak()], 17))
+	# How it is seen. The tomb behind the card is already the one chosen: the
+	# other is opened in its place, with this card over it again.
+	var views := HBoxContainer.new()
+	rows.add_child(views)
+	for way: Array in [["side", "Side-on"], ["3d", "Walk through"]]:
+		var see := _button(way[1], func() -> void:
+			TombLevel.last_view = way[0]
+			_open_tomb({}))
+		see.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		see.disabled = way[0] == view
+		views.add_child(see)
+	rows.add_child(_line("Seen from the side he keeps to one line. Walked through, the camera is at his back: drag the right of the screen to look about. Times are kept for each." , 15))
 	rows.add_child(_button("Play today's tomb", func() -> void:
 		_close_card()
 		_held = false
@@ -594,7 +624,7 @@ func _show_choice() -> void:
 		var pick := _button(TombGenerator.DIFFICULTY_NAMES[level], func() -> void:
 			# (choosing a tomb at random is not making one: the engine's dice will do)
 			var chosen := int(number.text) if number.text.is_valid_int() else randi_range(1, 999999)
-			_open_tomb({"mode": "random", "seed": chosen, "difficulty": level}))
+			_open_tomb({"mode": "random", "seed": chosen, "difficulty": level, "view": view}))
 		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(pick)
 	rows.add_child(_button("Make a tomb of your own", _to_editor))
@@ -618,7 +648,7 @@ func _show_result(said: Dictionary) -> void:
 		copied.text = "Copied")
 	rows.add_child(copied)
 	rows.add_child(_button("Again", func() -> void:
-		_open_tomb({"mode": mode, "day": day, "seed": seed_value, "difficulty": difficulty, "spec": spec})))
+		_open_tomb({"mode": mode, "day": day, "seed": seed_value, "difficulty": difficulty, "spec": spec, "plan": _given, "view": view})))
 	if mode == "custom":
 		rows.add_child(_button("Back to the editor", _to_editor))
 	rows.add_child(_button("Another tomb", func() -> void: _open_tomb({})))

@@ -180,6 +180,9 @@ var player: Player
 var camera: FollowCamera
 var hud: CanvasLayer
 var scene: Node
+var touch: TouchControls
+var kinds: Array[Image] = []
+var kind_names: Array = []
 
 
 func run() -> void:
@@ -204,6 +207,9 @@ func _open(chosen: Dictionary) -> void:
 	hud = scene.get_node("HUD")
 	hud.visible = false
 	player.sleep_after = 0.0
+	touch = scene.get_node("HUD/TouchControls")
+	touch.set_process_input(false)
+	player.set_process_unhandled_input(false)
 
 
 func _close() -> void:
@@ -323,7 +329,209 @@ func _sheets(cells: Array[Image], name: String, labels: Array = []) -> void:
 
 
 func _draw_kinds() -> void:
-	pass
+	# --- Every way between rooms, one after another, and a mummy behind each thing that holds one
+	await _open({"mode": "custom", "spec": Shapes.every_way()})
+	var layout := level.layout as TombLayout3D
+	var plan := level.plan
+	for link in plan.links:
+		var way := layout.ways[link.id]
+		if not way.has("from"):
+			continue
+		var along := Vector3(TombLayout3D.TURNS[int(way["turn"])])
+		var from: Vector3 = way["from"]
+		var to: Vector3 = way["to"]
+		match link.pass_kind:
+			TombPlan.Pass.STAIRS:
+				if link.id == 0:
+					await _snap("stairs, from the court", from - along * 3.0, along)
+					await _snap("on the stairs", from + along * 2.6, along)
+			TombPlan.Pass.CRAWL:
+				await _snap("a crawl", from - along * 2.4, along)
+				await _look(from - along * 1.0, along, 20)
+				await _walk(along, 12, true, 0.0)
+				await _walk(along, 80, true)
+				await _hold(30, true)
+				_keep("going into the crawl", await _shot())
+				await _walk(along, 45, true)
+				await _hold(30, true)
+				_keep("in the crawl", await _shot())
+				await _walk(along, 80, true)
+				await _hold(30, true)
+				_keep("coming out of the crawl", await _shot())
+				touch.duck_held = false
+			TombPlan.Pass.GAP:
+				var gap: Array = way["gap"]
+				await _snap("the pit, and the ring over it", (gap[0] as Vector3) - along * 0.5, along, 60, 0.02)
+				await _snap("the pit, looking down into it", (gap[0] as Vector3) - along * 0.4, along, 60, 0.95)
+				await _snap("the far side of the pit", (gap[1] as Vector3) + along * 0.5, -along, 60, 0.5)
+			TombPlan.Pass.FLOOD:
+				await _snap("water", from + along * 1.3, along)
+				await _walk(along, 150)
+				_keep("swimming", await _shot())
+			TombPlan.Pass.SHAFT:
+				await _snap("a ladder shaft, from its head", to - along * 2.9 + Vector3.UP * (from.y - to.y), along, 60, 1.0)
+				await _snap("a ladder shaft, from its foot", to + along * 1.8, -along, 50, 0.05)
+			TombPlan.Pass.OPEN:
+				await _snap("a doorway", from - along * 2.8, along)
+			TombPlan.Pass.ROPE:
+				await _snap("a rope shaft, from its head", (way["upper"] as Vector3) - along * 0.6, along, 50, 0.55)
+				await _snap("a rope shaft, from its foot", (way["lower"] as Vector3) + along * 2.4, -along, 50, 0.05)
+				# (and on it: he runs off the lip into it)
+				await _look(way["upper"], along, 20)
+				await _walk(along, 55)
+				await _hold(25)
+				_keep("on the rope", await _shot())
+			TombPlan.Pass.SAND:
+				await _snap("the face, before the sand", (way["before"] as Vector3) - along * 0.4, along)
+				await _look(layout.switch_at[link.switches[0]], along, 30)
+				await _look((way["before"] as Vector3) - along * 0.4, along, 200)
+				_keep("the sand coming in", await _shot())
+				await _hold(420)
+				_keep("the sand, all of it", await _shot())
+				await _look((way["before"] as Vector3) - along * 0.4, along, 20)
+				await _walk(along, 130)
+				await _hold(40)
+				_keep("going up the heap", await _shot())
+	for part in layout.parts:
+		if part["kind"] != "mummy" or part["guardian"]:
+			continue
+		var along: Vector3 = part["safe_way"]
+		var held: Vector3 = part["safe_at"]
+		held += Vector3(-along.z, 0.0, along.x) * TombLayout3D.WALK
+		var barrier: String = TombPlan.BARRIER_NAMES[plan.rooms[part["room"]].barrier]
+		# (he goes by it, which wakes it, and looks back from beyond what holds it)
+		await _look(held - along * 3.2, along, 70)
+		await _look(held + along * 2.2, -along, 260, 0.38)
+		_keep("a mummy held by a %s" % barrier, await _shot())
+	for link in plan.links:
+		var way := layout.ways[link.id]
+		if way.has("from") and int(way["turn"]) != layout.turns[link.a]:
+			var along := Vector3(TombLayout3D.TURNS[layout.turns[link.a]])
+			await _snap("a corner", (layout.rooms[link.a]["east"] as Vector3) - along * 3.4, along)
+			break
+	await _close()
+
+	# --- Every lock
+	await _open({"mode": "custom", "spec": Shapes.every_lock()})
+	layout = level.layout as TombLayout3D
+	plan = level.plan
+	for room in plan.rooms:
+		var info := layout.rooms[room.id]
+		var along := Vector3(TombLayout3D.TURNS[int(info["turn"])])
+		match room.role:
+			TombPlan.Role.LOFT:
+				var edge: Vector3 = info["edge"]
+				await _snap("a loft, from under its lip", Vector3(edge.x, float(layout.rooms[room.parent]["floor"]), edge.z) - along * 3.0, along, 50, 0.2)
+				await _snap("in a loft", info["west"], along)
+			TombPlan.Role.CRYPT:
+				await _snap("the well", (info["before"] as Vector3) - along * 1.6, along, 50, 0.6)
+				await _snap("the crypt under it, and its seal stone", (info["east"] as Vector3) - along * 1.7, -along)
+			TombPlan.Role.BURIAL:
+				await _snap("the falcon", (info["east"] as Vector3) - along * 2.0, along)
+	for trigger in plan.triggers:
+		var stand := layout.stand_at[trigger.id]
+		var info := layout.rooms[trigger.room]
+		var along := Vector3(TombLayout3D.TURNS[int(info["turn"])])
+		match trigger.kind:
+			TombPlan.Switch.PLATE:
+				await _snap("a plate for a block from the room before", stand - along * 1.0 + Vector3(-along.z, 0.0, along.x) * TombLayout3D.WALK, along, 50, 0.5)
+			TombPlan.Switch.WORK_PLATE:
+				await _snap("a block, and the plate it is pushed onto", stand - along * 5.6 + Vector3(-along.z, 0.0, along.x) * (TombLayout3D.WALK - TombLayout3D.LANE), along, 50, 0.45)
+			TombPlan.Switch.OFFERING:
+				await _snap("an offering table", stand - along * 2.2, along, 50, 0.45)
+			TombPlan.Switch.LEVER:
+				if plan.rooms[trigger.room].role != TombPlan.Role.CRYPT:
+					await _snap("a seal stone", stand - along * 2.0, along, 50, 0.5)
+	# A block for the plate of the room after, standing in the bay in line with the door.
+	for block in level.built.blocks:
+		if int(block["thing"]) >= 0:
+			var body: RigidBody3D = block["body"]
+			var info := layout.rooms[plan.things[block["thing"]].room]
+			var along := Vector3(TombLayout3D.TURNS[int(info["turn"])])
+			await _snap("a block for the plate in the next room", (info["east"] as Vector3) - along * 3.0, along, 50, 0.4)
+	# The dark room: he takes up the torch, and goes into it.
+	for trigger in plan.triggers:
+		if trigger.kind != TombPlan.Switch.BRAZIER:
+			continue
+		var info := layout.rooms[trigger.room]
+		var along := Vector3(TombLayout3D.TURNS[int(info["turn"])])
+		await _snap("a dark room, with nothing in his hand", info["west"], along)
+		for thing in plan.things:
+			if thing.kind != TombPlan.Item.TORCH:
+				continue
+			var lies: Vector3 = layout.thing_at[thing.id]
+			await _look(lies - Vector3(0.5, 0.0, 0.0), Vector3.RIGHT, 30)
+			player._act()
+			await _hold(90)
+			break
+		_put(info["west"], along)
+		await _hold(70)
+		_keep("the same room, with the torch", await _shot())
+		_put((layout.stand_at[trigger.id] as Vector3) - along * 2.6, along)
+		await _hold(70)
+		_keep("the cold brazier, as he comes to it", await _shot())
+		_put(layout.stand_at[trigger.id], along)
+		await _hold(120)
+		_keep("the brazier lit, and the door it opens", await _shot())
+	await _close()
+
+	# --- The two plates on one door
+	await _open({"mode": "custom", "spec": Shapes.three_new()})
+	layout = level.layout as TombLayout3D
+	for link in level.plan.links:
+		if link.hint == "two_stones":
+			var info := layout.rooms[link.a]
+			var along := Vector3(TombLayout3D.TURNS[int(info["turn"])])
+			await _snap("two plates on one door", (info["west"] as Vector3) + along * 0.5, along, 50, 0.5)
+	await _close()
+	_sheets(kinds, "kinds", kind_names)
+
+
+# One kind of thing, seen from `spot` looking `along`.
+func _snap(what: String, spot: Vector3, along: Vector3, settle := 50, tilt := 0.32) -> void:
+	_keep(what, await _look(_stood(spot), along, settle, tilt))
+
+
+func _keep(what: String, image: Image) -> void:
+	_save(image, "kind_%02d_%s" % [kinds.size() + 1, what.replace(" ", "_").replace(",", "")])
+	kinds.append(_small(image))
+	kind_names.append(what)
+
+
+# The floor under a place.
+func _stood(spot: Vector3) -> Vector3:
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(spot + Vector3.UP * 0.8, spot + Vector3.DOWN * 9.0, 1))
+	return hit["position"] if not hit.is_empty() else spot
+
+
+# Puts him somewhere as he is (with what he carries), looking `along`.
+func _put(spot: Vector3, along: Vector3) -> void:
+	player.global_position = _stood(spot) + Vector3.UP * 0.05
+	player.velocity = Vector3.ZERO
+	player.facing_yaw = atan2(along.x, along.z)
+	camera.look_along(along)
+	camera.snap()
+
+
+# Walks him `way` for so many frames, steering by the camera as a thumb would.
+func _walk(way: Vector3, frames: int, duck := false, push := 0.9) -> void:
+	for i in frames:
+		var view := camera.global_basis
+		var right := Vector3(view.x.x, 0.0, view.x.z).normalized()
+		var forward := Vector3(-view.z.x, 0.0, -view.z.z).normalized()
+		touch.move = Vector2(way.dot(right), -way.dot(forward)) * push
+		touch.duck_held = duck
+		await physics_frame
+	touch.move = Vector2.ZERO
+	await process_frame
+
+
+func _hold(frames: int, duck := false) -> void:
+	for i in frames:
+		touch.move = Vector2.ZERO
+		touch.duck_held = duck
+		await physics_frame
+	await process_frame
 
 
 func _frames(count: int) -> void:
