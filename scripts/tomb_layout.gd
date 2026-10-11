@@ -838,6 +838,11 @@ func drawn_within() -> int:
 	return 1
 
 
+## Whether a room is to be drawn while he is in the room `here`.
+func is_drawn(room: int, here: int) -> bool:
+	return rooms_apart(room, here) <= drawn_within()
+
+
 ## How far one place is from another over the ground, as the tomb reckons it.
 func apart(one: Vector3, other: Vector3) -> float:
 	return absf(one.x - other.x)

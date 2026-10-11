@@ -322,7 +322,7 @@ func _put_away(here: int) -> void:
 	if here < 0:
 		here = plan.entrance()
 	for room in layout.placed():
-		built.room_nodes[room.id].visible = layout.rooms_apart(room.id, here) <= layout.drawn_within()
+		built.room_nodes[room.id].visible = layout.is_drawn(room.id, here)
 
 
 func _work_switches(at: Vector3) -> void:

@@ -1,6 +1,6 @@
 extends SceneTree
 ## Not part of the game. Checks the tomb generator with nothing drawn.
-## godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [3d] [plans] [geometry] [same] [drive] [templates] [custom] [grid] [seeds=500] [drive_seeds=1,2,3] [per=3] [show=<seed>:<difficulty>]
+## godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [3d] [branching] [plans] [geometry] [same] [drive] [templates] [custom] [grid] [map] [doors] [seeds=500] [drive_seeds=1,2,3] [drive_difficulties=0,1,2] [per=3] [show=<seed>:<difficulty>]
 ##
 ##  3d        everything after it is asked of the tomb that is walked through
 ##            (`TombLayout3D`) and not the one seen from the side: `geometry` and
@@ -9,6 +9,18 @@ extends SceneTree
 ##            `templates` and `custom` play it that way, steering him about the
 ##            floor by the camera as a thumb would. `custom` then also plays a
 ##            tomb with every way there is in it, one after another.
+##  branching everything after it is asked of the tombs that branch (`TombBranching`:
+##            they are only ever walked through, so it is `3d` as well). `plans` then
+##            also holds the solver to plans made by hand whose answers are known
+##            (forks, loops, drops, things carried about them) and to a thorough
+##            way of its own, and says what is in the tombs: rooms, forks, loops,
+##            dead ends, every switch and thing, and how long one takes to make and
+##            to prove. `drive` plays them, and the day's own after them.
+##  map       (with branching) the map on the HUD, held against what the level
+##            knows as two tombs are played through; and that a touch makes it
+##            large and another small.
+##  doors     (with 3d or branching) every shut door of a few tombs jumped at from
+##            in front and from behind: he must not get up it or through it.
 ##  grid      (with 3d) a plan whose rooms were given their cells by hand, with
 ##            a side chamber and a way that closes a loop: that the cells pass
 ##            the rules, that the same rules refuse cells that break them, and
@@ -35,7 +47,9 @@ extends SceneTree
 ##            the sand is let in, however he jumps at it and kicks off it; how
 ##            long the heap takes; and that dying does not empty it.
 ##  kept      what is kept of a day's tomb finished seen from the side and
-##            finished walked through: apart, with one run of days between them.
+##            finished walked through: apart, with one run of days between them;
+##            and of the day's tomb that branches: apart from both, in a file
+##            kept before there was such a thing as well as in a new one.
 ##            (In a file of its own: the player's is not touched.)
 ##  show      prints one plan and the way through it.
 ##  shots=<folder>  (not headless: `--resolution 1280x720`, and its window is kept

@@ -9,8 +9,9 @@ extends TombLayout
 ## THE CELLS. Every room that is not a loft or a crypt stands on a square of
 ## a floor plan, its `cell` (`TombPlan.Room.cell`): x and z say which square, y
 ## which level, counted downwards from the entrance at 0. A plan whose rooms
-## all have cells is set out as it says; one with none (every plan the
-## generator makes today) has them worked out here, down its axis, turning as
+## all have cells is set out as it says (`TombBranching` makes those, and a tomb
+## made by hand on a floor plan has them); one with none (every plan that
+## `TombGenerator` makes) has them worked out here, down its axis, turning as
 ## the dice say (`_own_cells`), and the plan itself is left as it was. What a
 ## plan with cells must keep to (`cells_wrong` lists whatever it does not):
 ##
@@ -1373,6 +1374,28 @@ func rooms_apart(one: int, other: int) -> int:
 
 func drawn_within() -> int:
 	return 2
+
+
+## In a plan that came with its cells a room has ways to every side, and the
+## rooms within two ways of his can be ten: too many to draw on a phone, and
+## most of them round a corner. There the rooms next to his are drawn, and of
+## those two ways off only the ones straight on through a room next to his
+## (on three squares in a line), which is as far as he sees through two doorways.
+func is_drawn(room: int, here: int) -> bool:
+	var apart := rooms_apart(room, here)
+	if not _crowded or apart <= 1:
+		return apart <= drawn_within()
+	if apart > 2:
+		return false
+	for link in _joins():
+		if link.a != here and link.b != here:
+			continue
+		var between := link.b if link.a == here else link.a
+		var step := cells[between] - cells[here]
+		var on := cells[room] - cells[between]
+		if rooms_apart(between, room) == 1 and step.x == on.x and step.z == on.z:
+			return true
+	return false
 
 
 func apart(one: Vector3, other: Vector3) -> float:

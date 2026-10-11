@@ -1076,7 +1076,9 @@ add `["Tombs", "res://tomb.tscn"],` to `LEVELS` in `scripts/menu.gd`. Opened lik
 tomb of your choosing, set `TombLevel.play` first (`{"mode": "daily"}` or `{"mode": "random", "seed": 12, "difficulty": 1}`),
 or pass `-- tomb=daily` or `-- tomb=12:1` on the command line. Either takes how it is to be seen as well: `"view": "side"`
 (what it is with nothing said) or `"view": "3d"`, and `view=3d` on the command line (`-- tomb=12:1 view=3d`). The card
-has the two as "Side-on" and "Walk through", and remembers the last one chosen until the game is closed.
+has the two as "Side-on" and "Walk through", and remembers the last one chosen until the game is closed. A third
+button, "Branching", is another kind of tomb altogether (`"shape": "branching"`, `shape=branching`): rooms on a floor
+plan with ways off to either side, side chambers, dead ends and loops, and a map. "Tombs that branch", below, has it.
 
 - **Seen from the side**, the tomb is cut open towards the camera like the section drawings of the tombs in the
   Valley of the Kings: its axis runs away to the right and down, he keeps to one line (`SIDE_SCROLL`), and nothing needs
@@ -1169,7 +1171,8 @@ has the two as "Side-on" and "Walk through", and remembers the last one chosen u
   from a number to change by hand, and the tomb as text to copy out or paste in. "Play" plays it (`TombLevel.play =
   {"mode": "custom", "spec": ...}`, or `-- tomb=custom` for the one last worked on), timed like any other and kept
   nowhere; "Edit" there comes back. "Walk it" plays it walked through (`"view": "3d"`, or `-- tomb=custom view=3d`);
-  the editor itself shows it only from the side.
+  the editor itself shows it only from the side. A tomb that branches is made on a floor plan instead, seen from
+  overhead: see "Tombs that branch", below.
   What it makes is a `TombSpec`: the rooms in order, as plain data. It can say only what the generator's own rules can
   make, because those are what `TombLayout` knows how to set in stone: `TombSpec.problems` lists whatever is outside
   them (a locked crawl, a seal stone under a room that is no well, a loft at the foot of the sand, a mummy at the top of
@@ -1185,8 +1188,8 @@ lost, whether a mummy can still get at him).
 
 - **Cells.** Every room that is not a loft or a crypt stands on a square of a floor plan: `TombPlan.Room.cell`, a
   `Vector3i` whose x and z are the square and whose y is the level, counted downwards from the entrance at 0 (a level
-  is 1.6 m). A plan whose rooms all have cells is set out as it says. One with none, which is every plan the generator
-  makes today, has them worked out by the layout: down the axis from the entrance, each room ahead of the last or
+  is 1.6 m). A plan whose rooms all have cells is set out as it says. One with none, which is every plan `TombGenerator`
+  makes, has them worked out by the layout: down the axis from the entrance, each room ahead of the last or
   round a corner from it as the dice say, never onto a square that is taken. The plan itself is not touched, so its
   fingerprint is the one it has seen from the side. The squares are as big as what stands on them: each column and
   each row of the plan is as wide as its widest room, and a way is made up with plain passage where its rooms are
@@ -1207,7 +1210,7 @@ lost, whether a mummy can still get at him).
   - a block for the plate of another room stands in the bay in line with the way to that room, which is level: one
     such block to a room.
 
-  `tools/tomb_shapes.gd` has a plan with a side chamber and a loop (`branching`), which nothing generates yet;
+  `tools/tomb_shapes.gd` has a plan with a side chamber and a loop written out by hand (`branching`);
   `tools/tomb_test.gd -- 3d grid` checks the rules on it, breaks it four ways, builds it and plays it.
 - **A room** is laid along the way he comes in, as a run of floors from wall to wall, exactly as the tomb seen from the
   side is a run of spans: so a trench, a kerb or a pit cannot be walked round. A corridor is 5 m wide, a gallery 6, an
@@ -1238,10 +1241,118 @@ lost, whether a mummy can still get at him).
   and towards each corner, so that no edge of the picture is in stone. Pillars it looks straight past. The faint
   light that keeps him from being a shadow comes from wherever the camera is.
 
+### Tombs that branch
+
+A third kind of tomb: rooms on a floor plan, with ways off to either side, side chambers that hold what a door
+further on wants, dead ends, and loops. `TombBranching` (`scripts/tomb_branching.gd`) makes the plan, with a
+`cell` for every room, and from there it is a tomb like any other: proved by `TombSolver`, set out by
+`TombLayout3D` (it is only ever walked through), built by `TombBuilder`, run by `TombLevel`. It is opened with
+`"shape": "branching"` in `TombLevel.play` (`{"mode": "random", "seed": 12, "difficulty": 1, "shape": "branching"}`;
+the view is "3d" whatever is asked), with `-- tomb=12:1 shape=branching` on the command line, or with "Branching"
+on the card, beside "Side-on" and "Walk through". The other two kinds are what they were: the same plans and the
+same stone from the same numbers (`TombGenerator.VERSION` is still 2; `TombBranching.VERSION` is its own, 1).
+
+- **How one is made**, each stage only adding what the ones before allow:
+  1. *The trunk*: the way from the entrance to the burial chamber, four to seven rooms as the difficulty asks, on
+     squares of the plan, turning as the dice say.
+  2. *Locks*, each on a way that is the only way to whatever is beyond it, and each put in with its key in one
+     move. Most keys go off the way he is on: in a side chamber made for it off the room the door is in or one of
+     the two or three before (so that he goes and fetches it), in a loft, at the foot of a well. The rules are
+     `TombGenerator`'s (a block and plate, a plate for a block from the room before, the two plates, a brazier, the
+     offering table, a seal stone in a loft or under a well, the pit and its hook, the sand, the way over the
+     wall), and four more in which what opens the door is down another way: a block and plate in a side chamber,
+     a seal stone just inside one, a brazier in a dark one, and a seal stone in one that lets the sand in. A side
+     chamber that holds something can be locked in its turn. One torch or one hook does for every place it can
+     be carried to.
+  3. *Dead ends*: rooms off the others with nothing in them, until there are as many rooms off the trunk as the
+     difficulty asks (one or two, three or four, four to six).
+  4. *The ways themselves* (stairs, a crawl, water, a ladder, a rope), and from them the level of each room.
+  5. *Loops*: where two rooms that are not joined stand on squares side by side, a second way between them. Where
+     the way round has a lock on it, it is a door that opens only from the far side, by a seal stone just inside
+     the room there (a short cut back, which gets him past no lock he has not opened); where it has none, as often
+     a plain way (a doorway, a crawl, water, stairs), and then one of the doorways on the old way round may be put
+     under water, since there is now a dry way for whatever has to be carried. The loft and its drop over a wall
+     are a loop as well, as in the other tombs.
+  6. *Mummies* (in a middling or a hard tomb the empty dead ends first) and pits.
+- **What keeps it from tying itself in a knot** is asked before each lock goes in, so that few plans have to be
+  thrown away: whether every room could still be got to with the locks and keys as they would then be
+  (`_reaches_all`: a lock's key is never behind that lock, or behind another whose key is behind it), and whether
+  everything that is carried could still be brought to where it is wanted from every room it could be left in
+  (`_carry_sound`: nothing wanted at the top can be taken down a rope or a drop). Then `TombSolver` plays it
+  through as it does any tomb, and only what passes is handed back. Over seeds 1 to 500 at each difficulty, 496,
+  500 and 475 passed at the first try, none fell back to the plain tomb, and the worst seed took three tries.
+- **The solver** was already a search over a graph, not along a line, and needed nothing changed to prove these:
+  `tools/tomb_test.gd -- branching plans` holds it to seven plans made by hand whose answers are known (a seal
+  stone down the other way; a torch beyond water, with and without a crawl round it; a drop and a door opened
+  from below; a torch that can be taken down a drop; a hook that can be dropped down a rope beyond its pit, and
+  the same with a ladder), and against a thorough way of its own (`solve(plan, true)`: a thing may be put down in
+  any room, not only where it could matter), which has to give the same answer. It was given a limit to pass in
+  (`TombBranching.MOST_POSITIONS`, 30000): a plan that takes more positions than that to prove is thrown away as
+  too tangled, since it is proved on a phone as the tomb is opened. On the machine these were measured on, a hard
+  tomb took 15 ms to prove on average and 180 ms at worst (29370 positions), and 26 ms and 285 ms to make with
+  whatever tries were thrown away; a middling one 3 ms and 177 ms; an easy one a tenth of a millisecond.
+- **What the layout had to learn.** Nothing for most of it: a plan with cells was already set out as it said.
+  Two things came of rooms standing to every side of one another, and both are only done for a plan that came
+  with its cells, so that the stone of every other tomb is what it was. Where a low room meets higher air (the
+  foot of a loft's drop), the stone over the low room is a wall to that air, one square of the grid thick, and
+  the edge of a room off to one side can cut that square to a hand's breadth: he could reach over it to the low
+  roof behind. There a roof now stands as high as any air within a wall's thickness of it (`_highest_near`). And
+  a way that leaves a bay to the side is narrower than the bay is long, which leaves a strip of floor a hand wide
+  at the end of the bay; a block pushed straight on out of the bay catches on it. So the generator has no block
+  pushed straight on out of a room that has a way off to the side (and keeps side ways off such a room after),
+  and `TombFloorSpec.problems` says so of a tomb made by hand.
+- **A shut door** used to be something his hands could find the top of: looking down for a ledge from inside the
+  wall over the door, the wall is not seen and the top of the slab is, and he pulled himself up into the stone
+  and came out on the roof. It was so in every tomb that is walked through, but nothing sent him at a shut door
+  from behind until a door that opens only from within. A door there is now as high to run into as the wall over
+  it while it is shut (`TombParts.Door.guard`); `tools/tomb_test.gd -- 3d doors` and `-- branching doors` jump at
+  every shut door from both sides. (A door under a loft's cutting is left as it was: the floor over that one is
+  somewhere he may be.)
+- **The map** (`TombMap`, `scripts/tomb_map.gd`) is on the HUD of any tomb whose plan came with cells, in the
+  corner under the buttons: a square for each room he has stood in, on the plan's own grid, darker the deeper;
+  the ways between them, with a knob on the end of one he has not taken; a red bar across a way whose door is
+  still shut or whose sand has not come in, once he has been in a room at either end of it; a mark for a loft or
+  a crypt, hollow until he has been in it; the way out, and the falcon; and a red mark for him that points the
+  way the camera looks. A touch makes it large, and another small. Only what he has found is on it.
+- **The daily tomb** has one that branches as well, from the same seed and at the same difficulty, the same for
+  everyone on the day. What is kept of it is kept apart, under `days_branching` in `user://tombs.json` (and a
+  practice tomb's best under `seed:difficulty:branching`); days kept before are not touched, and the run of days
+  is still one, a day counting once whichever of the three was finished. The line to send says
+  `Outside daily tomb #9, branching  4:10.2  2 deaths`, and the record a leaderboard would be sent says
+  `"shape": "branching"` and gives `TombBranching.VERSION`.
+- **Made by hand.** A `TombSpec` that says `"shape": "branching"` is a tomb on a floor plan (`TombFloorSpec`,
+  `scripts/tomb_floor_spec.gd`, has what such a spec says): each room says the square it stands on (`cell`) and
+  the room it is entered from (`from`), and since a room has one way in and up to three ways on, its `way` and
+  `lock` are of the way INTO it; `lock_in` and `stone_in` say which room the lock's block and plate, brazier,
+  table or seal stone are in, which may be any room of the tomb; and `joins` are second ways between two rooms
+  side by side, with or without a door that opens only from one of them. `TombSpec.problems` says in plain words
+  whatever cannot be built ("5 Corridor and 3 Antechamber stand on the same square", "The second way between 3
+  Antechamber and 6 Corridor is a level doorway, and 6 Corridor is 1 level lower: make it stairs", "2 Corridor
+  would have two blocks and plates of their own ...: a room has one"), and then asks
+  `TombLayout3D.cells_wrong` of the plan as well. `TombFloorSpec.from_plan` takes any of the generator's into
+  this form, and it comes back the same tomb. A spec that says nothing of a shape is a tomb down one axis, as
+  every spec was: those, and `user://my_tombs.json`, open and play as before.
+- **In the tomb editor** such a tomb is seen from overhead with its roofs off ("Tombs" has "A new one" and the
+  generator's at each difficulty, under "a tomb that branches"). It is dragged and pinched as the other is. A
+  touch on a room chooses it; a "+" stands off each side of the chosen room that a new room could be made on;
+  "Move" marks every place the chosen room could go instead ("here": off which room, on which side; only a room
+  with nothing beyond it moves, and its second ways do not go with it); "Join" marks every room beside it that a
+  second way could be made to ("join"), or has one that a touch takes away ("unjoin"); "Remove" takes it away.
+  The panel is the same but for the way and the lock, which are of the way into the chosen room, with the room
+  its lock stands in to choose, and a heading for each of its second ways. "Play" and "Walk it" both play it
+  walked through. The game is held on its side (the project asks for landscape), so there is no upright layout;
+  at 960 by 720 everything is still on the screen.
+- **The automated player** plays these from the solver's steps as it does the others
+  (`tools/tomb_test.gd -- branching drive`). It had one thing to learn: with loops there is more than one way
+  along his lines from one place to another, and the shortest may be through rooms he has no business in and a
+  door that is shut, so in a tomb that branches it goes only by the lines of the room it is in and of the room it
+  is going to.
+
 | File | What it does |
 | --- | --- |
 | `scripts/tomb_plan.gd` | What a tomb is before it is built: rooms, ways, things, switches |
 | `scripts/tomb_generator.gd` | Makes a plan from a seed; never hands back one that fails |
+| `scripts/tomb_branching.gd` | Makes the plan of a tomb that branches from a seed, its rooms on squares of a floor plan; never hands back one that fails |
 | `scripts/tomb_solver.gd` | Proves a plan can be finished, by trying everything |
 | `scripts/tomb_layout.gd` | Sets a plan out as a tomb seen from the side: every stone and part, as numbers; and what a level asks of either layout |
 | `scripts/tomb_layout_3d.gd` | Sets the same plan out as a tomb to be walked through: the cells and their rules, rooms and ways, the stone cut round them, and the lines he is expected to walk |
@@ -1250,14 +1361,17 @@ lost, whether a mummy can still get at him).
 | `scripts/tomb_level.gd` | Runs a tomb, seen either way: doors, mummies, checkpoints, the clock, the cards |
 | `scripts/tomb_daily.gd` | Which tomb a day has, and what is kept of how it went, for each way of seeing it |
 | `scripts/tomb_spec.gd` | A tomb made by hand, as data: what is wrong with it, the plan of it, keeping it |
-| `scripts/tomb_editor.gd` | The tomb editor (`tomb_editor.tscn`) |
+| `scripts/tomb_floor_spec.gd` | The part of that which is about a tomb that branches: where each room stands, what it is entered from, second ways; what is wrong with it in plain words; and what the editor does to a floor plan |
+| `scripts/tomb_map.gd` | The map on the HUD of a tomb that branches |
+| `scripts/tomb_editor.gd` | The tomb editor (`tomb_editor.tscn`): a tomb down one axis from the side, one that branches as a floor plan from overhead |
 | `tools/tomb_editor_test.gd` | Not part of the game: checks hand-made tombs and the editor (`tools/tomb_editor_shots.gd` takes pictures of it) |
 | `scripts/tomb_hooks.gd` | Where scarabs, cobwebs, jackals, inscriptions and the notebook plug in |
 | `scripts/tomb_random.gd` | The dice |
 | `tools/tomb_test.gd` | Not part of the game: checks plans, geometry and sameness over hundreds of seeds, and plays tombs through with the real Player, seen from the side or (`3d`) walked through |
 | `tools/tomb_sheets.gd` | Not part of the game: draws a tomb's plan, the whole of it as built, and each room as he sees it (from the side) |
 | `tools/tomb3d_sheets.gd` | Not part of the game: the same for a tomb walked through (its floor plan, the whole of it from overhead, each room through his camera), and with `kinds` a sheet of every kind of way, switch and barrier as he comes to it |
-| `tools/tomb3d_probe.gd` | Not part of the game: prints how a tomb is set out to be walked through (cells, rooms, air, parts, his lines) |
+| `tools/tomb3d_probe.gd` | Not part of the game: prints how a tomb is set out to be walked through (cells, rooms, air, parts, his lines; with `at=x,z` the stone and the parts round a place) |
+| `tools/tomb_branch_shots.gd` | Not part of the game: pictures of what a tomb that branches adds to the screen (the card, the map small and large, forks and a loop as he sees them, the editor's floor plan) |
 | `tools/tomb_shapes.gd` | Not part of the game: tombs made by hand that the tools share (every lock; the two plates, the rope and the sand; every way; a plan with cells, a side chamber and a loop) |
 
 ```
@@ -1265,8 +1379,12 @@ godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] 
 godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- 3d [geometry] [same] [drive] [templates] [custom] [grid] [seeds=500] [drive_seeds=1,2,3] [per=3] [pick=<part of a name>]
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_test.gd -- templates custom shots=<folder>
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_sheets.gd -- <folder> [seed:difficulty ...] [daily]
-godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb3d_sheets.gd -- <folder> [seed:difficulty ...] [daily] [custom] [grid] [kinds]
-godot --headless --path . --script tools/tomb3d_probe.gd -- <seed>:<difficulty> [areas] [parts] [lines]
+godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb3d_sheets.gd -- <folder> [seed:difficulty ...] [b<seed>:<difficulty> ...] [daily] [bdaily] [custom] [grid] [kinds]
+godot --headless --path . --script tools/tomb3d_probe.gd -- <seed>:<difficulty> [branching] [areas] [parts] [lines] [at=<x>,<z>]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- branching [plans] [geometry] [same] [drive] [templates] [map] [doors] [seeds=500] [drive_seeds=1,2,3] [drive_difficulties=0,1,2]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- 3d doors
+godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_branch_shots.gd -- <folder> [seed:difficulty] [name=<prefix>]
+godot --path . --fixed-fps 60 --resolution 1280x720 res://tomb.tscn -- tomb=12:1 shape=branching
 ```
 
 Everything after `3d` is asked of the tomb that is walked through. There the automated player is steered about the

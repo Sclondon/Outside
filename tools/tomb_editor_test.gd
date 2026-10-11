@@ -13,6 +13,12 @@ extends SceneTree
 ##    error, and its rope and its sand are ones he can use;
 ##  - what `problems` is there to refuse is refused;
 ##  - a tomb comes back from text as it went;
+##  - a tomb that branches (`TombFloorSpec`): the one a new one starts as; every
+##    one the generator makes taken into the editor's form and back, the same
+##    tomb; what the floor plan does to one (a room added off a side, joined
+##    into a loop, moved, removed, the others counted afresh); ten ways of
+##    breaking one, each refused in the words meant for it; and the editor's
+##    floor plan itself, by touches on it;
 ##  - the editor itself: opened, a room added, changed, moved and removed,
 ##    undone, and a tomb played from it and finished by the solver's way.
 ## Ends with PASSED or FAILED.
