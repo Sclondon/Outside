@@ -789,3 +789,85 @@ func room_at(x: float) -> int:
 		if x >= float(rooms[room.id]["x0"]):
 			found = room.id
 	return found
+
+
+# --- What a level asks of a tomb while it is played. Each is answered here for
+# the tomb seen from the side, where only how far along it he is counts, and
+# again by `TombLayout3D` for the one that is walked through.
+
+## Whether this is a tomb to be walked through, not one seen from the side.
+func walked() -> bool:
+	return false
+
+
+## The rooms that are each a node of their own (the others are part of one of these).
+func placed() -> Array[TombPlan.Room]:
+	return plan.spine()
+
+
+## Which of those rooms a place is in (its id), or -1.
+func room_of(at: Vector3) -> int:
+	return room_at(at.x)
+
+
+## Which of the plan's rooms a place is in: a loft or a crypt, if it is in one.
+func plan_room_at(at: Vector3) -> int:
+	var on_axis := room_at(at.x)
+	for room in plan.rooms:
+		if room.parent != on_axis:
+			continue
+		var info := rooms[room.id]
+		if at.x >= float(info["x0"]) - 0.3 and at.x <= float(info["x1"]) + 0.3 and absf(at.y - float(info["floor"])) < 1.0:
+			return room.id
+	# (a loft that goes on over the wall is over the next room)
+	for room in plan.rooms:
+		if room.role == TombPlan.Role.LOFT:
+			var info := rooms[room.id]
+			if at.x >= float(info["x0"]) and at.x <= float(info["x1"]) and absf(at.y - float(info["floor"])) < 0.6:
+				return room.id
+	return on_axis
+
+
+## How many rooms lie between two of the rooms that `placed` gives, counting the second.
+func rooms_apart(one: int, other: int) -> int:
+	return absi(plan.rooms[one].spine - plan.rooms[other].spine)
+
+
+## How many rooms off the one he is in a room is still drawn.
+func drawn_within() -> int:
+	return 1
+
+
+## How far one place is from another over the ground, as the tomb reckons it.
+func apart(one: Vector3, other: Vector3) -> float:
+	return absf(one.x - other.x)
+
+
+## Whether he is out of the tomb there.
+func is_out(at: Vector3) -> bool:
+	return at.x < exit_x
+
+
+## Whether a thing lying there cannot be carried out again (see `sunk`).
+func is_sunk(at: Vector3) -> bool:
+	for hole in sunk:
+		if at.x > hole.x and at.x < hole.y and at.y < hole.z:
+			return true
+	return false
+
+
+## Whether a thing there has gone down a pit, which is `size` about `middle`.
+func is_in_pit(at: Vector3, middle: Vector3, size: Vector3) -> bool:
+	var from := at - middle
+	return absf(from.x) < size.x * 0.5 and from.y < size.y * 0.5
+
+
+## Whether he is out of a mummy's reach there, beyond what holds it back
+## (`part` is the mummy's own, from `parts`).
+func is_past(part: Dictionary, at: Vector3) -> bool:
+	return (at.x > float(part["safe"])) == bool(part["east"])
+
+
+## Where a thing he was carrying is put when he starts again from `spot`.
+func beside(spot: Vector3) -> Vector3:
+	return spot + Vector3(0.5, 0.3, 0.0)

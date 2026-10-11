@@ -9,6 +9,9 @@ extends Camera3D
 ## screen, the right mouse button, or a right stick) turns it; left alone it
 ## drifts round behind the way he is going, and it pulls in rather than pass
 ## through a wall.
+##
+## ORBIT with `indoors` set is the same camera under a roof (a tomb that is
+## walked through): it looks for room before it settles for coming close. See `_apply_indoors`.
 
 enum Mode { SIDE, ORBIT }
 
@@ -37,6 +40,13 @@ enum Mode { SIDE, ORBIT }
 @export var pitch_limits := Vector2(-0.25, 1.2)
 ## How quickly it drifts round behind him when left alone, 0 for never.
 @export var settle_speed := 0.9
+## Under a roof: where the view it is asked for is shut off by a roof or a
+## wall, it comes down flatter behind him before it comes in closer, watches
+## him lower where he is bent double, and keeps the whole of what it sees
+## (not only its middle) this side of the stone.
+@export var indoors := false
+## What it looks straight past: things too thin to be worth coming in for (a pillar).
+var looks_past: Array[RID] = []
 
 var _focus := Vector3.ZERO
 var _ahead := Vector3.ZERO
@@ -44,6 +54,9 @@ var _lane_z := 0.0
 var _yaw := -PI * 0.5 + 0.6
 var _pitch := 0.4
 var _reach := 6.0
+## Indoors: the tilt it has settled for, and how high over his feet it watches.
+var _tilt := 0.4
+var _watch := 0.9
 var _since_look := 10.0
 var _touch: TouchControls
 
@@ -71,7 +84,16 @@ func _find_touch() -> void:
 func snap() -> void:
 	_focus = target.global_position
 	_ahead = Vector3.ZERO
+	if indoors:
+		_tilt = _pitch
+		_reach = distance
 	_apply()
+
+
+## Turns an orbiting camera to look the way `along` goes, from behind him.
+func look_along(along: Vector3) -> void:
+	_yaw = atan2(-along.x, -along.z)
+	_since_look = 10.0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -138,6 +160,9 @@ func _apply() -> void:
 		global_position = _focus + offset
 		look_at(_focus + Vector3.UP * look_height)
 		return
+	if indoors:
+		_apply_indoors()
+		return
 	var watch := _focus + Vector3.UP * 0.9
 	var away := Vector3(sin(_yaw) * cos(_pitch), sin(_pitch), cos(_yaw) * cos(_pitch))
 	# Come in close rather than sit behind a wall.
@@ -150,6 +175,71 @@ func _apply() -> void:
 	_reach = wanted if wanted < _reach else lerpf(_reach, wanted, 1.0 - exp(-4.0 * get_process_delta_time()))
 	global_position = watch + away * _reach
 	look_at(watch)
+
+
+# The orbiting camera under a roof. Out of doors it is enough to come in
+# along the line of sight until nothing is in the way; in a passage that would
+# have it against the back of his head whenever it was tilted up at the roof.
+# So it first asks how far it could stand back at the tilt it was given and at
+# flatter ones, takes the steepest that leaves it most of its distance (the
+# flattest, if none does), eases to that, and only then comes in as far as it
+# must. How far it can stand back is asked five times over, at the middle of
+# what it sees and towards each corner, so that no edge of the picture is
+# inside a wall.
+func _apply_indoors() -> void:
+	var delta := get_process_delta_time()
+	var space := get_world_3d().direct_space_state
+	# He is watched at chest height, or lower where the roof is on his back.
+	var feet := _focus + Vector3.UP * 0.25
+	var over := space.intersect_ray(_ray(feet, feet + Vector3.UP * 1.1))
+	var high := 0.9 if over.is_empty() else clampf((over.position as Vector3).y - _focus.y - 0.3, 0.3, 0.9)
+	_watch = high if high < _watch else lerpf(_watch, high, 1.0 - exp(-5.0 * delta))
+	var watch := _focus + Vector3.UP * _watch
+	var wanted := _pitch
+	var most := -1.0
+	for tilt: float in [_pitch, _pitch * 0.66, _pitch * 0.33, 0.04, -0.12]:
+		if tilt > _pitch + 0.001:
+			continue
+		var room := _room_behind(space, watch, tilt)
+		if room >= distance * 0.8:
+			wanted = tilt
+			most = room
+			break
+		if room > most + 0.25:
+			most = room
+			wanted = tilt
+	_tilt = lerpf(_tilt, wanted, 1.0 - exp(-7.0 * delta))
+	var free := _room_behind(space, watch, _tilt)
+	# In at once, back out gently.
+	_reach = free if free < _reach else lerpf(_reach, free, 1.0 - exp(-4.0 * delta))
+	var away := Vector3(sin(_yaw) * cos(_tilt), sin(_tilt), cos(_yaw) * cos(_tilt))
+	global_position = watch + away * _reach
+	look_at(watch)
+
+
+# How far back from `watch` it can stand at a tilt before any of what it sees is in stone.
+func _room_behind(space: PhysicsDirectSpaceState3D, watch: Vector3, tilt: float) -> float:
+	var away := Vector3(sin(_yaw) * cos(tilt), sin(tilt), cos(_yaw) * cos(tilt))
+	var right := Vector3(cos(_yaw), 0.0, -sin(_yaw))
+	var up := right.cross(-away).normalized()
+	var free := distance
+	for corner: Vector2 in [Vector2.ZERO, Vector2(-1.0, -1.0), Vector2(1.0, -1.0), Vector2(-1.0, 1.0), Vector2(1.0, 1.0)]:
+		var aside := right * corner.x * 0.32 + up * corner.y * 0.2
+		# (out to the side from where he is watched, if there is room there, and then back)
+		var from := watch
+		if corner != Vector2.ZERO:
+			var hit_aside := space.intersect_ray(_ray(watch, watch + aside * 1.15))
+			from = watch + aside if hit_aside.is_empty() else watch.lerp(hit_aside.position, 0.7)
+		var hit := space.intersect_ray(_ray(from, from + away * (distance + 0.25)))
+		if not hit.is_empty():
+			free = minf(free, from.distance_to(hit.position) - 0.25)
+	return maxf(free, 0.7)
+
+
+func _ray(from: Vector3, to: Vector3) -> PhysicsRayQueryParameters3D:
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
+	query.exclude = looks_past
+	return query
 
 
 static func _add_stick_actions() -> void:

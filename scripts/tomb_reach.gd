@@ -45,6 +45,13 @@ static func measure() -> Dictionary:
 		"hook_steep": hook.steep,
 		"rope_near": player.rope_reach.x,
 		"rope_far": player.rope_reach.y,
+		# A kick off a wall: how much higher than a jump it takes his feet, how
+		# fast it sends him out from the wall, how long it carries him up, and
+		# how hard he then falls.
+		"kick": player.jump_height * player.wall_kick.y * player.wall_kick.y,
+		"kick_out": player.run_speed * player.wall_kick.x,
+		"kick_rise": player.time_to_apex * player.wall_kick.y,
+		"fall": gravity * player.fall_gravity_scale,
 	}
 	hook.free()
 	player.free()
@@ -90,6 +97,24 @@ static func check(layout: TombLayout, reach: Dictionary) -> PackedStringArray:
 			"drop":
 				if size <= float(reach["ledge"]):
 					bad = "a drop of %.2f that should be one way could be climbed back up" % size
+				# (with a wall beside its lip, as every lip has in a tomb that is
+				# walked through, a kick off that wall gets him higher)
+				elif move.get("walled", false) and size <= float(reach["ledge"]) + float(reach["kick"]) + 0.25:
+					bad = "a drop of %.2f between walls could be got back up by a kick off one of them" % size
+			"corner":
+				# A lip that is past catching from a jump, but not from a kick off a
+				# wall: it must be further from any wall than he flies from one
+				# while it is still within his reach.
+				var peak := float(reach["hop"]) + float(reach["kick"])
+				var need := size - float(reach["catch_high"])
+				if peak > need:
+					var time := float(reach["kick_rise"]) + sqrt(2.0 * (peak - need) / float(reach["fall"]))
+					var flown := float(reach["wide"]) * 0.5 + float(reach["kick_out"]) * time
+					if float(move["aside"]) < flown + 0.5:
+						bad = "a lip %.2f up is %.2f from a corner: a kick off the wall there carries him %.2f while he can still catch it" % [size, move["aside"], flown]
+			"beside", "door":
+				if size < float(reach["wide"]) + 0.3:
+					bad = "%.2f is too little room for him to get by" % size
 			"swing":
 				var across := size * 0.5
 				var up := float(move["high"]) - float(reach["hang"])

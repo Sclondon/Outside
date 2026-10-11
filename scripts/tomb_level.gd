@@ -11,6 +11,14 @@ extends Node3D
 ## (a `TombSpec`), or `-- tomb=custom` for the one last worked on there: it is
 ## played and timed like any other, and kept nowhere.
 ##
+## Any of them is seen one of two ways: from the side (`"view": "side"`, as it
+## is with nothing said), cut open like a section drawing, where he keeps to one
+## line; or walked through (`"view": "3d"`, or `view=3d` on the command line),
+## in rooms with four walls and a roof, with the camera at his back. It is the
+## same plan either way (`TombLayout`, `TombLayout3D`), and everything below is
+## true of both; but they are different tombs to get through, and a day's times
+## are kept apart (`TombDaily`).
+##
 ## He goes in, takes the gold falcon from the burial chamber, and comes out the
 ## way he went in. The clock starts at his first step and stops when he is out
 ## of the door with it; it counts sixtieths of a second of play, not of the
@@ -26,6 +34,8 @@ extends Node3D
 static var play := {}
 ## For the tools: no card, and no result card at the end.
 static var bare := false
+## The view last chosen on the card, which the card opens showing.
+static var last_view := "side"
 
 const NIGHT := Color(0.02, 0.025, 0.04)
 ## How near a mummy he must come (along the tomb) to wake it.
@@ -42,6 +52,8 @@ const CHECK_WITHIN := 1.3
 const READ_WITHIN := 2.6
 
 var mode := "daily"
+## How it is seen: "side" or "3d".
+var view := "side"
 var day := 0
 var seed_value := 0
 var difficulty := 0
@@ -64,6 +76,7 @@ var splits: Array[int] = []
 var run := {}
 
 var _player: Player
+var _given: TombPlan
 var _started := false
 var _held := false
 var _room := -1
@@ -77,15 +90,28 @@ var _hud: CanvasLayer
 func _ready() -> void:
 	_read_choice()
 	_build_dark()
+	# (before the camera wakes: it reads how it is to behave as it does)
+	var camera := get_parent().get_node_or_null(^"Camera") as FollowCamera
+	if camera and view == "3d":
+		camera.mode = FollowCamera.Mode.ORBIT
+		camera.indoors = true
+		camera.distance = 5.0
+		camera.near = 0.08
 	if mode == "custom":
 		plan = TombSpec.compile(spec)
 		var proof := TombSolver.solve(plan)
 		plan.solution = proof["steps"]
 		plan.proof = proof
+	elif mode == "plan":
+		plan = _given
+		seed_value = plan.seed_value
+		difficulty = plan.difficulty
 	else:
 		plan = TombGenerator.generate(seed_value, difficulty)
-	layout = TombLayout.lay(plan)
+	layout = TombLayout3D.set_out(plan) if view == "3d" else TombLayout.lay(plan)
 	built = TombBuilder.build(layout, self)
+	if camera:
+		camera.looks_past = built.slender
 	done.resize(plan.triggers.size())
 	done.fill(false)
 	splits.resize(plan.rooms.size())
@@ -106,6 +132,7 @@ func _read_choice() -> void:
 	var chosen := play.duplicate()
 	play = {}
 	var asked := not chosen.is_empty()
+	var seen: String = chosen.get("view", "side")
 	for arg in OS.get_cmdline_user_args():
 		if arg == "tomb=custom":
 			chosen = {"mode": "custom", "spec": TombSpec.current()}
@@ -113,11 +140,14 @@ func _read_choice() -> void:
 		elif arg == "tomb=daily":
 			chosen = {"mode": "daily"}
 			asked = true
+		elif arg.begins_with("view="):
+			seen = arg.trim_prefix("view=")
 		elif arg.begins_with("tomb="):
 			var parts := arg.trim_prefix("tomb=").split(":")
 			chosen = {"mode": "random", "seed": int(parts[0]), "difficulty": int(parts[1]) if parts.size() > 1 else 1}
 			asked = true
 	mode = chosen.get("mode", "daily")
+	view = "3d" if seen == "3d" else "side"
 	day = int(chosen.get("day", TombDaily.today()))
 	if mode == "custom":
 		spec = chosen.get("spec", {})
@@ -127,7 +157,13 @@ func _read_choice() -> void:
 		else:
 			seed_value = int(spec.get("seed", 1))
 			difficulty = clampi(int(spec.get("difficulty", 0)), 0, 2)
-	if mode == "custom":
+	if mode == "plan":
+		# (a plan handed over whole and already solved, by a tool or by whatever
+		# makes plans of its own: `{"mode": "plan", "plan": ...}`. Nothing of it is kept.)
+		_given = chosen.get("plan") as TombPlan
+		if _given == null:
+			mode = "daily"
+	if mode == "custom" or mode == "plan":
 		pass
 	elif mode == "daily":
 		seed_value = TombDaily.seed_for(day)
@@ -157,6 +193,7 @@ func _build_dark() -> void:
 	add_child(fill)
 	# The moon over the way in.
 	var moon := OmniLight3D.new()
+	moon.name = "Moon"
 	moon.light_color = Color(0.6, 0.7, 1.0)
 	moon.light_energy = 2.2
 	moon.omni_range = 26.0
@@ -172,7 +209,12 @@ func _settle_in() -> void:
 	_hud = get_parent().get_node_or_null(^"HUD") as CanvasLayer
 	if _player == null:
 		return
-	_player.move_mode = Player.MoveMode.SIDE_SCROLL
+	_player.move_mode = Player.MoveMode.FREE if layout.walked() else Player.MoveMode.SIDE_SCROLL
+	if layout.walked():
+		# (the moon is over the court he starts in, wherever that is)
+		var moon := get_node_or_null(^"Moon") as OmniLight3D
+		if moon:
+			moon.position = layout.start + Vector3(0.0, 9.0, 0.0)
 	_player.kill_height = -layout.depth - 30.0
 	_player.global_position = layout.start + Vector3.UP * 0.05
 	_player.velocity = Vector3.ZERO
@@ -185,6 +227,8 @@ func _settle_in() -> void:
 			mummy.set(&"target", _player)
 	var camera := get_parent().get_node_or_null(^"Camera") as FollowCamera
 	if camera:
+		if layout.walked():
+			camera.look_along(-(layout as TombLayout3D).exit_way)
 		camera.snap()
 	_build_hud()
 	if _held:
@@ -204,15 +248,15 @@ func _physics_process(delta: float) -> void:
 		_started = true
 	if _started:
 		ticks += 1
-	_room = _room_of(at)
+	_room = layout.plan_room_at(at)
 	if _room >= 0 and splits[_room] == -1:
 		splits[_room] = ticks
-	_put_away(layout.room_at(at.x))
+	_put_away(layout.room_of(at))
 	_work_switches(at)
 	_work_mummies(at)
 	_keep_things(at)
 	_read_walls(at, delta)
-	if has_treasure and at.x < layout.exit_x and _player.is_on_floor() and not _player.is_limp:
+	if has_treasure and layout.is_out(at) and _player.is_on_floor() and not _player.is_limp:
 		_finish()
 	_label.text = "%s   %s%s" % [TombDaily.time_text(time_ms()), "deaths %d" % deaths, "   the falcon" if has_treasure else ""]
 
@@ -221,29 +265,13 @@ func time_ms() -> int:
 	return ticks * 1000 / 60
 
 
-# Which of the plan's rooms he is in: a loft or a crypt, if he is in one.
-func _room_of(at: Vector3) -> int:
-	var on_axis := layout.room_at(at.x)
-	for room in plan.rooms:
-		if room.parent != on_axis:
-			continue
-		var info := layout.rooms[room.id]
-		if at.x >= float(info["x0"]) - 0.3 and at.x <= float(info["x1"]) + 0.3 and absf(at.y - float(info["floor"])) < 1.0:
-			return room.id
-	# (a loft that goes on over the wall is over the next room)
-	for room in plan.rooms:
-		if room.role == TombPlan.Role.LOFT:
-			var info := layout.rooms[room.id]
-			if at.x >= float(info["x0"]) and at.x <= float(info["x1"]) and absf(at.y - float(info["floor"])) < 0.6:
-				return room.id
-	return on_axis
-
-
-# Only the room he is in and the ones next to it are drawn.
+# Only the room he is in and the ones next to it are drawn (in a tomb that is
+# walked through, where he sees on through open doors, the ones next to those as well).
 func _put_away(here: int) -> void:
-	var place := plan.rooms[here].spine if here >= 0 else 0
-	for room in plan.spine():
-		built.room_nodes[room.id].visible = absi(room.spine - place) <= 1
+	if here < 0:
+		here = plan.entrance()
+	for room in layout.placed():
+		built.room_nodes[room.id].visible = layout.rooms_apart(room.id, here) <= layout.drawn_within()
 
 
 func _work_switches(at: Vector3) -> void:
@@ -261,7 +289,7 @@ func _work_switches(at: Vector3) -> void:
 				var table := layout.switch_at[trigger.id]
 				for jar: RigidBody3D in get_tree().get_nodes_in_group(&"tomb_jars"):
 					var from := jar.global_position - table
-					if jar != _player.carried and absf(from.x) < OFFER_WITHIN and absf(from.y) < 1.0 and jar.linear_velocity.length() < 1.5:
+					if jar != _player.carried and layout.apart(jar.global_position, table) < OFFER_WITHIN and absf(from.y) < 1.0 and jar.linear_velocity.length() < 1.5:
 						OfferingTable.set_on(jar, table + Vector3.UP * 0.23)
 						now = true
 						break
@@ -313,19 +341,20 @@ func _take_treasure() -> void:
 
 
 func _work_mummies(at: Vector3) -> void:
-	var here := layout.room_at(at.x)
-	var place := plan.rooms[here].spine if here >= 0 else 0
+	var here := layout.room_of(at)
+	if here < 0:
+		here = plan.entrance()
 	for entry in built.mummies:
 		var mummy: Node3D = entry["node"]
 		if not mummy.has_method(&"wake") or not mummy.has_method(&"is_awake"):
 			continue
-		var away := absi(plan.rooms[entry["room"]].spine - place)
+		var away := layout.rooms_apart(entry["room"], here)
 		var awake: bool = mummy.call(&"is_awake")
 		# Where it cannot get at him (past what holds it, or out of its room) it
 		# loses him after a while and stands where it is, and wakes again only
 		# when he comes by: so one left waiting at its kerb can be got past.
 		# Two rooms off, it is put back where it began.
-		var out_of_reach := away >= 1 or (at.x > float(entry["safe"])) == bool(entry["east"])
+		var out_of_reach := away >= 1 or layout.is_past(entry["part"], at)
 		if awake and away >= 2:
 			mummy.call(&"reset")
 			entry["lost"] = 0.0
@@ -337,7 +366,7 @@ func _work_mummies(at: Vector3) -> void:
 			entry["lost"] = 0.0
 		elif away == 0 and not _player.is_limp and (has_treasure or not entry["guardian"]):
 			var to := mummy.global_position - at
-			if absf(to.x) < WAKE_WITHIN and absf(to.y) < 2.0:
+			if layout.apart(mummy.global_position, at) < float((entry["part"] as Dictionary).get("wake", WAKE_WITHIN)) and absf(to.y) < 2.0:
 				mummy.call(&"wake")
 				entry["lost"] = 0.0
 
@@ -352,7 +381,7 @@ func _keep_things(at: Vector3) -> void:
 				_player.set_spawn(spot + Vector3.UP * 0.05)
 				for id: int in built.items:
 					if built.items[id] == _player.carried:
-						built.item_homes[id] = Transform3D(Basis.IDENTITY, spot + Vector3(0.5, 0.3, 0.0))
+						built.item_homes[id] = Transform3D(Basis.IDENTITY, layout.beside(spot))
 	for id: int in built.items:
 		var body: RigidBody3D = built.items[id]
 		if body != _player.carried and _is_lost(body.global_position):
@@ -365,12 +394,10 @@ func _keep_things(at: Vector3) -> void:
 func _is_lost(at: Vector3) -> bool:
 	for area in built.deaths:
 		var box := ((area.get_child(0) as CollisionShape3D).shape as BoxShape3D).size
-		var from := at - area.global_position
-		if absf(from.x) < box.x * 0.5 and from.y < box.y * 0.5:
+		if layout.is_in_pit(at, area.global_position, box):
 			return true
-	for hole in layout.sunk:
-		if at.x > hole.x and at.x < hole.y and at.y < hole.z:
-			return true
+	if layout.is_sunk(at):
+		return true
 	return at.y < -layout.depth - 20.0
 
 
@@ -391,7 +418,7 @@ func _read_walls(at: Vector3, delta: float) -> void:
 		_caption.visible = false
 	for writing in built.writings:
 		var spot: Vector3 = writing["at"]
-		if absf(at.x - spot.x) < READ_WITHIN and absf(at.y - spot.y) < 3.5 and not writing.get("read", false):
+		if layout.apart(at, spot) < READ_WITHIN and absf(at.y - spot.y) < 3.5 and not writing.get("read", false):
 			writing["read"] = true
 			var meaning := TombHooks.read(writing["hint"], _title())
 			if meaning != "":
@@ -449,13 +476,13 @@ func give_up() -> void:
 func _finish() -> void:
 	finished = true
 	run = {
-		"mode": mode, "day": day if mode == "daily" else 0, "seed": seed_value, "difficulty": difficulty,
+		"mode": mode, "view": view, "day": day if mode == "daily" else 0, "seed": seed_value, "difficulty": difficulty,
 		"plan": plan.fingerprint(), "stone": layout.fingerprint(),
 		"ticks": ticks, "time_ms": time_ms(), "goal_ms": goal_ticks * 1000 / 60, "deaths": deaths, "splits": splits.duplicate(),
 	}
 	# (the tools keep nothing: what is kept is the player's own)
 	var said := {"best": false, "first": false, "streak": 0}
-	if not bare and mode != "custom":
+	if not bare and mode != "custom" and mode != "plan":
 		said = TombDaily.keep(run)
 	TombHooks.note(_share_text(), _title())
 	print("TOMB FINISHED ", JSON.stringify(TombDaily.submission(run)))
