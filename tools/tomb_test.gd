@@ -49,6 +49,8 @@ const Shapes := preload("res://tools/tomb_shapes.gd")
 var seeds := 500
 ## Whether it is the tomb that is walked through that is asked about.
 var walked := false
+## Whether it is the tombs that branch that are asked about (`TombBranching`; they are only ever walked through).
+var branch := false
 var drive_seeds: Array = [1, 2, 3]
 var per := 3
 ## With `custom`: only the tombs whose names have this in them (and not the sand by itself).
@@ -77,6 +79,9 @@ func _initialize() -> void:
 			per = int(arg.trim_prefix("per="))
 		elif arg == "3d":
 			walked = true
+		elif arg == "branching":
+			branch = true
+			walked = true
 		elif arg.begins_with("pick="):
 			pick = arg.trim_prefix("pick=").to_lower()
 		elif arg.begins_with("drive_difficulties="):
@@ -97,6 +102,8 @@ func _initialize() -> void:
 func _run(names: Array) -> void:
 	if "plans" in names:
 		_solver_says_no()
+		if branch:
+			_solver_on_a_graph()
 		_plans()
 	if "geometry" in names:
 		_geometry()
@@ -117,8 +124,13 @@ func _run(names: Array) -> void:
 	quit(1 if failed else 0)
 
 
+# A tomb of the kind that is being asked about.
+func _generate(seed_value: int, difficulty: int) -> TombPlan:
+	return TombBranching.generate(seed_value, difficulty) if branch else TombGenerator.generate(seed_value, difficulty)
+
+
 func _show(seed_value: int, difficulty: int) -> void:
-	var plan := TombGenerator.generate(seed_value, difficulty)
+	var plan := _generate(seed_value, difficulty)
 	print(plan.describe())
 	print("-- the way through (%d steps, %d positions checked, %d tries thrown away)" % [plan.solution.size(), plan.proof["positions"], plan.sub_seed])
 	for step: Array in plan.solution:
@@ -211,7 +223,7 @@ func _plans() -> void:
 		var rooms := 0
 		var kinds := {}
 		for seed_value in range(1, seeds + 1):
-			var plan := TombGenerator.generate(seed_value, difficulty)
+			var plan := _generate(seed_value, difficulty)
 			if plan.sub_seed == 0:
 				first += 1
 			for reason: String in plan.proof["rejected"]:
@@ -219,7 +231,7 @@ func _plans() -> void:
 			if plan.sub_seed > worst:
 				worst = plan.sub_seed
 				worst_seed = seed_value
-			if plan.sub_seed >= TombGenerator.MAX_TRIES:
+			if plan.sub_seed >= (TombBranching.MAX_TRIES if branch else TombGenerator.MAX_TRIES):
 				fell_back += 1
 			# What comes back must itself pass, checked afresh.
 			var again := TombSolver.solve(plan)
@@ -240,6 +252,8 @@ func _plans() -> void:
 		var tally := ""
 		for name: String in names:
 			tally += "%s %d  " % [name, kinds[name]]
+		if branch:
+			_plans_that_branch(difficulty)
 		print("  %-8s passed first time %d/%d, handed back passing %d/%d, plain fall-backs %d, worst seed %d took %d tries" % [
 			TombGenerator.DIFFICULTY_NAMES[difficulty], first, seeds, seeds - bad, seeds, fell_back, worst_seed, worst + 1])
 		print("           thrown away: %s" % (str(reasons) if not reasons.is_empty() else "none"))
@@ -248,6 +262,216 @@ func _plans() -> void:
 		print("           ", tally)
 		if bad > 0:
 			failed = true
+
+
+# The solver on plans that are not a line, made by hand so that the answer is
+# known: a fork, a loop, a one-way drop, and things carried about them.
+func _solver_on_a_graph() -> void:
+	print("SOLVER: forks, loops, drops and carried things, on plans whose answer is known")
+	var roles := [TombPlan.Role.ENTRANCE, TombPlan.Role.CORRIDOR, TombPlan.Role.CORRIDOR, TombPlan.Role.CORRIDOR, TombPlan.Role.BURIAL]
+	var cases: Array = []
+	# A fork: the seal stone is down the one way, the door on the other.
+	var plan := _axis_of(roles)
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	plan.add_link(1, 2, TombPlan.Pass.CRAWL)
+	plan.add_link(1, 3, TombPlan.Pass.OPEN)
+	plan.add_link(3, 4, TombPlan.Pass.OPEN).switches = [plan.add_trigger(TombPlan.Switch.LEVER, 2).id]
+	cases.append(["a seal stone down the other way", plan, "", 10])
+	# A fork: a torch down the one way, across water; the brazier down the other. The torch cannot be swum with.
+	plan = _axis_of(roles)
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	plan.add_link(1, 2, TombPlan.Pass.FLOOD)
+	plan.add_link(1, 3, TombPlan.Pass.OPEN)
+	plan.add_link(3, 4, TombPlan.Pass.OPEN).switches = [plan.add_trigger(TombPlan.Switch.BRAZIER, 3).id]
+	plan.add_thing(TombPlan.Item.TORCH, 2)
+	cases.append(["a torch beyond water, the only way", plan, "the treasure cannot be reached", 0])
+	# The same, with a second way round to the torch that it can be carried along: a loop.
+	plan = _axis_of(roles)
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	plan.add_link(1, 2, TombPlan.Pass.FLOOD)
+	plan.add_link(1, 3, TombPlan.Pass.OPEN)
+	plan.add_link(3, 2, TombPlan.Pass.CRAWL)
+	plan.add_link(3, 4, TombPlan.Pass.OPEN).switches = [plan.add_trigger(TombPlan.Switch.BRAZIER, 3).id]
+	plan.add_thing(TombPlan.Item.TORCH, 2)
+	cases.append(["the same, with a crawl round the water", plan, "", 10])
+	# A loop with a drop in it: down the drop to the seal stone, and out by the door it opens.
+	plan = _axis_of(roles)
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	plan.add_link(1, 2, TombPlan.Pass.OPEN)
+	plan.add_link(2, 3, TombPlan.Pass.DROP)
+	plan.add_link(1, 3, TombPlan.Pass.STAIRS).switches = [plan.add_trigger(TombPlan.Switch.LEVER, 3).id]
+	plan.add_link(3, 4, TombPlan.Pass.OPEN)
+	cases.append(["a drop, and a door opened from below", plan, "", 9])
+	# The same with no seal stone: down the drop there is no way back.
+	plan = _axis_of(roles)
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	plan.add_link(1, 2, TombPlan.Pass.OPEN)
+	plan.add_link(2, 3, TombPlan.Pass.DROP)
+	plan.add_link(1, 3, TombPlan.Pass.STAIRS).switches = [plan.add_trigger(TombPlan.Switch.LEVER, 0).id, plan.add_trigger(TombPlan.Switch.BRAZIER, 1).id]
+	plan.add_thing(TombPlan.Item.TORCH, 2)
+	plan.add_link(3, 4, TombPlan.Pass.OPEN)
+	cases.append(["a torch that can be taken down the drop", plan, "it can be made unfinishable", 0])
+	# A hook down one branch, its pit on another, and a rope beyond the pit that the hook must not go down.
+	plan = _axis_of(roles + [TombPlan.Role.CORRIDOR])
+	plan.rooms[4].role = TombPlan.Role.CORRIDOR
+	plan.rooms[5].role = TombPlan.Role.BURIAL
+	plan.triggers[0].room = 5
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	plan.add_link(1, 2, TombPlan.Pass.STAIRS)
+	plan.add_link(1, 3, TombPlan.Pass.GAP)
+	plan.add_link(3, 4, TombPlan.Pass.ROPE)
+	plan.add_link(4, 5, TombPlan.Pass.OPEN)
+	plan.add_thing(TombPlan.Item.HOOK, 2)
+	cases.append(["a hook that can be dropped down a rope beyond its pit", plan, "it can be made unfinishable", 0])
+	# The same with a ladder for the rope: the hook stays at the top, and all is well.
+	plan = _axis_of(roles + [TombPlan.Role.CORRIDOR])
+	plan.rooms[4].role = TombPlan.Role.CORRIDOR
+	plan.rooms[5].role = TombPlan.Role.BURIAL
+	plan.triggers[0].room = 5
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	plan.add_link(1, 2, TombPlan.Pass.STAIRS)
+	plan.add_link(1, 3, TombPlan.Pass.GAP)
+	plan.add_link(3, 4, TombPlan.Pass.SHAFT)
+	plan.add_link(4, 5, TombPlan.Pass.OPEN)
+	plan.add_thing(TombPlan.Item.HOOK, 2)
+	cases.append(["the same, with a ladder for the rope", plan, "", 14])
+	for case: Array in cases:
+		var result := TombSolver.solve(case[1])
+		var all := TombSolver.solve(case[1], true)
+		var right: bool = result["ok"] == (case[2] == "") and (result["ok"] or result["reason"] == case[2]) and all["ok"] == result["ok"]
+		# (the way found is a shortest one: so many steps, and no more)
+		if right and result["ok"] and (result["steps"] as Array).size() != int(case[3]):
+			right = false
+		print("  %-52s %s (%s; %d positions, %d with a thing put down anywhere)" % [case[0], ("as it should be" if right else "WRONG"),
+				"it can be finished in %d steps" % (result["steps"] as Array).size() if result["ok"] else result["reason"], result["positions"], all["positions"]])
+		if not right:
+			failed = true
+
+
+# What is in the tombs that branch, over the same seeds: how many rooms, forks,
+# loops and dead ends; how long the solver takes; and that its quick way of
+# trying where things are put down gives the answer the thorough way does.
+func _plans_that_branch(difficulty: int) -> void:
+	var rooms_least := 99
+	var rooms_most := 0
+	var placed := 0
+	var forks := 0
+	var forked := 0
+	var loops := 0
+	var looped := 0
+	var drops := 0
+	var dead := 0
+	var off_trunk := 0
+	var fetched := 0
+	var bad_cells := 0
+	var switches := {}
+	var things := {}
+	var slowest := 0
+	var slowest_seed := 0
+	var solve_time := 0
+	var make_time := 0
+	var slowest_make := 0
+	var differ := 0
+	var held := 0
+	var most := 0
+	var distinct := {}
+	for seed_value in range(1, seeds + 1):
+		var began := Time.get_ticks_usec()
+		var plan := TombBranching.generate(seed_value, difficulty)
+		var took := int(Time.get_ticks_usec() - began)
+		make_time += took
+		slowest_make = maxi(slowest_make, took)
+		distinct[plan.fingerprint()] = true
+		if not TombLayout3D.cells_wrong(plan).is_empty():
+			bad_cells += 1
+		began = Time.get_ticks_usec()
+		var proof := TombSolver.solve(plan)
+		took = int(Time.get_ticks_usec() - began)
+		solve_time += took
+		most = maxi(most, int(proof["positions"]))
+		if took > slowest:
+			slowest = took
+			slowest_seed = seed_value
+		# (the thorough way on the first of them, and on the first try at each, passed or not)
+		if seed_value <= 60:
+			for tried: TombPlan in [plan, TombBranching.attempt(seed_value, difficulty, 0)]:
+				held += 1
+				var quick := TombSolver.solve(tried)
+				var whole := TombSolver.solve(tried, true)
+				# (where the thorough way ran out of positions it has no answer to compare)
+				if whole["reason"] == "too tangled to check" or quick["reason"] == "too tangled to check":
+					held -= 1
+				elif quick["ok"] != whole["ok"]:
+					differ += 1
+		var count := 0
+		var joined := 0
+		var ways_on := {}
+		var way_in := {}
+		for link in plan.links:
+			if TombLayout3D.is_side(plan.rooms[link.a]) or TombLayout3D.is_side(plan.rooms[link.b]):
+				if link.pass_kind == TombPlan.Pass.DROP:
+					drops += 1
+				continue
+			joined += 1
+			if not way_in.has(link.b):
+				way_in[link.b] = link.a
+			for room: int in [link.a, link.b]:
+				ways_on[room] = int(ways_on.get(room, 0)) + 1
+		# (the way to the burial chamber, back from it)
+		var trunk := {}
+		var at := plan.goal_trigger().room
+		while true:
+			trunk[at] = true
+			if not way_in.has(at):
+				break
+			at = way_in[at]
+		var holds := {}
+		for thing in plan.things:
+			holds[thing.room] = true
+			things[TombPlan.ITEM_NAMES[thing.kind]] = int(things.get(TombPlan.ITEM_NAMES[thing.kind], 0)) + 1
+		for trigger in plan.triggers:
+			var room := plan.rooms[trigger.room]
+			holds[room.parent if TombLayout3D.is_side(room) else trigger.room] = true
+			switches[TombPlan.SWITCH_NAMES[trigger.kind]] = int(switches.get(TombPlan.SWITCH_NAMES[trigger.kind], 0)) + 1
+		var tomb_forks := 0
+		for room in plan.rooms:
+			if TombLayout3D.is_side(room):
+				continue
+			count += 1
+			# (a fork: more than one way on from it, besides the way in)
+			if int(ways_on.get(room.id, 0)) - (0 if room.id == plan.entrance() else 1) >= 2:
+				tomb_forks += 1
+			if not trunk.has(room.id):
+				off_trunk += 1
+				if holds.has(room.id):
+					fetched += 1
+				elif int(ways_on.get(room.id, 0)) == 1:
+					dead += 1
+		placed += count
+		rooms_least = mini(rooms_least, plan.rooms.size())
+		rooms_most = maxi(rooms_most, plan.rooms.size())
+		forks += tomb_forks
+		if tomb_forks > 0:
+			forked += 1
+		loops += joined - (count - 1)
+		if joined - (count - 1) > 0 or _has_drop(plan):
+			looped += 1
+	print("  %-8s that branch: %d different tombs of %d; %d to %d rooms (%.1f on squares on average, %.1f of them off the way to the falcon: %.1f with something he needs, %.1f dead ends)" % [
+			TombGenerator.DIFFICULTY_NAMES[difficulty], distinct.size(), seeds, rooms_least, rooms_most, float(placed) / seeds, float(off_trunk) / seeds, float(fetched) / seeds, float(dead) / seeds])
+	print("           forks %.1f a tomb (%d of %d tombs have one); second ways between rooms %.2f a tomb, drops from a loft %.2f (%d of %d tombs have a loop of either kind); cells that break the rules: %d" % [
+			float(forks) / seeds, forked, seeds, float(loops) / seeds, float(drops) / seeds, looped, seeds, bad_cells])
+	print("           switches %s  things %s" % [str(switches), str(things)])
+	print("           to make one (with the tries thrown away) %.1f ms on average, %.1f at worst; to prove one %.2f ms on average, %.1f at worst (seed %d), %d positions at most; the thorough solver disagreed on %d of %d" % [
+			make_time / 1000.0 / seeds, slowest_make / 1000.0, solve_time / 1000.0 / seeds, slowest / 1000.0, slowest_seed, most, differ, held])
+	if bad_cells > 0 or differ > 0 or forked < seeds:
+		failed = true
+
+
+func _has_drop(plan: TombPlan) -> bool:
+	for link in plan.links:
+		if link.pass_kind == TombPlan.Pass.DROP:
+			return true
+	return false
 
 
 # A plan set out the way that is being asked about.
@@ -270,7 +494,7 @@ func _geometry() -> void:
 		var kinds := {}
 		var first := ""
 		for seed_value in range(1, seeds + 1):
-			var layout := _lay(TombGenerator.generate(seed_value, difficulty))
+			var layout := _lay(_generate(seed_value, difficulty))
 			var wrong := TombReach.check(layout, reach)
 			wrong.append_array(_overlaps3(layout as TombLayout3D) if walked else _overlaps(layout))
 			if not wrong.is_empty():
@@ -326,8 +550,8 @@ func _same() -> void:
 	var count := mini(seeds, 200)
 	for difficulty in 3:
 		for seed_value in range(1, count + 1):
-			var one := _lay(TombGenerator.generate(seed_value, difficulty))
-			var two := _lay(TombGenerator.generate(seed_value, difficulty))
+			var one := _lay(_generate(seed_value, difficulty))
+			var two := _lay(_generate(seed_value, difficulty))
 			if one.plan.fingerprint() != two.plan.fingerprint() or one.fingerprint() != two.fingerprint():
 				differ += 1
 	print("  %d tombs at each difficulty: %d came out differently the second time" % [count, differ])
@@ -335,10 +559,10 @@ func _same() -> void:
 		failed = true
 	# These are the same on every machine, or the daily tomb is not.
 	for seed_value: int in [1, 2, 3]:
-		var layout := _lay(TombGenerator.generate(seed_value, 1))
+		var layout := _lay(_generate(seed_value, 1))
 		print("  seed %d middling: plan %s  stone %s" % [seed_value, layout.plan.fingerprint(), layout.fingerprint()])
 	var today := TombDaily.today()
-	var daily := _lay(TombGenerator.generate(TombDaily.seed_for(today), TombDaily.difficulty_for(today)))
+	var daily := _lay(_generate(TombDaily.seed_for(today), TombDaily.difficulty_for(today)))
 	print("  today (day %d, tomb #%d, %s): plan %s  stone %s" % [today, TombDaily.number(today), TombGenerator.DIFFICULTY_NAMES[TombDaily.difficulty_for(today)],
 			daily.plan.fingerprint(), daily.fingerprint()])
 
@@ -391,7 +615,7 @@ func _with_templates() -> Array:
 	for difficulty in 3:
 		var counts := {"two_stones": 0, "rope": 0, "sand": 0}
 		for seed_value in range(1, seeds + 1):
-			var plan := TombGenerator.generate(seed_value, difficulty)
+			var plan := _generate(seed_value, difficulty)
 			var wanted := false
 			for link in plan.links:
 				var kind := ""
