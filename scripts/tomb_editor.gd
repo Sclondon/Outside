@@ -893,6 +893,9 @@ func _draw_pad() -> void:
 			title = TombSpec.room_title(spec, i)
 			if not is_chosen and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big).x > room_wide:
 				title = str(i + 1)
+			elif is_chosen and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big).x > room_wide:
+				# (wider than its room: a line higher, over its neighbours' numbers)
+				at.y -= 32.0
 		_pad.draw_string_outline(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big, 7, Color(0.0, 0.0, 0.0, 0.8))
 		_pad.draw_string(font, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, big, colour)
 		if i < count - 1 and (not far or _phone):
@@ -1008,10 +1011,13 @@ func _remove_from_floor() -> void:
 		return
 	_remember()
 	var parent := int(rooms()[chosen]["from"])
+	var was := TombSpec.room_title(spec, chosen)
 	TombFloorSpec.remove_room(spec, chosen)
 	chosen = parent if parent < chosen else parent - 1
 	mode = ""
 	_settle()
+	if _phone:
+		_say("%s is taken away. Undo puts it back." % was, 5.0)
 
 
 # What has to follow from a change to the chosen room of a tomb that branches.

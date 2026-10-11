@@ -84,6 +84,8 @@ func _stand(spot: Vector3, along: Vector3, frames := 40) -> void:
 func run() -> void:
 	TombDaily.path = "user://tombs_shots.json"
 	TombEditor.keeps = false
+	TombEditor.layout = "desk"
+	TombSpec.path = "user://shots_my_tombs.json"
 
 	# The card: today's tomb that branches behind it.
 	TombLevel.bare = false

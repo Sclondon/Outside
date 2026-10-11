@@ -125,6 +125,9 @@ var _page: PanelContainer
 var _head: HBoxContainer
 var _scroll: Scroller
 var _field: Control
+# On a room's page, the two lines at its top: which room it is (or what has just been said), and whether the tomb works.
+var _room_says: Label
+var _room_verdict: Label
 
 
 ## Something to touch. It is given the fingers themselves, not the mouse they are also made into: a finger
@@ -179,6 +182,13 @@ class Touch extends PanelContainer:
 					_restyle()
 				holder.drag(drag.relative.y)
 			accept_event()
+
+	func _notification(what: int) -> void:
+		# (hidden with a finger still on it: that finger is forgotten)
+		if what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree():
+			_finger = -1
+			_down = false
+			_restyle()
 
 	func _scroller() -> Scroller:
 		var above := get_parent()
@@ -617,6 +627,8 @@ func _process(_delta: float) -> void:
 	_page.visible = page != ""
 	for part: Control in [_bar, _acts, _strip, _zoom]:
 		part.visible = page == ""
+	if page == "room":
+		_say_of_room()
 	if page != "":
 		return
 	_doing.text = _doing_now()
@@ -848,9 +860,11 @@ func _fill_room() -> void:
 	lines.add_theme_constant_override(&"separation", -2)
 	lines.alignment = BoxContainer.ALIGNMENT_CENTER
 	whether.add_child(lines)
-	lines.add_child(_words("%s  (room %d of %d)" % [TombSpec.room_title(e.spec, index), index + 1, count], TEXT, GOLD, false))
-	var verdict := verdict_now()
-	lines.add_child(_words(verdict[0], TEXT, verdict[1], false))
+	_room_says = _words("", TEXT, GOLD, false)
+	lines.add_child(_room_says)
+	_room_verdict = _words("", TEXT, GOOD, false)
+	lines.add_child(_room_verdict)
+	_say_of_room()
 	_head.add_child(whether)
 	_way_out()
 
@@ -981,6 +995,18 @@ func _fill_second_ways() -> void:
 		_scroll.rows.add_child(_wide("row:join%d:away" % n, "remove", "Take this way away", func() -> void: editor.join_with(other), "warn"))
 
 
+
+# The two lines at the top of a room's page, as they now are.
+func _say_of_room() -> void:
+	if not is_instance_valid(_room_says) or not is_instance_valid(_room_verdict):
+		return
+	var hinting := Time.get_ticks_msec() * 0.001 < editor._hint_until
+	_room_says.text = editor._hint if hinting else "%s  (room %d of %d)" % [TombSpec.room_title(editor.spec, editor.chosen), editor.chosen + 1, editor.rooms().size()]
+	_room_says.add_theme_color_override(&"font_color", INK if hinting else GOLD)
+	var verdict := verdict_now()
+	_room_verdict.text = verdict[0]
+	_room_verdict.add_theme_color_override(&"font_color", verdict[1])
+
 # The room before (-1) or after (1), without leaving the page.
 func _step(by: int) -> void:
 	editor.choose(editor.chosen + by)
@@ -1004,7 +1030,7 @@ func room_says(index: int) -> String:
 	var last := index == editor.rooms().size() - 1
 	if (editor._floor and index > 0) or (not editor._floor and not last):
 		var way := String(TombSpec.WAY_TITLES.get(told.get("way", "open"), "")).to_lower()
-		parts.append(("in by %s" if editor._floor else "on by %s") % way)
+		parts.append(("way in: %s" if editor._floor else "way on: %s") % way)
 		if told.get("lock", "none") != "none":
 			parts.append("door: %s" % String(TombFloorSpec.LOCK_TITLES.get(told["lock"], "")).to_lower())
 	var line := ", ".join(parts)
@@ -1185,6 +1211,8 @@ func _note_share(said: String) -> void:
 
 func _fill_more() -> void:
 	_top("More")
+	if editor._dirty >= 0.0:
+		editor.rebuild()
 	if not editor._floor:
 		_row("more:walk", "Walk it", "", "Play it walked through, the camera at his back. (Play, at the left, plays it from the side.)", func() -> void: editor.play("3d"))
 	_row("more:way", "Whether it works, and one way through", "", String(verdict_now()[0]), open.bind("works", {}, true))
