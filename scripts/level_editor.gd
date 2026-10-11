@@ -28,6 +28,12 @@ extends Control
 ## came with, and the whole level as text, to copy it somewhere else or bring
 ## one in. "Play" starts the level from its start; "Play here" from where the
 ## view is.
+##
+## ON A PHONE all of that is laid out again for thumbs (`LevelEditorPhone`,
+## `scripts/level_editor_phone.gd`, which says how): a bar of six big buttons,
+## and one sheet or page at a time. It is what there is wherever there is a
+## touch screen, and on the web; `-- phone` on the command line asks for it
+## anywhere, and `-- desk` for the panels described above. See `phone`.
 
 const PANEL := 330.0
 ## How far a touch may be from a thing's mark and still be meant for it, in pixels of the 720-high screen.
@@ -46,6 +52,8 @@ const TRIGGERS := ["plate", "thing"]
 ## And the other puzzle parts that can: a lever, a lock, a sun disc, an offering table, a brazier to light.
 const PUZZLE_TRIGGERS := ["lever", "lock", "sundisc", "offering", "brazier"]
 
+## Whether it is laid out for a phone (see `wants_phone`). Set before it goes into the tree, to have the other.
+var phone := wants_phone()
 var level: Desert
 var layout: Dictionary
 var cam: Camera3D
@@ -65,6 +73,8 @@ var _started := {}
 var _travel := 0.0
 var _began := 0
 var _dragging := ""
+# Whether what a finger took hold of has been moved by it yet (a touch that goes nowhere is a touch, not a move).
+var _dragged := false
 var _drag_point := -1
 var _undo: Array[String] = []
 var _redo: Array[String] = []
@@ -74,6 +84,7 @@ var _page := ""
 var _radii := {}
 
 var _overlay: Control
+var _phone: LevelEditorPhone
 var _ui: Control
 var _shelf: PanelContainer
 # How far the arrows move a thing, metres; and where it was taken hold of, from its own middle.
@@ -98,6 +109,15 @@ func _ready() -> void:
 	visible = false
 	level = get_tree().get_first_node_in_group(&"editable_level") as Desert
 	_build_ui()
+
+
+## Whether the editor should be laid out for a phone: wherever the touch controls are shown (`TouchControls`: a
+## touch screen, or the web), or when `-- phone` is on the command line; and never when `-- desk` is.
+static func wants_phone() -> bool:
+	var asked := OS.get_cmdline_user_args()
+	if asked.has("desk"):
+		return false
+	return asked.has("phone") or DisplayServer.is_touchscreen_available() or OS.has_feature("web")
 
 
 ## Opens it: the game stops, and the view goes up over where he is.
@@ -129,6 +149,11 @@ func open() -> void:
 	_yaw = 0.0
 	_follow_ground()
 	_keep_clear()
+	if phone:
+		chosen = {}
+		_next = ""
+		_phone.show_panel("")
+		return
 	_show_page("Level")
 	_show_inspector()
 	_say("One finger moves the ground, two zoom and turn. Touch a thing to choose it.  ( ? for more )", 7.0)
@@ -148,6 +173,9 @@ func _keep_clear() -> void:
 	elif OS.has_feature("web") and DisplayServer.is_touchscreen_available():
 		# (a browser does not say: a phone held sideways is allowed a margin at each end)
 		edges = [30.0, 0.0, 30.0, 6.0]
+	if phone:
+		_phone.keep_clear(clampf(edges[0], 0.0, 110.0), clampf(edges[1], 0.0, 60.0), clampf(edges[2], 0.0, 110.0), clampf(edges[3], 0.0, 60.0))
+		return
 	_ui.offset_left = clampf(edges[0], 0.0, 90.0)
 	_ui.offset_top = clampf(edges[1], 0.0, 60.0)
 	_ui.offset_right = -clampf(edges[2], 0.0, 90.0)
@@ -156,6 +184,8 @@ func _keep_clear() -> void:
 
 # Shows the panel at the right, or puts it away; what is along the bottom takes the room.
 func _show_side(shown: bool) -> void:
+	if phone:
+		return
 	_side.visible = shown
 	_shelf.offset_right = -PANEL - 16.0 if shown else -8.0
 
@@ -166,6 +196,13 @@ func _build_ui() -> void:
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.draw.connect(_draw_overlay)
 	add_child(_overlay)
+	if phone:
+		# (a phone has a screen of its own over the level: see LevelEditorPhone)
+		_phone = LevelEditorPhone.new()
+		_phone.editor = self
+		add_child(_phone)
+		get_viewport().size_changed.connect(_keep_clear)
+		return
 
 	# Everything else stands inside the part of the screen that is safe to use:
 	# clear of a phone's rounded corners and whatever is cut out of its edge.
@@ -302,7 +339,7 @@ func _build_ui() -> void:
 		DisplayServer.clipboard_set(_share_text.text)
 		_say("Copied.")))
 	row.add_child(_button("Paste", func() -> void: _share_text.text = DisplayServer.clipboard_get()))
-	row.add_child(_button("Use this text", _use_text))
+	row.add_child(_button("Use this text", func() -> void: _use_text(_share_text.text)))
 	row.add_child(_button("Back to the original level", _back_to_original))
 	row.add_child(_button("Close", _show_share.bind(false)))
 
@@ -332,7 +369,8 @@ func _process(delta: float) -> void:
 		_save_in -= delta
 		if _save_in < 0.0:
 			_save_now(true)
-	_status.text = _status_line()
+	if not phone:
+		_status.text = _status_line()
 	_overlay.queue_redraw()
 
 
@@ -368,19 +406,21 @@ func _gui_input(event: InputEvent) -> void:
 				_travel = 0.0
 				_began = Time.get_ticks_msec()
 				_dragging = _grab(touch.position)
-				if _dragging != "":
-					_remember()
+				_dragged = false
 			else:
-				_dragging = ""
+				_let_go()
 				_travel = 1000.0
 		else:
 			var was_tap := _touches.size() == 1 and _travel < 14.0 and Time.get_ticks_msec() - _began < 450
 			_touches.erase(touch.index)
-			if _dragging != "":
-				_dragging = ""
-				_changed(chosen, "at")
+			if _dragged:
+				_let_go()
 			elif was_tap:
+				# (on the ring of what is chosen, too: the touch may have been meant for a thing beside it)
+				_dragging = ""
 				_tapped(touch.position)
+			else:
+				_dragging = ""
 		accept_event()
 	elif event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
@@ -391,7 +431,11 @@ func _gui_input(event: InputEvent) -> void:
 		if _touches.size() == 1:
 			_travel += drag.relative.length()
 			if _dragging != "":
-				_drag_to(drag.position)
+				if _travel >= 14.0:
+					if not _dragged:
+						_dragged = true
+						_remember()
+					_drag_to(drag.position)
 			elif _travel >= 14.0:
 				_pan(before, drag.position)
 		elif _touches.size() == 2:
@@ -403,7 +447,7 @@ func _gui_input(event: InputEvent) -> void:
 				_yaw -= was.angle_to(now)
 			# (both fingers slid up or down together tip the view)
 			_pitch = clampf(_pitch + drag.relative.y * 0.5 * 0.006, 0.25, 1.5)
-			_tilt.set_value_no_signal(_pitch)
+			_show_tilt()
 		accept_event()
 	elif event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
@@ -415,7 +459,33 @@ func _gui_input(event: InputEvent) -> void:
 		var motion := event as InputEventMouseMotion
 		_yaw -= motion.relative.x * 0.006
 		_pitch = clampf(_pitch + motion.relative.y * 0.006, 0.25, 1.5)
+		_show_tilt()
+
+
+func _show_tilt() -> void:
+	if _tilt:
 		_tilt.set_value_no_signal(_pitch)
+
+
+## Turns the view, brings it nearer (under 1) or takes it further (over 1), and tips it: what two fingers do, for one.
+func look(turn: float, nearer: float, tip: float) -> void:
+	_yaw += turn
+	_reach = clampf(_reach * nearer, 6.0, 900.0)
+	_pitch = clampf(_pitch + tip, 0.25, 1.5)
+	_show_tilt()
+
+
+# How far a touch may be from a thing's mark and still be meant for it: further, for a thumb.
+func _touch_reach() -> float:
+	return 66.0 if phone else TOUCH
+
+
+# What was being dragged is where it is to stay.
+func _let_go() -> void:
+	if _dragging != "" and _dragged:
+		_changed(chosen, "at")
+	_dragging = ""
+	_dragged = false
 
 
 # Moves the view so that the ground stays under the finger.
@@ -476,13 +546,13 @@ func _grab(screen: Vector2) -> String:
 		var points: Array = chosen["points"]
 		for i in points.size():
 			var at := Vector3(points[i][0], level.height_at(points[i][0], points[i][1]), points[i][1])
-			if not cam.is_position_behind(at) and cam.unproject_position(at).distance_to(screen) < TOUCH:
+			if not cam.is_position_behind(at) and cam.unproject_position(at).distance_to(screen) < _touch_reach():
 				_drag_point = i
 				_held_at = Vector2.ZERO
 				return "point"
 		return ""
 	var mark := level.place_of(chosen)
-	if not cam.is_position_behind(mark) and cam.unproject_position(mark).distance_to(screen) < TOUCH:
+	if not cam.is_position_behind(mark) and cam.unproject_position(mark).distance_to(screen) < _touch_reach():
 		# (it is moved by as much as the finger moves: it does not jump to be under it, where it could not be seen)
 		var under := ground_under(screen)
 		_held_at = Vector2(under.x - mark.x, under.z - mark.z) if under != Vector3.INF else Vector2.ZERO
@@ -539,29 +609,44 @@ func _tapped(screen: Vector2) -> void:
 			chosen["points"].append([snappedf(at.x, 0.01), snappedf(at.z, 0.01)])
 			_changed(chosen, "points")
 		"link":
-			var trigger := _pick(screen, at, true)
+			var trigger := _pick(screen, at, _is_trigger)
 			if trigger.is_empty() or chosen.is_empty():
+				if phone:
+					_say("Nothing there can work it. Tap one of the ringed things, or Done.")
 				return
-			_remember()
-			var links: Array = chosen.get("links", [])
-			if links.has(trigger["id"]):
-				links.erase(trigger["id"])
-			else:
-				links.append(trigger["id"])
-			chosen["links"] = links
-			_changed(chosen, "links")
-			_show_inspector()
+			_join(trigger, chosen)
+		"link_from":
+			# (the other way about: what is chosen is the plate, and what is touched is what it should work)
+			var worked := _pick(screen, at, _is_worked)
+			if worked.is_empty() or chosen.is_empty() or worked["id"] == chosen["id"]:
+				if phone:
+					_say("Nothing there can be worked by it. Tap one of the ringed things, or Done.")
+				return
+			_join(chosen, worked)
 		_:
-			_choose(_pick(screen, at, false))
+			_choose(_pick(screen, at))
+
+
+# Has a trigger work a thing; or, if it does already, no longer.
+func _join(trigger: Dictionary, worked: Dictionary) -> void:
+	_remember()
+	var links: Array = worked.get("links", [])
+	if links.has(trigger["id"]):
+		links.erase(trigger["id"])
+	else:
+		links.append(trigger["id"])
+	worked["links"] = links
+	_changed(worked, "links")
+	_show_inspector()
 
 
 # The item under a touch: the one whose mark is nearest it, or failing that
 # the smallest thing standing where it meets the ground.
-func _pick(screen: Vector2, ground: Vector3, triggers_only: bool) -> Dictionary:
+func _pick(screen: Vector2, ground: Vector3, only := Callable()) -> Dictionary:
 	var best := {}
-	var nearest := TOUCH
+	var nearest := _touch_reach()
 	for item: Dictionary in layout["items"]:
-		if triggers_only and not _is_trigger(item):
+		if only.is_valid() and not only.call(item):
 			continue
 		var mark := level.place_of(item)
 		if cam.is_position_behind(mark):
@@ -575,7 +660,7 @@ func _pick(screen: Vector2, ground: Vector3, triggers_only: bool) -> Dictionary:
 	var smallest := 1.0e9
 	var spot := Vector2(ground.x, ground.z)
 	for item: Dictionary in layout["items"]:
-		if triggers_only and not _is_trigger(item):
+		if only.is_valid() and not only.call(item):
 			continue
 		var room := _radius(item)
 		var off := spot.distance_to(Vector2(item["at"][0], item["at"][1]))
@@ -598,6 +683,30 @@ func _is_trigger(item: Dictionary) -> bool:
 	if item["kind"] in PUZZLE_TRIGGERS:
 		return true
 	return item["kind"] == "thing" and (String(item.get("what", "")).begins_with("target") or item.get("what", "") in ["bottle"])
+
+
+# Whether a thing is worked by others: whether it keeps a list of what does.
+func _is_worked(item: Dictionary) -> bool:
+	for field: Array in LevelLayout.fields(item):
+		if field[2] == "links":
+			return true
+	return false
+
+
+## Everything that a trigger works.
+func worked_by(trigger: Dictionary) -> Array:
+	var found: Array = []
+	if trigger.is_empty():
+		return found
+	for item: Dictionary in layout["items"]:
+		if (item.get("links", []) as Array).has(trigger["id"]):
+			found.append(item)
+	return found
+
+
+## Whether a thing can be turned to face another way.
+func turns(item: Dictionary) -> bool:
+	return not item["kind"] in ["dune", "pond", "river", "pool", "start", "checkpoint", "sign"]
 
 
 # How far a thing reaches over the ground, roughly.
@@ -630,6 +739,9 @@ func _radius(item: Dictionary) -> float:
 func _choose(item: Dictionary) -> void:
 	chosen = item
 	_next = ""
+	if phone:
+		_phone.chose()
+		return
 	if not item.is_empty():
 		_show_side(true)
 	_show_inspector()
@@ -714,20 +826,24 @@ func _play(here: bool) -> void:
 
 
 func _show_share(open: bool) -> void:
+	if phone:
+		return
 	_share.visible = open
 	if open:
 		_share_text.text = LevelLayout.to_text(layout)
 
 
-func _use_text() -> void:
-	var brought := LevelLayout.from_text(_share_text.text)
+# Makes the level what a text says it is. Says whether the text was a level.
+func _use_text(text: String) -> bool:
+	var brought := LevelLayout.from_text(text)
 	if brought.is_empty():
 		_say("That text is not a level.", 4.0)
-		return
+		return false
 	_remember()
 	_restore(LevelLayout.to_text(brought))
 	_show_share(false)
 	_say("The level is as that text says.")
+	return true
 
 
 func _back_to_original() -> void:
@@ -763,6 +879,13 @@ func _nudge_by(way: Vector2) -> void:
 	if chosen.is_empty():
 		return
 	_remember()
+	nudge(way)
+
+
+## The same, without noting the level first (for a button held down, which is undone as one change).
+func nudge(way: Vector2) -> void:
+	if chosen.is_empty():
+		return
 	var by := (Vector2(cos(_yaw), -sin(_yaw)) * way.x + Vector2(sin(_yaw), cos(_yaw)) * way.y) * _nudge
 	if chosen["kind"] == "river":
 		for point: Array in chosen["points"]:
@@ -772,6 +895,22 @@ func _nudge_by(way: Vector2) -> void:
 	else:
 		chosen["at"] = [snappedf(chosen["at"][0] + by.x, 0.01), snappedf(chosen["at"][1] + by.y, 0.01)]
 	_changed(chosen, "at")
+
+
+## Brings the view over what is chosen.
+func look_at_chosen() -> void:
+	if chosen.is_empty():
+		return
+	_focus = level.place_of(chosen)
+	_reach = clampf(_radius(chosen) * 3.5, 10.0, 220.0)
+
+
+## Moves what is chosen to the middle of the view, where the cross is.
+func bring_to_cross() -> void:
+	if chosen.is_empty():
+		return
+	_next = "move"
+	_tapped(size * 0.5)
 
 
 func _copy() -> void:
@@ -796,6 +935,8 @@ func _copy() -> void:
 
 func _show_page(page: String) -> void:
 	_page = page
+	if phone:
+		return
 	for old in _strip.get_children():
 		_strip.remove_child(old)
 		old.queue_free()
@@ -820,6 +961,9 @@ func _arm(entry: Array) -> void:
 
 
 func _show_inspector() -> void:
+	if phone:
+		_phone.refresh()
+		return
 	for old in _inspector.get_children():
 		_inspector.remove_child(old)
 		old.queue_free()
@@ -835,9 +979,7 @@ func _show_inspector() -> void:
 	row.add_child(_button("Move to...", func() -> void: _next = "move"))
 	row.add_child(_button("Copy", _copy))
 	row.add_child(_button("Remove", _remove))
-	row.add_child(_button("Look at", func() -> void:
-		_focus = level.place_of(item)
-		_reach = clampf(_radius(item) * 3.5, 10.0, 220.0)))
+	row.add_child(_button("Look at", look_at_chosen))
 	# Arrows, to move it a step at a time (a finger hides what it drags): away
 	# from the eye, towards it, and to either side, as the view is turned.
 	var arrows := HBoxContainer.new()
@@ -854,7 +996,7 @@ func _show_inspector() -> void:
 		_nudge = steps[(steps.find(_nudge) + 1) % steps.size()]
 		step.text = "%s m" % String.num(_nudge, 1))
 	arrows.add_child(step)
-	if not item["kind"] in ["dune", "pond", "river", "pool", "start", "checkpoint", "sign"]:
+	if turns(item):
 		_number("Turned", item, "yaw", -180.0, 180.0, 1.0)
 	if not item.has("y") and not item["kind"] in GROUND_KINDS:
 		_number("Above the ground", item, "lift", -8.0, 30.0, 0.05)
@@ -978,21 +1120,8 @@ func _number(title: String, holder: Dictionary, key: String, least: float, most:
 	var show := func() -> void: caption.text = "%s: %s" % [title, String.num(slider.value, 0 if step >= 1.0 else 2)]
 	show.call()
 	var apply := func(value: float) -> void:
-		holder[key] = value
+		_put_number(holder, key, value, what)
 		show.call()
-		match what:
-			"terrain":
-				_shape_in = 0.6
-				_save_in = 1.2
-			"wind":
-				layout["terrain"]["wind"] = [snappedf(cos(deg_to_rad(value)), 0.001), snappedf(sin(deg_to_rad(value)), 0.001)]
-				_shape_in = 0.6
-				_save_in = 1.2
-			"mirage":
-				level.heat(value)
-				_save_in = 1.2
-			_:
-				_changed(holder, key)
 	slider.drag_started.connect(_remember)
 	slider.value_changed.connect(apply)
 	var less := _button("-", func() -> void:
@@ -1006,6 +1135,24 @@ func _number(title: String, holder: Dictionary, key: String, least: float, most:
 	row.add_child(less)
 	row.add_child(slider)
 	row.add_child(more)
+
+
+# Gives a number its new value, and does what has to follow (`what` as for `_number`).
+func _put_number(holder: Dictionary, key: String, value: float, what := "") -> void:
+	holder[key] = value
+	match what:
+		"terrain":
+			_shape_in = 0.6
+			_save_in = 1.2
+		"wind":
+			layout["terrain"]["wind"] = [snappedf(cos(deg_to_rad(value)), 0.001), snappedf(sin(deg_to_rad(value)), 0.001)]
+			_shape_in = 0.6
+			_save_in = 1.2
+		"mirage":
+			level.heat(value)
+			_save_in = 1.2
+		_:
+			_changed(holder, key)
 
 
 # --- What is drawn over the level ---
@@ -1053,25 +1200,58 @@ func _draw_overlay() -> void:
 					ring.append(Vector3(corner.x + way.x * half.x, item["y"], corner.y + way.y * half.y))
 				_outline(ring, colour, is_chosen)
 		if is_chosen:
-			over.draw_arc(at, 28.0, 0.0, TAU, 40, Color(0, 0, 0, 0.55), 6.0, true)
-			over.draw_arc(at, 28.0, 0.0, TAU, 40, Color(1, 1, 1, 0.95), 3.0, true)
+			# (the ring it is dragged by: wider for a thumb, with arrows to say so)
+			var ring := 46.0 if phone else 28.0
+			over.draw_arc(at, ring, 0.0, TAU, 40, Color(0, 0, 0, 0.55), 6.0, true)
+			over.draw_arc(at, ring, 0.0, TAU, 40, Color(1, 1, 1, 0.95), 3.0, true)
 			over.draw_circle(at, 9.0, colour)
+			if phone and item["kind"] != "river":
+				for way: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+					var tip := at + way * (ring + 15.0)
+					var across := Vector2(-way.y, way.x) * 9.0
+					over.draw_colored_polygon(PackedVector2Array([tip, tip - way * 13.0 + across, tip - way * 13.0 - across]), Color(1, 1, 1, 0.95))
+			# What it works, if it is a plate or the like: a line to each.
+			if _next == "link_from" or (phone and _is_trigger(item)):
+				for other: Dictionary in worked_by(item):
+					var to := level.place_of(other)
+					if not cam.is_position_behind(to):
+						_join_line(at, cam.unproject_position(to))
 			# What works it: a line to each.
 			for link: int in item.get("links", []):
 				for other: Dictionary in layout["items"]:
 					if other["id"] == link:
 						var to := level.place_of(other)
 						if not cam.is_position_behind(to):
-							over.draw_dashed_line(at, cam.unproject_position(to), Color(0.7, 1.0, 0.5, 0.95), 3.0, 10.0)
-							over.draw_circle(cam.unproject_position(to), 9.0, Color(0.7, 1.0, 0.5, 0.95))
+							_join_line(at, cam.unproject_position(to))
 		else:
-			var show_all := _next == "link" and _is_trigger(item)
-			over.draw_circle(at, 13.0 if show_all else 6.5, Color(colour, 0.95 if show_all else 0.75))
-			over.draw_arc(at, 13.0 if show_all else 6.5, 0.0, TAU, 16, Color(0, 0, 0, 0.6), 1.5, true)
+			var show_all := (_next == "link" and _is_trigger(item)) or (_next == "link_from" and _is_worked(item))
+			var dot := (20.0 if show_all else 9.0) if phone else (13.0 if show_all else 6.5)
+			over.draw_circle(at, dot, Color(colour, 0.95 if show_all else 0.75))
+			over.draw_arc(at, dot, 0.0, TAU, 16, Color(0, 0, 0, 0.6), 1.5, true)
+			if show_all and phone:
+				over.draw_arc(at, dot + 8.0, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 3.0, true)
 	# The middle of the view, where "Play here" starts him.
 	var centre := size * 0.5
+	if phone and _phone.wants_cross():
+		# (bold, while it is where a thing will be put or brought)
+		for way: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+			over.draw_line(centre + way * 10.0, centre + way * 40.0, Color(0, 0, 0, 0.6), 7.0)
+			over.draw_line(centre + way * 10.0, centre + way * 40.0, Color(1, 1, 1, 0.95), 3.0)
+		over.draw_arc(centre, 24.0, 0.0, TAU, 32, Color(1, 1, 1, 0.95), 3.0, true)
+		return
 	over.draw_line(centre + Vector2(-9, 0), centre + Vector2(9, 0), Color(1, 1, 1, 0.4), 1.5)
 	over.draw_line(centre + Vector2(0, -9), centre + Vector2(0, 9), Color(1, 1, 1, 0.4), 1.5)
+
+
+# The line between a thing and what works it (bolder on a phone, to be seen out of doors).
+func _join_line(from: Vector2, to: Vector2) -> void:
+	if phone:
+		_overlay.draw_line(from, to, Color(0, 0, 0, 0.5), 9.0, true)
+		_overlay.draw_dashed_line(from, to, Color(0.7, 1.0, 0.5), 5.0, 16.0)
+		_overlay.draw_circle(to, 13.0, Color(0.7, 1.0, 0.5))
+		return
+	_overlay.draw_dashed_line(from, to, Color(0.7, 1.0, 0.5, 0.95), 3.0, 10.0)
+	_overlay.draw_circle(to, 9.0, Color(0.7, 1.0, 0.5, 0.95))
 
 
 func _on_ground(at: Vector2) -> Vector3:

@@ -29,6 +29,10 @@ const BUILT_IN := "res://levels/desert.json"
 const SAVED := "user://desert_layout.json"
 const VERSION := 1
 
+## Where the level made on this device is kept. (What checks the editor keeps its own somewhere else, so as to
+## leave alone whatever has been made here.)
+static var saved_at := SAVED
+
 ## What can be put in a level, page by page as the editor offers it:
 ## [what it is called, kind, what].
 const PALETTE := {
@@ -271,7 +275,7 @@ static func next_id(layout: Dictionary) -> int:
 ## The layout to play: the one saved on this device, or the one the game came with.
 static func load_layout() -> Dictionary:
 	if has_saved():
-		var saved := from_text(FileAccess.get_file_as_string(SAVED))
+		var saved := from_text(FileAccess.get_file_as_string(saved_at))
 		if not saved.is_empty():
 			return saved
 	return built_in()
@@ -286,12 +290,12 @@ static func built_in() -> Dictionary:
 
 
 static func has_saved() -> bool:
-	return FileAccess.file_exists(SAVED)
+	return FileAccess.file_exists(saved_at)
 
 
 ## Keeps a layout on this device. Says whether it could.
 static func save(layout: Dictionary) -> bool:
-	var file := FileAccess.open(SAVED, FileAccess.WRITE)
+	var file := FileAccess.open(saved_at, FileAccess.WRITE)
 	if file == null:
 		return false
 	file.store_string(to_text(layout))
@@ -302,7 +306,7 @@ static func save(layout: Dictionary) -> bool:
 ## Throws away what was saved on this device: the level is as the game came with it again.
 static func forget_saved() -> void:
 	if has_saved():
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVED) if not OS.has_feature("web") else SAVED)
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(saved_at) if not OS.has_feature("web") else saved_at)
 
 
 static func to_text(layout: Dictionary) -> String:
