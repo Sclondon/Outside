@@ -586,6 +586,8 @@ func _build_hud() -> void:
 		_map.layout = layout as TombLayout3D
 		_map.seen = _seen
 		_map.open = _open
+		# (not while the card that comes up first is over the tomb)
+		_map.visible = not _held
 		_hud.add_child(_map)
 	# A way out of any corner he has got himself into.
 	if not bare:
@@ -624,7 +626,8 @@ func _has_cells() -> bool:
 func _show_on_map() -> void:
 	if _map == null:
 		return
-	var moved := _map.here != _room or _map.has_treasure != has_treasure
+	var moved := _map.here != _room or _map.has_treasure != has_treasure or not _map.visible
+	_map.visible = true
 	_map.here = _room
 	_map.has_treasure = has_treasure
 	if _eye:

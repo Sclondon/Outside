@@ -1349,6 +1349,10 @@ func _choice(title: String, options: Array, now: int, picked: Callable) -> void:
 	var choice := OptionButton.new()
 	choice.focus_mode = Control.FOCUS_NONE
 	choice.custom_minimum_size.y = 52.0
+	# (as wide as the panel and no wider: the longest of its items would push the panel off the screen)
+	choice.fit_to_longest_item = false
+	choice.clip_text = true
+	choice.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	choice.add_theme_font_size_override("font_size", 18)
 	for option: String in options:
 		choice.add_item(option)

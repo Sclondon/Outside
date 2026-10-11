@@ -21,7 +21,7 @@ extends Control
 ##    until he has been up or down into it;
 ##  - the way out, and the falcon's chamber once he has found it.
 
-const SMALL := 150.0
+const SMALL := 168.0
 const LARGE := 400.0
 const PAPER := Color(0.05, 0.05, 0.07, 0.62)
 const STONE := Color(0.82, 0.74, 0.58)
@@ -106,7 +106,7 @@ func toggle() -> void:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), PAPER)
+	draw_rect(Rect2(Vector2.ZERO, size), Color(PAPER, 0.88) if large else PAPER)
 	draw_rect(Rect2(Vector2.ZERO, size), Color(STONE, 0.5), false, 1.5)
 	if layout == null or seen.is_empty():
 		return
@@ -123,7 +123,7 @@ func _draw() -> void:
 		high = Vector2i(maxi(high.x, cell.x), maxi(high.y, cell.z))
 		deepest = maxi(deepest, absi(cell.y))
 	var across := Vector2(high - low) + Vector2.ONE
-	var margin := 12.0 if not large else 30.0
+	var margin := 9.0 if not large else 44.0
 	var pitch := minf((size.x - margin * 2.0) / across.x, (size.y - margin * 2.0) / across.y)
 	pitch = minf(pitch, 64.0 if large else 30.0)
 	var origin := (size - across * pitch) * 0.5
@@ -203,7 +203,9 @@ func _draw() -> void:
 	if large:
 		var font := ThemeDB.fallback_font
 		draw_string(font, Vector2(14.0, 22.0), "MAP", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, 0.6))
-		draw_string(font, Vector2(14.0, size.y - 12.0), "Red bar: a door still shut.   Stub: a way not yet taken.   Touch to put away.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 28.0, 13, Color(1, 1, 1, 0.75))
+		draw_string(font, Vector2(14.0, 22.0), "touch to put away", HORIZONTAL_ALIGNMENT_RIGHT, size.x - 28.0, 14, Color(1, 1, 1, 0.6))
+		draw_string(font, Vector2(14.0, size.y - 30.0), "Red bar: a door still shut, or sand not yet let in.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 28.0, 14, Color(1, 1, 1, 0.8))
+		draw_string(font, Vector2(14.0, size.y - 12.0), "A line with a knob: a way not yet taken.   Blue: water.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 28.0, 14, Color(1, 1, 1, 0.8))
 
 
 # Whether a dark room's brazier has been lit.

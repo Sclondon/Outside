@@ -125,12 +125,10 @@ func run() -> void:
 		if TombLayout3D.is_side(plan.rooms[link.a]) or TombLayout3D.is_side(plan.rooms[link.b]):
 			continue
 		if entered.has(link.b) and not loop:
-			# (a second way into this room: seen from the bay it comes into, looking back down the room)
+			# (a second way into this room: seen from the bay it comes into, looking back along it)
 			var info := layout.rooms[link.b]
-			var back := -Vector3(TombLayout3D.TURNS[int(info["turn"])])
-			await _stand((info["east"] as Vector3) - back * 1.5, back)
-			camera.look_along(-Vector3(TombLayout3D.TURNS[int(layout.ways[link.id]["turn"])]) if link.pass_kind != TombPlan.Pass.STAIRS else Vector3(TombLayout3D.TURNS[int(layout.ways[link.id]["turn"])]))
-			camera.snap()
+			var into := Vector3(TombLayout3D.TURNS[int(layout.ways[link.id]["turn"])])
+			await _stand((info["centre"] as Vector3) + into * 0.8, -into)
 			await snap("loop", 30)
 			loop = true
 		entered[link.b] = true

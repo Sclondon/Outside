@@ -117,6 +117,8 @@ func _run(names: Array) -> void:
 		await _drive_templates()
 	if "custom" in names:
 		await _drive_custom()
+	if "map" in names:
+		await _map_shows()
 	if "doors" in names:
 		await _doors_hold()
 	if "grid" in names:
@@ -2274,6 +2276,7 @@ func _kept() -> void:
 	TombDaily.path = was
 	print("  the day's times %s; each has its own first and best: %s; the run of days counts a day once (%s) and goes on (%s); practice bests %s; the line to send says which (\"%s\"): %s" % [
 			"are kept apart" if apart else "RAN TOGETHER", firsts, one_day, runs_on, "are kept apart" if practice_apart else "RAN TOGETHER", said, says])
+	_kept_branching()
 	if not (apart and firsts and one_day and runs_on and practice_apart and says):
 		failed = true
 
@@ -2304,3 +2307,147 @@ func _carried_back3() -> bool:
 	level.get_parent().queue_free()
 	await _wait(5)
 	return sound and had and back and lies and once
+
+
+# --- Tombs that branch: what is kept of a day, and the map
+
+# A day's tomb that branches is a third tomb for the day: what is kept of it
+# is apart from the other two, in a file that was written before there was
+# such a thing as well as in a new one. (In a file of its own for the test.)
+func _kept_branching() -> void:
+	var was := TombDaily.path
+	TombDaily.path = "user://tombs_test.json"
+	# A file as it was kept before: two days seen from the side, one walked through, a run of days, a practice best.
+	var file := FileAccess.open(TombDaily.path, FileAccess.WRITE)
+	file.store_string(JSON.stringify({"version": 1, "days": {"29998": {"first_ms": 71000, "first_deaths": 1, "best_ms": 70000, "best_deaths": 0, "runs": 2},
+			"29999": {"first_ms": 61000, "first_deaths": 0, "best_ms": 61000, "best_deaths": 0, "runs": 1}},
+			"days_3d": {"29999": {"first_ms": 95000, "first_deaths": 3, "best_ms": 95000, "best_deaths": 3, "runs": 1}},
+			"streak": {"last": 29999, "length": 2, "best": 5}, "random_best": {"5:1": 50000, "5:1:3d": 70000}}))
+	file.close()
+	var day := 30000
+	var run := {"mode": "daily", "view": "3d", "shape": "branching", "day": day, "seed": 1, "difficulty": 1, "time_ms": 120000, "deaths": 4,
+			"plan": "p", "stone": "s", "ticks": 7200, "goal_ms": 60000, "splits": []}
+	var first := TombDaily.keep(run)
+	run["time_ms"] = 110000
+	run["deaths"] = 1
+	var second := TombDaily.keep(run)
+	var through := run.duplicate()
+	through["shape"] = "line"
+	through["time_ms"] = 90000
+	var walked_too := TombDaily.keep(through)
+	var kept := TombDaily.load_all()
+	var branching := TombDaily.day_record(day, "3d", "branching")
+	var own: bool = int(branching.get("first_ms", 0)) == 120000 and int(branching.get("best_ms", 0)) == 110000 and int(branching.get("best_deaths", -1)) == 1 and int(branching.get("runs", 0)) == 2 \
+			and first["first"] and not second["first"] and second["best"]
+	var apart: bool = int(TombDaily.day_record(day, "3d").get("best_ms", 0)) == 90000 and walked_too["first"] and TombDaily.day_record(day, "side").is_empty() \
+			and TombDaily.day_record(day, "side", "branching") == branching
+	var old: bool = int(kept["days"]["29998"]["best_ms"]) == 70000 and int(kept["days"]["29998"]["runs"]) == 2 and int(kept["days"]["29999"]["best_ms"]) == 61000 and (kept["days"] as Dictionary).size() == 2 \
+			and int(kept["days_3d"]["29999"]["best_ms"]) == 95000 and (kept["days_3d"] as Dictionary).size() == 2
+	# (the day after the last kept: the run of days goes on from it, once, whichever of the three it was)
+	var runs_on: bool = int(first["streak"]) == 3 and int(second["streak"]) == 3 and int(walked_too["streak"]) == 3 and int(kept["streak"]["best"]) == 5
+	var practice := {"mode": "random", "view": "3d", "shape": "branching", "day": 0, "seed": 5, "difficulty": 1, "time_ms": 99000, "deaths": 0}
+	var practice_first: bool = TombDaily.keep(practice)["best"]
+	var bests: Dictionary = TombDaily.load_all()["random_best"]
+	var practice_apart: bool = practice_first and int(bests.get("5:1", 0)) == 50000 and int(bests.get("5:1:3d", 0)) == 70000 and int(bests.get("5:1:branching", 0)) == 99000
+	var said := TombDaily.share_text(run)
+	var sent := TombDaily.submission(run)
+	var plain := TombDaily.submission(through)
+	var says: bool = "branching" in said and not "walked through" in said and sent.get("shape", "") == "branching" and int(sent["generator"]) == TombBranching.VERSION \
+			and not plain.has("shape") and int(plain["generator"]) == TombGenerator.VERSION
+	DirAccess.remove_absolute(TombDaily.path)
+	TombDaily.path = was
+	print("  the day's tomb that branches: it has its own first and best: %s; the other two are as they were: %s; days kept before it are not disturbed: %s; one run of days: %s; practice bests %s; the line to send (\"%s\") and the record say which: %s" % [
+			own, apart, old, runs_on, "are kept apart" if practice_apart else "RAN TOGETHER", said, says])
+	if not (own and apart and old and runs_on and practice_apart and says):
+		failed = true
+
+
+# The map on the HUD. In a tomb that branches it is there, and as the tomb is
+# played through by the solver's way it shows the rooms he has stood in and no
+# others, a way once he has been at one end of it, and a bar on every way whose
+# door is still shut and on none that is open. A touch makes it large, and
+# another small. A tomb down one axis has no map.
+func _map_shows() -> void:
+	print("MAP: the map of a tomb that branches, as it is played through")
+	var asked := [branch, walked]
+	branch = true
+	walked = true
+	TombLevel.bare = true
+	var sound := true
+	for tomb: Array in [[1, 2], [3, 1]]:
+		await _open(tomb[0], tomb[1])
+		var plan := level.plan
+		var map := level._map
+		if map == null:
+			print("  seed %d: THERE IS NO MAP" % tomb[0])
+			failed = true
+			level.get_parent().queue_free()
+			await _wait(5)
+			continue
+		await _wait(10)
+		var start := TombMap.shown(layout3, level._seen, level._open)
+		var only_court: bool = start["rooms"] == [plan.entrance()] and (start["ways"] as Array).size() == 1 and not start["ways"][0][1]
+		var wrong := 0
+		var barred_most := 0
+		var opened := {}
+		var was_barred := {}
+		var stopped := ""
+		for i in plan.solution.size():
+			if not await _do_step(plan.solution[i]):
+				stopped = "step %d (%s)" % [i + 1, TombSolver.words(plan, plan.solution[i])]
+				break
+			await _wait(3)
+			var what := TombMap.shown(layout3, level._seen, level._open)
+			# (what the map shows, held against what the level knows by other means)
+			for room in plan.rooms:
+				if TombLayout3D.is_side(room):
+					continue
+				if (room.id in what["rooms"]) != (level.splits[room.id] != -1):
+					wrong += 1
+			var barred := 0
+			for way: Array in what["ways"]:
+				var link := plan.links[int(way[0])]
+				var done := true
+				for id in link.switches:
+					done = done and level.done[id]
+				if bool(way[1]) != (level.splits[link.a] != -1 and level.splits[link.b] != -1) or bool(way[2]) != (not link.switches.is_empty() and not done):
+					wrong += 1
+				if way[2]:
+					barred += 1
+					was_barred[link.id] = true
+				elif was_barred.has(link.id):
+					opened[link.id] = true
+			barred_most = maxi(barred_most, barred)
+			if map.here != level._room or not (map.here in what["rooms"] or TombLayout3D.is_side(plan.rooms[map.here])):
+				wrong += 1
+		var rooms_seen := (TombMap.shown(layout3, level._seen, level._open)["rooms"] as Array).size()
+		# A touch makes it large, and another small again.
+		var small := map.size
+		var touch_down := InputEventScreenTouch.new()
+		touch_down.pressed = true
+		map._gui_input(touch_down)
+		await _wait(3)
+		var large := map.size
+		map._gui_input(touch_down)
+		await _wait(3)
+		var toggles: bool = large.x > small.x * 2.0 and map.size.is_equal_approx(small) and not map.large
+		print("  seed %d %s: at the start the court alone, and its one way a stub: %s; played %s: %d rooms of %d on squares stood in and on the map, at most %d doors barred at once, %d seen shut and later open; what it showed that it should not, or did not that it should: %d; a touch makes it large and another small: %s" % [
+				tomb[0], TombGenerator.DIFFICULTY_NAMES[tomb[1]], only_court, "through" if stopped == "" else "as far as " + stopped, rooms_seen, layout3.placed().size(), barred_most, opened.size(), wrong, toggles])
+		sound = sound and only_court and stopped == "" and wrong == 0 and toggles and barred_most > 0 and opened.size() > 0
+		level.get_parent().queue_free()
+		await _wait(5)
+	# A tomb down one axis, walked through, has none; a plan handed over with its cells has.
+	branch = false
+	await _open(1, 1)
+	var none := level._map == null
+	level.get_parent().queue_free()
+	await _wait(5)
+	await _open(0, 0, {}, Shapes.branching())
+	var given := level._map != null
+	level.get_parent().queue_free()
+	await _wait(5)
+	branch = asked[0]
+	walked = asked[1]
+	print("  a tomb down one axis, walked through, has no map: %s; a plan that came with its cells has: %s" % [none, given])
+	if not (sound and none and given):
+		failed = true
