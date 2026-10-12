@@ -18,6 +18,15 @@ extends RefCounted
 ## and running out to nothing; a transverse ridge is a long one lying across
 ## the wind and wandering a little. Between dunes the floor is nearly level.
 ##
+## And three more: a barchanoid ridge (`add_barchanoid`), which is crescents
+## joined horn to horn in a scalloped line across the wind; a star dune
+## (`add_star`), which is arms running out from a peak, where the wind comes
+## from all round by turns; and a whole field of any of them (`field`), set out
+## as the wind sets them out: in rows across it, each row a dune's length and
+## some flat ground behind the last, the dunes of one row standing in the gaps
+## of the row before, big dunes far apart and small ones close. `sharp` is how
+## much of a crease the crest is.
+##
 ## `height_at` is a plain function of place: the same answer every time, no
 ## state, so a level can call it for its mesh, its collider and anything it
 ## sets down. `bake` fills a whole grid at once and is much quicker than
@@ -42,6 +51,15 @@ var floor_roll := 0.18
 var floor_span := 23.0
 ## A different number gives a different floor, and different dunes from `scatter`.
 var seed := 1
+## How sharp the crest of a dune is, 0..1. At 0 its back rounds over to level
+## at the brink, as a worn dune's does; at 1 it is still climbing when it gets
+## there (at about 8 degrees, having been 11 at its steepest), and the brink is
+## a crease. Set it before adding dunes.
+var sharp := 0.0
+
+## The ways a field of dunes can be set out (see `field`). (New ones go on the
+## end: levels keep these as numbers.)
+enum Field { SCATTERED, BARCHANS, TRANSVERSE, BARCHANOID, STARS, MIXED }
 
 # Each dune: [frame, brink, heights, bounds]. It is measured in a frame of its
 # own: `along` the wind and `across` it, from a point of its own. The brink is
@@ -99,6 +117,163 @@ func add_ridge(from: Vector2, to: Vector2, height: float, sway := 0.05, wobble :
 	return height
 
 
+## A ridge of crescents joined horn to horn, across the wind from `from` to
+## `to`: each bowed upwind in its middle, where it is highest, with a low
+## saddle and a point downwind where it meets the next. `horns` is how far
+## downwind the points reach, as a share of one crescent's width.
+func add_barchanoid(from: Vector2, to: Vector2, height: float, horns := 0.4, wobble := 0) -> float:
+	var across := Vector2(-wind.y, wind.x)
+	if (to - from).dot(across) < 0.0:
+		var swap := from
+		from = to
+		to = swap
+	var width := (to - from).dot(across)
+	var slant := (to - from).dot(wind)
+	# How many crescents, and where each ends: none quite as wide as the next.
+	var links := maxi(int(round(width / maxf(height * 8.5, 6.0))), 2)
+	var ends := PackedFloat32Array([0.0])
+	for i in range(1, links):
+		ends.append((i + (_hash(wobble * 31 + i, 77) - 0.5) * 0.5) / links)
+	ends.append(1.0)
+	var count := maxi(int(width / 3.5), links * 6)
+	var brink := PackedFloat32Array()
+	var heights := PackedFloat32Array()
+	height = minf(height, SQUAT * width / links * 0.8)
+	var link := 0
+	for i in count + 1:
+		var share := float(i) / count
+		while link < links - 1 and share > ends[link + 1]:
+			link += 1
+		var span := (ends[link + 1] - ends[link]) * width
+		var out := (share - ends[link]) / (ends[link + 1] - ends[link]) * 2.0 - 1.0
+		var tall := height * (0.72 + 0.5 * _hash(wobble * 13 + link, 5))
+		var saddle := 0.4 + 0.25 * _hash(wobble * 7 + link, 19)
+		brink.append(slant * share + horns * span * 1.4 * (1.0 - sqrt(1.0 - 0.92 * out * out)) + (_noise(share * 2.3 + wobble * 3.7, 1.5) - 0.5) * span * 0.5)
+		var run_out := smoothstep(0.0, 0.5 / links, share) * smoothstep(0.0, 0.5 / links, 1.0 - share)
+		heights.append(tall * (saddle + (1.0 - saddle) * pow(1.0 - out * out, 1.2)) * run_out)
+	_add(from, 0.0, width / count, brink, heights)
+	return height
+
+
+## A star dune with its peak at `at`: `arms` crests run out from it, each
+## bending a little, `radius` to their tips. One side of each arm is a slip
+## face and the other a gentle back, so an arm can be walked up to the peak.
+## Says how high it really is.
+func add_star(at: Vector2, radius: float, height: float, arms := 3, wobble := 0) -> float:
+	height = minf(height, radius * 0.2)
+	var lines: Array = []
+	var turned := _hash(wobble * 17 + 3, 41) * TAU
+	for arm in arms:
+		var angle := turned + (arm + (_hash(wobble * 5 + arm, 23) - 0.5) * 0.5) * TAU / arms
+		var curl := (_hash(wobble * 11 + arm, 59) - 0.5) * 1.3
+		var long := radius * (0.7 + 0.3 * _hash(wobble * 3 + arm, 7))
+		var line := PackedVector2Array()
+		for k in 6:
+			var share := k / 5.0
+			line.append(at + Vector2(cos(angle + curl * share), sin(angle + curl * share)) * long * share)
+		lines.append(line)
+	var reach := radius * 1.3
+	_dunes.append([PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array(), Rect2(at - Vector2.ONE * reach, Vector2.ONE * reach * 2.0), [at, radius, height, lines]])
+	return height
+
+
+## Sets out a field of dunes over `area` as the wind does: in rows across it.
+## `kind` is which (`Field`): crescents, long ridges, ridges of linked
+## crescents, stars, or all of them, each where it belongs (crescents where
+## the sand is thin, ridges where there is more). `heights` is the lowest and
+## the highest; `flat` (0..1) how much level ground lies between one row and
+## the next; `thick` how thickly they stand (1: as many as their size calls
+## for). The same numbers and the same `seed` always give the same field.
+## Says how many dunes it made.
+func field(area: Rect2, kind: int, heights := Vector2(2.5, 8.0), flat := 0.35, thick := 1.0) -> int:
+	if thick <= 0.0 or kind == Field.SCATTERED:
+		return 0
+	var across := Vector2(-wind.y, wind.x)
+	var low := Vector2(INF, INF)
+	var high := Vector2(-INF, -INF)
+	for corner: Vector2 in [area.position, Vector2(area.end.x, area.position.y), area.end, Vector2(area.position.x, area.end.y)]:
+		var lies := Vector2(corner.dot(wind), corner.dot(across))
+		low = low.min(lies)
+		high = high.max(lies)
+	var made := 0
+	var row := 0
+	var along := low.x - heights.y * 3.0 * _hash(seed, 911)
+	while along < high.x and row < 400:
+		# (the dunes of a row are much of a size, and the size drifts from row to row)
+		var size := lerpf(heights.x, heights.y, clampf(_noise(row * 0.7 + seed * 5.3, seed * 1.9) * 1.5 - 0.25, 0.0, 1.0))
+		var length := size * BACK + size / tan(REPOSE)
+		var side := low.y - length * 2.0 * _hash(seed * 3 + row, 131)
+		var place := 0
+		while side < high.y and place < 400:
+			var key := seed * 7919 + row * 613 + place * 37
+			var tall := size * (0.7 + 0.6 * _hash(key, 1))
+			var sort := kind
+			if kind == Field.MIXED:
+				# (which sort grows here: it changes across the field, not dune by dune)
+				var middle := wind * along + across * side
+				var sand := _noise(middle.x / 95.0 + seed * 2.1, middle.y / 95.0 - seed * 0.7) + (_hash(key, 2) - 0.5) * 0.25
+				sort = Field.BARCHANS if sand < 0.42 else (Field.BARCHANOID if sand < 0.66 else Field.TRANSVERSE)
+				if _hash(key, 3) < 0.05 and tall > heights.y * 0.6:
+					sort = Field.STARS
+			var width: float
+			match sort:
+				Field.BARCHANS:
+					width = tall * lerpf(7.5, 10.5, _hash(key, 4))
+				Field.TRANSVERSE:
+					width = tall * lerpf(14.0, 24.0, _hash(key, 4))
+				Field.BARCHANOID:
+					width = tall * lerpf(17.0, 30.0, _hash(key, 4))
+				_:
+					width = tall * lerpf(8.0, 10.0, _hash(key, 4))
+			var gap := width * (0.08 + (0.25 + flat * 1.3) * _hash(key, 5)) / thick
+			var at := wind * (along + (_hash(key, 6) - 0.5) * length * 0.5) + across * (side + width * 0.5)
+			if area.has_point(at):
+				var lie := across.rotated((_hash(key, 7) - 0.5) * 0.3)
+				match sort:
+					Field.BARCHANS:
+						add_barchan(at, width, tall, lerpf(0.4, 0.68, _hash(key, 8)), (_hash(key, 9) - 0.5) * 0.7)
+					Field.TRANSVERSE:
+						add_ridge(at - lie * width * 0.5, at + lie * width * 0.5, tall, lerpf(0.03, 0.08, _hash(key, 8)), key & 0xffff)
+					Field.BARCHANOID:
+						add_barchanoid(at - lie * width * 0.5, at + lie * width * 0.5, tall, lerpf(0.3, 0.5, _hash(key, 8)), key & 0xffff)
+					_:
+						add_star(at, width * 0.5, tall * 1.25, 3 + int(_hash(key, 8) * 2.99), key & 0xffff)
+				made += 1
+			side += width + gap
+			place += 1
+		along += length * (0.5 + flat * 1.7) / sqrt(thick)
+		row += 1
+	return made
+
+
+## The same dunes, made lower wherever `share` says: it is given a place on a
+## dune's brink (Vector2) and how far the dune reaches up wind and down from
+## it, and says how much of its height the dune may keep there, 0..1. For
+## running dunes out to nothing at ground that has to stay clear, without
+## moving any of them.
+func lowered(share: Callable) -> SandDunes:
+	var kept := without(func(_bounds: Rect2) -> bool: return false)
+	var across := Vector2(-wind.y, wind.x)
+	for index in kept._dunes.size():
+		var dune: Array = (kept._dunes[index] as Array).duplicate()
+		if dune.size() > 4:
+			var star: Array = (dune[4] as Array).duplicate()
+			star[2] = float(star[2]) * float(share.call(star[0], float(star[1]), float(star[1])))
+			dune[4] = star
+		else:
+			var frame: PackedFloat32Array = dune[0]
+			var brink: PackedFloat32Array = dune[1]
+			var heights: PackedFloat32Array = (dune[2] as PackedFloat32Array).duplicate()
+			var at := Vector2(frame[0], frame[1])
+			var blows := Vector2(frame[2], frame[3])
+			for i in heights.size():
+				if heights[i] > 0.0:
+					heights[i] *= float(share.call(at + across * (frame[4] + frame[5] * i) + blows * brink[i], heights[i] * BACK + 1.5, heights[i] / tan(REPOSE)))
+			dune[2] = heights
+		kept._dunes[index] = dune
+	return kept
+
+
 ## Places `count` dunes in `area` by chance: barchans, big and small, and (a
 ## share `ridges` of them) ridges. `keep_clear`, given a place (Vector2) and a
 ## reach, says whether a dune may not stand there. `heights` is the lowest and
@@ -147,7 +322,7 @@ func height_at(x: float, z: float) -> float:
 	var at := Vector2(x, z)
 	for dune: Array in _dunes:
 		if (dune[3] as Rect2).has_point(at):
-			height = maxf(height, _dune_height(dune[0], dune[1], dune[2], x, z))
+			height = maxf(height, _star_height(dune[4], x, z) if dune.size() > 4 else _dune_height(dune[0], dune[1], dune[2], x, z))
 	return height + floor_at(x, z)
 
 
@@ -159,8 +334,9 @@ func floor_at(x: float, z: float) -> float:
 
 
 ## The heights of a whole grid at once, row by row: `columns` by `rows`
-## corners, `cell` apart, the first at `origin`.
-func bake(origin: Vector2, cell: float, columns: int, rows: int) -> PackedFloat32Array:
+## corners, `cell` apart, the first at `origin`. Without `floor` it is the
+## dunes alone: nought wherever there is none.
+func bake(origin: Vector2, cell: float, columns: int, rows: int, floor := true) -> PackedFloat32Array:
 	var heights := PackedFloat32Array()
 	heights.resize(columns * rows)
 	for dune: Array in _dunes:
@@ -175,10 +351,10 @@ func bake(origin: Vector2, cell: float, columns: int, rows: int) -> PackedFloat3
 		for row in range(first_row, last_row + 1):
 			var z := origin.y + row * cell
 			for column in range(first_column, last_column + 1):
-				var height := _dune_height(frame, brink, tall, origin.x + column * cell, z)
+				var height := _star_height(dune[4], origin.x + column * cell, z) if dune.size() > 4 else _dune_height(frame, brink, tall, origin.x + column * cell, z)
 				if height > heights[row * columns + column]:
 					heights[row * columns + column] = height
-	if floor_roll > 0.0:
+	if floor_roll > 0.0 and floor:
 		for row in rows:
 			for column in columns:
 				heights[row * columns + column] += floor_at(origin.x + column * cell, origin.y + row * cell)
@@ -193,6 +369,7 @@ func without(drop: Callable) -> SandDunes:
 	kept.floor_roll = floor_roll
 	kept.floor_span = floor_span
 	kept.seed = seed
+	kept.sharp = sharp
 	for dune: Array in _dunes:
 		if not drop.call(dune[3]):
 			kept._dunes.append(dune)
@@ -221,7 +398,7 @@ func _add(at: Vector2, first: float, gap: float, brink: PackedFloat32Array, heig
 	var bounds := Rect2(at + across * first + wind * upwind, Vector2.ZERO)
 	for corner: Vector2 in [Vector2(first, downwind), Vector2(last, upwind), Vector2(last, downwind)]:
 		bounds = bounds.expand(at + across * corner.x + wind * corner.y)
-	_dunes.append([PackedFloat32Array([at.x, at.y, wind.x, wind.y, first, gap, reach]), brink, heights, bounds.grow(1.0)])
+	_dunes.append([PackedFloat32Array([at.x, at.y, wind.x, wind.y, first, gap, reach, sharp]), brink, heights, bounds.grow(1.0)])
 
 
 # One dune's height at a place. Upwind of the brink it is the dune's back;
@@ -244,6 +421,10 @@ static func _dune_height(frame: PackedFloat32Array, brink: PackedFloat32Array, h
 		var out := (edge - along) / (height * BACK + 1.5)
 		if out >= 1.0:
 			return 0.0
+		if frame[7] > 0.0:
+			# (a sharper crest: the back is still climbing where it meets the brink)
+			var up := 1.0 - out
+			return height * up * up * (3.0 - frame[7] - (2.0 - frame[7]) * up)
 		return height * (1.0 - out * out * (3.0 - 2.0 * out))
 	var steep := tan(REPOSE)
 	var span := int(frame[6] / gap) + 1
@@ -260,6 +441,35 @@ static func _dune_height(frame: PackedFloat32Array, brink: PackedFloat32Array, h
 		var heap := heights[i] + (heights[i + 1] - heights[i]) * share - steep * sqrt(off_across * off_across + off_along * off_along)
 		if heap > best:
 			best = heap
+	return best
+
+
+# A star dune's height at a place: the highest of what its arms make of it.
+# To one side of an arm's crest the sand lies at the angle it slips at; to the
+# other it falls away gently.
+static func _star_height(star: Array, x: float, z: float) -> float:
+	var at := Vector2(x, z)
+	var height: float = star[2]
+	var steep := tan(REPOSE)
+	var best := 0.0
+	for line: PackedVector2Array in star[3]:
+		var last := line.size() - 1
+		for i in last:
+			var run := line[i + 1] - line[i]
+			var share := clampf((at - line[i]).dot(run) / maxf(run.length_squared(), 0.0001), 0.0, 1.0)
+			var crest := height * pow(1.0 - (i + share) / last, 1.5)
+			if crest <= best:
+				continue
+			var off := at - (line[i] + run * share)
+			var far := off.length()
+			var tall: float
+			if run.x * off.y - run.y * off.x > 0.0:
+				tall = crest - steep * far
+			else:
+				var up := 1.0 - far / (crest * 5.0 + 1.0)
+				tall = crest * up * up * (2.0 - up) if up > 0.0 else 0.0
+			if tall > best:
+				best = tall
 	return best
 
 
