@@ -143,6 +143,10 @@ and keep it in the same form.
   numbers (`scripts/pyramid.gd`), set out three ways: its width, steepness and the height of a course, how much of
   its smooth casing is left, a gold cap, how ruined it is and which ruin, a doorway, and its stone. Move a slider and
   it is built again. (The Great and Ruined pyramids beside them are fixed models.)
+- **Abu Simbel**: on the Stone page, the two temples at their true size (`scripts/abu_simbel.gd`: see Abu Simbel,
+  below): which of them, how far the sand has drifted, how weathered, whether the inside is still painted, and the
+  morning of the sun on its axis. It is on while that sun reaches the sanctuary, so "Choose what works it" on a door
+  or a bridge can pick it. "Size" makes it smaller for anyone who wants that; 1 is the real thing.
 - **Heat**: "Level" also has the heat mirage: how much the distance swims, and whether pools of sky lie on the far
   sand. 0 is none.
 - **People**: townspeople (who, and how far they wander), his brother, a cat, hounds (which give chase when he comes
@@ -363,6 +367,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/desert_terrain.gd` | The desert's ground: dunes, level ground, and water cut into it |
 | `scripts/pyramid.gd` | A pyramid made from numbers: stepped core, smooth casing, gold cap, ruin (fallen corners, rubble, missing and slipped blocks), a doorway; its mesh and what is solid |
 | `scripts/sandstone.gd` | Stone drawn by a shader: blocks in courses, strata, weathering, cracks, rubble; and gold (`Toon.sandstone`, `Toon.gold`) |
+| `scripts/abu_simbel.gd` | The temples of Abu Simbel, set out from the models in `models/abu_simbel/abu_simbel.glb`: what is solid, the sand drift, the writing, the dark inside, the sun down the axis |
+| `tools/build_abu_simbel.py`, `tools/abu_simbel.blend` | The Blender script that makes those models, and the file it saves to look at and change by hand |
 | `scripts/heat_mirage.gd` | Heat over the desert: far things near the level of the eye swim, and pools of sky lie on the far sand |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
 | `scripts/test_yard.gd` | The test yard (`test_yard.tscn`) |
@@ -1131,6 +1137,96 @@ draws the chart and the pictures: slabs near and far, in raking light, in shade,
 How true it is: the signs, their sounds, the dictionary words, the formulas and the way they are packed are real, and
 someone who reads hieroglyphs can read the named texts. English spelled out letter by letter is the modern game of
 writing a name in hieroglyphs, not Egyptian. The hints are composed for the game, in Egyptian words and word order.
+
+## Abu Simbel
+
+The two temples Ramesses II had cut into a sandstone cliff above the Nile in Nubia, at their true size, as they
+stood in the 1910s: by the river, where they were cut (the lake and the move uphill are fifty years off), with the
+sand of the desert above still coming down the gully between them. `AbuSimbel.new()` is the whole place; in the
+level editor it is "Abu Simbel" on the Stone page. The node is on the ground before the door of the Great Temple,
+which looks along +Z (the river and the sunrise); north is +X, and the Small Temple is 100 m that way.
+
+- **The Great Temple.** A hill of rock 46 m high with the facade cut back into it: 35 m wide, 30 high to the top of
+  its cornice, leaning back like a pylon, with the roll round its edge, the row of baboons along the top greeting the
+  sun, and over the door the niche with the falcon-headed Ra-Horakhty. Four seated colossi of the king, 20 m high, in
+  the double crown and the striped headcloth with the false beard, hands on their knees; the queen, the king's mother
+  and a child at the legs of each, and a princess between each pair. The second from the left broke off at the waist
+  in an earthquake a few years after it was made: its body and head lie on the terrace before its feet, face up, with
+  the crown beside them. In front, the terrace with its steps, its balustrade, falcons and small figures of the king.
+- **Inside**, on one line 60 m into the hill and really walked: the great hall (18 m by 16, 10 high) with eight
+  pillars, each the king as Osiris with his arms crossed; a second hall of four square pillars; a vestibule; and the
+  sanctuary, with a block for the god's boat and Ptah, Amun-Ra, the king and Ra-Horakhty sitting on a bench against the
+  far wall. Four long store-rooms open off the first hall. It is dark, lit from the door, less the further in; a torch
+  lights it as it would a tomb. The long walls carry the battle of Kadesh, and the ceilings are a night sky, if
+  "painted". The king's names are on the facade, down the door, and on the pillars.
+- **The Small Temple**, of Hathor and Nefertari: six standing colossi 10 m high in niches between leaning buttresses,
+  the king four times and the queen twice, and she as tall as he is, which is the remarkable thing about it. A hall of
+  six pillars with the head of Hathor, a vestibule, and a sanctuary where the cow of Hathor comes out of the rock.
+- **The sand** (`drift`): at 0 a heap up in the gully; at a half a fan that has reached the terrace; at 1 it lies
+  across the north of the great facade, the northern colossi are in it to the chest, and the door is all but shut:
+  he walks up it and goes in on his hands and knees under the lintel, as Belzoni did in 1817. A ramp of blown sand up
+  the back of the hill is the way to its top.
+- **The sun on its axis** (`sun_on_axis`): on two mornings a year the rising sun shines down the whole length of the
+  temple onto three of the four gods; Ptah, a god of the dark, stays in shadow. The light is a `SunBeam`, a metre
+  above the floor, and whatever stands in its way stops it: sand in the door, a door a level's maker hangs there, the
+  boy. While it reaches the sanctuary the temple is on (`changed`), and works whatever a pressure plate works.
+- **Climbing.** The pedestals, the feet, what fell (three blocks, the body, the face) and the balustrade are ledges
+  he can catch. The laps are 8 m up and the shoulders 13: a `GrapplePoint` at the knees and one at a shoulder of each
+  colossus are the way there. Nothing between a colossus's legs and the wall can be got into: it is all one block.
+- **For a level's maker**: `Marker3D`s named GreatDoor, GreatHall, GreatSanctuary, GreatTop and SmallDoor, SmallHall,
+  SmallSanctuary, SmallTop, in the groups `abu_simbel_door`, `abu_simbel_hall`, `abu_simbel_sanctuary`,
+  `abu_simbel_top`. `rock()` is the one place its rock's material comes from, for another to be put in.
+
+**The models.** The stone is made in Blender, by a script, so that it can be looked at and changed:
+
+```
+blender --background --python tools/build_abu_simbel.py              # everything again from the numbers in the script
+blender --background tools/abu_simbel.blend --python tools/build_abu_simbel.py -- export
+                                                                     # only write the .glb again, after changing the .blend by hand
+godot --headless --path . --import
+```
+
+`tools/abu_simbel.blend` has every part as an object with a plain name, the parts of each temple lying where they
+belong and the figures in rows out in front; `models/abu_simbel/abu_simbel.glb` is the same, for the game, which
+finds each part by its name: `colossus`, `colossus_broken`, `colossus_fallen`, `crown_fallen`, `small_figure`,
+`baboon`, `falcon`, `ra_horakhty`, `king_standing`, `queen_standing`, `osiride_pillar`, `square_pillar`,
+`hathor_pillar`, `god_ptah`, `god_amun`, `god_king`, `god_ra`, `cow`, `great_hill`, `small_hill`, `ridge`,
+`great_facade`, `small_facade`, `great_inside`, `small_inside` (the top of the script says what each is, and
+how it must lie). A shape may be changed freely in the .blend. What is solid is not in the models: the script
+`scripts/abu_simbel.gd` makes it from boxes, from the same measurements as the Blender script (so a part that is
+moved or made a different size wants the number changed in both), and takes the skin of the hills from the model as
+it is. The colour of each point is read by the stone shader (red: how light; green: laid in courses, or inside, a
+wall that carries the battle; blue: rough rock, or inside, a half for a ceiling), and must not go above 1.
+
+**What it costs**, at true size with both temples: about 40,000 triangles outside and 18,000 inside (which are only
+drawn while the camera is within about 100 m of a temple's door), before Godot's own coarser versions of each mesh
+for distance; 52 draw calls at most, 30 of them writing that is only drawn from near; 265 shapes to collide with.
+It is made in about 70 ms (the first one, which loads the models, in about 280). The colossi are one mesh drawn three
+times and a broken one; pillars, baboons and the small temple's figures are each one mesh drawn many times.
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/abu_simbel_test.gd
+godot --path . --resolution 1280x800 --script tools/abu_simbel_sheets.gd -- <folder> [figures] [whole] [inside] [drift]
+```
+
+The first walks him in at both doors to both sanctuaries, in over the sand at a half and at 1, up the ramp to the
+top, throws him at the colossi, what fell and the pillars from many sides to see that he is never inside stone, and
+checks the sun and the switch. The second takes the pictures (add `--rendering-method gl_compatibility` for the
+web's renderer), and prints what it costs. There is no station for it in the test yard: it is too big.
+
+How true it is. True: where everything is and how big (the facades, the colossi, the halls and their order, the
+number of pillars, who sits in the sanctuary and which of them the sun misses, the six colossi of the small temple
+and their order, the broken colossus and where it lies, the baboons, the niche, the sand from the north). Made
+simpler: the hill is a rounded mass in level beds, not the real cliff; the figures are plain, with no carving on
+thrones or kilts and none of the bound captives along the bases; the great temple has four store-rooms where there
+are eight, and the two chapels off the vestibule and the two outside are left out; the floors do not rise nor the
+ceilings come down towards the sanctuary as the real ones do; the battle on the walls is rows of soldiers, chariots
+and the king, not the scenes as they are; the small temple's pillars and sanctuary are plainer than the real ones;
+and the writing is the king's names and the stock formulas, not what is carved there. The two temples are set as
+they lie to each other only roughly. Below about three quarters of its size the doors get too low and narrow for him.
+A good place for it in the desert level would be the far north-west, beyond the dunes, with a river or a long pond
+laid along its east side for the Nile: it wants 250 m of level ground from north to south and 200 from the back of its
+ramp to the water. It has not been put there: the ground of that level is being changed.
 
 ## Tombs
 
