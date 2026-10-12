@@ -42,8 +42,11 @@ func run() -> void:
 	await leg("shrine to fallen obelisk", Vector3(-112, 0, -20), Vector3(-100, 0, 56))
 	await leg("fallen obelisk to camp", Vector3.INF, Vector3(-62, 0, 96))
 	await leg("outpost to start", Vector3(105, 0, 143), Vector3(4, 0, 160))
-	await leg("start to the far north-west", Vector3(0, 0, 165), Vector3(-150, 0, -150))
-	await leg("north-west to north-east, behind the pyramid", Vector3.INF, Vector3(150, 0, -165))
+	# (the far north-west is the Valley of the Kings now, and a cliff stands along the north edge)
+	await leg("start to the mouth of the valley", Vector3(0, 0, 165), Vector3(-126, 0, -62))
+	await leg("up the valley to its head", Vector3.INF, Vector3(-130, 0, -138))
+	await leg("the valley to the north-east, before the cliff", Vector3(-126, 0, -62), Vector3(120, 0, -148))
+	await leg("start to the chalk rocks", Vector3(0, 0, 165), Vector3(-150, 0, 100))
 
 	# The sphinx: onto a paw from the side, then the shoulder, then the back
 	print("SPHINX")

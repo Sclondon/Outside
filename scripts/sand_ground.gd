@@ -593,6 +593,23 @@ func paint_line(kind: int, from: Vector2, to: Vector2, width: float, amount := 1
 	_kinds_stale |= 1 << (kind / 4)
 
 
+## Paints a kind over the whole ground at once: `shares` is how much of it
+## lies at every corner of the grid (0..255), row by row, as `build` takes
+## heights. Where more was painted already, that is kept.
+func paint_all(kind: int, shares: PackedByteArray) -> void:
+	_size_kinds()
+	@warning_ignore("integer_division")
+	var kinds := _kinds[kind / 4]
+	if shares.size() * 4 != kinds.size():
+		return
+	var channel := kind % 4
+	for i in shares.size():
+		if shares[i] > kinds[i * 4 + channel]:
+			kinds[i * 4 + channel] = shares[i]
+	@warning_ignore("integer_division")
+	_kinds_stale |= 1 << (kind / 4)
+
+
 # --- Pressing into it ---
 
 ## A footprint at a point in the world: `yaw` is which way the toe points

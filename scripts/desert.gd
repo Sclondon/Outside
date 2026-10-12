@@ -179,6 +179,10 @@ func reshape() -> void:
 			make(item)
 		else:
 			put(item)
+	# (rock stands on the ground as it finds it: it is made again on the new ground)
+	for item: Dictionary in layout["items"]:
+		if item["kind"] in DesertScenery.KINDS:
+			make(item)
 	_weather()
 
 
@@ -202,6 +206,10 @@ func _made(item: Dictionary) -> Node3D:
 			return Pyramid.from_item(item)
 		"abusimbel":
 			return AbuSimbel.from_item(item)
+
+		# Living rock: cliffs, rocks and fields of them, the Valley of the Kings, a tomb doorway (`scripts/desert_scenery.gd`).
+		"cliff", "rock", "rocks", "valley", "tomb_door":
+			return DesertScenery.made(item, self)
 		"train":
 			# A train (`scripts/train.gd`): the plates linked to it start and stop it.
 			return Train.from_item(item, func(id: int) -> Node: return nodes.get(id))
@@ -601,6 +609,7 @@ func _weather() -> void:
 	wind.direction = terrain.wind
 	add_child(wind)
 	mirage.wind = wind
+	DesertScenery.dress(self)
 	var sand := terrain.ground as SandGround
 	if sand == null:
 		return

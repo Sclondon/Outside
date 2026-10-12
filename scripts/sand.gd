@@ -77,7 +77,7 @@ uniform float grain = 0.13;
 uniform float patch = 0.05;
 uniform float ripple = 0.035;
 uniform float ripple_relief = 0.5;
-uniform float ripple_gap = 0.3;
+uniform float ripple_gap = 0.34;
 // How bright a glint is, how nearly a grain must face the light to show one
 // (nearer 1: fewer), and how far the grains are tipped from the surface.
 uniform float sparkle = 2.2;
@@ -213,6 +213,17 @@ float cracks(vec2 p) {
 		}
 	}
 	return sqrt(second) - sqrt(first);
+}
+
+// One wind ripple, at a share of the way from one trough to the next: how
+// high it stands there (-1..1), and how it slopes along the wind. Its back
+// is long and its lee side short, so the lee is a thin dark line.
+// (No sines: this is the same on every phone.)
+vec2 ripple_of(float share) {
+	float back = 0.74;
+	float part = share < back ? share / back : (1.0 - share) / (1.0 - back);
+	float rate = share < back ? 1.0 / back : -1.0 / (1.0 - back);
+	return vec2(part * part * (3.0 - 2.0 * part) * 2.0 - 1.0, 6.0 * part * (1.0 - part) * rate);
 }
 
 void vertex() {
@@ -357,14 +368,24 @@ void fragment() {
 	// their lines bent by the rise of the ground and a little by chance.
 	float rippled = (1.0 - slip) * (1.0 - packed) * (1.0 - 0.75 * coarse) * (1.0 - 0.6 * damp) * (1.0 - smoothstep(0.1, 0.2, steep)) * step(soft, 0.0);
 	rippled *= (1.0 - hard) * (1.0 - snowy);
-	rippled *= clamp(ripple_gap * 0.22 / reach - 0.5, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.25, 0.6, lesser + pale * 0.4));
+	rippled *= clamp(ripple_gap * 0.18 / reach - 0.5, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.25, 0.6, lesser + pale * 0.4));
 	float wave = 0.0;
 	if (rippled > 0.0) {
-		float along = dot(at.xz, blows) + at.y * 0.55;
-		float bent = patches(at.xz * 0.23 + 4.0) * 2.4 + patches(at.xz * 0.9) * 0.5;
-		float turn = (along / ripple_gap + bent) * TAU;
-		wave = sin(turn + 0.5 * sin(turn)) * rippled;
-		float tilt = cos(turn + 0.5 * sin(turn)) * (1.0 + 0.5 * cos(turn)) * rippled * ripple_relief;
+		// (measured along the wind and across it; and over the ground, not up
+		// it, so that they do not break where one piece of a slope meets the next)
+		vec2 lie = vec2(dot(at.xz, blows), dot(at.xz, vec2(-blows.y, blows.x)));
+		float bent = patches(lie * vec2(0.8, 0.21) + 4.0) * 1.7 + patches(lie * vec2(0.3, 0.07) + 9.0) * 2.2;
+		// There are two sets of them, one a little closer together than the
+		// other, each lying in patches longer across the wind than along it.
+		// Where one gives way to the other a ripple runs into the next and
+		// ends, or one becomes two: they fork and join.
+		float other = smoothstep(0.4, 0.6, patches(lie * vec2(0.8, 0.26) + 31.0) + (patches(lie * vec2(1.9, 0.6)) - 0.5) * 0.3);
+		float turn = lie.x / ripple_gap + bent;
+		vec2 one = ripple_of(fract(turn));
+		vec2 two = ripple_of(fract(turn * 1.25 + 0.37));
+		vec2 both = mix(one, two, other) * rippled;
+		wave = both.x;
+		float tilt = both.y * 0.26 * ripple_relief;
 		if (detail > 0.5) {
 			up = normalize(up - vec3(blows.x, 0.0, blows.y) * tilt);
 		} else {

@@ -15,7 +15,13 @@ extends StaticBody3D
 ## level editor saves; `layout_file` has the editor here do the same.
 ##
 ## The dunes are `SandDunes` (crescents and ridges shaped by `wind`): see
-## `dunes_at`. In the game the ground is drawn by a `SandGround` (the `ground`
+## `dunes_at`. `dunes` says how they are set out: scattered by chance, as they
+## always were (0, and what a level has that does not say), or as a field in
+## rows across the wind, of one kind or of all (`SandDunes.Field`); `sharp` is
+## how much of a crease their crests are, and `flat` how much level ground
+## lies between the rows. In a field the flat ground between dunes is harder
+## and paler (it is painted so), and a dune runs out to nothing where it would
+## stand on a pad, a pond, a cliff or a field of rocks. In the game the ground is drawn by a `SandGround` (the `ground`
 ## here), which takes footprints and follows the player with a fine mesh; it
 ## is given these heights and this node keeps the collider. In the editor,
 ## where only tool scripts run, it is drawn as plain pieces of mesh instead:
@@ -72,6 +78,23 @@ extends StaticBody3D
 	set(value):
 		scatter = maxf(value, 0.0)
 		queue_rebuild()
+## How the dunes are set out (`SandDunes.Field`): 0 scattered by chance, 1
+## crescents, 2 long ridges across the wind, 3 ridges of linked crescents, 4
+## star dunes, 5 all of them, each where it belongs.
+@export_range(0, 5) var dunes := 0:
+	set(value):
+		dunes = clampi(value, 0, 5)
+		queue_rebuild()
+## How sharp the crests are, 0..1 (see `SandDunes.sharp`).
+@export_range(0.0, 1.0) var sharp := 0.0:
+	set(value):
+		sharp = clampf(value, 0.0, 1.0)
+		queue_rebuild()
+## In a field of dunes: how much level ground lies between one row and the next, 0..1.
+@export_range(0.0, 1.0) var flat := 0.35:
+	set(value):
+		flat = clampf(value, 0.0, 1.0)
+		queue_rebuild()
 ## A layout to take its shape from when the scene opens (the game gives it
 ## one itself: see `scripts/desert.gd`).
 @export_file("*.json") var layout_file := ""
@@ -79,6 +102,8 @@ extends StaticBody3D
 
 ## In the game: what draws the ground (see `SandGround`). None in the editor.
 var ground: Node3D
+## How long the ground last took to make, in thousandths of a second.
+var made_in := 0.0
 
 ## How many squares a side each piece of the mesh is: what is behind the camera
 ## is then not drawn.
@@ -88,6 +113,10 @@ const CHUNK := 20
 const FAR_STRIDE := 4
 const FAR_SKIRT := 2.5
 const FAR_MARGIN := 12.0
+## Ground that is spoken for (see `_claimed`) is kept on a grid this many squares a side, and dunes run out to
+## nothing over this many metres as they come to it.
+const CLAIM_SIDE := 128
+const CLAIM_FADE := 9.0
 
 # Each pad: [world-to-pad Transform3D, half size, round, ease, height]
 var _pads: Array = []
@@ -99,6 +128,14 @@ var _extra: Array = []
 # (from the ground at its first point), bank, bounds, level (worked out), id].
 var _carves: Array = []
 var _dunes: SandDunes
+# Ground that dunes keep off besides the pads and ponds: [middle, how far round it].
+var _clear: Array = []
+# And where things stand, which a field of dunes leaves room for: the same.
+var _stand: Array = []
+# The heights as last made, corner by corner, and how the grid lies: what `height_at` reads.
+var _grid := PackedFloat32Array()
+var _grid_side := 0
+var _grid_step := 1.0
 var _made: Array[Node] = []
 var _wait := -1.0
 
@@ -152,8 +189,22 @@ func sand_material() -> Material:
 
 # --- Height ---
 
-## How high the ground stands at a place (in this node's own space).
+## How high the ground stands at a place (in this node's own space): once it
+## has been made, exactly what is stood on there.
 func height_at(x: float, z: float) -> float:
+	if _grid_side > 1:
+		var across := clampf((x + size * 0.5) / _grid_step, 0.0, _grid_side - 1.0001)
+		var down := clampf((z + size * 0.5) / _grid_step, 0.0, _grid_side - 1.0001)
+		var corner := int(down) * _grid_side + int(across)
+		var part := Vector2(across - int(across), down - int(down))
+		var a := _grid[corner]
+		var d := _grid[corner + _grid_side + 1]
+		# (each square is two triangles, split the way the collider splits it)
+		if part.x > part.y:
+			var b := _grid[corner + 1]
+			return a + part.x * (b - a) + part.y * (d - b)
+		var c := _grid[corner + _grid_side]
+		return a + part.y * (c - a) + part.x * (d - c)
 	var height := _dry_at(x, z)
 	for carve: Array in _carves:
 		if (carve[5] as Rect2).has_point(Vector2(x, z)):
@@ -181,11 +232,18 @@ func shape_from(layout: Dictionary) -> void:
 	rim_height = own.get("rim_height", rim_height)
 	rim_width = own.get("rim_width", rim_width)
 	scatter = own.get("scatter", scatter)
+	# (a level from before there were kinds of dune has them as they were: scattered, and round at the crest)
+	dunes = int(own.get("dunes", 0))
+	sharp = own.get("sharp", 0.0 if dunes == 0 else 0.8)
+	flat = own.get("flat", 0.35)
 	var blows: Array = own.get("wind", [wind.x, wind.y])
 	wind = Vector2(blows[0], blows[1])
 	var pads: Array = []
 	_extra.clear()
 	_carves.clear()
+	_clear.clear()
+	_stand.clear()
+	_grid_side = 0
 	for item: Dictionary in layout.get("items", []):
 		var at := Vector2(item["at"][0], item["at"][1])
 		var yaw := deg_to_rad(item.get("yaw", 0.0))
@@ -193,6 +251,33 @@ func shape_from(layout: Dictionary) -> void:
 			"pad":
 				pads.append([Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, item.get("y", 0.0), at.y)),
 						Vector2(item.get("half_x", 10.0), item.get("half_z", 10.0)), item.get("round", false), item.get("ease", 10.0)])
+			"dune" when item.get("what", "") == "star":
+				_extra.append(["star", at, item.get("width", 60.0), item.get("height", 8.0), int(item.get("arms", 3)), int(item.get("id", 0))])
+			"dune" when item.get("what", "") == "linked":
+				var lie: Vector2 = Vector2(sin(yaw), cos(yaw)) * float(item.get("length", 120.0)) * 0.5
+				_extra.append(["linked", at - lie, at + lie, item.get("height", 6.0), int(item.get("id", 0))])
+			# Rock (see `scripts/desert_scenery.gd`): the valley stands on level ground of its own, and dunes keep off all of it.
+			"valley":
+				var reach: float = item.get("size", 1.0)
+				pads.append([Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, item.get("y", 0.0), at.y)), Vector2(62.0, 82.0) * reach, false, 14.0])
+			"cliff":
+				var long: float = item.get("length", 80.0)
+				if item.get("what", "") == "mesa":
+					_clear.append([at, float(item.get("width", 40.0)) * 0.6 + 10.0])
+				else:
+					for part in 5:
+						_clear.append([at + Vector2(cos(yaw), -sin(yaw)) * long * (part / 4.0 - 0.5), float(item.get("depth", 10.0)) + 8.0])
+			"rocks":
+				_clear.append([at, float(item.get("radius", 40.0)) * 0.9])
+			"rock":
+				_clear.append([at, float(item.get("size", 4.0)) * 1.5])
+			# And whatever else stands in the level: a field of dunes leaves it room (dunes scattered by chance never did).
+			"pyramid":
+				_stand.append([at, float(item.get("base", 40.0)) * 0.72 + 3.0])
+			"pool":
+				_stand.append([at, maxf(item.get("size_x", 6.0), item.get("size_z", 6.0)) * 0.7 + 2.0])
+			"prop", "thing", "person", "door", "mover", "plate", "train", "start", "checkpoint", "ladder", "inscription":
+				_stand.append([at, 2.0 * float(item.get("scale", 1.0))])
 			"dune":
 				_extra.append(["dune", at, item.get("width", 40.0), item.get("height", 5.0), item.get("horns", 0.55)])
 			"ridge":
@@ -248,6 +333,7 @@ func _carved(height: float, carve: Array, x: float, z: float) -> float:
 ## [the pad's transform, half size, round, ease]. For tools that lay a level out.
 func use_pads(pads: Array) -> void:
 	_given = true
+	_grid_side = 0
 	_pads.clear()
 	for pad: Array in pads:
 		var place: Transform3D = pad[0]
@@ -261,14 +347,42 @@ func _make_dunes() -> void:
 	var all := SandDunes.new()
 	all.wind = wind
 	all.seed = seed
+	all.sharp = sharp
 	var scale := dune_height / 4.5
 	var reach := size * 0.5 - rim_width * 0.5
+	var pads := _pads
+	var carves := _carves
+	var clear := _clear
+	if dunes != SandDunes.Field.SCATTERED:
+		# A field of them, in rows across the wind. Where one would stand on ground
+		# that has to stay clear it runs out to nothing, and the rest of it stays.
+		if scatter > 0.0 and dune_height > 0.0:
+			all.field(Rect2(-reach, -reach, reach * 2.0, reach * 2.0), dunes, Vector2(1.6, 6.2) * scale, flat, scatter)
+		var blows := all.wind
+		var claimed := _claimed()
+		var across := CLAIM_SIDE
+		var square := size / across
+		var edge := size * 0.5
+		_dunes = all.lowered(func(point: Vector2, back: float, front: float) -> float:
+			var most := 0.0
+			var from := point - blows * back * 0.3
+			var to := point + blows * front
+			for part in 5:
+				var at := from.lerp(to, part / 4.0)
+				var column := clampi(int((at.x + edge) / square), 0, across - 1)
+				var row := clampi(int((at.y + edge) / square), 0, across - 1)
+				most = maxf(most, claimed[row * across + column])
+			return 1.0 - most)
+		_add_extra()
+		return
 	var count := int(size * size / 5200.0 * scatter)
 	if count > 0:
 		all.scatter(Rect2(-reach, -reach, reach * 2.0, reach * 2.0), count, Vector2(2.2, 7.5) * scale, Callable(), 0.25)
-	var pads := _pads
-	var carves := _carves
 	_dunes = all.without(func(bounds: Rect2) -> bool:
+		# (nor on rock)
+		for zone: Array in clear:
+			if bounds.grow(zone[1] - minf(bounds.size.x, bounds.size.y) * 0.22).has_point(zone[0]):
+				return true
 		for pad: Array in pads:
 			var middle: Vector3 = (pad[0] as Transform3D).affine_inverse().origin
 			var room: float = (pad[1] as Vector2).length() + pad[3] * 0.5
@@ -279,12 +393,57 @@ func _make_dunes() -> void:
 			if (carve[0] as PackedVector2Array).size() == 1 and bounds.grow(carve[1] - minf(bounds.size.x, bounds.size.y) * 0.22).has_point(carve[0][0]):
 				return true
 		return false)
-	# Those placed by hand stand wherever they were put.
+	_add_extra()
+
+
+# How much of the ground is spoken for, 0..1, over a coarse grid of the whole
+# of it: 1 on a pad, a pond or rock, falling to nothing a little way off.
+# Dunes of a field run out to nothing where it is 1.
+func _claimed() -> PackedFloat32Array:
+	var claimed := PackedFloat32Array()
+	claimed.resize(CLAIM_SIDE * CLAIM_SIDE)
+	var square := size / CLAIM_SIDE
+	var edge := size * 0.5
+	# Each: [middle, how far round it is spoken for, the pad if it is one]
+	var zones: Array = []
+	for pad: Array in _pads:
+		var middle: Vector3 = (pad[0] as Transform3D).affine_inverse().origin
+		zones.append([Vector2(middle.x, middle.z), (pad[1] as Vector2).length() + pad[3] * 0.4, pad])
+	for carve: Array in _carves:
+		for point: Vector2 in carve[0]:
+			zones.append([point, carve[1] + carve[4], null])
+	for zone: Array in _clear + _stand:
+		zones.append([zone[0], zone[1], null])
+	for zone: Array in zones:
+		var middle: Vector2 = zone[0]
+		var reach: float = zone[1] + CLAIM_FADE
+		for row in range(maxi(int((middle.y - reach + edge) / square), 0), mini(int((middle.y + reach + edge) / square) + 1, CLAIM_SIDE)):
+			for column in range(maxi(int((middle.x - reach + edge) / square), 0), mini(int((middle.x + reach + edge) / square) + 1, CLAIM_SIDE)):
+				var x := (column + 0.5) * square - edge
+				var z := (row + 0.5) * square - edge
+				var off: float
+				if zone[2] != null:
+					off = _away(zone[2], x, z) - (zone[2] as Array)[3] * 0.4
+				else:
+					off = Vector2(x, z).distance_to(middle) - zone[1]
+				var share := 1.0 - smoothstep(0.0, CLAIM_FADE, off)
+				if share > claimed[row * CLAIM_SIDE + column]:
+					claimed[row * CLAIM_SIDE + column] = share
+	return claimed
+
+
+# Those placed by hand stand wherever they were put.
+func _add_extra() -> void:
 	for dune: Array in _extra:
-		if dune[0] == "dune":
-			_dunes.add_barchan(dune[1], dune[2], dune[3], dune[4])
-		else:
-			_dunes.add_ridge(dune[1], dune[2], dune[3], 0.05, int(absf(dune[1].x * 3.0 + dune[1].y)))
+		match dune[0]:
+			"dune":
+				_dunes.add_barchan(dune[1], dune[2], dune[3], dune[4])
+			"star":
+				_dunes.add_star(dune[1], dune[2] * 0.5, dune[3], dune[4], dune[5])
+			"linked":
+				_dunes.add_barchanoid(dune[1], dune[2], dune[3], 0.4, dune[4])
+			_:
+				_dunes.add_ridge(dune[1], dune[2], dune[3], 0.05, int(absf(dune[1].x * 3.0 + dune[1].y)))
 
 
 # Dunes and the rim, before any pad.
@@ -293,14 +452,17 @@ func _open_at(x: float, z: float) -> float:
 	return dunes_at(x, z) * (1.0 - rim * rim) + rim_height * rim
 
 
-func _pressed(height: float, pad: Array, x: float, z: float) -> float:
+# How far outside a pad a place is.
+func _away(pad: Array, x: float, z: float) -> float:
 	var local: Vector3 = (pad[0] as Transform3D) * Vector3(x, 0.0, z)
 	var half: Vector2 = pad[1]
-	var away: float
 	if pad[2]:
-		away = maxf(Vector2(local.x / half.x, local.z / half.y).length() - 1.0, 0.0) * minf(half.x, half.y)
-	else:
-		away = Vector2(maxf(absf(local.x) - half.x, 0.0), maxf(absf(local.z) - half.y, 0.0)).length()
+		return maxf(Vector2(local.x / half.x, local.z / half.y).length() - 1.0, 0.0) * minf(half.x, half.y)
+	return Vector2(maxf(absf(local.x) - half.x, 0.0), maxf(absf(local.z) - half.y, 0.0)).length()
+
+
+func _pressed(height: float, pad: Array, x: float, z: float) -> float:
+	var away := _away(pad, x, z)
 	if away >= pad[3]:
 		return height
 	return lerpf(pad[4], height, smoothstep(0.0, pad[3], away))
@@ -326,6 +488,7 @@ func _gather_pads() -> void:
 ## Makes the ground again: mesh, collider, the wall round it and the apron.
 func rebuild() -> void:
 	_wait = -1.0
+	var began := Time.get_ticks_usec()
 	for old in _made:
 		old.queue_free()
 	_made.clear()
@@ -337,11 +500,19 @@ func rebuild() -> void:
 	var step := size / count
 	var half := size * 0.5
 	# Heights: the open sand everywhere, then each pad over the part it reaches.
+	# (the dunes all at once, which is much quicker than asking `dunes_at` corner by
+	# corner; then the floor between them and the rim, as `_open_at` has them)
+	var bare := _dunes.bake(Vector2(-half, -half), step, side, side, false)
 	var heights := PackedFloat32Array()
 	heights.resize(side * side)
+	var sunk := 0.2 * dune_height
+	var rim_from := half - rim_width
 	for row in side:
+		var z := row * step - half
 		for column in side:
-			heights[row * side + column] = _open_at(column * step - half, row * step - half)
+			var x := column * step - half
+			var rim := smoothstep(rim_from, half, maxf(absf(x), absf(z)))
+			heights[row * side + column] = (bare[row * side + column] + _dunes.floor_at(x, z) - sunk) * (1.0 - rim * rim) + rim_height * rim
 	for pad: Array in _pads:
 		var middle: Vector3 = (pad[0] as Transform3D).affine_inverse().origin
 		var reach: float = (pad[1] as Vector2).length() + pad[3] + step
@@ -356,6 +527,9 @@ func rebuild() -> void:
 		for row in range(maxi(int((bounds.position.y + half) / step), 0), mini(int((bounds.end.y + half) / step) + 2, side)):
 			for column in range(maxi(int((bounds.position.x + half) / step), 0), mini(int((bounds.end.x + half) / step) + 2, side)):
 				heights[row * side + column] = _carved(heights[row * side + column], carve, column * step - half, row * step - half)
+	_grid = heights
+	_grid_side = side
+	_grid_step = step
 	if Engine.is_editor_hint():
 		var material := sand_material()
 		for chunk_row in range(0, count, CHUNK):
@@ -374,12 +548,36 @@ func rebuild() -> void:
 	ground.set(&"casts_shadow", false)
 	_keep(ground)
 	ground.call(&"build", heights)
+	if dunes != SandDunes.Field.SCATTERED:
+		# In a field of dunes the flat ground between them is swept bare: harder
+		# and paler than the dunes, in ragged patches.
+		var packed := PackedByteArray()
+		packed.resize(side * side)
+		var pale := PackedByteArray()
+		pale.resize(side * side)
+		for row in side:
+			var z := row * step - half
+			for column in side:
+				var at := row * side + column
+				if bare[at] > 0.7:
+					continue
+				var x := column * step - half
+				var pan := (1.0 - smoothstep(0.05, 0.7, bare[at])) * (0.5 + 0.5 * smoothstep(0.3, 0.7, SandDunes._noise(x / 9.0 + seed, z / 9.0) * 0.4 + SandDunes._noise(x / 47.0, z / 47.0 - seed) * 0.6))
+				pan *= 1.0 - smoothstep(rim_from - 10.0, rim_from + 10.0, maxf(absf(x), absf(z)))
+				packed[at] = int(pan * 80.0)
+				pale[at] = int(pan * 230.0)
+		ground.call(&"paint_all", Sand.Kind.PACKED, packed)
+		ground.call(&"paint_all", Sand.Kind.PALE, pale)
+		for at in packed.size():
+			packed[at] = packed[at] * 3 / 4
+		ground.call(&"paint_all", Sand.Kind.WHITE, packed)
 	# Where a pad is the sand is trodden: harder, and it takes less of a print.
 	for pad: Array in _pads:
 		var middle: Vector3 = global_transform * (pad[0] as Transform3D).affine_inverse().origin
 		var across: Vector2 = pad[1]
 		ground.call(&"paint", Sand.Kind.PACKED, Vector2(middle.x, middle.z), minf(across.x, across.y) * 0.8, 0.55, 4.0)
 	_add_collider(heights, side, step)
+	made_in = (Time.get_ticks_usec() - began) / 1000.0
 
 
 func _keep(node: Node) -> void:
