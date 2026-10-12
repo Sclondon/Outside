@@ -85,6 +85,8 @@ const PALETTE := {
 		["Crocodile", "person", "crocodile"],
 		["Birds", "person", "birds"],
 		["Medjed", "person", "medjed"],
+
+		["Ba (spirit bird)", "person", "ba"],
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
@@ -172,6 +174,12 @@ const FIELDS := {
 		["reach", "Sees this far", "n", 2.0, 30.0, 0.5, 9.0], ["warning", "Warning, seconds", "n", 0.2, 3.0, 0.05, 0.6],
 		["unseen", "Unseen: only eyes and feet", "b", false], ["follows", "Comes to look", "b", false], ["roam", "No further from his post than", "n", 0.0, 12.0, 0.5, 3.0],
 		["links", "Eyes shut by", "links"], ["wakes", "Shut until then", "b", false]],
+
+	# The Ba (`scripts/ba.gd`): it leads him along its line of points (`points`, as a river's are; the first is where it sits),
+	# or with one point only sits and watches, or shyly flits about. What it is linked to makes it appear.
+	"person:ba": [["shy", "Shy: flits about (if it leads nowhere)", "b", false], ["near", "Flies on when he is within", "n", 1.5, 12.0, 0.5, 4.0],
+		["hop", "Flies ahead at most", "n", 3.0, 30.0, 1.0, 10.0], ["patience", "Comes back for him after (seconds)", "n", 4.0, 60.0, 1.0, 14.0],
+		["leaves", "Goes when it has led him there", "b", false], ["links", "Called by", "links"], ["stays", "Stays once it has come", "b", true]],
 	"plate": [["span_x", "Width", "n", 0.6, 8.0, 0.1, 1.6], ["span_z", "Length", "n", 0.6, 8.0, 0.1, 1.6], ["latches", "Stays down", "b", false], ["only_him", "Only he presses it", "b", false]],
 	# --- More puzzle parts. What is on or off, and so works what a plate works: a lever (`Lever`), a lock that has been
 	# given its key (`KeyLock`, `DoorKey`: `which` is the metal, in the order of `DoorKey.Metal`), a plate that stays down
@@ -292,6 +300,8 @@ static func new_item(layout: Dictionary, kind: String, what: String, at: Vector2
 				item[field[0]] = field[4]
 			"links":
 				item[field[0]] = []
+	if kind == "person" and what == "ba":
+		item["points"] = [item["at"], [item["at"][0] + 8.0, item["at"][1]]]
 	if kind == "river":
 		item["points"] = [item["at"], [item["at"][0] + 30.0, item["at"][1]]]
 	return item

@@ -60,6 +60,9 @@ const SPHINXES := Rect2(-85, -12, 15, 14)
 
 ## Khepri's court (`KhepriCourt`), out beyond the rest in the south-west corner: its middle, and how far the level ground runs each way.
 const KHEPRI_COURT := Rect2(-78, 78, 8.5, 8.5)
+
+## The Ba's station: level ground out beyond the rest, to the north (the middle of it, and how far it runs each way).
+const BA_FLAT := Rect2(-4, -76, 16, 7)
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
 ## far it runs each way (it is level, like a patch of `FLATS`), and how far it
 ## is from the middle of one kind to the middle of the next.
@@ -135,6 +138,8 @@ func _ready() -> void:
 	_build_sphinx(Vector3(SPHINXES.position.x, 0.0, SPHINXES.position.y))
 
 	_build_khepri(Vector3(KHEPRI_COURT.position.x, 0.0, KHEPRI_COURT.position.y))
+
+	_build_ba(Vector3(BA_FLAT.position.x, 0.0, BA_FLAT.position.y))
 	_settle_in.call_deferred()
 
 
@@ -209,6 +214,9 @@ func _shaped(dunes: float, x: float, z: float) -> float:
 	# (Khepri's court is further out than the rest)
 	var court := (Vector2(x, z) - KHEPRI_COURT.position).abs() - KHEPRI_COURT.size
 	level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(court.x, 0.0), maxf(court.y, 0.0)).length()))
+
+	var by_ba := (Vector2(x, z) - BA_FLAT.position).abs() - BA_FLAT.size
+	level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(by_ba.x, 0.0), maxf(by_ba.y, 0.0)).length()))
 	var rim := 5.0 * smoothstep(YARD - 30.0, YARD, maxf(absf(x), absf(z)))
 	var open := dunes * level + rim - hollow
 	# The pond: a dish in the sand, its rim at the level of the water.
@@ -958,6 +966,41 @@ walk through the webs, or hold the torch to them", 3.8)
 	var drape: Cobweb = hang.call(Cobweb.Kind.DRAPE, Vector3(-4.2, 0.0, 0.0), 0.0)
 	drape.over = Vector3(0.95, 1.15, 0.95)
 	drape.dust = 0.7
+
+
+## The Ba (`scripts/ba.gd`), out beyond the rest to the north. One waits at the west end to lead him
+## round a wall to a block at the far side; walk off the other way and it calls, then comes back for him.
+## A shy one sits about on three posts at the east end. One plate calls a third out of the air onto its
+## pillar, and sends it off again; the other has that one show the way round the wall, and come back.
+func _build_ba(at: Vector3) -> void:
+	_mark_here(at + Vector3(-13.0, 0.0, 4.5), "THE BA
+walk up to it: it flies ahead, and waits
+hang back and it calls, then comes for you
+the plates: call one out of the air  ·  have it show the way", 3.8)
+	_solid(at + Vector3(-4.0, 1.5, 0.5), Vector3(0.6, 3.0, 8.0), PROP.darkened(0.15))
+	_solid(at + Vector3(4.5, 0.6, -3.5), Vector3(1.2, 1.2, 1.2), PROP)
+	var guide := Ba.new()
+	guide.route = [at + Vector3(-6.5, 0.0, 6.0), at + Vector3(-1.0, 0.0, 6.0), at + Vector3(1.5, 0.0, 0.5), at + Vector3(4.5, 1.3, -3.5)]
+	guide.position = at + Vector3(-10.0, 0.0, 1.5)
+	add_child(guide)
+	_puzzle_resets.append(guide.reset)
+	# The shy one, and what it sits on
+	for post: Vector3 in [Vector3(8.0, 1.6, 4.5), Vector3(11.5, 2.2, 1.0), Vector3(8.5, 1.1, -2.5)]:
+		_solid(at + Vector3(post.x, post.y * 0.5, post.z), Vector3(0.5, post.y, 0.5), PROP.darkened(0.06))
+	var shy_one := Ba.new()
+	shy_one.shy = true
+	shy_one.roam = 7.0
+	shy_one.position = at + Vector3(9.0, 0.0, 1.5)
+	add_child(shy_one)
+	# The one that is called
+	_solid(at + Vector3(-9.0, 0.45, -4.5), Vector3(0.6, 0.9, 0.6), PROP)
+	var spirit := Ba.new()
+	spirit.on = false
+	spirit.position = at + Vector3(-9.0, 0.95, -4.5)
+	add_child(spirit)
+	_switch(at + Vector3(-12.5, 0.0, -4.5), func() -> void: spirit.on = not spirit.on)
+	_switch(at + Vector3(-12.5, 0.0, -1.5), func() -> void:
+		spirit.show_way(PackedVector3Array([at + Vector3(-6.5, 0.0, 6.0), at + Vector3(-1.0, 0.0, 6.0), at + Vector3(1.5, 0.0, 0.5)])))
 
 
 # --- The puzzle parts (two stations: `_build_puzzles` in the west, `_build_light_and_water` in the east) ---
