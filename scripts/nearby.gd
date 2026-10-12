@@ -29,6 +29,22 @@ static func fires(tree: SceneTree) -> Array[Node3D]:
 	return _fires
 
 
+## Everything that what fears fire keeps away from: every fire and flare, and
+## whatever else gives a light it cannot bear (the group `sunlight`: the sun
+## that `Khepri` rolls). Those are not fires: they burn no web and light no
+## torch or oil, which is why they are not in `fires`.
+static func feared(tree: SceneTree) -> Array[Node3D]:
+	var burning := fires(tree)
+	var suns := tree.get_nodes_in_group(&"sunlight")
+	if suns.is_empty():
+		return burning
+	var all: Array[Node3D] = burning.duplicate()
+	for sun: Node in suns:
+		if sun is Node3D:
+			all.append(sun)
+	return all
+
+
 ## The player, if there is one.
 static func player(tree: SceneTree) -> Player:
 	_watch(tree)

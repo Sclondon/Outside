@@ -93,6 +93,8 @@ const PALETTE := {
 		["Oil jar", "oil_jar", ""], ["Oil spill", "oil_spill", ""], ["Fire dish", "oil_mark", ""],
 		["Torch to carry", "torch", ""], ["Grappling hook", "grapple", ""], ["Grapple point", "grapple_point", ""], ["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
 		["Scarab amulet", "amulet", ""], ["Scarab socket", "plate", "scarab"],
+		# Khepri (`scripts/khepri.gd`): the scarab that rolls the sun over a floor of squares, and the horizon it is to be brought to.
+		["Khepri and the sun", "khepri", ""], ["Horizon (akhet)", "akhet", ""],
 	],
 	"Guns": [
 		["Revolver", "thing", "revolver"], ["Rifle", "thing", "rifle"], ["Shotgun", "thing", "shotgun"], ["Flare pistol", "thing", "flare_pistol"],
@@ -207,6 +209,11 @@ const FIELDS := {
 	# A scarab of gold to carry, and the stone it is laid in, which is a plate that only it presses.
 	"amulet": [],
 	"plate:scarab": [["latches", "Stays on", "b", true]],
+	# Khepri and the sun (`Khepri`): which side it turns to when its way is shut (in the order of `Khepri.Turns`), how fast it rolls,
+	# whether it goes from the start, and what lets it go. The horizon (`Akhet`) is a trigger: on for good once the sun is in it.
+	"khepri": [["turns", "Turns to its", "c", ["Right", "Left"], 0], ["pace", "Pace", "n", 0.3, 3.0, 0.1, 1.0], ["step", "Size of a square", "n", 0.5, 2.0, 0.25, 1.0],
+		["starts_itself", "Starts itself", "b", false], ["back", "Turns back from a dead end", "b", true], ["links", "Let go by", "links"]],
+	"akhet": [["rise", "The sun rises", "n", 0.3, 2.0, 0.05, 0.55]],
 	# Cobwebs (`scripts/cobweb.gd`).
 	"cobweb:corner": [["size", "Size", "n", 0.3, 3.0, 0.05, 1.0], ["height", "Height of the corner", "n", 0.0, 8.0, 0.05, 2.4], ["tilt_x", "Tip forward", "n", -180.0, 180.0, 1.0, 0.0],
 		["dust", "Dust", "n", 0.0, 1.0, 0.05, 0.45], ["seed", "Which web", "n", 0.0, 99.0, 1.0, 1.0]],

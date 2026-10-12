@@ -43,6 +43,7 @@ const DOT := {
 	"river": Color(0.4, 0.75, 0.95), "pool": Color(0.4, 0.75, 0.95), "person": Color(0.95, 0.5, 0.5), "plate": Color(0.7, 0.95, 0.5),
 	"door": Color(0.7, 0.95, 0.5), "mover": Color(0.7, 0.95, 0.5), "thing": Color(0.85, 0.6, 0.95), "checkpoint": Color(1.0, 1.0, 1.0), "start": Color(1.0, 1.0, 1.0),
 	"lever": Color(0.7, 0.95, 0.5), "lock": Color(0.7, 0.95, 0.5), "sundisc": Color(0.7, 0.95, 0.5), "offering": Color(0.7, 0.95, 0.5), "brazier": Color(0.7, 0.95, 0.5),
+	"khepri": Color(1.0, 0.8, 0.3), "akhet": Color(0.7, 0.95, 0.5),
 	"sluice": Color(0.7, 0.95, 0.5), "beam": Color(1.0, 0.92, 0.55), "mirror": Color(1.0, 0.92, 0.55), "key": Color(1.0, 0.92, 0.55),
 }
 ## What only changes the ground: there is no node to move, the ground is made again.
@@ -679,6 +680,9 @@ func _is_trigger(item: Dictionary) -> bool:
 	if item["kind"] in ["oil_spill", "oil_mark", "oil_jar"]:
 		return true
 	if item["kind"] == "plate":
+		return true
+	# (the horizon: on once Khepri has brought the sun to it)
+	if item["kind"] == "akhet":
 		return true
 	if item["kind"] in PUZZLE_TRIGGERS:
 		return true

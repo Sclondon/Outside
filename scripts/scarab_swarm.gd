@@ -904,7 +904,7 @@ func _gather_fires() -> void:
 	if not fears_fire or harmless:
 		return
 	var limit := chase_distance + 8.0
-	for fire in Nearby.fires(get_tree()):
+	for fire in Nearby.feared(get_tree()):
 		if not is_instance_valid(fire) or not fire.is_inside_tree():
 			continue
 		var at := fire.global_position
