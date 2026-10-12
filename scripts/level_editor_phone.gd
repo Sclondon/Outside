@@ -366,6 +366,8 @@ func _status() -> String:
 		"place":
 			return "%s: tap the ground where it goes. Or bring the cross there and tap Put here." % String(editor._armed[0])
 		"thing":
+			if editor.chosen.has("points") and editor.chosen.get("kind", "") != "river":
+				return "The %s is chosen. Drag any of the points of its way to move it." % name
 			if editor.chosen.get("kind", "") == "river":
 				return "The river is chosen. Drag any of its points to move it."
 			return "The %s is chosen. Drag it by its ring, or tap another thing." % name
@@ -378,7 +380,7 @@ func _status() -> String:
 			var works := editor.worked_by(editor.chosen).size()
 			return "Tap each door, bridge or other ringed thing the %s should work. Tap one again to undo it. %s" % [name, "None yet." if works == 0 else "%d so far." % works]
 		"points":
-			return "Tap where the river goes next. Or bring the cross there and tap Add here."
+			return "Tap where %s goes next. Or bring the cross there and tap Add here." % ("the river" if editor.chosen.get("kind", "") == "river" else "it")
 		"view":
 			return "One finger drags the ground, two pinch and turn. Or use these (hold one to keep going)."
 		"number":
@@ -549,7 +551,7 @@ func _sheet_thing() -> void:
 	var item := editor.chosen
 	row.add_child(_tile("Move", "move", _show.bind("move"), 120.0))
 	row.add_child(_tile("Change", "change", _open_change.bind(false), 120.0))
-	if item["kind"] == "river":
+	if item.has("points"):
 		row.add_child(_tile("Points", "points", _show.bind("points"), 120.0))
 	for field: Array in LevelLayout.fields(item):
 		if field[2] == "links":
@@ -619,12 +621,12 @@ func _sheet_points() -> void:
 	var item := editor.chosen
 	row.add_child(_tile("Add here", "here", func() -> void: editor._tapped(editor.size * 0.5), 150.0))
 	row.add_child(_tile("Take the last away", "remove", func() -> void:
-		if (item["points"] as Array).size() > 2:
+		if (item["points"] as Array).size() > (2 if item["kind"] == "river" else 1):
 			editor._remember()
 			(item["points"] as Array).pop_back()
 			editor._changed(item, "points")
 		else:
-			editor._say("A river has two points at the least."), 150.0))
+			editor._say("A river has two points at the least." if item["kind"] == "river" else "That is the last of them: it is where it sits."), 150.0))
 	_close_sheet()
 
 

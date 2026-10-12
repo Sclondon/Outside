@@ -158,6 +158,10 @@ func forget(id: int) -> void:
 ## Moves an item's node to where the item now says it is.
 func put(item: Dictionary) -> void:
 	var node: Node3D = nodes.get(item["id"])
+	# (a Ba is made again: its way is laid from where it stands)
+	if node is Ba:
+		make(item)
+		return
 	if node and not (node is Pool):
 		node.global_transform = Transform3D(turn_of(item), place_of(item))
 		if node.has_meta(&"home"):
@@ -442,6 +446,8 @@ func _person(item: Dictionary, who: String) -> Node3D:
 			crocodile.docile = item.get("docile", false)
 			crocodile.reach = item.get("reach", 5.0)
 			return crocodile
+		"ba":
+			return Ba.from_item(item, height_at)
 		"birds":
 			var birds := Birds.new()
 			birds.kind = int(item.get("bird", 1)) as Birds.Kind
@@ -613,7 +619,11 @@ func _physics_process(delta: float) -> void:
 		var near := at.distance_to(node.global_position) < float(item.get("alert", 0.0))
 		if node is ScarabSwarm and worked and not _player.is_limp:
 			(node as ScarabSwarm).chasing = true
-		if node is Door:
+		if node is Ba:
+			# (it comes when what it is linked to is on; with nothing linked it is there from the start)
+			if not links.is_empty():
+				(node as Ba).on = worked or ((node as Ba).on and bool(item.get("stays", true)))
+		elif node is Door:
 			(node as Door).is_open = worked
 		elif node is SandFall:
 			(node as SandFall).running = bool(item.get("running", true)) != worked

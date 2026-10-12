@@ -383,7 +383,7 @@ func _status_line() -> String:
 		"move":
 			return "Touch where it should go."
 		"point":
-			return "Touch where the river goes next."
+			return "Touch where the river goes next." if chosen.get("kind", "") == "river" else "Touch where it goes next."
 		"link":
 			return "Touch the plates and targets that work it. Touch Done when finished."
 	if _shape_in >= 0.0:
@@ -542,7 +542,7 @@ func ground_under(screen: Vector2) -> Vector3:
 func _grab(screen: Vector2) -> String:
 	if chosen.is_empty() or _next != "":
 		return ""
-	if chosen["kind"] == "river":
+	if chosen.has("points"):
 		var points: Array = chosen["points"]
 		for i in points.size():
 			var at := Vector3(points[i][0], level.height_at(points[i][0], points[i][1]), points[i][1])
@@ -593,7 +593,7 @@ func _tapped(screen: Vector2) -> void:
 				return
 			_remember()
 			var by := Vector2(at.x, at.z) - Vector2(chosen["at"][0], chosen["at"][1])
-			if chosen["kind"] == "river":
+			if chosen.has("points"):
 				for point: Array in chosen["points"]:
 					point[0] = snappedf(point[0] + by.x, 0.01)
 					point[1] = snappedf(point[1] + by.y, 0.01)
@@ -664,7 +664,7 @@ func _pick(screen: Vector2, ground: Vector3, only := Callable()) -> Dictionary:
 			continue
 		var room := _radius(item)
 		var off := spot.distance_to(Vector2(item["at"][0], item["at"][1]))
-		if item["kind"] == "river":
+		if item.has("points"):
 			var points: Array = item["points"]
 			for i in points.size() - 1:
 				off = minf(off, spot.distance_to(Geometry2D.get_closest_point_to_segment(spot, Vector2(points[i][0], points[i][1]), Vector2(points[i + 1][0], points[i + 1][1]))))
@@ -887,7 +887,7 @@ func nudge(way: Vector2) -> void:
 	if chosen.is_empty():
 		return
 	var by := (Vector2(cos(_yaw), -sin(_yaw)) * way.x + Vector2(sin(_yaw), cos(_yaw)) * way.y) * _nudge
-	if chosen["kind"] == "river":
+	if chosen.has("points"):
 		for point: Array in chosen["points"]:
 			point[0] = snappedf(point[0] + by.x, 0.01)
 			point[1] = snappedf(point[1] + by.y, 0.01)
@@ -1000,14 +1000,14 @@ func _show_inspector() -> void:
 		_number("Turned", item, "yaw", -180.0, 180.0, 1.0)
 	if not item.has("y") and not item["kind"] in GROUND_KINDS:
 		_number("Above the ground", item, "lift", -8.0, 30.0, 0.05)
-	if item["kind"] == "river":
+	if item.has("points"):
 		var points := HFlowContainer.new()
 		points.add_theme_constant_override("h_separation", 5)
 		_inspector.add_child(points)
 		points.add_child(_button("Add points...", func() -> void: _next = "point"))
 		points.add_child(_button("Done", func() -> void: _next = ""))
 		points.add_child(_button("Take the last away", func() -> void:
-			if (item["points"] as Array).size() > 2:
+			if (item["points"] as Array).size() > (2 if item["kind"] == "river" else 1):
 				_remember()
 				(item["points"] as Array).pop_back()
 				_changed(item, "points")))
@@ -1201,13 +1201,15 @@ func _draw_overlay() -> void:
 				for way: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
 					ring.append(Vector3(corner.x + way.x * half.x, item["y"], corner.y + way.y * half.y))
 				_outline(ring, colour, is_chosen)
+		if item.has("points") and item["kind"] != "river":
+			_draw_way(item, colour, is_chosen)
 		if is_chosen:
 			# (the ring it is dragged by: wider for a thumb, with arrows to say so)
 			var ring := 46.0 if phone else 28.0
 			over.draw_arc(at, ring, 0.0, TAU, 40, Color(0, 0, 0, 0.55), 6.0, true)
 			over.draw_arc(at, ring, 0.0, TAU, 40, Color(1, 1, 1, 0.95), 3.0, true)
 			over.draw_circle(at, 9.0, colour)
-			if phone and item["kind"] != "river":
+			if phone and not item.has("points"):
 				for way: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
 					var tip := at + way * (ring + 15.0)
 					var across := Vector2(-way.y, way.x) * 9.0
@@ -1243,6 +1245,21 @@ func _draw_overlay() -> void:
 		return
 	over.draw_line(centre + Vector2(-9, 0), centre + Vector2(9, 0), Color(1, 1, 1, 0.4), 1.5)
 	over.draw_line(centre + Vector2(0, -9), centre + Vector2(0, 9), Color(1, 1, 1, 0.4), 1.5)
+
+
+# The way a thing leads along (a Ba's): a line of points, as a river's is, each a knob to drag when it is chosen.
+func _draw_way(item: Dictionary, colour: Color, is_chosen: bool) -> void:
+	var line: Array = []
+	for point: Array in item["points"]:
+		line.append(_on_ground(Vector2(point[0], point[1])))
+	if line.size() > 1:
+		_outline(line, colour, is_chosen, false)
+	if is_chosen:
+		for point: Vector3 in line:
+			if not cam.is_position_behind(point):
+				var knob := 26.0 if phone else 15.0
+				_overlay.draw_circle(cam.unproject_position(point), knob, Color(colour, 0.9))
+				_overlay.draw_arc(cam.unproject_position(point), knob, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 3.0 if phone else 2.0, true)
 
 
 # The line between a thing and what works it (bolder on a phone, to be seen out of doors).
