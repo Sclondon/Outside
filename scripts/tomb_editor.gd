@@ -116,7 +116,7 @@ func _ready() -> void:
 
 
 ## Whether the editor is to be laid out for a phone: where the touch controls
-## are shown (as `TouchControls` decides: a touch screen, or the web build), or
+## are shown (as `TouchControls.wanted` decides: a phone or a tablet, or once a finger has been on the screen), or
 ## where it is asked for (`layout`, or `-- phone` and `-- desk` on the command line).
 static func wants_phone() -> bool:
 	if layout != "":
@@ -126,7 +126,7 @@ static func wants_phone() -> bool:
 		return true
 	if "desk" in args:
 		return false
-	return DisplayServer.is_touchscreen_available() or OS.has_feature("web")
+	return TouchControls.wanted()
 
 
 # --- The tomb itself

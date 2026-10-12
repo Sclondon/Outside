@@ -114,12 +114,12 @@ func _ready() -> void:
 
 
 ## Whether the editor should be laid out for a phone: wherever the touch controls are shown (`TouchControls`: a
-## touch screen, or the web), or when `-- phone` is on the command line; and never when `-- desk` is.
+## phone or a tablet, or once a finger has been on the screen), or when `-- phone` is on the command line; and never when `-- desk` is.
 static func wants_phone() -> bool:
 	var asked := OS.get_cmdline_user_args()
 	if asked.has("desk"):
 		return false
-	return asked.has("phone") or DisplayServer.is_touchscreen_available() or OS.has_feature("web")
+	return asked.has("phone") or TouchControls.wanted()
 
 
 ## Opens it: the game stops, and the view goes up over where he is.

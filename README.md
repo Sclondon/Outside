@@ -11,6 +11,8 @@ inside the game, and the test yard (`test_yard.tscn`), where every mechanic has 
 - Touch: drag anywhere on the left half to move (a gentle push walks, a full push runs, and held there he sprints); two small buttons bottom right
   duck and act (pick up / throw); tap anywhere else on the right
   to jump, hold for a higher jump.
+  The stick and buttons are drawn on a phone or a tablet, and anywhere else only once a finger has been on the screen
+  (`TouchControls.wanted`): with a mouse and keys, or a gamepad, there is nothing over the picture.
 - Keyboard: WASD or arrows, Space to jump, C or Ctrl to duck, E or F to act, Shift to walk, R to drop him as a ragdoll
   and stand him back up. Gamepads work too.
 
@@ -266,7 +268,7 @@ godot --path . --resolution 960x960 --script tools/terrain_sheets.gd -- <folder>
 
 In the desert, the notebook (top right), Places, then "Edit this level". The game stands still and the view goes up over him.
 
-It is laid out two ways. Where there is a touch screen, and on the web (wherever the touch controls are shown), it is
+It is laid out two ways. On a phone or a tablet, in the game or in its browser (wherever the touch controls are shown), it is
 laid out for a phone held sideways: see "The level editor on a phone", below. Elsewhere it has panels for a desk, which
 are what the rest of this part describes. `-- phone` on the command line asks for the first anywhere, `-- desk` for
 the second. They are one editor (`scripts/level_editor.gd`) with two screens, do the same things to the same level,
@@ -2353,7 +2355,7 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   forbidden.
 - **The tomb editor on a phone** (`TombPhoneUI`, `scripts/tomb_phone_ui.gd`) is the same editor with other things to
   touch, for a phone held on its side and worked with two thumbs. It is what `tomb_editor.tscn` opens as wherever the
-  touch controls are shown (a touch screen, or the web build: `TombEditor.wants_phone`), and anywhere with `-- phone`
+  touch controls are shown (a phone or a tablet, or once a finger has been on the screen: `TombEditor.wants_phone`), and anywhere with `-- phone`
   on the command line (`-- desk` for the other, which is what is described above and is as it was). Nothing in it is
   smaller than 88 by 88 of the 720 the screen is high (about 8 mm on a 6 inch phone) or nearer than 12 to the next
   thing, no words are smaller than 26, and nothing stands within 48 of the left and right edges or 24 of the bottom.
