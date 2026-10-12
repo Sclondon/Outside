@@ -49,8 +49,6 @@ const LIFT := 0.45
 const ROOM := 0.28
 ## How it holds its body on a perch (tipped up), radians.
 const UPRIGHT := -0.87
-## How much bigger than life its head is: it is drawn so, and it has to be known for a man's from a way off.
-const HEAD := 1.2
 
 ## The places to lead him through, in order, in the world. (Empty: any Marker3D children are the places.)
 @export var route: Array[Vector3] = []
@@ -156,6 +154,9 @@ var _halo_material: ShaderMaterial
 var _lamp: OmniLight3D
 var _sound: AudioStreamPlayer3D
 var _wing_sound: AudioStreamPlayer3D
+# Where a wing is hinged to the body, and its outer half to its inner (from the model).
+var _shoulder := Vector3.ZERO
+var _wrist := Vector3.ZERO
 
 # Its sounds, made once for every Ba.
 static var _sounds := {}
@@ -1027,10 +1028,10 @@ func _pose(delta: float) -> void:
 	var tip := 0.75 * _beat * sin(_phase - 1.1) - 0.2 * _beat
 	for i in 2:
 		var side := 1.0 if i == 0 else -1.0
-		_roots[i].position = Vector3(side * (BaMesh.SHOULDER.x - 0.004 * fold), BaMesh.SHOULDER.y + 0.025 * fold, BaMesh.SHOULDER.z)
+		_roots[i].position = Vector3(side * (_shoulder.x - 0.004 * fold), _shoulder.y + 0.025 * fold, _shoulder.z)
 		_wings[i].basis = (Basis(Vector3.BACK, -fold * 1.45) * Basis(Vector3.UP, fold * 0.55) * Basis(Vector3.BACK, swing * _spread)).scaled(Vector3.ONE * (1.0 - 0.2 * fold))
 		_tips[i].basis = Basis(Vector3.UP, fold * 1.1) * Basis(Vector3.BACK, tip * _spread)
-		_tips[i].position = Vector3(BaMesh.ARM, 0.006 * fold, 0.0)
+		_tips[i].position = Vector3(_wrist.x, 0.006 * fold, 0.0)
 
 	# Its head is its own: level whatever the body does, and turned to him.
 	var gaze_to := Vector2.ZERO
@@ -1050,7 +1051,7 @@ func _pose(delta: float) -> void:
 			_glance = Vector2(_dice.randf_range(-wide, wide), _dice.randf_range(-0.08, 0.08))
 		gaze_to += _glance
 	_gaze = _gaze.lerp(gaze_to, minf(delta * 7.0, 1.0))
-	_neck.global_basis = (Basis(Vector3.UP, _heading + _gaze.x) * Basis(Vector3.RIGHT, _gaze.y)).scaled(Vector3.ONE * HEAD)
+	_neck.global_basis = (Basis(Vector3.UP, _heading + _gaze.x) * Basis(Vector3.RIGHT, _gaze.y))
 
 	_legs.position = Vector3(0.0, 0.0, 0.0).lerp(Vector3(0.0, 0.17, -0.05), 1.0 - _legs_out)
 	_legs.basis = Basis(Vector3.RIGHT, (1.0 - _legs_out) * 1.25).scaled(Vector3.ONE * lerpf(0.75, 1.0, _legs_out))
@@ -1069,11 +1070,13 @@ func _pose(delta: float) -> void:
 
 func _build() -> void:
 	_material = BaMesh.material()
+	_shoulder = BaMesh.at("wing_arm")
+	_wrist = BaMesh.at("wing_hand")
 	_pivot = Node3D.new()
 	add_child(_pivot)
 	_part(_pivot, "body")
 	_neck = Node3D.new()
-	_neck.position = BaMesh.NECK
+	_neck.position = BaMesh.at("head")
 	_pivot.add_child(_neck)
 	_part(_neck, "head")
 	for side: float in [1.0, -1.0]:
@@ -1081,14 +1084,14 @@ func _build() -> void:
 		var root := Node3D.new()
 		root.scale = Vector3(side, 1.0, 1.0)
 		_pivot.add_child(root)
-		var wing := _part(root, "arm_wing")
-		var tip := _part(wing, "hand_wing")
-		tip.position = Vector3(BaMesh.ARM, 0.0, 0.0)
+		var wing := _part(root, "wing_arm")
+		var tip := _part(wing, "wing_hand")
+		tip.position = Vector3(_wrist.x, 0.0, 0.0)
 		_roots.append(root)
 		_wings.append(wing)
 		_tips.append(tip)
 	_arms = _part(_pivot, "arms")
-	_arms.position = BaMesh.CHEST
+	_arms.position = BaMesh.at("arms")
 	_legs = _part(self, "legs")
 	# The light round it, and the light it sheds: pale, and not a fire.
 	_halo_material = BaMesh.halo()
