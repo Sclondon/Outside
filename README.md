@@ -369,7 +369,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/pyramid.gd` | A pyramid made from numbers: stepped core, smooth casing, gold cap, ruin (fallen corners, rubble, missing and slipped blocks), a doorway; its mesh and what is solid |
 | `scripts/sandstone.gd` | Stone drawn by a shader: blocks in courses, strata, weathering, cracks, rubble; and gold (`Toon.sandstone`, `Toon.gold`) |
 | `scripts/sphinx.gd` | A sphinx: a statue to climb on that wakes when he comes between its paws, asks a riddle, is on for good when it is given the thing that answers it, knocks a wrong thing away, and can lie buried in sand until something clears it |
-| `scripts/sphinx_mesh.gd` | Its stone, carved from numbers: the lion, and a king's, a ram's or a falcon's head; and what of it is solid |
+| `scripts/sphinx_mesh.gd` | Its stone: puts together the things of the model a sphinx wants (the lion, and a king's, a ram's or a falcon's head), at its size and as worn as it is; and what of it is solid |
+| `tools/build_sphinx.py` | Builds the sphinx in Blender (`tools/sphinx.blend`, `models/sphinx.glb`): one metre long, separate named things and named materials, no bones |
 | `tools/sphinx_test.gd`, `tools/sphinx_sheets.gd` | Not part of the game: run the sphinx with nothing drawn and say what happened; and draw it |
 | `scripts/heat_mirage.gd` | Heat over the desert: far things near the level of the eye swim, and pools of sky lie on the far sand |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
@@ -1536,9 +1537,52 @@ have asked anything but that the sand be cleared. The riddles here are written f
 Egyptian wisdom texts (short sayings, things that speak for themselves), and so are the glowing eyes, the paw that
 moves, and the way in through its chest (though people have looked for one in the Great Sphinx for centuries).
 
-What it costs: about 3,000 triangles for a king (the beasts fewer), built in code when it enters the level
-(`scripts/sphinx_mesh.gd`), in five draws bare (body, the paw that moves, head, two eyes) besides the slab and stele,
-with one light that is on only while its eyes are; painted, a few more.
+**The model** is `models/sphinx.glb`, built in Blender by `tools/build_sphinx.py`, which also keeps
+`tools/sphinx.blend` to look at and change by hand. It is one metre long, lying on the ground and facing the game's
++Z (Blender's -Y), and has no bones: it is separate things, each named for what it is, and a thing that turns has its
+origin where it is hinged, so moving an origin moves the joint.
+
+| In the model | What it is |
+| --- | --- |
+| `base` | The block it lies on (0.1 thick in the model; the game makes it as thick as suits the size) |
+| `body` | The lion: trunk with its shoulders, ribs and spine, the two haunches, the hind paws, the tail round the right haunch; and the way through it from chest to rump, which is always there |
+| `chest_plug`, `rump_plug` | The stone that shuts each end of that way in a sphinx that does not open itself |
+| `passage_frames` | The frame round each end of it in one that does |
+| `foreleg` | The right foreleg, the one that sweeps the slab: its origin is the elbow. The left is the same turned over (`foreleg_mirror` is only there to be looked at) |
+| `king_head` | Neck, ears and the nemes (cap, band, wings, lappets, tail). Its origin is where the neck turns, as is that of every other thing of a head |
+| `king_face`, `king_face_worn` | The face; and the same with the nose broken off (worn past six tenths) |
+| `king_uraeus`, `king_beard` | The cobra at the brow (gone past a third) and the false beard (gone past a half) |
+| `king_eye_l`, `king_eye_r` | The eyes, each its own thing so that it can open and glow: its origin is its middle, its own +Z the way it looks |
+| `ram_head`, `ram_eye_l`, `ram_eye_r` | The ram |
+| `falcon_head`, `falcon_beak`, `falcon_beak_broken`, `falcon_eye_l`, `falcon_eye_r` | The falcon, its beak, and the beak with its tip gone (worn past seven tenths) |
+| `slab`, `stele` | The offering slab and the stele, each about its own foot (the riddle is written on the stele's flat front by the game) |
+
+Its colours are materials with plain names. `stone`, `hollow` (the dark of the way through) and `broken` are always
+stone, drawn by the stone shader (`Toon.sandstone`). The rest are paint: `lapis` and `ochre` (the stripes of the
+cloth, which are cut into it), `skin`, `kohl` (brows, the lines of the eyes), `horn`. A painted sphinx shows each in
+the colour the model gives it, so changing a material's Base Color and exporting again repaints it; a bare one draws
+them as stone a little lighter or darker (`SphinxMesh.TONE`). To build it again, and have Godot take it up:
+
+```
+blender --background --python tools/build_sphinx.py
+godot --headless --path . --import
+```
+
+(Changed by hand in `tools/sphinx.blend` instead, it is exported from there as glTF to `models/sphinx.glb`, +Y up,
+hidden things too: the other heads and the worn pieces are hidden in the file so that the king can be seen. Running
+the script again would overwrite both.)
+
+What is still worked out in the game, and why. Its size: `scripts/sphinx_mesh.gd` makes the meshes `size` times
+bigger rather than scaling nodes, because the stone shader works in metres (its courses and cracks would stretch),
+and makes the base, slab and stele as thick as suits that size. Its weathering: every point is moved a little, by an
+amount that is a slider. What is solid: boxes and hulls from the numbers at the top of that script, which the model
+was built round (they are the same in the build script), so a lion made much fatter in Blender wants those changed
+too. And the riddle, the sand, the dust and the light of the eyes.
+
+What it costs: about 6,600 triangles for a king and 4,800 for a ram or a falcon (it was 3,000: the face, the paws
+and the trunk are finer), in five draws bare (body, the paw that moves, head, two eyes) as before, besides the slab
+(three) and the stele (two, one fewer), with one light that is on only while its eyes are; painted, a few more. Two
+sphinxes that are the same in every way share their meshes.
 
 ```
 godot --headless --path . --fixed-fps 60 --script tools/sphinx_test.gd
