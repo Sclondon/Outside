@@ -162,7 +162,7 @@ const FIELDS := {
 	"person:birds": [["bird", "Kind", "c", ["Sparrows", "Doves", "Hoopoe", "Swallows", "Sacred ibis", "Grey heron", "Cattle egret", "Egyptian goose", "Kestrel", "Pied kingfisher", "Egyptian vulture", "Griffon vulture", "Black kite"], 1],
 		["count", "How many", "n", 1.0, 40.0, 1.0, 8.0], ["roam", "They range", "n", 5.0, 150.0, 1.0, 30.0]],
 	# Medjed (`scripts/medjed.gd`): a sentinel whose gaze smites. What he is linked to shuts his eyes, or opens them.
-	"person:medjed": [["sweep", "Looks round through (360: all round)", "n", 0.0, 360.0, 5.0, 90.0], ["speed", "Turns, degrees a second", "n", 5.0, 120.0, 1.0, 30.0],
+	"person:medjed": [["sweep", "Looks round (360: all round)", "n", 0.0, 360.0, 5.0, 90.0], ["speed", "Turns, degrees a second", "n", 5.0, 120.0, 1.0, 30.0],
 		["reach", "Sees this far", "n", 2.0, 30.0, 0.5, 9.0], ["warning", "Warning, seconds", "n", 0.2, 3.0, 0.05, 0.6],
 		["unseen", "Unseen: only eyes and feet", "b", false], ["follows", "Comes to look", "b", false], ["roam", "No further from his post than", "n", 0.0, 12.0, 0.5, 3.0],
 		["links", "Eyes shut by", "links"], ["wakes", "Shut until then", "b", false]],

@@ -4,8 +4,8 @@ extends CharacterBody3D
 ## name of that smiter among them who belongs to the House of Osiris, who
 ## shoots with his eye, yet is unseen." The Greenfield papyrus draws him as a
 ## shroud with two eyes looking out of it and two bare feet under the hem, and
-## that is all he is here: a sheet over a post, a man and a half's width at the
-## hem, 1.5 m tall.
+## that is all he is here: a sheet over a post, 0.8 m across at the
+## hem and 1.5 m tall.
 ##
 ## He stands at his post and looks. His gaze is drawn on the floor as a pale
 ## fan of light, as far as `reach` and `cone` degrees wide, with a thin line

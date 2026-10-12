@@ -387,6 +387,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/mummy_priest_rig.gd`, `mummy_brute_rig.gd`, `mummy_crawler_rig.gd`, `mummy_child_rig.gd`, `mummy_royal_rig.gd` | How each of the other kinds of mummy walks and strikes |
 | `tools/build_mummy.py` | Builds the mummies in Blender: their proportions, the face under the wrappings, a chain of bones down each loose end, and what each kind has of its own |
 | `tools/mummy_sheets.gd` | Not part of the game: drives a mummy of any kind through each thing it does, saves pictures of it, and says which bones shook and whether its feet slid |
+| `scripts/medjed.gd` | Medjed: a shroud with two eyes and two feet who stands and looks from side to side; the boy seen in his gaze, drawn as a fan on the floor, is warned and then smitten. The figure, its eyes, its gaze and its sounds are all made here |
+| `tools/medjed_test.gd`, `tools/medjed_sheets.gd` | Not part of the game: run Medjed with nothing drawn and check each thing he does, and count his rays; and pictures of him and of each of those things |
 | `scripts/hound.gd` | A hound, of either breed: chases the player, leaps obstacles and gaps, bays and barks (recordings of dogs, in `audio/hounds/`), braces and barks under what it cannot reach, and plays, sits and sleeps when left alone |
 | `scripts/hound_rig.gd` | Animates a hound in code: walk, trot and rotary gallop on three-jointed legs, spine flex, a jaw that keeps time with its voice, a head that watches things, sitting, lying and the bow, a tail on springs, and ears that hang and swing or stand and turn |
 | `scripts/fur.gd` | The hound's coat: streaked along the lie of the hair, with a few shells stood off it |
@@ -1073,6 +1075,86 @@ whatever light there is, so a torch carried past picks it out.
 
 The level editor has "Cobweb: corner", "Cobweb: across a passage", "Cobweb: hanging" and "Cobweb: draped" on its Stone
 page, each sized by sliders. The test yard has a short stone passage hung with them at the scarabs' station.
+
+## Medjed
+
+`Medjed.new()` is a whole one (`scripts/medjed.gd`), facing along his own +Z: a sentinel who cannot be hurt and does
+not chase, and whose look is what has to be kept out of.
+
+**Where he comes from, and how true this is.** Spell 17 of the Book of the Dead has one line about him: "I know the
+name of that smiter among them who belongs to the House of Osiris, who shoots with his eye, yet is unseen." His name,
+Medjed, means the smiter. That line is nearly all that is known. The Greenfield papyrus (the Book of the Dead of
+Nestanebetisheru, of about 950 BC, in the British Museum) draws him, twice: a plain dome like a sheet over a post, two
+eyes looking out of it, two bare feet under the hem. So what is his own here is the look of him (kept as it is drawn:
+the off-white shroud 1.5 m tall, the almond eyes with their dark line and heavy brows, the feet, and nothing else), that
+he strikes with his eye, and that he can be unseen. The rest is made up for the game: that he stands guard and looks
+from side to side, that there is a moment's warning, that he comes shuffling to look, that a plate or a mirror shuts
+his eyes. Nothing old says how his look works, or that anything turns it back.
+
+- **His gaze** is drawn on the floor: a pale fan as far as he sees (`reach`, 9 m) and as wide (`cone`, 30 degrees),
+  with rings running out along it and a thin line from each eye down the middle of it. The fan stops at whatever stops
+  his sight, so the shadow of a pillar in it is the place to stand. It is laid over what is under it rather than added
+  to it, so it shows on pale sand in the sun as well as on a dark floor, in both renderers; it lies on the floor he
+  stands on and is tipped as that is, so on ground that rolls it will cut into the rises.
+- **He sweeps**: he turns his whole body from side to side through `sweep` degrees (360: round and round) at
+  `turn_speed` degrees a second, waits `pause` at each end, and shuffles his feet as he turns. His hem swings after him.
+- **Seen**: the boy is in the gaze when he is within reach, inside the cone, and nothing solid is between the eyes and
+  both his chest and his head. A wall, a pillar, a door, a block or a crate hides him if it covers either: so a block
+  pushed along in front of him is a shield (it covers his chest), and something only knee high hides him when he ducks
+  behind it and not when he stands. A mummy or a hound hides nobody. Then the eyes go wide and bright, Medjed stops and
+  turns to follow him (`tracks`, 70 degrees a second), the fan closes onto him and turns gold, and a hum rises, for
+  `warning` seconds (0.6). In sight at the end of them, he is smitten: a flash, and `caught`, wired as the mummy's is.
+  Out of sight in time, it dies down (half as fast as it rose) and he goes back to looking.
+- **Unseen** (`unseen`): the shroud is not drawn until he fires, and for three seconds after. The eyes, the feet and
+  the gaze are.
+- **Follows** (`follows`): having lost the boy he does not go back to looking at once. He shuffles to where he last
+  saw him (`shuffle_speed`, 0.5 m/s: never faster), no further than `roam` from his post, looks, turns and shuffles
+  home, and turns back to face the way he was put. He sees as he goes. He is flat underneath: any kerb stops him, he
+  steps off no edge, and what he cannot get round he does not try to.
+- **On or off, as a door is.** Whatever he is linked to shuts his eyes while it is on (`worked`); with
+  `wakes_when_worked` it is the other way about, and they are shut until then. With his eyes shut he stands and sees
+  nothing.
+- **A mirror** (`scripts/mirror.gd`) turned to face him sends his gaze back at him: he shuts his eyes for `dazzle`
+  seconds (4) and sweeps on blind, so each time his look crosses the mirror there is that long to move in. It costs
+  nothing more, since the fan is already feeling for what stops it. It is not a `SunBeam`: the gaze is not thrown on
+  round a corner, and does nothing to a sun disc.
+- **Guns** do nothing to him, as they do nothing to a mummy.
+
+```gdscript
+var medjed := Medjed.new()
+medjed.sweep = 120.0
+medjed.follows = true
+medjed.position = his_post
+add_child(medjed)                 # he finds the boy himself (`Nearby.player`)
+medjed.caught.connect(...)
+medjed.worked = plate.pressed     # shuts his eyes; `reset()` puts him back at his post
+```
+
+What he costs: two rays in a step of the game at the very most. While the boy is in the cone, one to his chest, and
+one to his head if that one gets through; otherwise one spoke of the fan, each of the eleven in its turn (so the fan
+on the floor is about a sixth of a second behind him). Far from the boy (45 m past his reach) he casts none and draws
+no gaze. He is 400 triangles of shroud, 60 of eyes and 200 a foot, and six draws with the gaze.
+
+The level editor has "Medjed" on its People page: how far he looks round and how fast, how far he sees, the warning,
+unseen, whether he comes to look and how far, and "Eyes shut by" (with "Shut until then" for the other way about).
+The test yard has a station for him out to the east, beyond the light and mirrors: two lanes with a wall between. In
+one he stands at the far end with pillars, a block to push, a mirror, a plate that shuts his eyes while it is stood on
+and a lever at his feet that shuts them for good; in the other is one that is unseen and comes to look, as far as a
+kerb.
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/medjed_test.gd
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/medjed_sheets.gd -- <folder> [model eyes sweep smite cover unseen follow mirror side yard]
+```
+
+The first runs him with nothing drawn and ends PASSED or FAILED: he sweeps and waits; the boy in the open is smitten
+after the warning and not before; behind a block he is not, nor ducked behind a low one; he runs from block to block
+while Medjed looks away; a mirror shuts his eyes; one that follows comes, no further than he may and not over a kerb,
+and goes home; and in the desert, made as the editor makes him, a plate shuts his eyes and off it the boy is caught.
+The second draws him (by day and in the dark by a torch; add `--rendering-method gl_compatibility` for the web's).
+
+Not in the tombs yet. In the tomb's side view the fan is seen nearly edge on: it shows as a pale band along the floor
+and the two lines over it, which is enough to see where he looks but not how wide.
 
 ## Hieroglyphs
 
