@@ -143,6 +143,10 @@ and keep it in the same form.
   numbers (`scripts/pyramid.gd`), set out three ways: its width, steepness and the height of a course, how much of
   its smooth casing is left, a gold cap, how ruined it is and which ruin, a doorway, and its stone. Move a slider and
   it is built again. (The Great and Ruined pyramids beside them are fixed models.)
+- **Temples**: on the Stone page too, "Temple: Edfu", "Temple: Luxor", "Temple: Kom Ombo" and "Temple (your own)" are
+  one thing made from numbers (`scripts/temple.gd`): how big (1 is the size of the real one, which is very big: Edfu is
+  137 m long), how ruined and which ruin, how deep in sand, how much paint is left, its stone; and for your own, every
+  other number it has. See Temples, below.
 - **Heat**: "Level" also has the heat mirage: how much the distance swims, and whether pools of sky lie on the far
   sand. 0 is none.
 - **People**: townspeople (who, and how far they wander), his brother, a cat, hounds (which give chase when he comes
@@ -371,6 +375,11 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/sphinx.gd` | A sphinx: a statue to climb on that wakes when he comes between its paws, asks a riddle, is on for good when it is given the thing that answers it, knocks a wrong thing away, and can lie buried in sand until something clears it |
 | `scripts/sphinx_mesh.gd` | Its stone, carved from numbers: the lion, and a king's, a ram's or a falcon's head; and what of it is solid |
 | `tools/sphinx_test.gd`, `tools/sphinx_sheets.gd` | Not part of the game: run the sphinx with nothing drawn and say what happened; and draw it |
+
+| `scripts/temple.gd` | A temple made from numbers: pylon, courts, halls of columns, sanctuary, enclosure wall; set out as Edfu, Luxor, Kom Ombo or your own; ruin, sand, paint |
+| `scripts/temple_parts.gd`, `scripts/temple_stone.gd` | Reads the temple's models and places them, builds its plain walls and floors, and keeps what is solid; the shader all its stone is drawn with (courses, rows of relief, paint, granite), the light through its roof, and the figures cut in its pylon |
+| `tools/build_temple.py`, `tools/temple.blend`, `models/temple/temple.glb` | The temple's parts as models: the script that builds them in Blender, the file to look at and change them in, and what the game reads |
+| `tools/temple_sheets.gd`, `tools/temple_test.gd` | Not part of the game: pictures of every plan and every model, and what each costs; and a run with nothing drawn that walks him in to each sanctuary and throws him at the stone |
 | `scripts/heat_mirage.gd` | Heat over the desert: far things near the level of the eye swim, and pools of sky lie on the far sand |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
 | `scripts/test_yard.gd` | The test yard (`test_yard.tscn`) |
@@ -1693,6 +1702,124 @@ is; the same seed deals the same names; "Step back" does nothing; a wrong name, 
 deals new ones; the right one turns the guardian on, unbars its gateway and opens a door linked to it in the desert; a
 leaf takes the nearest keeper's name; and a level started again has forgotten its leaves. The second draws it; the
 third takes the names and the leaf as a phone shows them, every keeper as the papyrus draws him, and the notebook's page.
+
+## Temples
+
+`Temple` (`scripts/temple.gd`) is an Egyptian temple made from numbers, as `Pyramid` is a pyramid: a row of parts along
+an axis, front to back. He comes to it from +Z and walks in towards -Z; the middle of its length is its origin.
+
+- A **pylon**: two leaning towers with the roll up their corners and the cornice on top, slots for the flagstaffs and
+  the windows over them, and between the towers the gateway with the sun's winged disc on its lintel. Cut into the face
+  of each tower is the king smiting his enemies before a god.
+- **Courts** open to the sky, with a ring of columns round them (or two), beams on the columns, and a roof from the
+  beams to the wall where the place has one.
+- **Halls of columns** under a roof of slabs. A hall's front is a wall with a doorway, or (as the Ptolemies built)
+  half-height **screen walls** between the columns of its first row. Light comes down through the roof on to the
+  aisle in sheets, with dust in it; with `nave` the middle aisle stands higher than the rest and the light comes in
+  through stone grilles between the two roofs.
+- **Rooms** before the sanctuary, and the **sanctuary**: a room inside a room, with a way round it and the doors of
+  chapels off that; in it the stand the god's boat rested on, and behind that the **naos**, the shrine of one block of
+  granite.
+- Round it an **enclosure wall** with a walk between it and the temple; a **nilometer** well; a **lake** (a `Pool` in a
+  stone tank). Before it **obelisks**, **colossi** and **falcons**, and markers along the way up to it for sphinxes.
+
+`plan` sets it out as one of three real places, or as your own:
+
+| | True to the place | Simplified |
+| --- | --- | --- |
+| `EDFU` (Horus; Ptolemaic, 237 to 57 BC) | 137 m long; the pylon 79 m wide and 36 m high with four flagstaff slots; the court with its colonnade on three sides; the outer hall of 18 columns behind screen walls and the inner of 12; two rooms; the sanctuary free-standing in its corridor with Nectanebo's grey granite naos (4.2 m); the enclosure wall and the walk inside it; composite capitals; the granite falcons in the double crown, two at the gate and one before the hall; all of it roofed, and dark | The chapels round the sanctuary are shut doors, not rooms. The stairs to the roof, the roof kiosk, the library and robing room are not there. Every capital is the same composite (the real ones are in pairs, each pair different). The nilometer is a round well, not the stair down from the east walk. The mammisi is not built |
+| `LUXOR` (Amun; Amenhotep III and Ramesses II, about 1390 to 1213 BC) | Long and open: Ramesses' pylon 65 m wide and 24 m high, his two seated colossi, one of the standing ones, and the one obelisk (25 m) on the left as he comes to it, with the pedestal of the other, which went to Paris in 1833; his court with a double row of papyrus bud columns; the mosque of Abu el-Haggag standing in it on the undug bank, with steps up; the colonnade of fourteen open-papyrus columns 19 m high between walls; the sun court with double rows of bud columns on three sides; the hall of 32 columns; and the roofed rooms behind. No roofs over the courts and colonnade | The first court is skewed off the axis in the real temple (to keep an older shrine): here it is straight. Thutmose III's three-roomed shrine in the first court is left out. The mosque is a plain white hall, dome and minaret. The rooms behind (the Roman chapel, the birth room, Alexander's boat shrine) are two rooms and a sanctuary. It is 235 m long, not 260 |
+| `KOM_OMBO` (Sobek and Horus the Elder; Ptolemaic and Roman) | Two of everything along two axes side by side: two gateways, two aisles through both halls and three rooms, two sanctuaries. Its front has gone into the river: pylon, court walls and the sixteen court columns are stumps, with the altar in the court. The 15 and 10 columns of the halls stand to their full height under half a roof; the sanctuaries are down to low walls with the black stone each boat stood on. It stands on a rise with steps up, with the well and a small pool beside it | Which side is whose is not marked. The two walks round it are one. The reliefs (the surgical instruments, the calendar) are not those. The small pool for the crocodiles is a square tank above the ground |
+| `CUSTOM` | Whatever the numbers say: width, the height of the pylon, the court and its rows of columns, how many halls and how many columns across and deep, their height and capitals, a higher middle aisle, two of everything, roofed or not, wall, lake, well, obelisks, kings, falcons, a rise | |
+
+`size` is how big: **1 is the size of the real thing**, and that is how the three are placed. Whatever the size,
+doorways stay at least 2.2 m wide and 2.9 m high, steps stay steps, and columns never stand so close that he could be
+caught between them. `ruin` (with `seed`) takes it apart: roof slabs go, columns snap and their drums lie about, walls
+come down to different heights along their length, lintels fall, blocks lie where they fell (never in the way in),
+sand drifts into the corners, and past a half the pylon is down to its lower courses. `buried` fills it with sand
+inside and out and banks it up round it: 1 is to the tops of the columns of its great hall, as Edfu was until 1860.
+`painted` is how much of the old colour is left on capitals, cornices and carving.
+
+**The parts are models, made in Blender.** `tools/build_temple.py` builds every part as an object of its own in
+`tools/temple.blend`, and exports them all to `models/temple/temple.glb`:
+
+```
+blender --background --python tools/build_temple.py
+godot --headless --path . --import
+```
+
+Open `tools/temple.blend` to look at a part or change it by hand, export it over `models/temple/temple.glb` (glTF
+binary, +Y up, everything), and the game uses what you made. (Running the script again makes them all afresh and
+overwrites what was changed by hand; to keep a change, make it in the script.) The objects:
+
+| Object | What it is | How the game uses it |
+| --- | --- | --- |
+| `column_bud`, `column_open`, `column_composite`, `column_hathor` | A column with its base and capital: a bundle of papyrus stems with closed buds (Luxor's courts), the open papyrus bell (Luxor's colonnade), the composite of leaves and flowers (Edfu, Kom Ombo), Hathor's head. 10 m high, the shaft 1 m in radius | Stretched to the height and thickness wanted |
+| `column_..._far` | The same with fewer faces | Drawn in its place from far off, and casts the near one's shadow |
+| `column_broken`, `column_drum` | What is left of a snapped column; one drum of a fallen one | Stretched; the drum laid on its side |
+| `architrave`, `roof_slab` | A beam and a slab, 1 m each way | Stretched to the length, height and width wanted |
+| `cornice`, `cornice_corner`, `torus` | A metre of cornice, the corner where two lengths meet, a metre of the roll | The cornice stretched along a wall top (the roll is not placed yet: the towers and gateway carry their own) |
+| `screen_wall` | One of the half-height walls between the columns of a Ptolemaic front, with its cornice | Stretched from column to column |
+| `pylon_tower`, `pylon_tower_left` | The right and left towers of a pylon, as Edfu's: slots, windows, rolls, cornice | Stretched to the width, height and depth wanted |
+| `pylon_tower_ruin`, `pylon_tower_ruin_left` | A tower down to its lower courses | The same, as high as what is left |
+| `pylon_gateway` | The gate between them: jambs, lintel with the winged disc, cornice | Stretched until its opening is the size wanted |
+| `naos`, `barque_stand`, `altar`, `well` | The granite shrine; the stand for the god's boat; an altar; the nilometer | Made the size wanted |
+| `obelisk`, `obelisk_pedestal` | An obelisk on its pedestal; the pedestal alone | The same |
+| `colossus_seated`, `colossus_standing`, `falcon` | The seated and the standing king; Horus as a falcon in the double crown | The same |
+| `mosque`, `minaret` | The whitewashed hall with its dome; its minaret | The same |
+
+The game measures each model and stretches it to fit, so a part may be remodelled at any size; what is solid of it is
+worked out from its size too (`TempleParts.SOLID`; for the pylon and gateway from `TempleParts.TOWER`, `TOWER_LEAN`
+and `GATE`, which must be changed to match if their shape is). What a face is made of is read from the **name of its
+material** (`stone`, `stone_coursed`, `stone_relief`, `stone_shaded`, `redgranite`, `greygranite`, `whitewash`,
+`dark`, and `..._painted_red` and the other paints: the top of `tools/build_temple.py` lists them), so a face given
+one of those materials in Blender is drawn as that. All the materials of a model are made one mesh and one draw when
+it is first used; there are no textures and no UVs to keep.
+
+What is built in code is only what is plain: walls (with doorways, and coming down in ruin), floors, the bank the
+mosque stands on, steps, the kerb of the lake, fallen blocks, sand, light, and everything that is solid. All of that
+is one mesh. The stone of both is one shader (`scripts/temple_stone.gd`): blocks in courses, and on the acres of wall
+nobody comes close to, rows of relief (a line of figures with columns of signs between them, none of it real writing),
+all of which fades out before it is small enough to shimmer. Where he does come close the writing is real:
+`Inscription`s of the king's titles with his name in its ring (Ptolemy at Edfu and Kom Ombo, Ramesses at Luxor)
+beside every doorway on the axis and down the obelisk, the offering formula and the praise of Ra in the sanctuary,
+and Horus's name on the naos. The king and the god on the pylon are drawn here in code as the hieroglyphs are (their
+outlines are in `TempleStone.SMITING` and `GOD`) and cut into the tower's face as an inscription is.
+
+For whoever makes a level, a temple marks its places with `Marker3D`s in groups: `temple_sanctuary` (before each
+naos), `temple_doorways` (the foot of every doorway on the way in, each with `wide`, `tall` and `thick` as metadata:
+give a "Door" from the Puzzle page those numbers and it fits, though a door there goes no higher than 12 m and the
+gate of Edfu is 15.5), `temple_pylon_top`, `temple_court`, `temple_well`, `temple_lake`, `temple_mosque`, and
+`temple_avenue` (pairs of places along the way up to the gate, for sphinxes). `ways` is the way in for each axis and
+`open` whether he can get all the way (and `shut_by` why not: sand to within 1.45 m of a lintel shuts a doorway).
+The tops of its walls, beams, roofs and cornices are solid and can be run along, and their edges caught, like any
+other stone; `GrapplePoint`s are put on the gate's cornice and on beams that have open air under them. There are no
+stairs up the pylon: its top is marked, and a ladder or a rope must be put there by whoever wants him up it.
+
+Light: under a roof the stone is drawn darker (it is baked into the mesh; the less roof is left, the less dark), and
+the sun's shadows do the rest. The boy himself and whatever else is put inside are lit as they are outside, because
+the game's light from the sky is the same everywhere: a level that wants him dark in the sanctuary must do that
+itself. The lake's water is a `Pool`, which lies square to the world: if a temple with a lake is turned other than
+by quarter turns, the water does not turn with its tank.
+
+What it costs, at full size (`tools/temple_sheets.gd` prints it): Edfu is about 24,000 triangles when he is among
+its columns and 11,000 from far off, 235 solid shapes, and builds in about 130 ms the first time (when the models
+are read) and 25 ms after; Luxor, with 174 columns, is 57,000 and 22,000, 490 shapes, 60 ms; Kom Ombo 11,000 and
+5,000, 210 shapes, 20 ms. A whole temple is about twenty-five draws. With the sun's shadows, a frame in Luxor's first
+court draws about 60,000 triangles more than the same frame without the temple, and one in Edfu's about 35,000.
+
+In the level editor they are "Temple: Edfu", "Temple: Luxor", "Temple: Kom Ombo" and "Temple (your own)" on the Stone
+page, with sliders for the above; move one and it is built again.
+
+```
+godot --path . --resolution 1280x960 --script tools/temple_sheets.gd -- <folder> [banded] [edfu] [luxor] [kom_ombo] [custom] [capitals] [ruin] [buried] [painted] [small]
+godot --headless --path . --fixed-fps 60 --script tools/temple_test.gd [-- quick]
+```
+
+The first draws each plan from the air, as a plan, from his eye on the way up, the pylon, the court, each hall and
+the sanctuary, every model (`capitals`), and ruin and sand at several values. The second builds each with nothing
+drawn, walks him from before the gate to each sanctuary, runs and jumps him at its stone from every side to see that
+he is never inside it or stuck, and does the same ruined and buried.
 
 ## Tombs
 
