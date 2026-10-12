@@ -47,6 +47,8 @@ const FLATS: Array[Rect2] = [
 	Rect2(-12, 46, 6, 5),
 ]
 const EASE := 9.0
+## The gate guardians' station, south of the railway and beyond the rest: its middle, and how far it runs each way.
+const GUARDIANS := Rect2(0, 77, 12, 9)
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
 ## far it runs each way (it is level, like a patch of `FLATS`), and how far it
 ## is from the middle of one kind to the middle of the next.
@@ -115,6 +117,7 @@ func _ready() -> void:
 	_build_railway(Vector3(10.0, 0.0, 58.5))
 	_build_kinds()
 	_build_canines(Vector3(-50.0, 0.0, 50.0))
+	_build_guardians(Vector3(GUARDIANS.position.x, 0.0, GUARDIANS.position.y))
 	_settle_in.call_deferred()
 
 
@@ -176,6 +179,9 @@ func _shaped(dunes: float, x: float, z: float) -> float:
 		var beside := (at - KINDS.position).abs() - KINDS.size
 		level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(beside.x, 0.0), maxf(beside.y, 0.0)).length()))
 		hollow = HOLLOW_DEEP * (1.0 - smoothstep(0.0, HOLLOW_WIDE, at.distance_to(Vector2(HOLLOW.x, HOLLOW.z))))
+	# (the gate guardians' ground lies outside the rest, and is levelled by itself)
+	var keepers := (Vector2(x, z) - GUARDIANS.position).abs() - GUARDIANS.size
+	level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(keepers.x, 0.0), maxf(keepers.y, 0.0)).length()))
 	var rim := 5.0 * smoothstep(YARD - 30.0, YARD, maxf(absf(x), absf(z)))
 	var open := dunes * level + rim - hollow
 	# The pond: a dish in the sand, its rim at the level of the water.
@@ -1366,3 +1372,50 @@ func _shape(body: PhysicsBody3D, at: Vector3, size: Vector3, color: Color) -> Ph
 	body.position = at
 	add_child(body)
 	return body
+
+
+## The gate guardians: a wall with three gateways in it, each kept by a demon
+## that asks its name, and behind each a cell. The leaf with the first one's
+## name lies in the open; the second's is in the first cell and the third's in
+## the second, so the way through is to find each leaf and say the name on it.
+## The first keeps a stone door; the other two bar their gateways themselves.
+func _build_guardians(at: Vector3) -> void:
+	_mark_here(at + Vector3(0.0, 0.0, -5.5), "GATE GUARDIANS
+find the leaf, read the name, say it at the gate
+a wrong name and the keeper strikes", 4.4)
+	var wall := at.z + 1.0
+	# The wall, with its three gateways; the cells behind it.
+	for span: Vector2 in [Vector2(-11.0, -7.1), Vector2(-4.9, -1.1), Vector2(1.1, 4.9), Vector2(7.1, 11.0)]:
+		_solid(Vector3(at.x + (span.x + span.y) * 0.5, 1.7, wall), Vector3(span.y - span.x, 3.4, 0.5), PROP)
+	for x: float in [-6.0, 0.0, 6.0]:
+		_solid(Vector3(at.x + x, 3.0, wall), Vector3(2.2, 0.8, 0.5), PROP)
+	for x: float in [-11.0, -3.0, 3.0, 11.0]:
+		_solid(Vector3(at.x + x, 1.7, wall + 3.5), Vector3(0.5, 3.4, 7.0), PROP)
+	_solid(Vector3(at.x, 1.7, wall + 7.0), Vector3(22.5, 3.4, 0.5), PROP)
+	# The keepers: each sits before the wall, its gateway on its left hand, and looks north at whoever comes.
+	var names: Array[int] = [6, 7, 11]
+	for n in 3:
+		var keeper := GateGuardian.new()
+		keeper.who = names[n]
+		keeper.bars_way = n > 0
+		keeper.dress = GateGuardian.Dress.KILT if n == 2 else GateGuardian.Dress.WRAPPINGS
+		keeper.seed = 144 + n
+		keeper.position = Vector3(at.x - 6.0 + n * 6.0 + keeper.gate_at, 0.0, wall - 0.25 - 0.75)
+		keeper.rotation.y = PI
+		add_child(keeper)
+		keeper.caught.connect(_on_caught.bind(keeper))
+		if n == 0:
+			# (the first keeps a door, as anything that is on or off does)
+			var door := Door.new(Vector3(2.2, 2.6, 0.4), DARK.lightened(0.1))
+			door.position = Vector3(at.x - 6.0, 1.3, wall)
+			add_child(door)
+			keeper.changed.connect(func(on: bool) -> void: door.is_open = on)
+	# The leaves: the first in the open (it takes the name of the keeper nearest it), the others each a gate further in.
+	var leaves := [[Vector3(-8.5, 0.0, -3.0), -1, false], [Vector3(-7.0, 0.0, 5.0), 7, true], [Vector3(0.0, 0.0, 5.0), 11, false]]
+	for entry: Array in leaves:
+		var leaf := BookPage.new()
+		leaf.who = entry[1]
+		leaf.rolled = entry[2]
+		leaf.position = at + (entry[0] as Vector3)
+		add_child(leaf)
+	_sign(at + Vector3(6.0, 2.2, 5.0), "all three named")

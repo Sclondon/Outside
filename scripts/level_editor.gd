@@ -44,13 +44,14 @@ const DOT := {
 	"door": Color(0.7, 0.95, 0.5), "mover": Color(0.7, 0.95, 0.5), "thing": Color(0.85, 0.6, 0.95), "checkpoint": Color(1.0, 1.0, 1.0), "start": Color(1.0, 1.0, 1.0),
 	"lever": Color(0.7, 0.95, 0.5), "lock": Color(0.7, 0.95, 0.5), "sundisc": Color(0.7, 0.95, 0.5), "offering": Color(0.7, 0.95, 0.5), "brazier": Color(0.7, 0.95, 0.5),
 	"sluice": Color(0.7, 0.95, 0.5), "beam": Color(1.0, 0.92, 0.55), "mirror": Color(1.0, 0.92, 0.55), "key": Color(1.0, 0.92, 0.55),
+	"guardian": Color(0.7, 0.95, 0.5), "bookpage": Color(1.0, 0.92, 0.55),
 }
 ## What only changes the ground: there is no node to move, the ground is made again.
 const GROUND_KINDS := ["pad", "dune", "ridge", "pond", "river"]
 ## What can work something else.
 const TRIGGERS := ["plate", "thing"]
 ## And the other puzzle parts that can: a lever, a lock, a sun disc, an offering table, a brazier to light.
-const PUZZLE_TRIGGERS := ["lever", "lock", "sundisc", "offering", "brazier"]
+const PUZZLE_TRIGGERS := ["lever", "lock", "sundisc", "offering", "brazier", "guardian"]
 
 ## Whether it is laid out for a phone (see `wants_phone`). Set before it goes into the tree, to have the other.
 var phone := wants_phone()
