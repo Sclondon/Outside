@@ -152,7 +152,7 @@ and keep it in the same form.
   fall, a hound or the mummy has "Choose what works it": touch the plates and targets that should, and lines show
   what is joined to what. Also ropes, ladders, blocks to push, checkpoints, signs, and where he starts.
   Levers, locks and keys, timed plates, light and mirrors, sluices, offering tables, braziers to light and seal
-  stones are there too: see Puzzle parts, below.
+  stones are there too: see Puzzle parts, below. And gate guardians with the leaves that name them: see The gate guardians.
 - **Keeping it**: every change is saved on the device as it is made (`user://desert_layout.json`) and is what the
   game plays from then on. "More" shows the whole level as text, to copy off the phone or paste one in, and has
   "Back to the original level". Pasted into `levels/desert.json`, a level becomes the one the game ships with.
@@ -319,6 +319,7 @@ keys or a stick move a red mark from one thing to the next, and Enter or the jum
   paints). "Any old how" is all of it at random; "As he was" puts him back. A photograph stuck in the page is him
   as he stands, so every change is seen as it is made.
 - **Places**: the levels, on a map and as a list; "Start this place again"; and, in the desert, "Edit this level".
+- **Papyrus**: there only once he has found a leaf of the Book of the Dead in this level: the leaves found (see The gate guardians).
 - **Notes**: figures in full or demade, the world's light smooth or in bands (either starts the level again), and
   how he is moved about.
 
@@ -405,6 +406,10 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `tools/build_cat.py` | Builds the two cats in Blender, the way the hounds are built |
 | `tools/cut_cat_audio.py` | Not needed to run the game: cuts the cat's voice out of the recordings it comes from |
 | `tools/build_character.py` | Holds the tools `build_boy.py`, `build_hound.py` and `build_mummy.py` use |
+| `scripts/gate_guardian.gd`, `scripts/guardian_mesh.gd` | A keeper of a gate of the underworld: seated, with the head of a beast and knives; asks its name, is on for good when it is said, strikes when it is not; and the heads and the clay it is modelled from |
+| `scripts/book_page.gd`, `scripts/book_of_the_dead.gd` | A leaf of the Book of the Dead to find, with the name of a keeper on it; and the names themselves, the drawings of the keepers, and which leaves he has found in this level |
+| `scripts/guardian_panel.gd` | The leaf to read, and the three names to choose from, over the stopped game |
+| `tools/guardian_test.gd`, `tools/guardian_sheets.gd` | Not part of the game: run the guardians and the leaves with nothing drawn, by touch, and say what happened; and pictures of them, of the names on the screen of a phone and of the leaf |
 
 Tuning values are exported properties on the Player, Camera and TouchControls nodes.
 Set `move_mode` to `SIDE_SCROLL` on the Player to lock movement to a line.
@@ -1131,6 +1136,90 @@ draws the chart and the pictures: slabs near and far, in raking light, in shade,
 How true it is: the signs, their sounds, the dictionary words, the formulas and the way they are packed are real, and
 someone who reads hieroglyphs can read the named texts. English spelled out letter by letter is the modern game of
 writing a name in hieroglyphs, not Egyptian. The hints are composed for the game, in Egyptian words and word order.
+
+## The gate guardians
+
+The dead of Egypt went down through a row of gates, each kept by a seated demon with the head of a beast and a knife in
+its fist. Whoever could say the keeper's name passed; whoever could not was cut down. The names were written in the
+Book of the Dead so that the dead man would have them by him. That is the puzzle: a keeper at a gate, and somewhere a
+leaf of the book with its name on it.
+
+- **`GateGuardian`** (`scripts/gate_guardian.gd`): the keeper, 1.9 m to the top of its head, seated on a block on a
+  plinth, wrapped like a mummy or in a kilt (`dress`), with a long knife upright in each fist (`knives`: or only in the
+  right). Its head (`head`) is a crocodile's, snake's, vulture's, hippopotamus's, ram's, jackal's, hare's, lion's or
+  bull's, or left alone is the one that goes with its name. It breathes, its head follows him, its eyes show in the
+  dark, and its knives twitch when he is within `notice` (5 m).
+- **It asks** when he steps onto the threshold of its gateway (`gate_at` metres to its left; 0 and it sits in the
+  gateway itself), or when he comes up to it and acts. The game stands still and three names come up, each a button the
+  size of a hand with the name in hieroglyphs, and "Step back", which says nothing.
+- **The rule.** One of the three is its own; the other two are dealt from the rest of the list. The English is written
+  under a name only if he has found the leaf that carries it, and only under the right one: so with the leaf he reads
+  the answer, and without it he has one chance in three, or must know the signs from a leaf he read somewhere else.
+  The right name: it bows its head, lowers its knives, and is on for good. A wrong name: it rises and strikes, he is
+  `caught` (wired as the mummy's is), and the three names are dealt afresh, so a second guess is no better than the
+  first. Which names come up is settled by the level (`seed`, which the desert makes from the ground's seed and the
+  guardian's number) and by how many wrong answers it has had, never by the clock: a level is the same every time.
+- **On or off.** It is on once named, as a pressure plate is (`changed`): choose a door, a bridge or anything else in
+  the editor and "Choose what works it". With `bars_way` it needs no door: two great knives stand crossed in its gateway
+  (`wide` by `tall`), solid, and swing up out of the way when it is named.
+- **`BookPage`** (`scripts/book_page.gd`): a leaf of papyrus, open or `rolled`, that hangs a hand above the ground and
+  turns so as to be seen. He takes it by walking onto it (or acting). It comes up large, the game standing still until a
+  touch puts it away: the keeper as the papyrus draws him, his name in signs, the name in English, and where it is from.
+  Which name it has is `who`; left alone it takes the name of the nearest guardian that has no leaf yet.
+- **What he has found** is kept for the level, not for the game (`BookOfTheDead.of(node)`, a node under the level): a
+  level started again has forgotten its leaves. Each is written into the journal, and once there is one the notebook
+  has a tab more, "Papyrus", with a page of the leaves found: the keeper, his name in signs and in English.
+
+```gdscript
+var keeper := GateGuardian.new()
+keeper.who = 6                     # its place in BookOfTheDead.NAMES: "He who lives on snakes"
+keeper.bars_way = true
+keeper.position = beside_the_gateway
+add_child(keeper)
+keeper.changed.connect(func(on: bool) -> void: door.is_open = on)
+keeper.caught.connect(...)
+
+var leaf := BookPage.new()         # (who = -1: the nearest keeper's name)
+leaf.position = somewhere_else
+add_child(leaf)
+```
+
+The level editor has "Gate guardian" (its name, head, what it wears, one knife or two, whether it bars the gateway,
+where the gateway is and how big, whether it asks whoever steps onto the threshold, its size) and "Leaf of the Book of
+the Dead" (whose name, rolled or not) on its Puzzle page; a guardian is one of the things a door can be opened by. The
+test yard has a station, south of the railway and beyond everything else: a wall with three gateways and a keeper at
+each, the first keeping a stone door and the others barring their own, the first leaf in the open and each of the
+others in the cell behind the gate before.
+
+The figure is made in code (`scripts/guardian_mesh.gd`): a head is 260 to 550 triangles, the whole of it about 1,500
+triangles in 30 draws (a piece for each part that moves, a draw for each colour in it). The pictures on the leaf
+and the buttons are drawn in code too (`BookOfTheDead.draw_vignette`, `draw_signs`), and its voice is made in code,
+not recorded. `scripts/guardian_panel.gd` is the leaf to read and the names to choose from: nothing on it is under 88
+high to touch, or written under 26.
+
+How true it is. The gates, their seated keepers with beasts' heads and knives, and the passing of each by saying a name
+are spells 144 to 147 of the Book of the Dead; in 144 and 147 there are seven gates, each with a keeper, a watcher and
+a herald, and in 145 and 146 the portals of the house of Osiris, each with a doorkeeper. The thirteen names here are
+theirs (twelve from the seven gates, "Long-horned bull" from the fourth portal of 146), in English that follows the
+usual translations. They were set down from memory, not from a book open on the desk: the wording differs from one
+translator to the next, the papyri do not agree on which of the three at a gate bears which name, and a name or two
+may be given here to the wrong gate. The Egyptian under each (`says`) is the word as best remembered, and the signs
+spell it sound by sound with the signs this game has (with the face, the heart, the voice and "life" as the words they
+are): it is Egyptian that can be read, but not the spelling of any papyrus. Which beast's head goes with which name is
+this game's choice; the papyri draw the keepers with these heads but do not match them so. The three names to choose
+from, and the striking down by the keeper himself, are the game's.
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/guardian_test.gd
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/guardian_sheets.gd -- <folder> [heads round far idle strike named dark leaf yard]
+godot --path . --fixed-fps 60 --resolution 1560x720 --script tools/guardian_sheets.gd -- <folder> panel book yard
+```
+
+The first runs it with nothing drawn and ends PASSED or FAILED: without the leaf no English is shown and with it there
+is; the same seed deals the same names; "Step back" does nothing; a wrong name, touched on the screen, catches him and
+deals new ones; the right one turns the guardian on, unbars its gateway and opens a door linked to it in the desert; a
+leaf takes the nearest keeper's name; and a level started again has forgotten its leaves. The second draws it; the
+third takes the names and the leaf as a phone shows them, every keeper as the papyrus draws him, and the notebook's page.
 
 ## Tombs
 
