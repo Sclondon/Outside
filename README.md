@@ -295,12 +295,10 @@ and keep it in the same form.
   one thing made from numbers (`scripts/temple.gd`): how big (1 is the size of the real one, which is very big: Edfu is
   137 m long), how ruined and which ruin, how deep in sand, how much paint is left, its stone; and for your own, every
   other number it has. See Temples, below.
-
 - **Abu Simbel**: on the Stone page, the two temples at their true size (`scripts/abu_simbel.gd`: see Abu Simbel,
   below): which of them, how far the sand has drifted, how weathered, whether the inside is still painted, and the
   morning of the sun on its axis. It is on while that sun reaches the sanctuary, so "Choose what works it" on a door
   or a bridge can pick it. "Size" makes it smaller for anyone who wants that; 1 is the real thing.
-
 - **Rock**: on the Stone page, the Cliff and the Mesa, the six rocks of the White Desert, a Field of rocks, the
   Valley of the Kings and a Tomb doorway (see Rock, above). Move a slider and the thing is made again.
 - **Heat**: "Level" also has the heat mirage: how much the distance swims, and whether pools of sky lie on the far

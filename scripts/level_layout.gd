@@ -62,7 +62,6 @@ const PALETTE := {
 		["Sphinx", "sphinx", ""],
 		# The temples of Abu Simbel, at their true size (`scripts/abu_simbel.gd`).
 		["Abu Simbel", "abusimbel", ""],
-
 		# Living rock (`scripts/desert_scenery.gd`): a cliff or a mesa made from numbers, the rocks of the White Desert
 		# (models: `tools/build_rocks.py`), a field of them, the Valley of the Kings, and a tomb doorway by itself.
 		["Cliff", "cliff", ""], ["Mesa", "cliff", "mesa"],

@@ -206,7 +206,6 @@ func _made(item: Dictionary) -> Node3D:
 			return Pyramid.from_item(item)
 		"abusimbel":
 			return AbuSimbel.from_item(item)
-
 		# Living rock: cliffs, rocks and fields of them, the Valley of the Kings, a tomb doorway (`scripts/desert_scenery.gd`).
 		"cliff", "rock", "rocks", "valley", "tomb_door":
 			return DesertScenery.made(item, self)
