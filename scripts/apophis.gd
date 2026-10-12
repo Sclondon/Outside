@@ -86,9 +86,23 @@ void vertex() {
 	NORMAL = normalize(side * NORMAL.x + up * NORMAL.y);
 }
 
+// The web's renderer (gl_compatibility) takes ALBEDO and EMISSION as colours for the screen and makes them into
+// light itself; the others take them as light. A colour that comes point by point (COLOR) is not made
+// ready by either, so here it is light (see `srgb_to_linear` where the mesh is made) and worked in as light, and
+// for the web's renderer is made a colour for the screen again at the last, that both show the same thing.
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+vec3 shown(vec3 light) {
+	return mix(light * 12.92, 1.055 * pow(max(light, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), light));
+}
+#else
+vec3 shown(vec3 light) {
+	return light;
+}
+#endif
+
 void fragment() {
 	// (his colours are the model's materials, a face at a time)
-	ALBEDO = COLOR.rgb;
+	ALBEDO = shown(COLOR.rgb);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }
@@ -130,10 +144,24 @@ void vertex() {
 	VERTEX = p;
 }
 
+// The web's renderer (gl_compatibility) takes ALBEDO and EMISSION as colours for the screen and makes them into
+// light itself; the others take them as light. A colour that comes point by point (COLOR) is not made
+// ready by either, so here it is light (see `srgb_to_linear` where the mesh is made) and worked in as light, and
+// for the web's renderer is made a colour for the screen again at the last, that both show the same thing.
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+vec3 shown(vec3 light) {
+	return mix(light * 12.92, 1.055 * pow(max(light, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), light));
+}
+#else
+vec3 shown(vec3 light) {
+	return light;
+}
+#endif
+
 void fragment() {
 	// UV.x is how much a part shines by itself: his eyes.
-	ALBEDO = COLOR.rgb * (1.0 - UV.x);
-	EMISSION = COLOR.rgb * UV.x * (UV.x > 0.5 ? glow : 1.0);
+	ALBEDO = shown(COLOR.rgb * (1.0 - UV.x));
+	EMISSION = shown(COLOR.rgb * UV.x * (UV.x > 0.5 ? glow : 1.0));
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }
@@ -1580,7 +1608,12 @@ func _knife_mesh(source: Mesh) -> ArrayMesh:
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = places
 	arrays[Mesh.ARRAY_NORMAL] = one["normals"]
-	arrays[Mesh.ARRAY_COLOR] = one["tints"]
+	var tints: PackedColorArray = one["tints"]
+	# (the web's renderer takes a point's colour as a colour for the screen, the others as light: see `shown` in the shaders)
+	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		for k in tints.size():
+			tints[k] = tints[k].linear_to_srgb()
+	arrays[Mesh.ARRAY_COLOR] = tints
 	arrays[Mesh.ARRAY_INDEX] = one["corners"]
 	var made := ArrayMesh.new()
 	made.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

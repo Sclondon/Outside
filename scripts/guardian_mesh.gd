@@ -56,15 +56,29 @@ float cut(float value, float edge) {
 	return smoothstep(edge - pixel, edge + pixel, value);
 }
 
+// The web's renderer (gl_compatibility) takes ALBEDO and EMISSION as colours for the screen and makes them into
+// light itself; the others take them as light. A colour that comes point by point (CUSTOM0) is not made
+// ready by either, so here it is light (see `srgb_to_linear` where the mesh is made) and worked in as light, and
+// for the web's renderer is made a colour for the screen again at the last, that both show the same thing.
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+vec3 shown(vec3 light) {
+	return mix(light * 12.92, 1.055 * pow(max(light, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), light));
+}
+#else
+vec3 shown(vec3 light) {
+	return light;
+}
+#endif
+
 void fragment() {
 	float metal = step(0.5, stuff) * step(stuff, 1.5);
 	float eye = step(1.5, stuff);
-	ALBEDO = tint * (1.0 - eye);
+	ALBEDO = shown(tint * (1.0 - eye));
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 	// (metal has a bright edge where it is seen side-on, and a glow of its own in shadow)
 	float graze = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
-	EMISSION = tint * (eye + metal * (0.22 + 0.3 * mix(smoothstep(0.55, 0.95, graze), cut(graze, 0.78), banded)));
+	EMISSION = shown(tint * (eye + metal * (0.22 + 0.3 * mix(smoothstep(0.55, 0.95, graze), cut(graze, 0.78), banded))));
 }
 
 void light() {
