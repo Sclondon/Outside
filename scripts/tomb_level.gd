@@ -45,6 +45,10 @@ static var bare := false
 static var last_view := "side"
 ## And the shape last chosen there: "line" or "branching".
 static var last_shape := "line"
+## Where he came in from, if he walked in at a door in another level (`TombDoor`): the scene of that level, and where
+## in it to put him when he goes back. The card at the end then has "Back outside".
+static var back_to := ""
+static var back_at := Vector3.INF
 
 const NIGHT := Color(0.02, 0.025, 0.04)
 ## How near a mummy he must come (along the tomb) to wake it.
@@ -724,6 +728,13 @@ func _show_result(said: Dictionary) -> void:
 	if mode == "custom":
 		rows.add_child(_button("Back to the editor", _to_editor))
 	rows.add_child(_button("Another tomb", func() -> void: _open_tomb({})))
+	if back_to != "":
+		rows.add_child(_button("Back outside", func() -> void:
+			Desert.play_from = back_at
+			var scene := back_to
+			back_to = ""
+			get_tree().paused = false
+			get_tree().change_scene_to_file(scene)))
 
 
 func _open_tomb(chosen: Dictionary) -> void:

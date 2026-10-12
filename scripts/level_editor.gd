@@ -761,6 +761,14 @@ func _remember() -> void:
 func _changed(item: Dictionary, key: String) -> void:
 	if item.is_empty():
 		return
+	if not item.has("kind"):
+		# (not a thing in the level but the numbers of the ground itself: the kind of dunes, on the "Level" page)
+		_shape_in = 0.6
+		_save_in = 1.2
+		return
+	if item["kind"] == "valley":
+		# (it stands on level ground of its own, which has to follow it)
+		_shape_in = 0.6
 	if item["kind"] in GROUND_KINDS or key == "terrain":
 		_shape_in = 0.6
 	elif key in ["at", "lift", "yaw", "tilt_x", "tilt_z", "scale"] or (item["kind"] == "pool" and key == "y"):
@@ -1078,6 +1086,7 @@ func _show_level() -> void:
 	_number("Dunes scattered about", own, "scatter", 0.0, 2.5, 0.05, "terrain")
 	_number("Which scatter", own, "seed", 0.0, 99.0, 1.0, "terrain")
 	_number("Height of the edge", own, "rim_height", 0.0, 30.0, 0.5, "terrain")
+	DesertScenery.desk_rows(self, own)
 	var blows: Array = own.get("wind", [1.0, 0.0])
 	var turn := {"deg": snappedf(rad_to_deg(atan2(blows[1], blows[0])), 1.0)}
 	_number("The wind blows towards", turn, "deg", -180.0, 180.0, 5.0, "wind")

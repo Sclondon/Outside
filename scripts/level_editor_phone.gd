@@ -709,6 +709,7 @@ func _page_change() -> void:
 		_open_page("The desert itself")
 		for spec: Dictionary in _level_numbers():
 			_number_row(spec)
+		DesertScenery.phone_rows(self, editor.layout["terrain"])
 		_rows.add_child(_row("Weather: %s" % ["Calm", "A breeze", "A storm"][int(editor.layout.get("weather", 1))], func() -> void:
 			_choice = {"title": "Weather", "options": ["Calm", "A breeze", "A storm"], "holder": editor.layout, "key": "weather", "usual": 1}
 			_show("choice"), "next"))

@@ -12,7 +12,9 @@ class_name LevelLayout
 ##
 ## A layout is a Dictionary:
 ##     version   1
-##     terrain   size, cell, dune_height, seed, scatter, rim_height, rim_width, wind [x, z]
+##     terrain   size, cell, dune_height, seed, scatter, rim_height, rim_width, wind [x, z];
+##               and, if it says: dunes (how they are set out, as `SandDunes.Field`; without it, 0: scattered),
+##               sharp (their crests, 0..1), flat (level ground between them, 0..1), hills (the far hills, 0: none)
 ##     weather   0 calm, 1 a breeze, 2 a storm
 ##     mirage    how much the heat makes the distance swim, 0..1 (0: not at all)
 ##     items     a list of Dictionaries
@@ -38,6 +40,8 @@ static var saved_at := SAVED
 const PALETTE := {
 	"Ground": [
 		["Level ground", "pad", ""], ["Dune", "dune", ""], ["Ridge", "ridge", ""],
+		# (more dunes to place by hand: `SandDunes.add_star`, `add_barchanoid`)
+		["Star dune", "dune", "star"], ["Linked dunes", "ridge", "linked"],
 	],
 	"Water": [
 		["Pond", "pond", ""], ["River", "river", ""], ["Tank of water", "pool", ""], ["Well", "prop", "well"], ["Oasis kerb", "prop", "oasis_rim"],
@@ -53,6 +57,12 @@ const PALETTE := {
 		["Boulder", "prop", "rock_a"], ["Rock", "prop", "rock_b"],
 		["Cobweb: corner", "cobweb", "corner"], ["Cobweb: across a passage", "cobweb", "sheet"], ["Cobweb: hanging", "cobweb", "hanging"], ["Cobweb: draped", "cobweb", "drape"],
 		["Inscription", "inscription", ""],
+		# Living rock (`scripts/desert_scenery.gd`): a cliff or a mesa made from numbers, the rocks of the White Desert
+		# (models: `tools/build_rocks.py`), a field of them, the Valley of the Kings, and a tomb doorway by itself.
+		["Cliff", "cliff", ""], ["Mesa", "cliff", "mesa"],
+		["Mushroom rock", "rock", "mushroom"], ["Rock dome", "rock", "dome"], ["Haystack rock", "rock", "haystack"], ["Rock cone", "rock", "cone"],
+		["Rock shelf", "rock", "shelf"], ["Dark outcrop", "rock", "outcrop"], ["Field of rocks", "rocks", ""],
+		["Valley of the Kings", "valley", ""], ["Tomb doorway", "tomb_door", ""],
 	],
 	"Camp": [
 		["Palm", "prop", "palm_a"], ["Bent palm", "prop", "palm_b"], ["Small palm", "prop", "palm_c"],
@@ -138,6 +148,27 @@ const FIELDS := {
 		["round", "Round", "b", true], ["ease", "Rise of the dunes round it", "n", 0.5, 40.0, 0.5, 10.0]],
 	"dune": [["width", "Width", "n", 8.0, 140.0, 1.0, 46.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 6.0], ["horns", "Horns", "n", 0.2, 0.9, 0.01, 0.55]],
 	"ridge": [["length", "Length", "n", 20.0, 300.0, 2.0, 110.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 7.0]],
+	"dune:star": [["width", "Width", "n", 20.0, 160.0, 1.0, 70.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 7.0], ["arms", "Arms", "n", 3.0, 5.0, 1.0, 3.0]],
+	"ridge:linked": [["length", "Length", "n", 20.0, 300.0, 2.0, 120.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 6.0]],
+	# Living rock. (`stone` is which, in the order of `Rock.STONES`; `mix` in the order of `RockField.MIXES`; `leads` of `TombDoor.LEADS`.)
+	"cliff": [["length", "Length", "n", 20.0, 300.0, 2.0, 80.0], ["bend", "Bends round by", "n", -180.0, 180.0, 5.0, 0.0], ["height", "Height", "n", 4.0, 40.0, 0.5, 14.0],
+		["depth", "Width across the top", "n", 6.0, 80.0, 1.0, 12.0], ["scree", "Scree at its foot", "n", 0.0, 0.6, 0.05, 0.3], ["rough", "Buttresses and gullies", "n", 0.0, 4.0, 0.25, 2.0],
+		["ways", "Ways up", "n", 0.0, 4.0, 1.0, 1.0], ["seed", "Which cliff", "n", 0.0, 99.0, 1.0, 1.0], ["stone", "Rock", "c", Rock.STONE_NAMES, 1]],
+	"cliff:mesa": [["width", "Width", "n", 12.0, 140.0, 1.0, 40.0], ["height", "Height", "n", 4.0, 40.0, 0.5, 14.0],
+		["scree", "Scree at its foot", "n", 0.0, 0.6, 0.05, 0.3], ["rough", "Buttresses and gullies", "n", 0.0, 4.0, 0.25, 2.0],
+		["ways", "Ways up", "n", 0.0, 4.0, 1.0, 1.0], ["seed", "Which mesa", "n", 0.0, 99.0, 1.0, 1.0], ["stone", "Rock", "c", Rock.STONE_NAMES, 2]],
+	"rock": [["size", "Width", "n", 0.5, 24.0, 0.25, 6.0], ["seed", "Which one", "n", 0.0, 99.0, 1.0, 1.0], ["stone", "Rock", "c", Rock.STONE_NAMES, 0]],
+	"rock:mushroom": [["size", "Width", "n", 0.5, 24.0, 0.25, 5.0], ["seed", "Which one", "n", 0.0, 99.0, 1.0, 1.0], ["stone", "Rock", "c", Rock.STONE_NAMES, 0]],
+	"rock:shelf": [["size", "Width", "n", 0.5, 24.0, 0.25, 9.0], ["seed", "Which one", "n", 0.0, 99.0, 1.0, 1.0], ["stone", "Rock", "c", Rock.STONE_NAMES, 0]],
+	"rock:outcrop": [["size", "Width", "n", 0.5, 24.0, 0.25, 8.0], ["seed", "Which one", "n", 0.0, 99.0, 1.0, 1.0], ["stone", "Rock", "c", Rock.STONE_NAMES, 3]],
+	"rocks": [["count", "How many", "n", 5.0, 120.0, 1.0, 40.0], ["radius", "They reach", "n", 10.0, 150.0, 1.0, 45.0], ["from", "The smallest", "n", 0.5, 10.0, 0.25, 1.0],
+		["to", "The biggest", "n", 1.0, 20.0, 0.25, 7.0], ["mix", "Which shapes", "c", RockField.MIX_NAMES, 0], ["seed", "Which field", "n", 0.0, 99.0, 1.0, 1.0],
+		["stone", "Rock", "c", Rock.STONE_NAMES, 0]],
+	"valley": [["y", "Height of its floor", "n", -12.0, 40.0, 0.1, 0.0], ["size", "Size", "n", 0.7, 1.5, 0.05, 1.0], ["height", "Height of the cliffs", "n", 8.0, 30.0, 0.5, 16.0],
+		["tombs", "Tomb doorways", "n", 0.0, 8.0, 1.0, 4.0], ["open", "Which is open (0: none)", "n", 0.0, 8.0, 1.0, 1.0], ["leads", "It leads to", "c", TombDoor.LEADS, 1],
+		["tomb_seed", "Which tomb", "n", 1.0, 999.0, 1.0, 1.0], ["difficulty", "How hard", "c", ["Easy", "Middling", "Hard"], 1], ["seed", "Which valley", "n", 0.0, 99.0, 1.0, 1.0]],
+	"tomb_door": [["number", "Number on its board (0: none)", "n", 0.0, 65.0, 1.0, 9.0], ["open", "Open", "b", false], ["leads", "It leads to", "c", TombDoor.LEADS, 0],
+		["tomb_seed", "Which tomb", "n", 1.0, 999.0, 1.0, 1.0], ["difficulty", "How hard", "c", ["Easy", "Middling", "Hard"], 1], ["stone", "Rock", "c", Rock.STONE_NAMES, 1]],
 	"pond": [["radius", "Radius", "n", 1.5, 60.0, 0.5, 8.0], ["depth", "Depth", "n", 0.2, 6.0, 0.1, 1.4], ["level", "Water level", "n", -4.0, 2.0, 0.05, -0.4],
 		["bank", "Bank", "n", 1.0, 25.0, 0.5, 6.0]],
 	"river": [["width", "Width", "n", 2.0, 40.0, 0.5, 9.0], ["depth", "Depth", "n", 0.2, 6.0, 0.1, 1.3], ["level", "Water level", "n", -4.0, 2.0, 0.05, -0.5],

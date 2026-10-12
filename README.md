@@ -114,7 +114,153 @@ The ground of a level is a `SandGround` (`scripts/sand_ground.gd`), drawn by the
 - **Sand thrown up** by feet (`SandSpray`) is many fine grains that are flung out and come straight back down in
   arcs, drifting a little in the wind.
 
+- **Wind ripples** are drawn by the sand shader wherever sand lies flattish and open to the wind: thin ridges a
+  third of a metre apart lying across the wind, each with a long back and a short dark lee side. There are two sets of
+  them, one a little closer together than the other, in patches: where one gives way to the other a ripple runs into
+  the next and ends, or becomes two, so they fork and join as real ones do. They fade out on a slip face, on trodden
+  ground, and before they are too fine to draw, so that far sand is smooth and does not shimmer.
+
 `tools/sand_sheets.gd` walks and runs him over all of it in the test yard and saves pictures (see the top of the file).
+
+## Dunes
+
+The desert's dunes are made by `SandDunes` (`scripts/sand_dunes.gd`) from the wind the level has, and
+`DesertTerrain` makes the ground from them. Every dune is one line on the ground, its brink. Up wind of it the back
+rises gently (about 11 degrees at its steepest), and down wind the slip face falls away at the angle sand lies at,
+32 degrees: he walks up the one, and on the other the sand lets go under him. There are five forms:
+
+- a **crescent** (a barchan): its horns point down wind;
+- a **ridge** across the wind, long, its crest wandering;
+- **linked crescents** (a barchanoid ridge): a scalloped line of them, joined horn to horn, with a low saddle at each join;
+- a **star dune**: three to five crests running out from a peak, one side of each a slip face;
+- and the **floor** between, which is nearly level.
+
+How they are set out is the level's "Kind of dunes" (on the editor's Level page; `dunes` in the layout):
+
+- **Scattered, as they were** (0): crescents and ridges dropped by chance. It is what a level has that does not say.
+- **Crescents, Ridges across the wind, Linked crescents, Star dunes**: a field of the one form.
+- **A sea of all kinds**: each form where it belongs, crescents where the sand is thin and ridges where there is more,
+  and now and then a star. This is what the shipped desert has.
+
+A field is set out as the wind sets one out: in rows across it, each row a dune's length and some flat ground
+behind the last ("Flat ground between them"), the dunes of a row much of a size and standing opposite the gaps of the
+row before, no two alike. "How sharp their crests are" makes the crest a crease (the back is still climbing when it
+gets to the brink) or rounds it over. Everything comes from the level's seed through whole numbers: the same level is
+the same ground every time, on every device. In a field the flat ground between dunes is painted harder and paler
+(packed, pale and a little white sand), and a dune runs out to nothing where it would stand on level ground, a pond,
+rock, or anything else that stands in the level. The Ground page also has a **Star dune** and **Linked dunes** to
+place by hand, beside the Dune and the Ridge.
+
+What dunes look like has a great deal to do with where the sun is: a slip face that is turned from the sun is dark
+and its crest is a hard line, and one turned to it is nearly lost. The shipped desert's wind was turned right round
+(it blows to the west-south-west now) so that its slip faces are turned from the sun.
+
+**A level saved before this** (one made in the editor on a phone, or pasted in) says nothing of the kind of dunes, and
+so keeps them exactly as they were: scattered, round at the crest, the same dunes in the same places, nothing moved
+under what was put on them. What does change in it: wind ripples fork, and are thin dark lines where they were soft
+waves; and things stand on the ground exactly as it is drawn and stood on, where they used to stand on the height the
+dunes were worked out from, which between two corners of the ground's grid could differ by a hand's breadth. To give
+such a level the new dunes, choose a kind on its Level page; the far hills are there too, and it has none until asked.
+
+The ground is made again by the editor a moment after any change: that takes about a fifth of a second for the
+shipped desert on a desk (it was asked of the dunes corner by corner, and is now worked out dune by dune).
+
+## Rock: cliffs, the White Desert, the Valley of the Kings
+
+All of it is drawn with one rock shader (`scripts/rock.gd`, `Rock.material(colour, seed)`): beds lying level, each a
+tone of its own with a dark parting under it; streaks run down steep faces; joints; sand lying on whatever is nearly
+level; and scree. It comes in chalk, limestone, sandstone and dark basalt (`Rock.STONES`). On the editor's Stone page:
+
+- **Mushroom rock, Rock dome, Haystack rock, Rock cone, Rock shelf, Dark outcrop** (`RockFormation`): the shapes of the
+  White Desert, where the wind has cut a bed of chalk down into hundreds of lumps, undercut at the foot and ringed with
+  the ledges of their beds; and the dark broken rock that shows through dunes. Width, which one, and what rock. Sand is
+  banked up round the foot of each, deepest in its lee. They are solid: he can stand under a mushroom's cap, climb onto
+  a shelf, and a grappling hook holds on the rim of a big mushroom.
+- **Field of rocks** (`RockField`): so many of them over so wide a round, from a smallest to a biggest, of a mix of
+  shapes (the White Desert's; domes and haystacks; mushrooms; shelves; dark rubble), with small stones between. The
+  whole field is two meshes, four draw calls (only its big rocks throw shadows). Where a field is chalk the ground between is painted white in patches.
+- **Cliff** and **Mesa** (`Cliff`): a body of rock with a flat top to walk on, a cliff band all round it set back in
+  two ledges, and scree under the band that he can walk up. A cliff lies along a line (its length, and how far it
+  bends round); a mesa fills a ring. Height, how much of it is scree, how far its buttresses stand out and its gullies
+  go in, what rock. "Ways up" is how many places a rake of ledges climbs the band, each a step he catches and pulls up
+  onto, the last onto the top. It stands on the ground as it finds it: its scree runs out to the dunes.
+- **Valley of the Kings** (`KingsValley`): the set piece, below.
+- **Tomb doorway** (`TombDoor`): one doorway by itself, to set against any cliff.
+
+And on the Level page, **Far hills**: mesas and a long low cliff standing all round the level in the haze
+(`DesertHorizon`), so that the desert does not end at an edge. One draw call; 0 is none.
+
+**What is a model and what is made from numbers.** The rock that has a fixed shape was modelled in Blender, by a
+script, and can be looked at and changed there: `tools/rocks.blend`. The game reads `models/rocks/rocks.glb`
+(`scripts/rock_models.gd`). To make them again:
+
+```
+blender --background --python tools/build_rocks.py
+godot --headless --path . --import
+```
+
+(or change `tools/rocks.blend` by hand and export it: the top of `tools/build_rocks.py` says how. Running the script
+again makes the .blend afresh.) The game goes by the names of the objects:
+
+| Object | What it is |
+| --- | --- |
+| `mushroom_a` `_b` `_c`, `dome_a` to `_d`, `haystack_a` to `_c`, `cone_a` `_b`, `shelf_a` to `_c`, `outcrop_a` to `_c` | The rock formations. Each is modelled 1 across (and only shown bigger in the .blend); the game picks one of the kind by its seed, turns it, and makes it the width asked for, a little taller or squatter. Its bank of sand is deepest on +X, which the game turns down wind. Add a `dome_e` and fields will use it |
+| `stone_a` to `_d` | Loose stones, scattered through a field |
+| `tomb_door`, `tomb_door_shut`, `tomb_door_open` | The doorway with its ramp, stair and walls (it looks out along Godot's +Z, Blender's -Y; the cliff is at its back); and what fills it, shut or open |
+| `number_board`, `rubble_wall`, `spoil_heap_a` `_b` | The board for a tomb's number, a length of dry-stone wall, and heaps of chippings |
+| `el_qurn` | The peak, 1 from its middle to its foot |
+| `horizon_mesas` | The far hills: a ring 100 from its middle |
+| anything with `_hull1`, `_hull2`... after its name | What is solid of the thing named: the game puts a hull round the points of each. A thing with none is not solid |
+
+The materials say what each face is drawn with: `rock` (the rock shader, in whatever rock the level asks for),
+`sand` (the sand shader), `dressed` (cut stone), `dark`, `wood`. The colour of each point of a `rock` face tells the
+shader more: red is how light the rock is there, green how much sand lies over it, blue is 1 for scree and rubble.
+
+What is still made from numbers, in code: the dunes, the ground and the ripples; and the cliff (`scripts/cliff.gd`).
+A cliff follows whatever line or outline it is given (the valley's hills are one cliff, with the wadi cut out of its
+top), comes down to dunes that are a different height all along it, clears its scree away where a doorway is, and puts
+ledges where a way up is asked for. Lengths of modelled face set along the line could not do those things without
+their joins showing at every bend and their feet standing in the air or the sand, so it was left as it is.
+
+**The Valley of the Kings.** `KingsValley` is a block of limestone hills with a wadi cut into it from the south
+(its own +Z): it bends as it goes, a branch leaves it on each side, and at its head stands the peak. Scree lies at
+the foot of the cliffs; a path is beaten along the floor (packed, pale sand on white dust) and up each branch; and in
+the cliff foot are the tomb doorways, up to eight, each where the cliff has cleared its scree back for it. A doorway
+is a square-cut entrance under a lintel, with a ramp of chippings up to its sill between two dry-stone walls, a short
+stair down inside to the door, a heap of spoil tipped to one side, and its number on a board. Size, the height of the
+cliffs, how many doorways, which valley (the seed) are on its panel. It stands on level ground of its own, which the
+desert makes for it.
+
+Each doorway is a `TombDoor`, in the group `tomb_doors`. Shut, it is walled up. One of the valley's may be **open**
+("Which is open"), and "It leads to" says what walking in at it does: nothing yet; today's tomb; a tomb of its own
+(from "Which tomb", at "How hard"); or one that branches. A tomb is opened as the menu opens one (`TombLevel.play`, and
+`tomb.tscn`, walked through), and when it is done the card has **Back outside**, which brings him back to the desert
+standing before the door he went in at (`TombLevel.back_to`, `Desert.play_from`). The desert itself starts afresh when
+he comes back: nothing of it is kept while he is below. A door also sends `entered`, for whatever else a level's
+maker wants of it. The shipped desert's valley is in its north-west corner, with KV 9 open and leading to today's tomb.
+
+What is true to the place: the royal tombs are cut into the foot of limestone cliffs in a dry wadi with side
+branches, west of Thebes; the pyramid-shaped peak that stands over it is el-Qurn, "the horn", which may be why the
+kings chose it; the entrances are plain square-cut doorways with a stair or ramp down, and were walled up and sealed;
+by 1910 the floor was a dig, with the excavators' rubble retaining walls and heaps of limestone chippings about the
+doorways and beaten paths between; and the tombs are numbered KV 1 upward (Wilkinson painted the first numbers on
+them in 1827). The numbers on the boards are real tombs: KV 9 (Ramesses V and VI), 17 (Seti I), 11 (Ramesses III),
+35 (Amenhotep II), 6 (Ramesses IX), 8 (Merenptah), 34 (Thutmose III), all open before 1910; and KV 62, which is
+Tutankhamun's, and was not found until 1922: here it is the last, and shut. What is not true: the real valley is
+about a kilometre long and its cliffs many times higher, its tombs are not in this order nor in these places, the
+real peak stands well back from the head of the wadi and far above it, the stair of a real tomb goes down below the
+floor of the valley where this one goes up a ramp to its sill and down three steps inside, and nobody put the numbers
+on boards on posts: they were painted by the doors.
+
+`tools/terrain_test.gd` checks all of this with nothing drawn (the same seed, the same ground; an old level loads and
+its ground is what it was; up a dune and over; the slip face lets go; thrown at every rock from all round, running and
+jumping, he does not get inside and can walk away; the ledges of a cliff are climbed; doors), and
+`tools/terrain_sheets.gd -- <folder>` takes the pictures (the top of the file lists them):
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/terrain_test.gd
+godot --path . --resolution 960x960 --script tools/terrain_sheets.gd -- <folder> [dunes kinds ripples rocks field cliff valley horizon level]
+```
 
 ## The level editor
 
@@ -136,13 +282,17 @@ and keep it in the same form.
   along the bottom. Touch one, then touch the ground.
 - **Changing them**: touch a thing to choose it; its sliders come up at the right, with Move to, Copy, Remove. Drag it
   by its mark to move it.
-- **The ground**: "Level" has the desert's size, the height and number of its dunes, the wind and the weather.
+- **The ground**: "Level" has the desert's size, the height and number of its dunes, the wind and the weather; and the
+  kind of dunes, how sharp their crests are, how much flat ground lies between them, and the far hills (see Dunes,
+  and Rock, above).
   Level ground, dunes and ridges placed by hand, ponds and rivers are things like any other: a river is a line of
   points to drag and add to, and the ground is cut away under water and made again a moment after any change.
 - **Pyramids**: on the Stone page, "Stepped pyramid", "Finished pyramid" and "Fallen pyramid" are one thing made from
   numbers (`scripts/pyramid.gd`), set out three ways: its width, steepness and the height of a course, how much of
   its smooth casing is left, a gold cap, how ruined it is and which ruin, a doorway, and its stone. Move a slider and
   it is built again. (The Great and Ruined pyramids beside them are fixed models.)
+- **Rock**: on the Stone page, the Cliff and the Mesa, the six rocks of the White Desert, a Field of rocks, the
+  Valley of the Kings and a Tomb doorway (see Rock, above). Move a slider and the thing is made again.
 - **Heat**: "Level" also has the heat mirage: how much the distance swims, and whether pools of sky lie on the far
   sand. 0 is none.
 - **People**: townspeople (who, and how far they wander), his brother, a cat, hounds (which give chase when he comes
@@ -361,6 +511,14 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/level_editor_phone.gd` | The editor's screen for a phone: a bar, and one sheet or page at a time, all sized for a thumb |
 | `tools/editor_test.gd`, `tools/editor_phone_test.gd`, `tools/level_editor_shots.gd`, `tools/touch_audit.gd` | Not part of the game: work the level editor's panels for a desk, and its layout for a phone by touch alone; take a picture of every state of either; and measure what there is to touch on a screen |
 | `scripts/desert_terrain.gd` | The desert's ground: dunes, level ground, and water cut into it |
+| `scripts/sand_dunes.gd` | Dunes as the wind makes them: crescents, ridges, linked crescents, star dunes, and whole fields of them in rows across the wind |
+| `scripts/rock.gd`, `scripts/rock_models.gd` | Living rock drawn by a shader (beds, weathering, joints, sand on its ledges, scree), and what builds meshes of it; and the rock that was modelled (`models/rocks/rocks.glb`) |
+| `scripts/rock_formation.gd`, `scripts/rock_field.gd` | A rock of the White Desert (mushroom, dome, haystack, cone, shelf, dark outcrop); and a field of them in one mesh |
+| `scripts/cliff.gd` | A cliff or a mesa made from numbers: a flat top, a cliff band, scree, buttresses and gullies, ledges to climb, cuttings for doorways |
+| `scripts/kings_valley.gd`, `scripts/tomb_door.gd` | The Valley of the Kings: hills with a wadi cut into them, the peak, the path, and the tomb doorways; and a doorway, which can lead to a tomb |
+| `scripts/desert_horizon.gd`, `scripts/desert_scenery.gd` | The far hills round the level; and what makes all of this rock from a level's layout, paints the ground round it, and puts its rows on the editor's Level page |
+| `tools/build_rocks.py`, `tools/rocks.blend`, `models/rocks/rocks.glb` | Not part of the game: builds the rock models in Blender; the models to look at and change; and what the game reads |
+| `tools/terrain_test.gd`, `tools/terrain_sheets.gd` | Not part of the game: check the dunes and the rock with nothing drawn; and take pictures of them |
 | `scripts/pyramid.gd` | A pyramid made from numbers: stepped core, smooth casing, gold cap, ruin (fallen corners, rubble, missing and slipped blocks), a doorway; its mesh and what is solid |
 | `scripts/sandstone.gd` | Stone drawn by a shader: blocks in courses, strata, weathering, cracks, rubble; and gold (`Toon.sandstone`, `Toon.gold`) |
 | `scripts/heat_mirage.gd` | Heat over the desert: far things near the level of the eye swim, and pools of sky lie on the far sand |
