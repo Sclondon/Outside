@@ -488,6 +488,9 @@ func _person(item: Dictionary, who: String) -> Node3D:
 			return crocodile
 		"ba":
 			return Ba.from_item(item, height_at)
+
+		"apophis":
+			return Apophis.from_item(item)
 		"birds":
 			var birds := Birds.new()
 			birds.kind = int(item.get("bird", 1)) as Birds.Kind
@@ -540,6 +543,9 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as Crocodile).caught.connect(_on_caught.bind(made))
 	elif made is Medjed:
 		(made as Medjed).caught.connect(_on_caught.bind(made))
+
+	elif made is Apophis:
+		(made as Apophis).caught.connect(_on_caught.bind(made))
 	# The puzzle parts that are on or off say so themselves, as a plate does: a lever, a lock, a sun disc, an offering
 	# table, a brazier to light. (And a timed plate that only he presses is told so here, once it is in the level.)
 	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier or made is Sphinx:
@@ -650,6 +656,8 @@ func _introduce(node: Node3D) -> void:
 		(node as Hyena).target = _player
 	elif node is Crocodile:
 		(node as Crocodile).target = _player
+	elif node is Apophis:
+		(node as Apophis).target = _player
 
 
 func _physics_process(delta: float) -> void:
@@ -712,6 +720,10 @@ func _physics_process(delta: float) -> void:
 				(node as JackalMummy).wake()
 		elif node is Medjed:
 			(node as Medjed).worked = worked
+
+		elif node is Apophis:
+			# (he hunts while it is on, and goes home when it goes off)
+			(node as Apophis).loose = worked
 		elif node is AnimatableBody3D:
 			var home: Vector3 = node.get_meta(&"home")
 			var way: Vector3 = [node.basis.z, Vector3.UP, node.basis.x][int(item.get("way", 0))].normalized()
