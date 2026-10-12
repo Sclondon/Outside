@@ -602,6 +602,7 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `tools/guardian_test.gd`, `tools/guardian_sheets.gd` | Not part of the game: run the guardians and the leaves with nothing drawn, by touch, and say what happened; and pictures of them, of the names on the screen of a phone and of the leaf |
 | `scripts/khepri.gd`, `scripts/akhet.gd` | Khepri and the sun: a big scarab that rolls a ball of sun over a floor of squares, turning at whatever is in its way; and the horizon it is brought to, which is then on for good |
 | `scripts/khepri_court.gd` | The court Khepri is tried in: the test yard's station for it, and what its test and its pictures are run in |
+| `tools/build_khepri.py` | Builds Khepri's beetle, the sun's ball, the horizon, the swarm's small scarab and the scarab amulet in Blender (`tools/khepri.blend`, `models/khepri.glb`): named things hinged at their origins and named materials, no bones |
 | `tools/khepri_test.gd`, `tools/khepri_sheets.gd` | Not part of the game: run Khepri with nothing drawn and check each thing it does; and draw it |
 
 Tuning values are exported properties on the Player, Camera and TouchControls nodes.
@@ -1332,7 +1333,18 @@ While they are out, `swarm.front` (the nearest of them to him) is in the group `
 cat and the camels keep away. With `harmless = true` it is a few beetles (`count`) that wander within `roam` of where
 they are put and run from his feet, and with `dung_ball` one of them rolls a ball backwards, head down.
 
-There is no body to a beetle. All of them are one MultiMesh (140 triangles each), moved in one loop and written to it
+The beetle is a Blender model: the object `scarab` in `models/khepri.glb`, built by `tools/build_khepri.py` with
+Khepri (see there for how to build it again; `tools/khepri.blend` is the one to open). It is one unit long, and the
+game makes it the size it wants. Because there are so many, three things about it are not as free as in other models.
+Its legs are moved by a shader, which knows a leg by the mesh's UV map: U is how far down the leg a point is (0 at the
+hip and all over the body, 0.45 at the knee, 1 at the foot) and V which three legs it steps with (1 or 0.5 in Blender).
+Points moved keep theirs, and points made from them take it; a leg built from nothing has to be given it. It is all
+one colour, the shader's black: its four materials (`scarab_shell`, `scarab_thorax`, `scarab_head`, `scarab_leg`) say
+only how much each part shines, by their Roughness (0: wholly). And it should stay near its 124 triangles. Its normals
+are set by hand in the build script (the head and legs are lit as flatter than they are), so it is point for point the
+beetle the code used to make.
+
+There is no body to a beetle. All of them are one MultiMesh (124 triangles each), moved in one loop and written to it
 in one piece; their legs are moved by the shader. The ground is found with a ray straight down, once for each 0.2 m
 square round the nest as a beetle first comes to it (28 a frame at most), and remembered; they keep apart by counting
 themselves into the same squares. Two hundred of them held in a ring by a torch cost about 0.5 ms a frame on a desk
@@ -1340,7 +1352,9 @@ machine (50: 0.13 ms; 100: 0.26 ms; much the same running over new ground), and 
 
 A `ScarabAmulet` (`scripts/scarab_amulet.gd`) is a scarab of gold and lapis the size of a hand, picked up and thrown
 like a rock; a `ScarabSocket` (`scripts/scarab_socket.gd`) is a stone with a hollow for it, and is a pressure plate
-that only the amulet presses, so it opens whatever a plate opens.
+that only the amulet presses, so it opens whatever a plate opens. The amulet is the object `scarab_amulet` in the same
+model, one unit long: what is `amulet_gold` there is drawn in the game's gold in that colour, and what is
+`amulet_stone` in the amulet's own `stone` colour.
 
 The level editor has "Scarab swarm" (how many, how far they chase, whether fire holds them off, how near he comes
 before they come out, and what lets them out) and "Scarabs (harmless)" on its People page, and "Scarab amulet" and
@@ -1362,10 +1376,48 @@ step, and come out when he comes near; and a web tears and a web burns.
 ## Khepri and the sun
 
 `Khepri.new()` (`scripts/khepri.gd`) is a big scarab of lapis and gold, 0.45 m long, rolling a ball of sun 0.7 m
-across: backwards, head down, its hind legs on the ball, as the harmless one of the swarm rolls its dung (it is the
-same beetle, `Scarab.mesh()`, in other colours, with its legs moved the same way). The sun is a real light, so a dark
-room is lit as it comes, and it turns as far as it travels. `Akhet.new()` (`scripts/akhet.gd`) is where the sun is to
-be brought: two low hills of sandstone with a cradle of gold between them.
+across: backwards, head down, its hind legs on the ball, as the harmless one of the swarm rolls its dung. The sun is
+a real light, so a dark room is lit as it comes, and it turns as far as it travels. `Akhet.new()` (`scripts/akhet.gd`)
+is where the sun is to be brought: two low hills of sandstone with a cradle of gold between them.
+
+**The model.** The beetle, the ball and the horizon are a Blender model, `models/khepri.glb`, built by
+`tools/build_khepri.py`, which also keeps `tools/khepri.blend` to look at and change by hand (the small scarab of
+the swarms and the scarab amulet are in it too: see Scarabs). To build it again and have the game take it up:
+
+```
+blender --background --python tools/build_khepri.py
+godot --headless --path . --import
+```
+
+(Changed by hand in `tools/khepri.blend` instead, it is exported from there as glTF to `models/khepri.glb`, +Y up;
+running the script again would write over that.) What is in it, each thing named for what it is:
+
+| In the model | What it is |
+| --- | --- |
+| `khepri` | An empty: the beetle is everything under it. It stands as it sits on a hill when the sun has risen, wing cases open and wings out, facing the game's +Z (Blender's -Y) |
+| `body` | The gold shield over the thorax, the dark back under the wing cases, the belly |
+| `head` | The head shield with its six teeth, and two eyes of lapis |
+| `wing_case_left`, `wing_case_right` | The wing cases (one mesh, turned over for the right). The origin is the hinge; how it is turned in the model is how far it opens. Shut, it is not turned at all |
+| `wing_left`, `wing_right` | The wings (one mesh): a fan of seven feathers in bands. The origin is the root; how it is turned is how it is held when it is out |
+| `leg_fore_left`, `leg_mid_left`, `leg_hind_left`, and `_right` | The six legs (three meshes). The origin is the hip, which the game swings the leg about; its lowest point is its foot |
+| `sun` | The ball. Its colours and the tongues of fire on it are drawn by the game's shader, not taken from the model |
+| `akhet` | An empty: the horizon is everything under it |
+| `ground`, `hill_east`, `hill_west`, `cradle` | The slab with its strips of gold, the two hills (one mesh) with a band of gold at the foot of each, the dish of gold and its ring |
+
+The beetle has no bones in the model. The game (`Khepri._read`) makes one mesh of everything under `khepri` and gives
+each thing a bone of its own at its origin, so moving an origin moves the joint, and nothing has to be weighted.
+Its colours are the model's materials (`lapis`, `gold`, `gold_dark`, and the paints of the wings, `wing_gold`,
+`wing_lapis`, `wing_turquoise`, `wing_red`, each with a `_shade` for every other feather): change a Base Color, export,
+and the beetle changes (sixteen colours at most). A material's Roughness is how much it glints (1: not at all), and a material with Emission is
+drawn bright of itself and not lit, as the wings are. The horizon is drawn in the game's own sandstone and gold, in the
+colours of the model's `hill_stone`, `ground_stone`, `horizon_gold` and `cradle_bronze`. The beetle is modelled 0.45 m
+long and `beetle_length` makes all of it bigger or smaller.
+
+What is still made in the code, and why: the sun's glow and its light, and the column of light it stands on in the
+horizon (they are light, sized as the sun rises); the fire on the ball (a shader, so that it is seen to roll); how
+the legs step, the wings beat and the cases open (from the hinges the model gives); the sounds; and what is solid:
+the ball is a sphere of `Khepri.SUN` and each hill a box from `Akhet.HILL`, so a ball or a hill reshaped in the model
+looks different but is solid where it was. The beetle sits on its hill at `Akhet.perch()`, likewise.
 
 **Where it comes from.** Khepri is the sun at dawn. The Egyptians watched the sacred scarab roll its ball of dung
 over the ground and saw in it what moves the sun over the sky; and because young beetles seemed to come out of the
@@ -1440,8 +1492,8 @@ squares (`scripts/khepri_court.gd`, which says how it is done). The lever by the
 it goes round by the walls, through a dark alcove, past a sun disc and over a plate; push the two blocks onto their
 marks and it turns twice and comes to the horizon, which opens the door. The plate outside puts it all back.
 
-It is one draw for the beetle (140 triangles), one for the sun, one for its glow, two for the wings when they are
-out, and one light without shadows. What it asks of the world it asks only at the middle of a square (for each way it tries, six rays down
+It is one draw for the beetle, wings and all (about 900 triangles on a skeleton of twelve bones), one for the sun,
+one for its glow, and one light without shadows; the horizon is one mesh of four materials. What it asks of the world it asks only at the middle of a square (for each way it tries, six rays down
 and a shape swept along it) and once a step while it rolls (the shape again).
 
 ```

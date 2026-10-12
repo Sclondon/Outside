@@ -46,6 +46,8 @@ signal rose(akhet: Akhet)
 
 enum Turns { RIGHT, LEFT }
 enum State { REST, DOWN, ROLL, TURN, WAIT, RISE, DONE }
+## What a thing of the beetle's model is, to the way it is moved.
+enum Part { STILL, LEG, CASE, WING }
 
 ## How big across the sun is.
 const SUN := 0.7
@@ -61,6 +63,13 @@ const WAIT_TIME := 1.0
 const RISE_TIME := 2.6
 ## How far down its nose the beetle holds its head as it pushes (radians).
 const NOSE_DOWN := 0.75
+## The model the beetle and the ball are read from, and how long the beetle is in it, metres: `beetle_length` is
+## made of that by making all of it bigger or smaller.
+const MODEL := "res://models/khepri.glb"
+const MODELLED := 0.45
+## How far a foot swings fore and aft and how high it lifts, in lengths of the beetle.
+const REACH := 0.11
+const LIFT := 0.05
 
 ## Which side it turns to when its way is shut.
 @export var turns := Turns.RIGHT
@@ -114,8 +123,8 @@ var _ball: MeshInstance3D
 var _halo: MeshInstance3D
 var _lamp: OmniLight3D
 var _beetle: Node3D
-var _body: MultiMeshInstance3D
-var _wings: Array[Node3D] = []
+var _bones: Skeleton3D
+var _body: MeshInstance3D
 var _yaw := 0.0
 var _mount := 1.0
 var _stride := 0.0
@@ -130,7 +139,11 @@ static var _feeler: CylinderShape3D
 static var _sun_shader: Shader
 static var _halo_shader: Shader
 static var _beetle_shader: Shader
-static var _wing_mesh: ArrayMesh
+static var _beetle_mesh: ArrayMesh
+static var _sun_mesh: Mesh
+static var _parts: Array[Dictionary] = []
+static var _paints := PackedColorArray()
+static var _lights := PackedVector3Array()
 static var _rumble_stream: AudioStreamWAV
 static var _chime_stream: AudioStreamWAV
 
@@ -185,47 +198,50 @@ void fragment() {
 }
 """
 
-## The scarab's own mesh (`Scarab.mesh`), legs moved as the swarm's are, in the
-## colours of a jewel: its texture coordinates say which part is which, so the
-## wing cases are lapis with a seam and a rim of gold, the shield and the head
-## gold, the legs dark gold.
+## The beetle is a Blender model (`models/khepri.glb`, built by
+## `tools/build_khepri.py`, which keeps `tools/khepri.blend` to look at and
+## change by hand): everything under `khepri` there, each thing named for what
+## it is (`body`, `head`, `wing_case_left`, `wing_left`, `leg_fore_left` and so
+## on) and hinged at its origin. Here they are made into one mesh on a
+## skeleton of one bone to a thing, so the whole beetle is one draw, wings and
+## all. Each point says which of the model's materials it had (in its second
+## texture coordinate: the colours themselves are given to the shader as a
+## list, `paints`, as any colour is, so that every renderer shows them as the
+## model has them), how much it glints (the less rough the material, the more) and
+## whether it is bright of itself and not lit (a material with emission: the
+## wings, which so near the sun light would bleach).
 const BEETLE_SHADER := """
 shader_type spatial;
 render_mode cull_disabled, shadows_disabled;
 
-uniform vec3 lapis : source_color = vec3(0.04, 0.15, 0.62);
-uniform vec3 gold : source_color = vec3(0.96, 0.7, 0.2);
-uniform vec3 legs : source_color = vec3(0.5, 0.33, 0.08);
 uniform float glow = 0.1;
-uniform float reach = 0.11;
-uniform float lift = 0.05;
 uniform float gloss = 40.0;
 
-varying float part;
-varying vec3 at;
+// The colours of the model's materials: as seen (`paints`), and as light (`lights`: what a thing bright of itself
+// gives out).
+uniform vec3 paints[16] : source_color;
+uniform vec3 lights[16];
+
+varying vec3 tint;
+varying float glint;
+varying float own;
 
 void vertex() {
-	float turn = (INSTANCE_CUSTOM.x + UV.y) * TAU;
-	at = VERTEX;
-	VERTEX.z += sin(turn) * reach * UV.x;
-	VERTEX.y += max(cos(turn), 0.0) * lift * UV.x;
-	part = UV2.x;
+	glint = UV.x;
+	own = UV.y;
+	int which = min(int(UV2.x + 0.5), 15);
+	tint = mix(paints[which], lights[which], own);
 }
 
 void fragment() {
-	vec3 colour = legs;
-	if (part > 0.85) {
-		float seam = 1.0 - smoothstep(0.014, 0.022, abs(at.x));
-		float rim = 1.0 - smoothstep(0.1, 0.115, at.y);
-		float lines = 1.0 - smoothstep(0.006, 0.012, abs(abs(at.x) - 0.16));
-		colour = mix(lapis, gold, max(max(seam, rim), lines));
-	} else if (part > 0.2) {
-		colour = gold;
-	}
-	ALBEDO = colour;
-	EMISSION = colour * glow;
+	ALBEDO = tint * (1.0 - own);
+	EMISSION = tint * mix(glow, 1.0, own);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
+	// (wings, wing cases and legs are seen from both sides)
+	if (dot(NORMAL, VIEW) < 0.0) {
+		NORMAL = -NORMAL;
+	}
 }
 
 float cut(float value, float edge) {
@@ -240,7 +256,7 @@ void light() {
 	float strength = mix(near, 1.0, 0.5);
 	DIFFUSE_LIGHT += lit * strength * LIGHT_COLOR / PI;
 	float shine = cut(pow(max(dot(NORMAL, normalize(LIGHT + VIEW)), 0.0), gloss), 0.5);
-	SPECULAR_LIGHT += shine * lit * step(0.2, part) * 0.6 * vec3(1.0, 0.92, 0.7) * strength * LIGHT_COLOR / PI;
+	SPECULAR_LIGHT += shine * lit * min(glint, 0.6) * vec3(1.0, 0.92, 0.7) * strength * LIGHT_COLOR / PI;
 }
 """
 
@@ -261,13 +277,9 @@ func _ready() -> void:
 	collider.position.y = R
 	add_child(collider)
 
+	_read()
 	_ball = MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = R
-	sphere.height = SUN
-	sphere.radial_segments = 20
-	sphere.rings = 10
-	_ball.mesh = sphere
+	_ball.mesh = _sun_mesh
 	_ball.material_override = _shaded(SUN_SHADER, 0)
 	_ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ball.position.y = R
@@ -294,29 +306,24 @@ func _ready() -> void:
 
 	_beetle = Node3D.new()
 	add_child(_beetle)
-	var one := MultiMesh.new()
-	one.transform_format = MultiMesh.TRANSFORM_3D
-	one.use_custom_data = true
-	one.mesh = Scarab.mesh()
-	one.instance_count = 1
-	one.set_instance_transform(0, Transform3D.IDENTITY)
-	one.set_instance_custom_data(0, Color(0.0, 0.0, 0.0, 0.0))
-	_body = MultiMeshInstance3D.new()
-	_body.multimesh = one
+	# The beetle: the model's, a bone to each thing it is made of, each where the model has it.
+	_bones = Skeleton3D.new()
+	for part in _parts:
+		var bone := _bones.add_bone(part.name)
+		_bones.set_bone_rest(bone, Transform3D(part.rest, part.at))
+	_bones.reset_bone_poses()
+	_bones.scale = Vector3.ONE * beetle_length / MODELLED
+	_beetle.add_child(_bones)
+	_body = MeshInstance3D.new()
+	_body.mesh = _beetle_mesh
 	_body.material_override = _shaded(BEETLE_SHADER, 2)
+	(_body.material_override as ShaderMaterial).set_shader_parameter(&"paints", _paints)
+	(_body.material_override as ShaderMaterial).set_shader_parameter(&"lights", _lights)
 	_body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_body.scale = Vector3.ONE * beetle_length
-	_body.custom_aabb = AABB(Vector3(-0.7, -0.2, -0.8), Vector3(1.4, 0.8, 1.6))
-	_beetle.add_child(_body)
-	for side: float in [1.0, -1.0]:
-		var wing := MeshInstance3D.new()
-		wing.mesh = _wing()
-		wing.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		wing.position = Vector3(side * 0.16, 0.2, 0.08) * beetle_length
-		wing.scale = Vector3(side, 1.0, 1.0) * beetle_length
-		wing.visible = false
-		_beetle.add_child(wing)
-		_wings.append(wing)
+	# (wide enough for its wings when they are out)
+	_body.custom_aabb = AABB(Vector3(-1.7, -0.3, -1.0) * MODELLED, Vector3(3.4, 1.6, 2.7) * MODELLED)
+	_bones.add_child(_body)
+	_body.skeleton = _body.get_path_to(_bones)
 
 	if voice:
 		_rumble = AudioStreamPlayer3D.new()
@@ -673,15 +680,28 @@ func _pose(delta: float) -> void:
 		_open = move_toward(_open, 0.0, delta * 4.0)
 	_beetle.global_transform = here
 	_stride += gone / (long * 0.55)
-	_body.multimesh.set_instance_custom_data(0, Color(_stride, 0.0, 0.0, 0.0))
-	for i in 2:
-		var wing := _wings[i]
-		wing.visible = _open > 0.01
-		var side := 1.0 if i == 0 else -1.0
-		# (they open from along its back, and beat a little while it flies, and breathe when it sits)
-		var beat := sin(_clock * 22.0) * 0.35 if _fly > 0.0 and _fly < 1.0 else sin(_clock * 1.3) * 0.05
-		wing.rotation = Vector3(-0.55 * _open, side * (1.0 - _open) * 1.35, side * (0.42 + beat))
-		wing.scale = Vector3(side, 1.0, 1.0) * long * lerpf(0.3, 1.0, _open)
+	# (its wings beat a little while it flies, and breathe when it sits)
+	var beat := sin(_clock * 22.0) * 0.35 if _fly > 0.0 and _fly < 1.0 else sin(_clock * 1.3) * 0.05
+	for bone in _parts.size():
+		var part := _parts[bone]
+		var rest: Basis = part.rest
+		var side: float = part.side
+		match part.kind as int:
+			Part.LEG:
+				# A foot swings fore and aft and lifts as it comes forward: the leg is turned about its hip.
+				var turn: float = (_stride + part.step) * TAU
+				var swing := Basis(Vector3.UP, -side * sin(turn) * REACH * MODELLED / part.far)
+				var lifted := Basis(part.lifts, maxf(cos(turn), 0.0) * LIFT * MODELLED / part.far)
+				_bones.set_bone_pose_rotation(bone, (lifted * swing * rest).get_rotation_quaternion())
+			Part.CASE:
+				# Shut, a wing case lies as it was made; open, as the model has it turned.
+				_bones.set_bone_pose_rotation(bone, Basis.IDENTITY.slerp(rest, _open).get_rotation_quaternion())
+			Part.WING:
+				# A wing opens from along its back to where the model has it, and is nothing at all until it does.
+				var out := rest.get_euler()
+				var held := Basis.from_euler(Vector3(out.x * _open, out.y + side * (1.0 - _open) * 1.35, out.z + side * beat))
+				_bones.set_bone_pose_rotation(bone, held.get_rotation_quaternion())
+				_bones.set_bone_pose_scale(bone, Vector3.ONE * (lerpf(0.3, 1.0, _open) if _open > 0.01 else 0.0))
 
 	# Risen, it lights the whole room.
 	var up := _rise if state == State.RISE else (1.0 if state == State.DONE else 0.0)
@@ -721,45 +741,77 @@ static func _shaded(code: String, which: int) -> ShaderMaterial:
 	return made
 
 
-# One wing, a unit to the length of the beetle, lying out to its right (+X) and sweeping forward: a fan of
-# feathers in bands of lapis, gold and turquoise, as the winged scarab of a pectoral has.
-static func _wing() -> ArrayMesh:
-	if _wing_mesh:
-		return _wing_mesh
-	var bands := [[0.2, Color(0.96, 0.7, 0.2)], [0.34, Color(0.05, 0.17, 0.62)], [0.74, Color(0.96, 0.7, 0.2)], [0.84, Color(0.1, 0.62, 0.6)],
-			[1.16, Color(0.96, 0.7, 0.2)], [1.26, Color(0.75, 0.16, 0.08)], [1.5, Color(0.75, 0.16, 0.08)]]
-	var feathers := 7
+# The model, read once: the sun's ball; and everything under `khepri` as one mesh, each thing on a bone of its
+# own (`_parts` says which, in the order of the bones).
+static func _read() -> void:
+	if _beetle_mesh:
+		return
+	var model := (load(MODEL) as PackedScene).instantiate()
+	var ball := model.find_child("sun", true, false) as MeshInstance3D
+	_sun_mesh = ball.mesh if ball else SphereMesh.new()
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for feather in feathers:
-		# (from a little behind straight out, round to well forward; the foremost feathers are the longest)
-		var one := lerpf(-0.35, 1.05, feather / float(feathers))
-		var two := lerpf(-0.35, 1.05, (feather + 0.9) / float(feathers))
-		var long := lerpf(0.72, 1.0, feather / float(feathers - 1))
-		var shade := 1.0 if feather % 2 == 0 else 0.82
-		for band in bands.size() - 1:
-			var near: float = lerpf(0.2, float(bands[band][0]) * long, 1.0 if band > 0 else 0.0)
-			var far: float = float(bands[band + 1][0]) * long
-			var colour: Color = (bands[band][1] as Color) * shade
-			var corners: Array[Vector3] = []
-			for corner: Array in [[one, near], [two, near], [two, far], [one, far]]:
-				var turn: float = corner[0]
-				var out: float = corner[1]
-				# (it is cupped a little: the tips are higher than the roots)
-				corners.append(Vector3(cos(turn) * out, out * out * 0.12, sin(turn) * out))
-			tool.set_color(colour)
-			tool.set_normal(Vector3.UP)
-			for k: int in [0, 1, 2, 0, 2, 3]:
-				tool.add_vertex(corners[k])
-	_wing_mesh = tool.commit()
-	# (painted, and bright of itself: so near the sun, light would bleach it)
-	var paint := StandardMaterial3D.new()
-	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	paint.vertex_color_use_as_albedo = true
-	paint.cull_mode = BaseMaterial3D.CULL_DISABLED
-	paint.albedo_color = Color(0.92, 0.92, 0.92)
-	_wing_mesh.surface_set_material(0, paint)
-	return _wing_mesh
+	var whole := model.find_child("khepri", true, false)
+	if whole == null:
+		push_error("Khepri's model has nothing in it called khepri")
+	for found: Node in (whole.get_children() if whole else []):
+		var shown := found as MeshInstance3D
+		if shown == null or shown.mesh == null:
+			continue
+		# (a thing of the other side is the same mesh turned over: its turn is taken without that)
+		var place := shown.transform
+		var mirrored := place.basis.determinant() < 0.0
+		var rest := (place.basis * Basis.from_scale(Vector3(-1.0, 1.0, 1.0)) if mirrored else place.basis).orthonormalized()
+		var lie := place.basis.inverse().transposed()
+		var named := String(shown.name)
+		var bone := _parts.size()
+		var foot := Vector3.ZERO
+		for surface in shown.mesh.get_surface_count():
+			var paint := shown.mesh.surface_get_material(surface) as BaseMaterial3D
+			var colour := (paint.albedo_color if paint else Color.WHITE).srgb_to_linear()
+			var which := _paints.find(paint.albedo_color if paint else Color.WHITE)
+			if which < 0:
+				which = _paints.size()
+				_paints.append(paint.albedo_color if paint else Color.WHITE)
+				_lights.append(Vector3(colour.r, colour.g, colour.b))
+			tool.set_uv2(Vector2(which, 0.0))
+			tool.set_uv(Vector2(1.0 - paint.roughness if paint else 0.0, 1.0 if paint and paint.emission_enabled else 0.0))
+			tool.set_bones(PackedInt32Array([bone, 0, 0, 0]))
+			tool.set_weights(PackedFloat32Array([1.0, 0.0, 0.0, 0.0]))
+			var arrays := shown.mesh.surface_get_arrays(surface)
+			var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var order: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			var count := order.size() if not order.is_empty() else points.size()
+			for i in range(0, count - 2, 3):
+				for corner: int in ([0, 2, 1] if mirrored else [0, 1, 2]):
+					var k := order[i + corner] if not order.is_empty() else i + corner
+					var point := place * points[k]
+					if point.y - place.origin.y < foot.y:
+						foot = point - place.origin
+					tool.set_normal((lie * normals[k]).normalized())
+					tool.add_vertex(point)
+		var part := {"name": named, "at": place.origin, "rest": rest, "side": 1.0 if place.origin.x >= 0.0 else -1.0, "kind": Part.STILL}
+		if named.begins_with("leg_"):
+			# (its lowest point is its foot. The legs of one side step in turn, and each with its opposite of the next pair)
+			var out := Vector3(foot.x, 0.0, foot.z)
+			var pair := 1 if named.contains("mid") else 0
+			part.kind = Part.LEG
+			part.far = maxf(out.length(), 0.02)
+			part.lifts = out.normalized().cross(Vector3.UP) if out.length() > 0.001 else Vector3.BACK * part.side
+			part.step = 0.5 if (pair == 0) == (part.side > 0.0) else 0.0
+		elif named.begins_with("wing_case"):
+			part.kind = Part.CASE
+		elif named.begins_with("wing"):
+			part.kind = Part.WING
+		_parts.append(part)
+	model.free()
+	if _paints.size() > 16:
+		push_error("Khepri's beetle has more than sixteen colours: the rest are drawn as the sixteenth")
+	_paints.resize(16)
+	_lights.resize(16)
+	tool.index()
+	_beetle_mesh = tool.commit()
 
 
 # The sound of it rolling: a low grinding, made here from noise.

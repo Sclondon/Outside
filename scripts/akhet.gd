@@ -13,6 +13,14 @@ extends StaticBody3D
 ## squares in a row (a hill, the cradle, a hill), and the sun comes into it
 ## along its Z, from either side. Stand it on the squares the sun keeps to.
 ## `Akhet.new()` is a whole one.
+##
+## What is seen of it is a Blender model (`models/khepri.glb`, built by
+## `tools/build_khepri.py`, which keeps `tools/khepri.blend` to change by
+## hand): the slab, the hills and the cradle, in the game's stone and gold
+## and the model's colours, drawn as one mesh of four materials. What is
+## solid of it (a box in each hill), where the beetle sits and the column
+## of light are made here, from `HILL_OUT` and `HILL`: a hill reshaped in
+## the model is not thereby solid anywhere else.
 
 signal changed(on: bool)
 
@@ -31,7 +39,13 @@ var _holds: Khepri
 var _column: MeshInstance3D
 var _starts_on := false
 
+## The model it is read from: everything under `akhet` in it (`ground`, `hill_east`, `hill_west`, `cradle`).
+const MODEL := "res://models/khepri.glb"
+
 static var _column_shader: Shader
+static var _mesh: ArrayMesh
+static var _paints: Array[String] = []
+static var _colours: Array[Color] = []
 
 const COLUMN_SHADER := """
 shader_type spatial;
@@ -54,33 +68,16 @@ func _ready() -> void:
 	add_to_group(&"akhets")
 	set_meta(&"surface", "stone")
 	_starts_on = on
-	var stone := Sandstone.surface(Sandstone.COLOUR, 0.21, 0.42, 0.6, 0.3)
-	var dark := Sandstone.surface(Sandstone.COLOUR.darkened(0.22), 0.2, 0.6, 0.6, 0.2)
-	# The ground it stands on: a thin slab (not solid: the sun rolls onto it), and a strip of gold along each edge.
-	PuzzleKit.box(self, Vector3(0.0, 0.012, 0.0), Vector3(HILL_OUT * 2.0 + HILL.x + 0.16, 0.024, HILL.z + 0.16), dark)
-	for z: float in [-1.0, 1.0]:
-		PuzzleKit.box(self, Vector3(0.0, 0.016, z * (HILL.z * 0.5 + 0.03)), Vector3(HILL_OUT * 2.0 + HILL.x + 0.06, 0.03, 0.05), Toon.gold())
-	# The two hills.
+	# What is seen of it is the model's: one mesh, a surface for each of its materials.
+	_read()
+	var look := MeshInstance3D.new()
+	look.mesh = _mesh
+	for surface in _paints.size():
+		look.set_surface_override_material(surface, _paint(_paints[surface], _colours[surface]))
+	add_child(look)
+	# The two hills are solid. (The slab is not: the sun rolls onto it.)
 	for side: float in [-1.0, 1.0]:
-		var hill := MeshInstance3D.new()
-		var half := SphereMesh.new()
-		half.is_hemisphere = true
-		half.radius = 0.5
-		half.height = 0.5
-		half.radial_segments = 14
-		half.rings = 5
-		hill.mesh = half
-		hill.scale = Vector3(HILL.x, HILL.y * 2.0, HILL.z)
-		hill.position = Vector3(side * HILL_OUT, 0.0, 0.0)
-		hill.material_override = stone
-		add_child(hill)
 		PuzzleKit.shape(self, Vector3(side * HILL_OUT, HILL.y * 0.4, 0.0), Vector3(HILL.x - 0.1, HILL.y * 0.8, HILL.z - 0.2))
-		# (a band of gold round the foot of each)
-		var band := PuzzleKit.ring(self, Vector3(side * HILL_OUT, 0.05, 0.0), 0.47, 0.07, Toon.gold())
-		band.scale = Vector3(HILL.x, 1.0, HILL.z)
-	# The cradle: a dish of gold let into the slab, and a ring round it.
-	PuzzleKit.rod(self, Vector3(0.0, 0.02, 0.0), 0.36, 0.03, Toon.gold(), -1.0, 16)
-	PuzzleKit.ring(self, Vector3(0.0, 0.035, 0.0), 0.4, 0.07, PuzzleKit.bronze())
 	# The column of light the sun stands on, once it has it.
 	_column = MeshInstance3D.new()
 	var shaft := CylinderMesh.new()
@@ -157,3 +154,56 @@ func _process(_delta: float) -> void:
 	_column.visible = tall > Khepri.R + 0.04
 	_column.scale.y = tall
 	_column.position.y = tall * 0.5
+
+
+# The game's own stone and gold, in the model's colours.
+static func _paint(named: String, colour: Color) -> Material:
+	match named:
+		"hill_stone":
+			return Sandstone.surface(colour, 0.26, 0.4, 0.6, 0.3)
+		"ground_stone":
+			return Sandstone.surface(colour, 0.2, 0.6, 0.6, 0.2)
+	return Toon.gold(colour)
+
+
+# Everything under `akhet` in the model, as one mesh: a surface for each material, in `_paints`.
+static func _read() -> void:
+	if _mesh:
+		return
+	_mesh = ArrayMesh.new()
+	var model := (load(MODEL) as PackedScene).instantiate()
+	var whole := model.find_child("akhet", true, false)
+	if whole == null:
+		push_error("Khepri's model has nothing in it called akhet")
+		model.free()
+		return
+	var tools: Array[SurfaceTool] = []
+	for part: Node in whole.get_children():
+		var shown := part as MeshInstance3D
+		if shown == null or shown.mesh == null:
+			continue
+		var place := shown.transform
+		var lie := place.basis.inverse().transposed()
+		for surface in shown.mesh.get_surface_count():
+			var paint := shown.mesh.surface_get_material(surface) as BaseMaterial3D
+			var named := String(paint.resource_name) if paint else ""
+			var which := _paints.find(named)
+			if which < 0:
+				which = _paints.size()
+				_paints.append(named)
+				_colours.append(paint.albedo_color if paint else Sandstone.GOLD)
+				tools.append(SurfaceTool.new())
+				tools[which].begin(Mesh.PRIMITIVE_TRIANGLES)
+			var arrays := shown.mesh.surface_get_arrays(surface)
+			var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var order: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			var count := order.size() if not order.is_empty() else points.size()
+			for i in count:
+				var k := order[i] if not order.is_empty() else i
+				tools[which].set_normal((lie * normals[k]).normalized())
+				tools[which].add_vertex(place * points[k])
+	model.free()
+	for tool in tools:
+		tool.index()
+		tool.commit(_mesh)

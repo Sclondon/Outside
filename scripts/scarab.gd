@@ -8,18 +8,24 @@ class_name Scarab
 ## backwards, head down, pushing with its hind legs.
 ## (https://en.wikipedia.org/wiki/Scarabaeus_sacer)
 ##
-## Here it is one small mesh made in code, a unit long and facing +Z, to be
-## drawn many at a time as a MultiMesh (`ScarabSwarm`). Its six legs are moved
-## in the shader: each point of a leg says how far down the leg it is and which
-## three legs it steps with (its first texture coordinate: these are not
-## colours, because the web's renderer gives a MultiMesh without colours of its
-## own no settled colour to its points), and the instance says how far through
-## a stride it is (`INSTANCE_CUSTOM.x`, in whole strides), so a beetle that
-## stands still stops its legs. The second texture coordinate is how much a
-## point shines: the shell does, with a blue-green sheen that turns from blue
-## to green as it turns from the eye; legs do not.
+## Here it is one small mesh, a unit long and facing +Z, to be drawn many at
+## a time as a MultiMesh (`ScarabSwarm`). It is a Blender model: the object
+## `scarab` in `models/khepri.glb`, built by `tools/build_khepri.py` (which
+## keeps `tools/khepri.blend` to look at and change by hand, and says what to
+## mind in changing it). Its six legs are moved in the shader: each point of a
+## leg says how far down the leg it is and which three legs it steps with (its
+## first texture coordinate, the model's UV map: these are not colours, because
+## the web's renderer gives a MultiMesh without colours of its own no settled
+## colour to its points), and the instance says how far through a stride it is
+## (`INSTANCE_CUSTOM.x`, in whole strides), so a beetle that stands still stops
+## its legs. The second texture coordinate is how much a point shines, which
+## is made here from how rough the model's material is: the shell is not
+## rough and shines, with a blue-green sheen that turns from blue to green as
+## it turns from the eye; legs are rough and do not. The model's materials are
+## merged into one surface, so the swarm is one draw call still.
 ##
-## `amulet()` is the same beetle as a thing of gold and lapis the size of a hand.
+## `amulet()` is the same beetle as a thing of gold and lapis the size of a
+## hand: the object `scarab_amulet` in the same model.
 
 const SHADER := """
 shader_type spatial;
@@ -70,19 +76,17 @@ void light() {
 }
 """
 
+const MODEL := "res://models/khepri.glb"
+
 static var _shader: Shader
 static var _mesh: ArrayMesh
+static var _amulet: ArrayMesh
 
 
 ## The beetle, legs and all, in the material that moves them. One for everybody.
 static func mesh() -> ArrayMesh:
 	if _mesh == null:
-		var tool := SurfaceTool.new()
-		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-		_shell(tool, true)
-		_head(tool)
-		_legs(tool)
-		_mesh = tool.commit()
+		_mesh = _laid_out(modelled("scarab"))
 		_mesh.surface_set_material(0, material())
 	return _mesh
 
@@ -97,108 +101,49 @@ static func material() -> ShaderMaterial:
 	return made
 
 
-## A scarab as a jewel: two meshes a unit long, [the body, head and base (for
-## gold), the wing cases (for lapis)].
-static func amulet() -> Array[ArrayMesh]:
-	var body := SurfaceTool.new()
-	body.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_dome(body, Vector3(0.0, 0.05, 0.19), Vector3(0.29, 0.21, 0.15), 8, 2, 1.0)
-	_head(body)
-	# (a flat oval base, standing a little proud of the beetle all round: what a seal is cut into)
-	var rim := 12
-	for k in rim:
-		var a := TAU * k / rim
-		var b := TAU * (k + 1) / rim
-		var one := Vector3(cos(a) * 0.36, 0.0, sin(a) * 0.56)
-		var two := Vector3(cos(b) * 0.36, 0.0, sin(b) * 0.56)
-		for up: float in [0.05, 0.0]:
-			body.set_uv(Vector2.ZERO)
-			body.set_uv2(Vector2(1.0, 0.0))
-			body.set_normal(Vector3.UP if up > 0.0 else Vector3.DOWN)
-			var points := [Vector3(0.0, up, 0.0), one + Vector3.UP * up, two + Vector3.UP * up]
-			if up == 0.0:
-				points.reverse()
-			for point: Vector3 in points:
-				body.add_vertex(point)
-		body.set_normal(Vector3(cos(a), 0.0, sin(a)))
-		for point: Vector3 in [one, two + Vector3.UP * 0.05, one + Vector3.UP * 0.05, one, two, two + Vector3.UP * 0.05]:
-			body.add_vertex(point)
-	var cases := SurfaceTool.new()
-	cases.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_dome(cases, Vector3(0.0, 0.05, -0.2), Vector3(0.31, 0.27, 0.3), 8, 3, 1.0)
-	return [body.commit(), cases.commit()]
+## A scarab as a jewel, a unit long: one mesh, a surface for each of the
+## model's materials (`amulet_gold`: the thorax, the head and the base;
+## `amulet_stone`: the wing cases), each still in the material it has there.
+static func amulet() -> ArrayMesh:
+	if _amulet == null:
+		_amulet = modelled("scarab_amulet")
+	return _amulet
 
 
-# The wing cases and the shield over the thorax: two low domes.
-static func _shell(tool: SurfaceTool, _whole: bool) -> void:
-	_dome(tool, Vector3(0.0, 0.06, -0.19), Vector3(0.33, 0.27, 0.33), 8, 3, 1.0)
-	_dome(tool, Vector3(0.0, 0.06, 0.2), Vector3(0.31, 0.2, 0.16), 8, 2, 0.4)
+## The mesh of a thing in the model, by the name it has there.
+static func modelled(which: String) -> ArrayMesh:
+	var model := (load(MODEL) as PackedScene).instantiate()
+	var part := model.find_child(which, true, false) as MeshInstance3D
+	var found := part.mesh as ArrayMesh if part else null
+	model.free()
+	if found == null:
+		push_error("The scarabs' model has nothing in it called %s" % which)
+		return ArrayMesh.new()
+	return found
 
 
-# Half of an egg, standing on its cut face.
-static func _dome(tool: SurfaceTool, middle: Vector3, radii: Vector3, around: int, rings: int, shine: float) -> void:
-	var rows: Array = []
-	for ring in rings + 1:
-		var high := PI * 0.5 * ring / rings
-		var row: Array[Vector3] = []
-		for k in around + 1:
-			var turn := TAU * k / around
-			row.append(Vector3(cos(turn) * cos(high), sin(high), sin(turn) * cos(high)))
-		rows.append(row)
-	tool.set_uv(Vector2.ZERO)
-	tool.set_uv2(Vector2(shine, 0.0))
-	for ring in rings:
-		for k in around:
-			var quad: Array[Vector3] = [rows[ring][k], rows[ring + 1][k + 1], rows[ring + 1][k], rows[ring][k], rows[ring][k + 1], rows[ring + 1][k + 1]]
-			for unit in quad:
-				tool.set_normal((unit / radii).normalized())
-				tool.add_vertex(middle + unit * radii)
-
-
-# The head shield: a flat plate, its front edge cut into six teeth.
-static func _head(tool: SurfaceTool) -> void:
-	var edge: Array[Vector3] = []
-	for k in 13:
-		var turn := lerpf(-PI * 0.5, PI * 0.5, k / 12.0)
-		var far := 0.2 if k % 2 == 1 else 0.14
-		edge.append(Vector3(sin(turn) * far * 1.15, 0.05, 0.31 + cos(turn) * far))
-	tool.set_uv(Vector2.ZERO)
-	tool.set_uv2(Vector2(0.7, 0.0))
-	tool.set_normal(Vector3(0.0, 0.94, 0.34))
-	for k in 12:
-		tool.add_vertex(Vector3(0.0, 0.13, 0.3))
-		tool.add_vertex(edge[k + 1])
-		tool.add_vertex(edge[k])
-
-
-# Six legs: out and up to a knee, then down to a foot. The fore legs reach
-# forward and are broad (they dig); the hind legs are long and trail.
-static func _legs(tool: SurfaceTool) -> void:
-	for side: float in [-1.0, 1.0]:
-		for pair in 3:
-			var along: float = [0.2, 0.02, -0.16][pair]
-			var hip := Vector3(side * 0.22, 0.08, along)
-			var knee := Vector3(side * 0.37, 0.15, along + [0.1, -0.02, -0.12][pair])
-			var foot := Vector3(side * [0.4, 0.47, 0.42][pair], 0.0, along + [0.24, -0.06, -0.34][pair])
-			# (the legs of one side step in turn, and each with its opposite of the next pair)
-			var step := 0.5 if (pair % 2 == 0) == (side > 0.0) else 0.0
-			var thick: float = [0.06, 0.04, 0.045][pair]
-			_limb(tool, hip, knee, thick, 0.0, 0.45, step)
-			_limb(tool, knee, foot, thick * 0.8, 0.45, 1.0, step)
-
-
-# One piece of a leg: two flat strips crossed, tapering.
-static func _limb(tool: SurfaceTool, from: Vector3, to: Vector3, thick: float, low: float, high: float, step: float) -> void:
-	var along := (to - from).normalized()
-	var across := along.cross(Vector3.UP).normalized()
-	var over := across.cross(along)
-	for way: Vector3 in [across, over]:
-		var normal := way.cross(along).normalized()
-		if normal.y < 0.0:
-			normal = -normal
-		tool.set_normal(normal.lerp(Vector3.UP, 0.5).normalized())
-		var corners := [[from - way * thick, low], [from + way * thick, low], [to + way * thick * 0.6, high], [from - way * thick, low], [to + way * thick * 0.6, high], [to - way * thick * 0.6, high]]
-		for corner: Array in corners:
-			tool.set_uv(Vector2(corner[1], step))
-			tool.set_uv2(Vector2.ZERO)
-			tool.add_vertex(corner[0])
+# The model's beetle as the swarm's shader wants it: all one surface, each point with its normal, what the model
+# says of its leg (its first texture coordinate) and how much it shines (its second: the more, the less rough the
+# model's material is).
+static func _laid_out(from: ArrayMesh) -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for surface in from.get_surface_count():
+		var paint := from.surface_get_material(surface) as BaseMaterial3D
+		var shine := snappedf(1.0 - paint.roughness, 0.01) if paint else 0.0
+		var arrays := from.surface_get_arrays(surface)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var legs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+		var order: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := order.size() if not order.is_empty() else points.size()
+		tool.set_uv2(Vector2(shine, 0.0))
+		for i in count:
+			var k := order[i] if not order.is_empty() else i
+			var leg := legs[k] if k < legs.size() else Vector2.ZERO
+			# (how far down the leg, in hundredths; and which three it steps with, 0 or a half)
+			tool.set_uv(Vector2(snappedf(leg.x, 0.01), snappedf(leg.y, 0.5)))
+			tool.set_normal(normals[k])
+			tool.add_vertex(points[k])
+	tool.index()
+	return tool.commit()

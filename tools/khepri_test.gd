@@ -482,7 +482,7 @@ func in_its_court() -> void:
 			check("the horizon is on", court.akhet.on)
 			await wait(1.5)
 			check("and its door opens", court.door.is_open and court.door.position.y > 2.0, "%.2f" % court.door.position.y)
-			check("the beetle sits on a hill with its wings out", khepri._beetle.global_position.distance_to(court.akhet.perch()) < 0.05 and khepri._wings[0].visible and khepri._open > 0.99, "%.2f m from it" % khepri._beetle.global_position.distance_to(court.akhet.perch()))
+			check("the beetle sits on a hill with its wings out", khepri._beetle.global_position.distance_to(court.akhet.perch()) < 0.05 and khepri._open > 0.99, "%.2f m from it" % khepri._beetle.global_position.distance_to(court.akhet.perch()))
 			check("and the room is lit for good", khepri._lamp.light_energy > khepri.light_energy * 1.5 and khepri._lamp.omni_range > khepri.light_reach * 1.5)
 			# It stays: the lever does nothing to it now, and nor does the act button.
 			court.lever.work()
@@ -492,7 +492,7 @@ func in_its_court() -> void:
 		court.reset()
 		await wait(0.5)
 		if go == 0:
-			check("put back, the sun is in its corner, the horizon off and the door shut", khepri.global_position.is_equal_approx(court.square(0, 0)) and not court.akhet.on and not court.door.is_open and not khepri.is_risen() and not khepri._wings[0].visible)
+			check("put back, the sun is in its corner, the horizon off and the door shut", khepri.global_position.is_equal_approx(court.square(0, 0)) and not court.akhet.on and not court.door.is_open and not khepri.is_risen() and khepri._open < 0.01)
 	check("it goes the same way every time, square for square", ways[0] == ways[1] and (ways[0] as Array).size() == 10, "%s | %s" % [said(ways[0]), said(ways[1])])
 
 	# And played: he pushes each block himself, walking into it until it will go no further.
