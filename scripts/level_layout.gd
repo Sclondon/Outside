@@ -43,7 +43,7 @@ const PALETTE := {
 		["Pond", "pond", ""], ["River", "river", ""], ["Tank of water", "pool", ""], ["Well", "prop", "well"], ["Oasis kerb", "prop", "oasis_rim"],
 	],
 	"Stone": [
-		["Sphinx", "prop", "sphinx"], ["Great pyramid", "prop", "pyramid_great"], ["Ruined pyramid", "prop", "pyramid_ruined"],
+		["Great sphinx", "prop", "sphinx"], ["Great pyramid", "prop", "pyramid_great"], ["Ruined pyramid", "prop", "pyramid_ruined"],
 		["Pyramid door", "prop", "pyramid_entrance"], ["Obelisk", "prop", "obelisk"], ["Column", "prop", "column"],
 		["Stepped pyramid", "pyramid", ""], ["Finished pyramid", "pyramid", "finished"], ["Fallen pyramid", "pyramid", "fallen"],
 		["Broken column", "prop", "column_broken"], ["Column stump", "prop", "column_stump"], ["Fallen column", "prop", "column_fallen"],
@@ -53,6 +53,8 @@ const PALETTE := {
 		["Boulder", "prop", "rock_a"], ["Rock", "prop", "rock_b"],
 		["Cobweb: corner", "cobweb", "corner"], ["Cobweb: across a passage", "cobweb", "sheet"], ["Cobweb: hanging", "cobweb", "hanging"], ["Cobweb: draped", "cobweb", "drape"],
 		["Inscription", "inscription", ""],
+		# A sphinx made from numbers, that asks a riddle and is on when it is given the answer (`scripts/sphinx.gd`). (The "Great sphinx" is a fixed model.)
+		["Sphinx", "sphinx", ""],
 	],
 	"Camp": [
 		["Palm", "prop", "palm_a"], ["Bent palm", "prop", "palm_b"], ["Small palm", "prop", "palm_c"],
@@ -220,6 +222,12 @@ const FIELDS := {
 		["sign", "Size of a sign (0: to fit)", "n", 0.0, 1.0, 0.05, 0.0], ["fill", "Repeats to fill it", "b", false], ["carved", "Carved", "b", true], ["painted", "Painted", "b", false],
 		["wear", "Weathered", "n", 0.0, 1.0, 0.05, 0.2], ["slab", "On a slab of its own", "b", true], ["both", "On both faces", "b", false],
 		["stone", "Stone", "c", ["Sandstone", "Pale limestone", "Red sandstone", "Dark stone"], 0]],
+	# A sphinx (`Sphinx.from_item`). It is a trigger (on once it has been given what it wants), and what it is linked to
+	# clears the sand from one that is buried. `head` is in the order of `Sphinx.Head`, `wants` in that of `Sphinx.THINGS`.
+	"sphinx": [["size", "Length", "n", 2.5, 24.0, 0.5, 6.0], ["head", "Head", "c", ["King", "Ram", "Falcon"], 0], ["wear", "Weathered", "n", 0.0, 1.0, 0.05, 0.3],
+		["painted", "Painted", "b", false], ["wants", "Wants", "c", Sphinx.TITLES, 0], ["riddle", "Its own riddle (none: the usual)", "t", ""],
+		["buried", "Buried in sand", "n", 0.0, 1.0, 0.05, 0.0], ["opens", "Opens itself", "b", false], ["wrathful", "Wrathful", "b", false],
+		["stone", "Stone", "c", ["Sandstone", "Pale limestone", "Red sandstone", "Dark stone"], 0], ["links", "Sand cleared by", "links"]],
 	# A train (`Train.from_item`): what it is made up of, how fast it goes and how far, and which way the ride is staged.
 	"train": [["engine", "Engine and tender", "b", true], ["carriages", "Carriages", "n", 0.0, 4.0, 1.0, 1.0], ["wagons", "Goods wagons", "n", 0.0, 6.0, 1.0, 2.0],
 		["brake", "Brake van", "b", true], ["speed", "Speed", "n", 1.0, 20.0, 0.5, 8.0], ["run", "Runs for", "n", 10.0, 400.0, 5.0, 80.0],
