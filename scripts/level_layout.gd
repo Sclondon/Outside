@@ -82,6 +82,7 @@ const PALETTE := {
 		["Mummified jackal", "person", "jackal_mummy"], ["Hyena", "person", "hyena"],
 		["Crocodile", "person", "crocodile"],
 		["Birds", "person", "birds"],
+		["Apophis", "person", "apophis"],
 	],
 	"Puzzle": [
 		["Pressure plate", "plate", ""], ["Door", "door", ""], ["Bridge or lift", "mover", ""], ["Block to push", "prop", "block_push"],
@@ -197,6 +198,9 @@ const FIELDS := {
 	"grapple_point": [["ring", "Shows an iron ring", "b", true]],
 	"ladder": [["height", "Height", "n", 1.0, 16.0, 0.25, 4.0]],
 	"sandfall": [["width", "Width", "n", 0.0, 8.0, 0.25, 0.0], ["running", "Running", "b", true], ["links", "Turned by", "links"]],
+	# Apophis, the great serpent (`scripts/apophis.gd`): he hunts while what he is linked to is on, and goes home when it goes off.
+	"person:apophis": [["length", "Length", "n", 12.0, 30.0, 1.0, 18.0], ["speed", "Speed", "n", 2.0, 5.0, 0.1, 3.6], ["alert", "Wakes within", "n", 0.0, 40.0, 0.5, 0.0],
+		["rest", "Waits", "c", ["Coiled", "Down a hole"], 0], ["light", "Fears light", "b", true], ["links", "Let out by", "links"]],
 	"checkpoint": [],
 	"start": [],
 	"sign": [["text", "Says", "t", "A SIGN"]],
