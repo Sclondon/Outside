@@ -551,9 +551,7 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as Apophis).caught.connect(_on_caught.bind(made))
 	# The puzzle parts that are on or off say so themselves, as a plate does: a lever, a lock, a sun disc, an offering
 	# table, a brazier to light. (And a timed plate that only he presses is told so here, once it is in the level.)
-	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier or made is Sphinx:
-
-	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier or made is AbuSimbel:
+	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier or made is Sphinx or made is AbuSimbel:
 		_on[id] = bool(made.get(&"on"))
 		made.connect(&"changed", func(on: bool) -> void: _on[id] = on)
 	elif made is GateGuardian:

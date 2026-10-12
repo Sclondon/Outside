@@ -384,7 +384,6 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/temple_parts.gd`, `scripts/temple_stone.gd` | Reads the temple's models and places them, builds its plain walls and floors, and keeps what is solid; the shader all its stone is drawn with (courses, rows of relief, paint, granite), the light through its roof, and the figures cut in its pylon |
 | `tools/build_temple.py`, `tools/temple.blend`, `models/temple/temple.glb` | The temple's parts as models: the script that builds them in Blender, the file to look at and change them in, and what the game reads |
 | `tools/temple_sheets.gd`, `tools/temple_test.gd` | Not part of the game: pictures of every plan and every model, and what each costs; and a run with nothing drawn that walks him in to each sanctuary and throws him at the stone |
-
 | `scripts/abu_simbel.gd` | The temples of Abu Simbel, set out from the models in `models/abu_simbel/abu_simbel.glb`: what is solid, the sand drift, the writing, the dark inside, the sun down the axis |
 | `tools/build_abu_simbel.py`, `tools/abu_simbel.blend` | The Blender script that makes those models, and the file it saves to look at and change by hand |
 | `scripts/heat_mirage.gd` | Heat over the desert: far things near the level of the eye swim, and pools of sky lie on the far sand |

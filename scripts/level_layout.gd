@@ -56,7 +56,6 @@ const PALETTE := {
 		["Inscription", "inscription", ""],
 		# A sphinx made from numbers, that asks a riddle and is on when it is given the answer (`scripts/sphinx.gd`). (The "Great sphinx" is a fixed model.)
 		["Sphinx", "sphinx", ""],
-
 		# The temples of Abu Simbel, at their true size (`scripts/abu_simbel.gd`).
 		["Abu Simbel", "abusimbel", ""],
 	],
@@ -164,7 +163,7 @@ const FIELDS := {
 		["colossi", "Seated kings", "n", 0.0, 2.0, 1.0, 0.0], ["falcons", "Falcons", "n", 0.0, 2.0, 1.0, 0.0], ["rise", "Stands on a rise of", "n", 0.0, 4.0, 0.2, 0.0]],
 
 	# The temples of Abu Simbel (`scripts/abu_simbel.gd`). It is on while the sun down its axis reaches the sanctuary: so it works what a plate works.
-	"abusimbel": [["scale", "Size (1 is the true size)", "n", 0.5, 1.0, 0.05, 1.0], ["which", "Which", "c", ["Both temples", "The Great Temple", "The Small Temple"], 0],
+	"abusimbel": [["scale", "Size (1 is the true size)", "n", 0.75, 1.0, 0.05, 1.0], ["which", "Which", "c", ["Both temples", "The Great Temple", "The Small Temple"], 0],
 		["drift", "Sand drift", "n", 0.0, 1.0, 0.05, 0.35], ["wear", "Weathered", "n", 0.0, 1.0, 0.05, 0.4], ["painted", "Painted inside", "b", true],
 		["sun", "The sun on its axis", "b", false]],
 	"pad": [["y", "Height", "n", -12.0, 40.0, 0.1, 0.0], ["half_x", "Half width", "n", 1.0, 80.0, 0.5, 8.0], ["half_z", "Half length", "n", 1.0, 80.0, 0.5, 8.0],
