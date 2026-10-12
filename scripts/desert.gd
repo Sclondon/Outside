@@ -200,6 +200,8 @@ func _made(item: Dictionary) -> Node3D:
 			return Temple.from_item(item)
 		"pyramid":
 			return Pyramid.from_item(item)
+		"abusimbel":
+			return AbuSimbel.from_item(item)
 		"train":
 			# A train (`scripts/train.gd`): the plates linked to it start and stop it.
 			return Train.from_item(item, func(id: int) -> Node: return nodes.get(id))
@@ -550,6 +552,8 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 	# The puzzle parts that are on or off say so themselves, as a plate does: a lever, a lock, a sun disc, an offering
 	# table, a brazier to light. (And a timed plate that only he presses is told so here, once it is in the level.)
 	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier or made is Sphinx:
+
+	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier or made is AbuSimbel:
 		_on[id] = bool(made.get(&"on"))
 		made.connect(&"changed", func(on: bool) -> void: _on[id] = on)
 	elif made is GateGuardian:

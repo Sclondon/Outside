@@ -56,6 +56,9 @@ const PALETTE := {
 		["Inscription", "inscription", ""],
 		# A sphinx made from numbers, that asks a riddle and is on when it is given the answer (`scripts/sphinx.gd`). (The "Great sphinx" is a fixed model.)
 		["Sphinx", "sphinx", ""],
+
+		# The temples of Abu Simbel, at their true size (`scripts/abu_simbel.gd`).
+		["Abu Simbel", "abusimbel", ""],
 	],
 	"Camp": [
 		["Palm", "prop", "palm_a"], ["Bent palm", "prop", "palm_b"], ["Small palm", "prop", "palm_c"],
@@ -159,6 +162,11 @@ const FIELDS := {
 		["column", "Height of the columns", "n", 5.0, 22.0, 0.5, 12.0], ["nave", "Middle aisle higher by", "n", 0.0, 8.0, 0.5, 0.0], ["roofed", "Roofed", "b", true], ["doubled", "Two of everything", "b", false],
 		["enclosure", "Wall round it", "b", true], ["lake", "Sacred lake", "b", false], ["well", "Well", "b", false], ["obelisks", "Obelisks", "n", 0.0, 2.0, 1.0, 0.0],
 		["colossi", "Seated kings", "n", 0.0, 2.0, 1.0, 0.0], ["falcons", "Falcons", "n", 0.0, 2.0, 1.0, 0.0], ["rise", "Stands on a rise of", "n", 0.0, 4.0, 0.2, 0.0]],
+
+	# The temples of Abu Simbel (`scripts/abu_simbel.gd`). It is on while the sun down its axis reaches the sanctuary: so it works what a plate works.
+	"abusimbel": [["scale", "Size (1 is the true size)", "n", 0.5, 1.0, 0.05, 1.0], ["which", "Which", "c", ["Both temples", "The Great Temple", "The Small Temple"], 0],
+		["drift", "Sand drift", "n", 0.0, 1.0, 0.05, 0.35], ["wear", "Weathered", "n", 0.0, 1.0, 0.05, 0.4], ["painted", "Painted inside", "b", true],
+		["sun", "The sun on its axis", "b", false]],
 	"pad": [["y", "Height", "n", -12.0, 40.0, 0.1, 0.0], ["half_x", "Half width", "n", 1.0, 80.0, 0.5, 8.0], ["half_z", "Half length", "n", 1.0, 80.0, 0.5, 8.0],
 		["round", "Round", "b", true], ["ease", "Rise of the dunes round it", "n", 0.5, 40.0, 0.5, 10.0]],
 	"dune": [["width", "Width", "n", 8.0, 140.0, 1.0, 46.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 6.0], ["horns", "Horns", "n", 0.2, 0.9, 0.01, 0.55]],
