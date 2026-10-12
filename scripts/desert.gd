@@ -543,7 +543,6 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as Crocodile).caught.connect(_on_caught.bind(made))
 	elif made is Medjed:
 		(made as Medjed).caught.connect(_on_caught.bind(made))
-
 	elif made is Apophis:
 		(made as Apophis).caught.connect(_on_caught.bind(made))
 	# The puzzle parts that are on or off say so themselves, as a plate does: a lever, a lock, a sun disc, an offering
@@ -720,7 +719,6 @@ func _physics_process(delta: float) -> void:
 				(node as JackalMummy).wake()
 		elif node is Medjed:
 			(node as Medjed).worked = worked
-
 		elif node is Apophis:
 			# (he hunts while it is on, and goes home when it goes off)
 			(node as Apophis).loose = worked

@@ -411,7 +411,6 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/ba.gd`, `scripts/ba_mesh.gd` | The Ba, a bird with a man's head that leads the boy from place to place, calls him and comes back for him, and comes and goes with a switch; and its model read and made ready to draw |
 | `tools/build_ba.py` | Builds the Ba in Blender (`tools/ba.blend`, `models/ba.glb`): separate named things and named materials, no bones |
 | `tools/ba_sheets.gd`, `tools/ba_test.gd` | Not part of the game: pictures of the Ba and of each thing it does; and a run with nothing drawn that checks them |
-
 | `scripts/apophis.gd` | Apophis, the great serpent: a head that hunts the boy by sight and by his trail, and a body laid along the path the head took and bent to it by a shader; held off by fire and sunlight, stopped by a shut door, sent home when what let him out goes off |
 | `tools/build_apophis.py`, `tools/apophis.blend`, `models/apophis.glb` | Builds his model in Blender: his head on bones, one length of his body, a knife; the same to open and change; and what the game reads |
 | `tools/apophis_test.gd`, `tools/apophis_sheets.gd` | Not part of the game: run him with nothing drawn and check each thing he does; and pictures of him doing them, with what a frame of him costs |

@@ -85,9 +85,7 @@ const PALETTE := {
 		["Crocodile", "person", "crocodile"],
 		["Birds", "person", "birds"],
 		["Medjed", "person", "medjed"],
-
 		["Ba (spirit bird)", "person", "ba"],
-
 		["Apophis", "person", "apophis"],
 	],
 	"Puzzle": [
