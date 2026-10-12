@@ -41,11 +41,12 @@ extends RefCounted
 ## The most rooms that stand on squares.
 const MOST := 14
 ## What opens the door into a room (`seal`: a seal stone just inside another room).
-const LOCKS := ["none", "work", "cross", "pair", "brazier", "offering", "lever_above", "lever_below", "seal", "bypass"]
+const LOCKS := ["none", "work", "cross", "pair", "brazier", "offering", "lever_above", "lever_below", "seal", "bypass", "name", "name_above", "name_below"]
 const LOCK_TITLES := {"none": "No door", "work": "A block and its plate", "cross": "A plate, its block from the room before",
 	"pair": "Two plates: its own block, and one from the room before",
 	"brazier": "A brazier to light", "offering": "A block, and a jar on the table", "lever_above": "A seal stone up in a loft",
-	"lever_below": "A seal stone under a well", "seal": "A seal stone in another room", "bypass": "Opened from behind, over the wall"}
+	"lever_below": "A seal stone under a well", "seal": "A seal stone in another room", "bypass": "Opened from behind, over the wall",
+	"name": "A gate guardian, his leaf in a room you choose", "name_above": "A gate guardian, his leaf up in a loft", "name_below": "A gate guardian, his leaf under a well"}
 const LOCK_NOTES := {
 	"none": "",
 	"work": "A block is pushed onto a plate: in the room the door is in, or in any other you choose below.",
@@ -57,6 +58,9 @@ const LOCK_NOTES := {
 	"lever_below": "The chamber at the foot of a well. The stone in it opens this door.",
 	"seal": "A seal stone just inside the room you choose below: down another way, if you like.",
 	"bypass": "A cutting goes over the wall and drops beyond it; the stone that opens the door is there. The way becomes stairs, two flights down.",
+	"name": "A keeper sits by the way with his knives across it until he is told his name. The leaf that says it lies in the room you choose below: down another way, if you like. Without it he can guess: one chance in three, and a wrong name is his death.",
+	"name_above": "A keeper bars the way until he is told his name. The leaf that says it is on a slab over a room, caught by its edge.",
+	"name_below": "A keeper bars the way until he is told his name. The leaf that says it is in the chamber at the foot of a well.",
 }
 ## How a second way between two rooms can be got along.
 const JOIN_WAYS := ["open", "crawl", "flood", "stairs"]
@@ -143,6 +147,12 @@ static func from_plan(plan: TombPlan) -> Dictionary:
 				"lever_above", "lever_below", "sand_above", "sand_below":
 					told["lock"] = "lever_above" if came.hint.ends_with("above") else "lever_below"
 					told["stone_in"] = index[held.parent]
+				"name", "name_afar":
+					told["lock"] = "name"
+					told["stone_in"] = index[plan.triggers[first.needs].room]
+				"name_above", "name_below":
+					told["lock"] = came.hint
+					told["stone_in"] = index[plan.rooms[plan.triggers[first.needs].room].parent]
 				"seal_afar", "sand_afar":
 					told["lock"] = "seal"
 					told["stone_in"] = index[first.room]
@@ -479,6 +489,8 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 					wrong.append("%s: there is no room before %s to bring a block from." % [into, TombSpec.room_title(spec, from)])
 				elif rooms[from].get("way", "open") != "open" or rooms[from].get("lock", "none") == "bypass":
 					wrong.append("%s: its block is pushed into %s from %s, so the way between those two has to be a level doorway." % [into, TombSpec.room_title(spec, from), TombSpec.room_title(spec, before)])
+				elif TombSpec.keeps_way(rooms[from].get("lock", "none")):
+					wrong.append("%s: its block is pushed into %s from %s, by a way a guardian, a sphinx or Medjed keeps: no block goes that way." % [into, TombSpec.room_title(spec, from), TombSpec.room_title(spec, before)])
 				elif cell_of(rooms[from]) - cell_of(rooms[before]) == cell_of(rooms[before]) - cell_of(rooms[int(rooms[before]["from"])]) \
 						and (ways_on(spec, before).size() > 1 or not joins_of(spec, before).is_empty()):
 					# (see `TombBranching`: the strip of floor a side way leaves at the end of the bay catches a block pushed straight on)
@@ -489,7 +501,11 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 					_claim(blocks, spec, before, i, "blocks for other rooms", wrong)
 					if lock == "pair":
 						_claim(works, spec, from, i, "blocks and plates of their own", wrong)
-			"lever_above":
+			"name":
+				var host := int(told.get("stone_in", from))
+				if host < 1 or host >= count:
+					wrong.append("%s: say which room the leaf with its keeper's name lies in (not the entrance)." % into)
+			"lever_above", "name_above":
 				var host := int(told.get("stone_in", from))
 				if host < 1 or host >= count or host == burial:
 					wrong.append("%s: say which room the loft with its seal stone is over (not the entrance, nor the burial chamber)." % into)
@@ -497,7 +513,7 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 					wrong.append("%s: there is no loft over a well. Put its seal stone under the well instead." % into)
 				else:
 					_claim(lofts, spec, host, i, "lofts", wrong)
-			"lever_below":
+			"lever_below", "name_below":
 				var host := int(told.get("stone_in", from))
 				if host < 1 or host >= count or rooms[host].get("role", "") != "well":
 					wrong.append("%s: its seal stone has to be under a room that is a well." % into)
@@ -515,6 +531,15 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 	for host: int in lofts:
 		if sand_from.has(host):
 			wrong.append("There is no loft over %s, from which a way goes up the sand: he would get up the face from it." % TombSpec.room_title(spec, host))
+	# (a gate guardian sits by his door, under where the floor of a loft would be)
+	for i in range(1, count):
+		if not TombSpec.is_keeper(rooms[i].get("lock", "none")):
+			continue
+		var door_in := int(rooms[i].get("from", 0))
+		if rooms[i].get("way", "open") == "sand":
+			wrong.append("The way into %s: a gate guardian keeps a doorway, stairs or water, not the way up the sand." % TombSpec.room_title(spec, i))
+		if lofts.has(door_in):
+			wrong.append("The way into %s has a gate guardian, who sits in %s where a loft over it would be: put the loft over another room." % [TombSpec.room_title(spec, i), TombSpec.room_title(spec, door_in)])
 
 	# The second ways.
 	var joined := {}
@@ -639,18 +664,33 @@ static func compile(spec: Dictionary) -> TombPlan:
 			"offering":
 				link.switches = [plan.add_trigger(TombPlan.Switch.WORK_PLATE, held).id, plan.add_trigger(TombPlan.Switch.OFFERING, held).id]
 				link.hint = "two_weights"
-			"lever_above":
+			"name":
+				var host := clampi(int(told.get("stone_in", from)), 0, count - 1)
+				# (back the way he came, or down another way)
+				var back := from
+				for n in count:
+					if back == host or back <= 0:
+						break
+					back = clampi(int(rooms[back].get("from", 0)), 0, count - 1)
+				TombSpec._keeper(plan, link, from, host, "name" if back == host else "name_afar")
+			"lever_above", "name_above":
 				var host := clampi(int(told.get("stone_in", from)), 0, count - 1)
 				var loft := plan.add_room(TombPlan.Role.LOFT, host)
 				plan.add_link(host, loft.id, TombPlan.Pass.CLIMB)
-				link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, loft.id).id]
-				link.hint = "lever_above"
-			"lever_below":
+				if told["lock"] == "name_above":
+					TombSpec._keeper(plan, link, from, loft.id, "name_above")
+				else:
+					link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, loft.id).id]
+					link.hint = "lever_above"
+			"lever_below", "name_below":
 				var host := clampi(int(told.get("stone_in", from)), 0, count - 1)
 				var crypt := plan.add_room(TombPlan.Role.CRYPT, host)
 				plan.add_link(host, crypt.id, TombPlan.Pass.SHAFT)
-				link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, crypt.id).id]
-				link.hint = "lever_below"
+				if told["lock"] == "name_below":
+					TombSpec._keeper(plan, link, from, crypt.id, "name_below")
+				else:
+					link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, crypt.id).id]
+					link.hint = "lever_below"
 			"seal":
 				link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, clampi(int(told.get("stone_in", from)), 0, count - 1)).id]
 				link.hint = "seal_afar"

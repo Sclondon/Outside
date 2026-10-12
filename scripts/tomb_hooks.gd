@@ -46,6 +46,11 @@ const HINTS := {
 	"fire_afar": "A cold bowl stands in the dark of another chamber. Bring it fire, and this door gives way.",
 	"sand_afar": "The seal that lets the desert in lies in another chamber. Climb what it brings.",
 	"from_within": "This door opens only from within. There is a longer way round to the back of it.",
+	# (a gate guardian, and where the leaf with his name on it lies)
+	"name": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf, back the way you came.",
+	"name_above": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf that lies over your head.",
+	"name_below": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf at the foot of the well.",
+	"name_afar": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf in another chamber.",
 }
 
 ## What has been read this run and could not be given to a notebook: [meaning, where].

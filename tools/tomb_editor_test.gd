@@ -336,6 +336,14 @@ func _editor() -> void:
 	editor.choose(0)
 	editor.remove()
 	expect(editor.rooms().size() == before, "the entrance was removed")
+	# The creatures, each chosen by name where the other locks are, and the way through said in words.
+	editor.take(TombSpec.fresh("Keepers"))
+	editor.choose(2)
+	editor.set_value("lock", "name")
+	editor.rebuild()
+	expect(editor.found["ok"] and int(editor.rooms()[2]["stone_in"]) == 1, "a gate guardian chosen in the editor: %s (its leaf in room %d)" % [editor.found["says"], int(editor.rooms()[2]["stone_in"]) + 1])
+	expect(_way_says(editor, ["leaf of the Book", "tell him his name"]), "the way through does not say to read the leaf and name the guardian")
+	expect(TombSpec.from_text(TombSpec.to_text(editor.spec)) == editor.spec, "a tomb with a guardian did not come back from text as it went")
 	# Every frame of it with a full tomb standing, for a while.
 	editor.take(TombSpec.from_seed(3, 2))
 	editor.rebuild()
@@ -348,6 +356,15 @@ func _editor() -> void:
 	scene.queue_free()
 	await process_frame
 	print("editor: done")
+
+
+# Whether the way through the tomb in the editor says each of these, in this order.
+func _way_says(editor: TombEditor, wanted: Array) -> bool:
+	var at := 0
+	for step: Array in editor.found["solved"]["steps"]:
+		if at < wanted.size() and String(wanted[at]) in TombSpec.step_words(editor.spec, editor.found["plan"], step):
+			at += 1
+	return at == wanted.size()
 
 
 # --- Tombs that branch: the floor plan
@@ -510,6 +527,11 @@ func _floor_editor() -> void:
 	editor.rebuild()
 	expect(editor.found["ok"] and editor.rooms()[4]["dark"], "the editor did not leave a torch for the brazier, or make its room dark: %s" % editor.found["says"])
 	# Move: with the loop there are places marked; the touch moves it, and the loop goes.
+	editor.set_value("lock", "name")
+	editor.rebuild()
+	expect(editor.found["ok"] and (editor.found["plan"] as TombPlan).triggers.any(func(trigger: TombPlan.Trigger) -> bool: return trigger.kind == TombPlan.Switch.NAME), "a gate guardian for the new room, on a floor plan: %s" % editor.found["says"])
+	editor.set_value("lock", "brazier")
+	editor.rebuild()
 	editor.start("move")
 	await process_frame
 	await process_frame

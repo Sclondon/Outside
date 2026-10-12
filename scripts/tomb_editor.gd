@@ -53,7 +53,8 @@ const MARK_PLUS := 46.0
 const MARK_WORD := 54.0
 const WAY_SHORT := {"open": "doorway", "stairs": "stairs", "crawl": "crawl", "flood": "water", "shaft": "ladder", "rope": "rope", "gap": "pit, hook", "sand": "up the sand"}
 const LOCK_SHORT := {"none": "", "work": "block + plate", "cross": "plate, block from before", "pair": "two plates, two blocks", "brazier": "brazier", "offering": "block + jar",
-	"lever_above": "stone in a loft", "lever_below": "stone under a well", "bypass": "over the wall"}
+	"lever_above": "stone in a loft", "lever_below": "stone under a well", "bypass": "over the wall",
+	"name": "gate guardian", "name_above": "guardian, leaf in a loft", "name_below": "guardian, leaf under a well"}
 const HELP := "One finger drags the tomb about; two pinch to come nearer. Touch a room to choose it, or use the row along the bottom.\nThe panel at the right changes the chosen room: what it is, what is in it, the way on, and what locks the door on.\nUnder these buttons it says whether the tomb can be finished. Way through shows how."
 const HELP_FLOOR := "A tomb that branches, seen from overhead. One finger drags it about; two pinch. Touch a room to choose it.\nTouch a + to put a new room off the chosen one. Move marks where it could go instead, Join the rooms beside it that a second way could be made to, Remove takes it away.\nThe panel at the right changes the chosen room: what it is, what is in it, the way into it, and what opens its door (from any room you like)."
 
@@ -197,10 +198,13 @@ func set_value(key: String, value: Variant) -> void:
 				_leave_one("torch")
 			"offering":
 				_leave_one("jar")
-			"lever_above", "lever_below":
+			"lever_above", "lever_below", "name", "name_above", "name_below":
 				var hosts := _hosts(value)
 				if not hosts.is_empty():
 					told["stone_in"] = hosts.back()
+				# (a leaf in the open lies in the room before, where there is one)
+				if value == "name" and hosts.size() > 1:
+					told["stone_in"] = hosts[hosts.size() - 2]
 	elif key == "way" and value == "gap":
 		_leave_one("hook")
 	_changed()
@@ -329,9 +333,9 @@ func _hosts(lock: String) -> Array:
 	var hosts: Array = []
 	for i in range(1, chosen + 1):
 		# (and no loft over a room whose way on is up the sand)
-		if lock == "lever_above" and rooms()[i].get("way", "open") == "sand":
+		if TombSpec.host_kind(lock) == "above" and rooms()[i].get("way", "open") == "sand":
 			continue
-		if (rooms()[i]["role"] == "well") == (lock == "lever_below"):
+		if TombSpec.host_kind(lock) == "inside" or (rooms()[i]["role"] == "well") == (TombSpec.host_kind(lock) == "below"):
 			hosts.append(i)
 	return hosts
 
@@ -1032,7 +1036,7 @@ func _follow_on_floor(key: String, value: Variant) -> void:
 				_leave_one_on_floor("torch")
 			"offering":
 				_leave_one_on_floor("jar")
-			"lever_above", "lever_below":
+			"lever_above", "lever_below", "name", "name_above", "name_below":
 				var hosts := _hosts_on_floor(value)
 				if not hosts.is_empty():
 					told["stone_in"] = from if from in hosts else hosts[0]
@@ -1067,7 +1071,7 @@ func _hosts_on_floor(lock: String) -> Array:
 	var hosts: Array = []
 	for i in range(1, rooms().size()):
 		var role: String = rooms()[i]["role"]
-		if lock == "seal" or (role != "burial" and (role == "well") == (lock == "lever_below")):
+		if TombSpec.host_kind(lock) == "inside" or (role != "burial" and (role == "well") == (TombSpec.host_kind(lock) == "below")):
 			hosts.append(i)
 	return hosts
 
@@ -1341,14 +1345,14 @@ func _show_floor_inspector() -> void:
 				other_titles.append(TombSpec.room_title(spec, i) + (" (where the door is)" if i == from else ""))
 			var held := int(told.get("lock_in", -1))
 			_choice("It stands in", other_titles, maxi(others.find(from if held < 0 else held), 0), func(picked: int) -> void: set_value("lock_in", others[picked]))
-		elif told["lock"] in ["lever_above", "lever_below", "seal"]:
+		elif TombSpec.host_kind(told["lock"]) != "":
 			others = _hosts_on_floor(told["lock"])
 			if others.is_empty():
-				_inspector.add_child(_caption("There is no well in this tomb: make one of the rooms a well." if told["lock"] == "lever_below" else "There is no room to put a loft over."))
+				_inspector.add_child(_caption("There is no well in this tomb: make one of the rooms a well." if TombSpec.host_kind(told["lock"]) == "below" else "There is no room to put a loft over."))
 			else:
 				for host: int in others:
 					other_titles.append(TombSpec.room_title(spec, host))
-				_choice({"lever_above": "Its stone is over", "lever_below": "Its stone is under", "seal": "Its stone lies just inside"}[told["lock"]], other_titles,
+				_choice(TombSpec.host_title(told["lock"]), other_titles,
 						maxi(others.find(int(told["stone_in"])), 0), func(picked: int) -> void: set_value("stone_in", others[picked]))
 
 	# Its second ways.
@@ -1648,15 +1652,15 @@ func _show_inspector() -> void:
 	_choice("What lets the sand in" if sand else "What opens the door on", lock_titles, maxi(TombSpec.LOCKS.find(told["lock"]), 0), func(picked: int) -> void: set_value("lock", TombSpec.LOCKS[picked]))
 	if TombSpec.LOCK_NOTES[told["lock"]] != "":
 		_inspector.add_child(_caption(TombSpec.LOCK_NOTES[told["lock"]]))
-	if told["lock"] in ["lever_above", "lever_below"]:
+	if TombSpec.host_kind(told["lock"]) != "":
 		var hosts := _hosts(told["lock"])
 		if hosts.is_empty():
-			_inspector.add_child(_caption("There is no well at or before this room: make one of the rooms a well." if told["lock"] == "lever_below" else "There is no room to put a loft over."))
+			_inspector.add_child(_caption("There is no well at or before this room: make one of the rooms a well." if TombSpec.host_kind(told["lock"]) == "below" else "There is no room to put a loft over."))
 		else:
 			var host_titles: Array = []
 			for host: int in hosts:
 				host_titles.append(TombSpec.room_title(spec, host))
-			_choice("Its stone is under" if told["lock"] == "lever_below" else "Its stone is over", host_titles, maxi(hosts.find(int(told["stone_in"])), 0),
+			_choice(TombSpec.host_title(told["lock"]), host_titles, maxi(hosts.find(int(told["stone_in"])), 0),
 					func(picked: int) -> void: set_value("stone_in", hosts[picked]))
 
 

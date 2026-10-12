@@ -96,6 +96,12 @@ const SAND_ROOM := 2.6
 ## A block to push, and how far it has to go to its plate.
 const BLOCK := 0.9
 const TRACK := 2.6
+## A gate guardian: how far to one side of the way he sits, how far in front
+## of the line of his gateway (`GateGuardian._line`), and how wide the gateway
+## is that his knives bar.
+const GATE_AT := 1.6
+const GATE_BACK := 0.75
+const GATE_WIDE := 2.2
 ## The low table that only a jar weighs down.
 const TABLE_HIGH := 0.3
 const TABLE_LONG := 1.4
@@ -266,7 +272,7 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 		# (the one that lets the sand in is at the foot of its face)
 		if way_out and way_out.pass_kind == TombPlan.Pass.SAND and trigger.id in way_out.switches:
 			continue
-		if trigger.room == room.id and trigger.kind == TombPlan.Switch.LEVER:
+		if trigger.room == room.id and TombPlan.is_trodden(trigger):
 			var stone := _span(1.6, _ceil)
 			_lever(trigger, (stone.xa + stone.xb) * 0.5, _y)
 	var entry := _span(2.6, _ceil)
@@ -462,10 +468,23 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 				# (the loft is the lintel; a jamb behind shows where the wall is)
 				_box(Vector3((gate.xa + gate.xb) * 0.5, (_y + _ceil) * 0.5, BACK + 0.3), Vector3(WALL, _ceil - _y, 0.6), "wall", false)
 				moves.append({"kind": "under", "is": way, "room": _room})
-			if not way_out.switches.is_empty():
+			var keeper := plan.keeper_of(way_out, TombPlan.Switch.NAME)
+			if keeper:
+				# A gate guardian, seated against the far wall beside the way and seen
+				# in profile, as the papyrus draws him: he faces whoever comes, and
+				# his two great knives are crossed in the gateway, on the boy's line.
+				door_at[way_out.id] = Vector3((gate.xa + gate.xb) * 0.5, _y + way * 0.5, 0.0)
+				switch_at[keeper.id] = Vector3(gate.xa - 0.05, _y, 0.0)
+				var is_who: Dictionary = keepers(plan)[keeper.id]
+				parts.append({"kind": "guardian", "room": _room, "link": way_out.id, "trigger": keeper.id,
+						"at": Vector3((gate.xa + gate.xb) * 0.5 - GATE_BACK, _y, -GATE_AT), "yaw": -PI * 0.5, "gate_at": GATE_AT,
+						"wide": GATE_WIDE, "tall": way, "who": is_who["who"], "seed": is_who["seed"]})
+				moves.append({"kind": "slot", "is": GATE_WIDE, "room": _room})
+			elif not way_out.switches.is_empty():
 				door_at[way_out.id] = Vector3((gate.xa + gate.xb) * 0.5, _y + way * 0.5, 0.0)
 				parts.append({"kind": "door", "room": _room, "link": way_out.id, "at": door_at[way_out.id],
 						"size": Vector3(0.5, way, FRONT - BACK - 0.1), "sinks": loops})
+			if not way_out.switches.is_empty():
 				parts.append({"kind": "inscription", "room": _room, "link": way_out.id, "hint": way_out.hint,
 						"at": Vector3(gate.xa - 1.3, _y + 2.0 if loops else _y + way + 0.45, BACK + 0.02)})
 	return next_over
@@ -592,7 +611,43 @@ func _slab(from: float, to: float, top: float, room: int) -> void:
 
 func _lever(trigger: TombPlan.Trigger, x: float, y: float) -> void:
 	switch_at[trigger.id] = Vector3(x, y, 0.0)
+	if trigger.kind == TombPlan.Switch.LEAF:
+		parts.append({"kind": "leaf", "room": _room, "trigger": trigger.id, "at": switch_at[trigger.id], "who": leaf_name(plan, trigger.id)})
+		return
 	parts.append({"kind": "lever", "room": _room, "trigger": trigger.id, "at": switch_at[trigger.id]})
+
+
+## Who each gate guardian of a plan is, by its NAME switch: `who` (its place in
+## `BookOfTheDead.NAMES`: each a different name, and with it a different head)
+## and `seed` (what settles which names it offers). From the tomb's own number,
+## so the same in either layout.
+static func keepers(of: TombPlan) -> Dictionary:
+	var rng := TombRandom.new(TombRandom.mix([TombGenerator.VERSION, of.seed_value, of.difficulty, of.sub_seed, 7717]))
+	var names: Array = range(BookOfTheDead.NAMES.size())
+	rng.shuffle(names)
+	var heads := {}
+	var found := {}
+	for trigger in of.triggers:
+		if trigger.kind != TombPlan.Switch.NAME:
+			continue
+		var who: int = names[0]
+		for name: int in names:
+			if not heads.has(int(BookOfTheDead.NAMES[name]["head"])):
+				who = name
+				break
+		names.erase(who)
+		heads[int(BookOfTheDead.NAMES[who]["head"])] = true
+		found[trigger.id] = {"who": who, "seed": TombRandom.mix([of.seed_value, of.sub_seed, trigger.id, 7001]) | 1}
+	return found
+
+
+## Whose name is on a leaf (a LEAF switch): the guardian's that needs it.
+static func leaf_name(of: TombPlan, leaf: int) -> int:
+	var who := keepers(of)
+	for trigger in of.triggers:
+		if trigger.kind == TombPlan.Switch.NAME and trigger.needs == leaf:
+			return who[trigger.id]["who"]
+	return 0
 
 
 # A plate for a block that comes from the room before, and what stops the block on it.

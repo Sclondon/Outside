@@ -153,6 +153,10 @@ func _ready() -> void:
 	for thing in built.hooked:
 		if thing and thing.has_signal(&"caught"):
 			thing.connect(&"caught", _on_caught.bind(thing))
+	# (a gate guardian given the wrong name strikes: he is caught as by a mummy,
+	# and starts again from the last door, which is the guardian's own)
+	for id: int in built.keepers:
+		(built.keepers[id] as GateGuardian).caught.connect(_on_caught.bind(built.keepers[id]))
 	_settle_in.call_deferred()
 
 
@@ -360,9 +364,15 @@ func _work_switches(at: Vector3) -> void:
 				now = at.distance_to(built.treasure.global_position) < 1.5
 				if now:
 					_take_treasure()
+			TombPlan.Switch.LEAF:
+				# (taken by walking onto it: it is his until the tomb is left)
+				now = (built.switches[trigger.id] as BookPage).is_taken
+			TombPlan.Switch.NAME:
+				# (named: with the leaf, or by a lucky guess. His knives are out of the way for good.)
+				now = (built.switches[trigger.id] as GateGuardian).on
 		done[trigger.id] = now
 	for link in plan.links:
-		if not built.doors.has(link.id) and not built.sands.has(link.id):
+		if link.switches.is_empty():
 			continue
 		var open := true
 		for id in link.switches:
@@ -370,7 +380,7 @@ func _work_switches(at: Vector3) -> void:
 		_open[link.id] = open
 		if built.doors.has(link.id):
 			(built.doors[link.id] as TombParts.Door).is_open = open
-		else:
+		elif built.sands.has(link.id):
 			# Sand comes in until the heap is as big as it gets. Nothing ever
 			# empties it: what is done stays done, and so does the way up.
 			var fall: SandFall = built.sands[link.id]

@@ -123,3 +123,19 @@ static func branching() -> TombPlan:
 	plan.solution = proof["steps"]
 	plan.proof = proof
 	return plan
+
+
+## A tomb with the creatures that keep a way: a gate guardian whose leaf lies
+## in the open in the room before, and another whose leaf is up in a loft.
+static func keepers() -> Dictionary:
+	var spec := TombSpec.fresh("Keepers")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "antechamber", "corridor", "hall", "corridor", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[2]["lock"] = "name"
+	rooms[2]["stone_in"] = 1
+	rooms[2]["way"] = "stairs"
+	rooms[4]["lock"] = "name_above"
+	rooms[4]["stone_in"] = 3
+	spec["rooms"] = rooms
+	return spec

@@ -39,6 +39,9 @@ enum Switch {
 	OFFERING, ## An offering table that only a jar set on it will weigh down.
 	BRAZIER, ## A cold brazier, to be lit with a torch he brings.
 	TREASURE, ## What he came for. Taking it opens nothing: it is the goal.
+	LEAF, ## A leaf of the Book of the Dead, taken by walking onto it. It takes no hand, and is never put down or lost.
+	NAME, ## A gate guardian, who bars the way until he is named: done once he has the leaf (`Trigger.needs`) that says the name.
+	SPHINX, ## A sphinx, who wants one of the things he can carry (`Trigger.wants`), and keeps it.
 }
 ## What stands between a mummy and the rest of its room (see `Mummy.KINDS`:
 ## each is something that kind cannot get past).
@@ -47,8 +50,10 @@ enum Barrier { NONE, TRENCH, KERB, NARROW }
 const ROLE_NAMES := ["entrance", "corridor", "well", "hall", "gallery", "antechamber", "burial", "loft", "crypt"]
 const PASS_NAMES := ["open", "stairs", "crawl", "flood", "gap", "shaft", "climb", "drop", "rope", "sand"]
 const ITEM_NAMES := ["torch", "hook", "jar", "block"]
-const SWITCH_NAMES := ["lever", "work_plate", "plate", "offering", "brazier", "treasure"]
+const SWITCH_NAMES := ["lever", "work_plate", "plate", "offering", "brazier", "treasure", "leaf", "name", "sphinx"]
 const BARRIER_NAMES := ["none", "trench", "kerb", "narrow"]
+## The room a thing is in once a sphinx has it: nowhere. (So a plan with a sphinx has a room fewer to use.)
+const GONE := 15
 ## A room's `cell` until it is given one.
 const NO_CELL := Vector3i(-9999, -9999, -9999)
 
@@ -87,6 +92,10 @@ class Link:
 	var switches: Array[int] = []
 	## A word for what opens it, for the inscription over the door (see TombHooks.HINTS).
 	var hint := ""
+	## No slab shuts it: Medjed stands in the passage and looks back down it, and
+	## nobody crosses his look. Its switches shut his eyes, for good. (To the
+	## solver it is a door like any other.)
+	var watched := false
 	## Set while the plan is made: something has to be carried, or pushed, along here.
 	var keep_carry := false
 	var keep_push := false
@@ -105,6 +114,10 @@ class Trigger:
 	var id := 0
 	var kind := Switch.LEVER
 	var room := 0
+	## For a gate guardian (NAME): the leaf that has its name on it (a LEAF's id).
+	var needs := -1
+	## For a sphinx: what it wants (an `Item`).
+	var wants := -1
 
 
 var seed_value := 0
@@ -197,6 +210,44 @@ func entrance() -> int:
 	return spine()[0].id
 
 
+## Whether a switch is one he works by standing on it: a seal stone, or a leaf of the Book lying there.
+static func is_trodden(trigger: Trigger) -> bool:
+	return trigger.kind == Switch.LEVER or trigger.kind == Switch.LEAF
+
+
+## The guardian that keeps a way (its NAME switch), the sphinx that does (its SPHINX), or null.
+func keeper_of(link: Link, kind: Switch) -> Trigger:
+	for id in link.switches:
+		if triggers[id].kind == kind:
+			return triggers[id]
+	return null
+
+
+## The way a switch is one of the locks of, or null.
+func link_of(trigger: int) -> Link:
+	for link in links:
+		if trigger in link.switches:
+			return link
+	return null
+
+
+## Whether a way is kept by one of the creatures: a gate guardian or a sphinx at
+## its door, or Medjed beyond it. No block is pushed along such a way.
+func keeps(link: Link) -> bool:
+	return link.watched or keeper_of(link, Switch.NAME) != null or keeper_of(link, Switch.SPHINX) != null
+
+
+## Whether the way out of a room is kept by something that stands at its door
+## (a guardian, a sphinx) or beyond it (Medjed): no loft goes over such a room.
+func is_kept(room: int) -> bool:
+	for link in links:
+		if link.a != room:
+			continue
+		if keeps(link):
+			return true
+	return false
+
+
 func goal_trigger() -> Trigger:
 	for trigger in triggers:
 		if trigger.kind == Switch.TREASURE:
@@ -251,11 +302,18 @@ func describe() -> String:
 		var line := "link %d %d>%d %s" % [link.id, link.a, link.b, PASS_NAMES[link.pass_kind]]
 		if not link.switches.is_empty():
 			line += " door=%s hint=%s" % [str(link.switches), link.hint]
+		if link.watched:
+			line += " watched"
 		lines.append(line)
 	for thing in things:
 		lines.append("thing %d %s in %d%s" % [thing.id, ITEM_NAMES[thing.kind], thing.room, " for %d" % thing.dest if thing.dest >= 0 else ""])
 	for trigger in triggers:
-		lines.append("switch %d %s in %d" % [trigger.id, SWITCH_NAMES[trigger.kind], trigger.room])
+		var told := "switch %d %s in %d" % [trigger.id, SWITCH_NAMES[trigger.kind], trigger.room]
+		if trigger.needs >= 0:
+			told += " needs=%d" % trigger.needs
+		if trigger.wants >= 0:
+			told += " wants=%s" % ITEM_NAMES[trigger.wants]
+		lines.append(told)
 	return "\n".join(lines)
 
 

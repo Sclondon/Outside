@@ -24,6 +24,20 @@ extends RefCounted
 ## (where a way out needs free hands, where another thing lies, at an offering
 ## table); elsewhere he could put it down too, and pick it up again.
 
+##
+## The creatures that keep a way are doors to it. A leaf of the Book of the
+## Dead is a switch he does by standing on it, which takes no hand and is never
+## undone; its gate guardian is a switch in the room of his door that can be
+## done once the leaf is. He can also be passed by a lucky guess, which is
+## never counted on: the way through and the rooms stood in are found without
+## one. But then every position a guess could bring about is visited as well
+## (`_guesses`), and the end has to be reachable from each of those too, by
+## moves that are not guesses. A sphinx is a switch done with the thing it
+## wants in his hand, and the thing is then nowhere (`TombPlan.GONE`). A way
+## that Medjed watches is a door like any other: its switches shut his eyes.
+##
+## `way_from` gives the shortest way to the end from any position, for a hint.
+
 ## More positions than this and the plan is called too tangled, and thrown away.
 const MAX_POSITIONS := 120000
 
@@ -47,7 +61,7 @@ const THINGS_SHIFT := POS_BITS + HAND_BITS + DONE_BITS
 ## visit before it calls the plan too tangled.)
 static func solve(plan: TombPlan, thorough := false, most := MAX_POSITIONS) -> Dictionary:
 	var result := {"ok": false, "reason": "", "positions": 0, "dead": 0, "steps": [], "unreached": []}
-	if plan.rooms.size() > (1 << POS_BITS) or plan.things.size() > (1 << HAND_BITS) - 1 or plan.triggers.size() > DONE_BITS:
+	if _too_big(plan):
 		result["reason"] = "too big to check"
 		return result
 	var goal := plan.goal_trigger()
@@ -61,27 +75,8 @@ static func solve(plan: TombPlan, thorough := false, most := MAX_POSITIONS) -> D
 	var ways: Array = []
 	var switches_in: Array = []
 	var hands_free: Array[bool] = []
-	for room in plan.rooms:
-		ways.append(plan.links_of(room.id))
-		var here: Array[TombPlan.Trigger] = []
-		for trigger in plan.triggers:
-			if trigger.room == room.id:
-				here.append(trigger)
-		switches_in.append(here)
-		var needs := false
-		for link: TombPlan.Link in ways[room.id]:
-			if TombPlan.goes(link, room.id) and not TombPlan.carries(link, room.id, false):
-				needs = true
-		for trigger in here:
-			if trigger.kind == TombPlan.Switch.OFFERING:
-				needs = true
-		hands_free.append(needs)
 	var door_masks: Array[int] = []
-	for link in plan.links:
-		var mask := 0
-		for id in link.switches:
-			mask |= 1 << (DONE_SHIFT + id)
-		door_masks.append(mask)
+	_set_out(plan, ways, switches_in, hands_free, door_masks)
 
 	var start := home
 	for thing in plan.things:
@@ -133,6 +128,43 @@ static func solve(plan: TombPlan, thorough := false, most := MAX_POSITIONS) -> D
 	if not result["unreached"].is_empty():
 		result["reason"] = "a room cannot be reached"
 		return result
+	var steps: Array = []
+	var at := first_win
+	while came_from[at] != -1:
+		steps.push_front(how[at])
+		at = came_from[at]
+
+	# A gate guardian can be passed without its leaf, by a lucky guess (one in
+	# three). Nothing above counts on one. But a guess must not be able to
+	# strand him either: so every position a guess could bring about is visited
+	# too, with everything that can be done from it, and the end has to be
+	# reachable from each of those as well, without any more luck.
+	var keepers := false
+	for trigger in plan.triggers:
+		keepers = keepers or trigger.kind == TombPlan.Switch.NAME
+	if keepers:
+		head = 0
+		while head < order.size():
+			var state: int = order[head]
+			head += 1
+			if not nexts.has(state):
+				var onward := PackedInt64Array()
+				for move: Array in _moves(plan, state, ways, switches_in, hands_free, door_masks, thorough):
+					var to: int = move[0]
+					onward.append(to)
+					if not came_from.has(to):
+						came_from[to] = state
+						order.append(to)
+				nexts[state] = onward
+			for to: int in _guesses(state, switches_in):
+				if not came_from.has(to):
+					came_from[to] = state
+					order.append(to)
+			if order.size() > most:
+				result["reason"] = "too tangled to check"
+				result["positions"] = order.size()
+				return result
+		result["positions"] = order.size()
 
 	# From which positions can the end still be reached? Back along every move
 	# from the positions that are an end.
@@ -160,14 +192,111 @@ static func solve(plan: TombPlan, thorough := false, most := MAX_POSITIONS) -> D
 		result["reason"] = "it can be made unfinishable"
 		return result
 
-	var steps: Array = []
-	var at := first_win
-	while came_from[at] != -1:
-		steps.push_front(how[at])
-		at = came_from[at]
 	result["steps"] = steps
 	result["ok"] = true
 	return result
+
+
+## The position the plan is in: he is in `pos`, holds the thing `hand` (or -1),
+## each thing lies in `thing_rooms` (by thing; `TombPlan.GONE` for one a sphinx
+## has), and `done` says which switches are done (by switch).
+static func position(plan: TombPlan, pos: int, hand: int, thing_rooms: Array, done: Array) -> int:
+	var state := pos | ((hand + 1) << HAND_SHIFT)
+	for thing in plan.things:
+		state |= (int(thing_rooms[thing.id]) & ((1 << ROOM_BITS) - 1)) << (THINGS_SHIFT + thing.id * ROOM_BITS)
+	for trigger in plan.triggers:
+		if done[trigger.id]:
+			state |= 1 << (DONE_SHIFT + trigger.id)
+	return state
+
+
+## One shortest way to the end from a position (see `position`), as `solve`
+## gives the way from the start: the steps, or none if there is no way (or the
+## plan is too big, or it would take more than `most` positions to find).
+## Nothing here counts on a guess at a guardian.
+static func way_from(plan: TombPlan, start: int, most := MAX_POSITIONS) -> Array:
+	var none: Array = []
+	var goal := plan.goal_trigger()
+	if goal == null or _too_big(plan):
+		return none
+	var home := plan.entrance()
+	var goal_bit := 1 << (DONE_SHIFT + goal.id)
+	var ways: Array = []
+	var switches_in: Array = []
+	var hands_free: Array[bool] = []
+	var door_masks: Array[int] = []
+	_set_out(plan, ways, switches_in, hands_free, door_masks)
+	var room_mask := (1 << ROOM_BITS) - 1
+	var order: Array[int] = [start]
+	var came_from := {start: -1}
+	var how := {start: []}
+	var head := 0
+	while head < order.size():
+		var state: int = order[head]
+		head += 1
+		if state & goal_bit and (state & room_mask) == home:
+			var steps: Array = []
+			var at := state
+			while came_from[at] != -1:
+				steps.push_front(how[at])
+				at = came_from[at]
+			return steps
+		for move: Array in _moves(plan, state, ways, switches_in, hands_free, door_masks, false):
+			var to: int = move[0]
+			if not came_from.has(to):
+				came_from[to] = state
+				how[to] = move[1]
+				order.append(to)
+		if order.size() > most:
+			return none
+	return none
+
+
+static func _too_big(plan: TombPlan) -> bool:
+	var rooms := 1 << POS_BITS
+	for trigger in plan.triggers:
+		# (the last room's number is where a thing is once a sphinx has it)
+		if trigger.kind == TombPlan.Switch.SPHINX:
+			rooms = TombPlan.GONE
+	return plan.rooms.size() > rooms or plan.things.size() > (1 << HAND_BITS) - 1 or plan.triggers.size() > DONE_BITS
+
+
+# What does not change from one position to the next, set out by room and by link.
+static func _set_out(plan: TombPlan, ways: Array, switches_in: Array, hands_free: Array[bool], door_masks: Array[int]) -> void:
+	for room in plan.rooms:
+		ways.append(plan.links_of(room.id))
+		var here: Array[TombPlan.Trigger] = []
+		for trigger in plan.triggers:
+			if trigger.room == room.id:
+				here.append(trigger)
+		switches_in.append(here)
+		var needs := false
+		for link: TombPlan.Link in ways[room.id]:
+			if TombPlan.goes(link, room.id) and not TombPlan.carries(link, room.id, false):
+				needs = true
+		for trigger in here:
+			if trigger.kind == TombPlan.Switch.OFFERING:
+				needs = true
+		hands_free.append(needs)
+	for link in plan.links:
+		var mask := 0
+		for id in link.switches:
+			mask |= 1 << (DONE_SHIFT + id)
+		door_masks.append(mask)
+
+
+# The positions a lucky guess at a guardian's name could bring about from this
+# one: the guardian named, and the leaf he has not got of no more use to him.
+static func _guesses(state: int, switches_in: Array) -> Array[int]:
+	var found: Array[int] = []
+	for trigger: TombPlan.Trigger in switches_in[state & ((1 << ROOM_BITS) - 1)]:
+		if trigger.kind != TombPlan.Switch.NAME or state & (1 << (DONE_SHIFT + trigger.id)):
+			continue
+		var after := state | (1 << (DONE_SHIFT + trigger.id))
+		if trigger.needs >= 0:
+			after |= 1 << (DONE_SHIFT + trigger.needs)
+		found.append(after)
+	return found
 
 
 # Everything that can be done from a position: [position after, step] each.
@@ -233,6 +362,16 @@ static func _moves(plan: TombPlan, state: int, ways: Array, switches_in: Array, 
 			TombPlan.Switch.BRAZIER:
 				if hand_kind != TombPlan.Item.TORCH:
 					continue
+			TombPlan.Switch.NAME:
+				# (he has the leaf that says the name: a guess is not counted on)
+				if trigger.needs >= 0 and not state & (1 << (DONE_SHIFT + trigger.needs)):
+					continue
+			TombPlan.Switch.SPHINX:
+				if hand_kind != trigger.wants:
+					continue
+				# (the sphinx keeps it: it is nowhere he can get it again)
+				after &= ~(((1 << HAND_BITS) - 1) << HAND_SHIFT)
+				after = _put_thing(after, hand, TombPlan.GONE)
 		moves.append([after, ["do", trigger.id]])
 	return moves
 
@@ -260,5 +399,12 @@ static func words(plan: TombPlan, step: Array) -> String:
 			return "put the %s down" % TombPlan.ITEM_NAMES[plan.things[step[1]].kind]
 		"do":
 			var trigger: TombPlan.Trigger = plan.triggers[step[1]]
+			match trigger.kind:
+				TombPlan.Switch.LEAF:
+					return "take the leaf of the Book in %d" % trigger.room
+				TombPlan.Switch.NAME:
+					return "name the guardian in %d" % trigger.room
+				TombPlan.Switch.SPHINX:
+					return "give the sphinx in %d the %s" % [trigger.room, TombPlan.ITEM_NAMES[trigger.wants]]
 			return "%s in %d" % [TombPlan.SWITCH_NAMES[trigger.kind], trigger.room]
 	return str(step)

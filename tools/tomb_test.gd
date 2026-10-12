@@ -119,6 +119,8 @@ func _run(names: Array) -> void:
 		if branch:
 			_solver_on_a_graph()
 		_plans()
+	if "sweep" in names:
+		_sweep()
 	if "geometry" in names:
 		_geometry()
 	if "same" in names:
@@ -140,6 +142,52 @@ func _run(names: Array) -> void:
 	if not names.is_empty():
 		print("FAILED" if failed else "PASSED")
 	quit(1 if failed else 0)
+
+
+# The creatures of the funerary texts, over many tombs of each shape and
+# difficulty: how many tombs have each, that every one is proved (the solver
+# asked afresh), and how many tries were thrown away on the way to them.
+func _sweep() -> void:
+	print("SWEEP: the creatures in the tombs, seeds 1..%d of each shape at each difficulty" % seeds)
+	print("  %-10s %-9s %9s %7s %7s %6s %9s %7s %12s %10s" % ["shape", "", "guardian", "sphinx", "Medjed", "none", "2 or more", "proved", "thrown away", "fell back"])
+	for shape: String in ["line", "branching"]:
+		for difficulty in 3:
+			var with := {"guardian": 0, "sphinx": 0, "medjed": 0}
+			var none := 0
+			var several := 0
+			var proved := 0
+			var thrown := 0
+			var fell_back := 0
+			var most := 0
+			var over := 0
+			for seed_value in range(1, seeds + 1):
+				var plan := TombBranching.generate(seed_value, difficulty) if shape == "branching" else TombGenerator.generate(seed_value, difficulty)
+				var has := {}
+				var count := 0
+				for link in plan.links:
+					var keeps := _keeps(plan, link)
+					if keeps != "":
+						has[keeps] = true
+						count += 1
+				for keeps: String in has:
+					with[keeps] = int(with[keeps]) + 1
+				if count == 0:
+					none += 1
+				elif count > 1:
+					several += 1
+				most = maxi(most, count)
+				if count > int(TombGenerator.KEEPERS[difficulty]):
+					over += 1
+				if TombSolver.solve(plan)["ok"]:
+					proved += 1
+				thrown += plan.sub_seed
+				if plan.sub_seed >= (TombBranching.MAX_TRIES if shape == "branching" else TombGenerator.MAX_TRIES):
+					fell_back += 1
+			print("  %-10s %-9s %9d %7d %7d %6d %9d %7s %12d %10d" % [shape, TombGenerator.DIFFICULTY_NAMES[difficulty], with["guardian"], with["sphinx"], with["medjed"], none, several,
+					"%d/%d" % [proved, seeds], thrown, fell_back])
+			if proved < seeds or over > 0:
+				failed = true
+				print("    NOT ALL PROVED, or more keepers than a tomb of that difficulty may have (%d tombs; the most in one was %d)" % [over, most])
 
 
 # A tomb of the kind that is being asked about.
@@ -198,10 +246,39 @@ func _solver_says_no() -> void:
 	plan.add_link(1, 3, TombPlan.Pass.OPEN).switches = [plan.add_trigger(TombPlan.Switch.OFFERING, 1).id]
 	plan.add_thing(TombPlan.Item.JAR, 1)
 	cases.append(["a jar that can be lost for good", plan, "it can be made unfinishable"])
+	# The leaf with a gate guardian's name is beyond that guardian: only a guess would get him by, and no guess is counted on.
+	plan = _axis_of(roles)
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	var keeper := plan.add_trigger(TombPlan.Switch.NAME, 1)
+	keeper.needs = plan.add_trigger(TombPlan.Switch.LEAF, 2).id
+	plan.add_link(1, 2, TombPlan.Pass.OPEN).switches = [keeper.id]
+	plan.add_link(2, 3, TombPlan.Pass.OPEN)
+	cases.append(["a leaf behind its own guardian", plan, "the treasure cannot be reached"])
+	# It can be done, and done in order nothing can go wrong: the jar opens the
+	# way to the treasure and the leaf, and only then is the guardian named and
+	# the rope beyond him open. But a lucky guess lets him by first, with the
+	# jar still wanted, and it can be dropped down the rope and never brought up.
+	plan = _axis_of(roles)
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	keeper = plan.add_trigger(TombPlan.Switch.NAME, 1)
+	keeper.needs = plan.add_trigger(TombPlan.Switch.LEAF, 3).id
+	plan.add_link(1, 2, TombPlan.Pass.ROPE).switches = [keeper.id]
+	plan.add_link(1, 3, TombPlan.Pass.OPEN).switches = [plan.add_trigger(TombPlan.Switch.OFFERING, 1).id]
+	plan.add_thing(TombPlan.Item.JAR, 1)
+	cases.append(["a lucky guess that can strand him", plan, "it can be made unfinishable"])
+	# The same with the leaf in the open: then nothing is beyond the guardian that a guess gets him to sooner than he should be.
+	plan = _axis_of(roles)
+	plan.add_link(0, 1, TombPlan.Pass.OPEN)
+	keeper = plan.add_trigger(TombPlan.Switch.NAME, 1)
+	keeper.needs = plan.add_trigger(TombPlan.Switch.LEAF, 3).id
+	plan.add_link(1, 2, TombPlan.Pass.STAIRS).switches = [keeper.id]
+	plan.add_link(1, 3, TombPlan.Pass.OPEN).switches = [plan.add_trigger(TombPlan.Switch.OFFERING, 1).id]
+	plan.add_thing(TombPlan.Item.JAR, 1)
+	cases.append(["(and the same with stairs: sound)", plan, ""])
 	for case: Array in cases:
 		var result := TombSolver.solve(case[1])
-		var right: bool = not result["ok"] and result["reason"] == case[2]
-		print("  %-34s %s (%s)" % [case[0], "thrown away" if right else "WRONGLY " + ("passed" if result["ok"] else "refused"), result["reason"]])
+		var right: bool = (not result["ok"] and result["reason"] == case[2]) or (result["ok"] and case[2] == "")
+		print("  %-34s %s (%s)" % [case[0], ("thrown away" if case[2] != "" else "passed") if right else "WRONGLY " + ("passed" if result["ok"] else "refused"), result["reason"]])
 		if not right:
 			failed = true
 	# Real plans, with the first seal stone moved into the burial chamber: behind its own door.
@@ -638,7 +715,7 @@ func three_new() -> Dictionary:
 func _with_templates() -> Array:
 	var found: Array = []
 	for difficulty in 3:
-		var counts := {"two_stones": 0, "rope": 0, "sand": 0}
+		var counts := {"two_stones": 0, "rope": 0, "sand": 0, "guardian": 0, "sphinx": 0, "medjed": 0}
 		for seed_value in range(1, seeds + 1):
 			var plan := _generate(seed_value, difficulty)
 			var wanted := false
@@ -650,6 +727,11 @@ func _with_templates() -> Array:
 					kind = "rope"
 				elif link.pass_kind == TombPlan.Pass.SAND:
 					kind = "sand"
+				# (and the creatures that keep a way: each wherever the generator puts it)
+				var keeps := _keeps(plan, link)
+				if keeps != "" and int(counts[keeps]) < per:
+					counts[keeps] = int(counts[keeps]) + 1
+					wanted = true
 				if kind != "" and int(counts[kind]) < per:
 					counts[kind] = int(counts[kind]) + 1
 					wanted = true
@@ -657,6 +739,17 @@ func _with_templates() -> Array:
 				found.append([seed_value, difficulty])
 		print("  %-8s tombs with each among seeds 1..%d, up to %d of each: %s" % [TombGenerator.DIFFICULTY_NAMES[difficulty], seeds, per, str(counts)])
 	return found
+
+
+# What keeps a way, of the creatures of the funerary texts: "guardian", "sphinx", "medjed", or nothing.
+func _keeps(plan: TombPlan, link: TombPlan.Link) -> String:
+	if link.watched:
+		return "medjed"
+	if plan.keeper_of(link, TombPlan.Switch.NAME) != null:
+		return "guardian"
+	if plan.keeper_of(link, TombPlan.Switch.SPHINX) != null:
+		return "sphinx"
+	return ""
 
 
 func _drive_templates() -> void:
@@ -677,12 +770,16 @@ func _say_tally() -> void:
 	print("  of the %d mummies in those tombs, %d woke as he went by or took the falcon" % [mummies_met, mummies_woken])
 	print("  the rope taken hold of %d times going down and %d going up (tries that went wrong: %d and %d); the sand gone up %d times (%d of them with his hands full) and down %d" % [
 			tally["rope_down"], tally["rope_up"], tally["rope_down_missed"], tally["rope_up_missed"], tally["sand_up"], tally["sand_up_carrying"], tally["sand_down"]])
+	print("  leaves of the Book read %d, guardians named with their leaf %d (stepped back from for want of it %d); the clock ran %d sixtieths while a leaf or the names were up" % [
+			keeper_tally["leaves"], keeper_tally["named"], keeper_tally["stepped_back"], keeper_tally["clock_ran"]])
+	if int(keeper_tally["clock_ran"]) > 0:
+		failed = true
 
 
 func _drive_custom() -> void:
 	print("CUSTOM: tombs made by hand, played by the real Player%s" % (", in the tomb that is walked through" if walked else ""))
 	TombLevel.bare = true
-	var specs: Array = [TombSpec.fresh(), every_lock(), three_new()]
+	var specs: Array = [TombSpec.fresh(), every_lock(), three_new(), Shapes.keepers()]
 	if walked:
 		specs.append(Shapes.every_way())
 	if pick != "":
@@ -705,9 +802,77 @@ func _drive_custom() -> void:
 	var held := pick != "" or (await _sand_holds3() if walked else await _sand_holds())
 	if not held:
 		failed = true
+	if pick == "" and not await _guardian_holds():
+		failed = true
 	if walked and pick == "" and not await _carried_back3():
 		failed = true
 	_say_tally()
+
+
+## How a guardian that asks for a name he has no leaf for is answered: "back"
+## (he steps back, as the driver always does), "wrong", or "right" (a lucky guess).
+var guess := "back"
+
+
+# A gate guardian by itself, and the guesses a player may make at him. With
+# no leaf he is told a wrong name: he strikes, and the boy is put back at the
+# last door, which is the guardian's own, with the gateway still barred. Then
+# the right name by luck: the knives go up and stay up. Then the tomb is
+# played through as any other (the leaf is still read on the way, for nothing).
+func _guardian_holds() -> bool:
+	var spec := TombSpec.fresh("One keeper")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "hall", "corridor", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[2]["lock"] = "name_above"
+	rooms[2]["stone_in"] = 1
+	spec["rooms"] = rooms
+	await _open(0, 0, spec)
+	var plan := level.plan
+	var named: TombPlan.Trigger
+	for trigger in plan.triggers:
+		if trigger.kind == TombPlan.Switch.NAME:
+			named = trigger
+	var link := plan.link_of(named.id)
+	var keeper: GateGuardian = level.built.switches[named.id]
+	var stand: Vector3 = layout3.stand_at[named.id] if walked else level.layout.switch_at[named.id]
+	var door: Vector3 = level.layout.door_at[link.id]
+	var sound := true
+	guess = "wrong"
+	if walked:
+		await _go3(stand, 0.2)
+	else:
+		await _go(stand, 0.2)
+	var furthest := -INF
+	var way := (door - stand).normalized()
+	for i in 600:
+		await _wait(1)
+		furthest = maxf(furthest, (player.global_position - door).dot(way))
+		if level.deaths >= 1 and not player.is_limp:
+			break
+	await _wait(60)
+	var back := player.global_position.distance_to(stand)
+	var held := level.deaths == 1 and not keeper.on and furthest < 0.0 and back < 3.0 and not level._open[link.id]
+	print("  the guardian, told a wrong name: deaths %d, he is %.1f m from the gateway and never got nearer than %.2f short of its middle, the guardian %s: %s" % [
+			level.deaths, back, -furthest, "is named" if keeper.on else "is not named", "it holds" if held else "IT DID NOT HOLD"])
+	sound = sound and held
+	guess = "right"
+	if walked:
+		await _go3(stand, 0.2)
+	else:
+		await _go(stand, 0.2)
+	for i in 300:
+		await _wait(1)
+		if keeper.on and level._open[link.id]:
+			break
+	var lucky := keeper.on and level._open[link.id] and not level.done[named.needs]
+	print("  the guardian, told the right name by luck (no leaf): %s" % ("his way is open, and stays open" if lucky else "IT DID NOT OPEN"))
+	sound = sound and lucky
+	guess = "back"
+	var done := await _play_through("the guardian")
+	level.get_parent().queue_free()
+	await _wait(5)
+	return sound and done
 
 
 ## A tomb whose only way on is up the sand, which a block on its plate lets in.
@@ -999,6 +1164,13 @@ func _climb_loft(info: Dictionary) -> bool:
 	for attempt in 3:
 		if not await _go(Vector3(edge - 0.62, top - TombLayout.LOFT_TOP, 0.0), 0.1):
 			return false
+		# (carried on by a run he can be too near the lip to get off the ground before
+		# he is under it: then he goes back a few steps, stands, and takes it from there)
+		await _wait(12)
+		if player.global_position.x > edge - 0.5:
+			if not await _go(Vector3(edge - 1.7, top - TombLayout.LOFT_TOP, 0.0), 0.15):
+				return false
+			await _wait(15)
 		for i in 240:
 			touch.move = Vector2(1.0, 0.0)
 			if player.state == Player.State.FREE and player.is_on_floor() and i % 30 == 5:
@@ -1249,10 +1421,52 @@ func _still() -> void:
 	touch.duck_held = false
 
 
+## What the gate guardians and their leaves came to: leaves read, guardians named
+## (each with its leaf: he does not guess), times he stepped back for want of the
+## leaf, and sixtieths the clock ran on while a leaf or the names were up (none).
+var keeper_tally := {"leaves": 0, "named": 0, "stepped_back": 0, "clock_ran": 0}
+var _panel_frames := 0
+var _panel_ticks := 0
+
+
+# A leaf of the Book that has come up is read and put away, and a guardian
+# that asks is told his name if the leaf that says it has been found: as a
+# player does it, after a moment. The game stands still meanwhile, and so must the clock.
+func _answer_panel() -> void:
+	var panel := GuardianPanel.current
+	if not is_instance_valid(panel) or not is_instance_valid(level):
+		_panel_frames = 0
+		return
+	if _panel_frames == 0:
+		_panel_ticks = level.ticks
+	_panel_frames += 1
+	if _panel_frames < 30:
+		return
+	_panel_frames = 0
+	keeper_tally["clock_ran"] = int(keeper_tally["clock_ran"]) + level.ticks - _panel_ticks
+	if panel.dealt.is_empty():
+		keeper_tally["leaves"] = int(keeper_tally["leaves"]) + 1
+		panel.choose(-1)
+	elif panel.known:
+		keeper_tally["named"] = int(keeper_tally["named"]) + 1
+		panel.choose(panel.who)
+	else:
+		if guess == "back":
+			keeper_tally["stepped_back"] = int(keeper_tally["stepped_back"]) + 1
+			panel.choose(-1)
+		else:
+			var said := panel.who
+			for name: int in panel.dealt:
+				if guess == "wrong" and name != panel.who:
+					said = name
+			panel.choose(said)
+
+
 func _wait(count: int) -> void:
 	for i in count:
 		await physics_frame
 		frames_used += 1
+		_answer_panel()
 		# (which mummies have been up, for the count at the end)
 		if frames_used % 6 == 0 and is_instance_valid(level) and level.built:
 			for n in level.built.mummies.size():

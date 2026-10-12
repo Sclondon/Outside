@@ -43,7 +43,7 @@ extends RefCounted
 
 ## Changed whenever a change here would make a different tomb from the same
 ## seed. (Its own: `TombGenerator.VERSION` is the other generator's.)
-const VERSION := 1
+const VERSION := 2
 const MAX_TRIES := 40
 ## For each difficulty: the fewest and most rooms from the entrance to the
 ## burial chamber, locks, rooms off that way (side chambers and dead ends),
@@ -63,11 +63,11 @@ const MOST_POSITIONS := 30000
 
 ## The rules that put in a lock, and how likely each is at each difficulty.
 ## (`_afar`: what opens the door is in a side chamber.)
-const RULES := ["work", "work_afar", "lever", "lever_afar", "brazier", "brazier_afar", "offering", "cross", "pair", "gap", "sand", "bypass"]
+const RULES := ["work", "work_afar", "lever", "lever_afar", "brazier", "brazier_afar", "offering", "cross", "pair", "gap", "sand", "bypass", "name"]
 const RULE_WEIGHTS := [
-	[3, 2, 2, 3, 3, 0, 0, 0, 0, 0, 2, 0],
-	[2, 2, 2, 3, 3, 1, 2, 2, 1, 3, 2, 2],
-	[1, 2, 2, 3, 3, 2, 2, 2, 2, 3, 2, 3],
+	[3, 2, 2, 3, 3, 0, 0, 0, 0, 0, 2, 0, 3],
+	[2, 2, 2, 3, 3, 1, 2, 2, 1, 3, 2, 2, 3],
+	[1, 2, 2, 3, 3, 2, 2, 2, 2, 3, 2, 3, 3],
 ]
 
 var plan: TombPlan
@@ -95,6 +95,8 @@ var _busy := {}
 var _sealed := {}
 var _blocked := {}
 var _shut := {}
+## A room one of whose doors is about to be given a keeper (while its lock is put in).
+var _keeping := {}
 
 
 ## A tomb that can be finished. `plan.sub_seed` says how many were thrown away
@@ -601,7 +603,7 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			if before == -1 or before == plan.entrance() or _busy.has(here) or _blocked.has(before) or not _has_room_for(1, 2 if rule == "pair" else 1):
 				return false
 			var way := plan.links[int(_way_in[here])]
-			if way.pass_kind != TombPlan.Pass.OPEN or way.fixed:
+			if way.pass_kind != TombPlan.Pass.OPEN or way.fixed or plan.keeps(way):
 				return false
 			# (Pushed straight on out of the far end of its room, the block has to
 			# cross the strip of floor that a way off to the side leaves at the end
@@ -681,7 +683,7 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			# A loop. The door is opened from behind, by a seal stone at the foot
 			# of the stairs beyond it; the way to there is up into a cutting over
 			# the wall, and down a drop there is no climbing back up.
-			if plan.side_room(here, TombPlan.Role.LOFT) != null or _sand_out_of(here) or _sealed.has(beyond) or plan.rooms.size() >= MOST_ROOMS or not _has_room_for(0, 1):
+			if plan.side_room(here, TombPlan.Role.LOFT) != null or plan.is_kept(here) or _sand_out_of(here) or _sealed.has(beyond) or plan.rooms.size() >= MOST_ROOMS or not _has_room_for(0, 1):
 				return false
 			var loft := plan.add_room(TombPlan.Role.LOFT, here)
 			_up[loft.id] = here
@@ -704,7 +706,60 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			_needs[link.id] = [beyond]
 			_sealed[beyond] = true
 			return true
+		"name":
+			# A gate guardian bars the way until he is named. The leaf that has his
+			# name on it lies in the open in one of the rooms before; or (not in an
+			# easy tomb) as often off the way he is on: in a side chamber, in a
+			# loft, at the foot of a well. (No loft over the room itself: the
+			# guardian sits under where its floor would be.)
+			if not _keeper_ok(here) or plan.side_room(here, TombPlan.Role.LOFT) != null or not _has_room_for(0, 2):
+				return false
+			var lies := -1
+			link.hint = "name"
+			_keeping[here] = true
+			if plan.difficulty >= 1 and _rng.chance(65):
+				if _rng.chance(50):
+					var side := _side_room(link, 2)
+					if side != -1:
+						lies = side
+						link.hint = "name_below" if plan.rooms[side].role == TombPlan.Role.CRYPT else "name_above"
+				else:
+					var chamber := _chamber(link, _anchors(link, 2).filter(func(room: int) -> bool: return room != plan.entrance()), _sealed)
+					if chamber != -1 and _reaches_all({link.id: [chamber]}):
+						lies = chamber
+						link.hint = "name_afar"
+						_sealed[chamber] = true
+			_keeping.erase(here)
+			if lies == -1:
+				var before: Array = _anchors(link, 3).filter(func(room: int) -> bool: return room != plan.entrance() and room != here and not _sealed.has(room))
+				lies = before[_rng.below(before.size())] if not before.is_empty() else here
+				if _sealed.has(lies):
+					link.hint = ""
+					return false
+				_sealed[lies] = true
+			var leaf := plan.add_trigger(TombPlan.Switch.LEAF, lies)
+			var keeper := plan.add_trigger(TombPlan.Switch.NAME, here)
+			keeper.needs = leaf.id
+			link.switches = [keeper.id]
+			_needs[link.id] = [lies]
+			return true
 	return false
+
+
+# Whether a door out of `room` may be kept by one of the creatures: the tomb
+# has not as many as it may (`TombGenerator.KEEPERS`), this room has none, and
+# no room next to it has one.
+func _keeper_ok(room: int) -> bool:
+	var count := 0
+	for other in plan.rooms:
+		if plan.is_kept(other.id):
+			count += 1
+	if count >= TombGenerator.KEEPERS[plan.difficulty] or plan.is_kept(room):
+		return false
+	for link in plan.links:
+		if (link.a == room and plan.is_kept(link.b)) or (link.b == room and plan.is_kept(link.a)):
+			return false
+	return true
 
 
 # A torch or a hook that is in the tomb already and would do for one more
@@ -788,6 +843,9 @@ func _side_role(room: int) -> int:
 		return -1
 	# (from a loft at the foot of the sand's face he would get over it with no sand)
 	if _sand_out_of(room):
+		return -1
+	# (nor over a room one of whose doors a guardian or a sphinx keeps, or Medjed watches)
+	if plan.is_kept(room) or _keeping.has(room):
 		return -1
 	return -1 if plan.side_room(room, TombPlan.Role.LOFT) != null else TombPlan.Role.LOFT
 

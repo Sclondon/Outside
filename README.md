@@ -2276,6 +2276,7 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   | A cold brazier, in a room with no torches | A burning torch (found earlier) brought to it |
   | A pit too wide to jump | The grappling hook (found earlier), thrown at the ring over it |
   | A face too high to catch, the next room at the top of it | A seal stone (at its foot, or in a loft or under a well) lets sand pour in from the roof; he walks up the heap |
+  | A gate guardian, his knives crossed in the gateway | His name, which is on a leaf of the Book of the Dead lying somewhere before: in the open in an earlier room, in a loft, at the foot of the well |
 
   Between rooms: stairs down, a passage to duck through, water to swim (which makes him let go of what he carries), a
   shaft with a ladder, a shaft with a rope. A door, once open, stays open. He carries one thing at a time, and not up
@@ -2295,6 +2296,23 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   does not undo it. The far half of the heap is in the rock under the next room, where nothing is cut down as far as it
   reaches, and the tomb is cut open further towards the camera round it, since the heap is wider than the tomb. There
   is no loft over the room at its foot and no mummy in the room at its top, and one such way to a tomb at most.
+- **The gate guardians** (`GateGuardian`, see "The gate guardians") keep a doorway each, which is the guardian's own
+  gate (`bars_way`): there is no slab. Seen from the side he sits against the far wall beside the way, in profile as
+  the papyrus draws him, facing whoever comes, with his two great knives crossed on the boy's line; walked through,
+  the gateway is the left 2.2 m of the passage and he sits against the wall to the right of it. Each guardian of a
+  tomb has a different name and so a different head, dealt by `TombRandom` (`TombLayout.keepers`), and the names he
+  offers come from the tomb's number. The leaf (`BookPage`) is taken by walking onto it, takes no hand, and is his
+  until he leaves the tomb; in a tomb that is walked through it lies two metres to the right of his line, so that he
+  goes to it. Stepping onto the threshold is being asked. With the leaf the right name has its English under it.
+  Without it he may guess, one chance in three: a wrong name is a death like any other, which puts him back at the
+  last door, the guardian's own, and the names are dealt again. The solver never counts on a guess, and it also
+  visits every position a lucky guess could bring about and asks that the tomb can still be finished from each
+  (`TombSolver`: "a lucky guess that can strand him" is one of the plans `tools/tomb_test.gd` holds it to). A
+  guardian named stays named: dying does not bring his knives down again. No loft is over the room he sits in, and
+  no block is pushed through his gateway. **The clock stands still while a leaf is read or a name is chosen**: the
+  game is stopped then (mummies and all), and the time counts ticks of play, so reading costs nobody anything, and
+  a slow reader is not a slow time. The inscription over his way says that the keeper wants his name, and where the
+  leaf is to be looked for.
 - **Mummies** are of a kind chosen with something in the room that kind cannot get past, between it and whatever he has
   to stand still at: a trench for the shambler, the child and the royal one, a kerb for the priest and the crawler, two
   piers too close together for the brute. Each wakes as he passes, loses him after a few seconds of not being able to get
@@ -2306,8 +2324,9 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   swing in the built tomb against what the Player can do, read from `player.tscn`.
 - **The same everywhere**: all the dice are `TombRandom` (whole numbers only, nothing from the engine or the clock), seeded
   from the generator's `VERSION`, the seed, the difficulty and the sub-seed. A plan and its stone each have a fingerprint.
-  `VERSION` is 2 since the two-plate door, the rope and the sand went in: the same number now makes a different tomb
-  than it did (and so does a day).
+  `VERSION` is 3 since the creatures of the funerary texts went in (it was 2 from the two-plate door, the rope and
+  the sand): the same number now makes a different tomb than it did (and so does a day). `TombBranching.VERSION`
+  went from 1 to 2 with it, for the same reason.
 - **The daily tomb** (`TombDaily`): the seed is made from the number of days since 1 January 1970 by the clock at
   Greenwich; tomb #1 was 1 October 2026; the day of the week sets the difficulty. The time counts sixtieths of a second
   of play, not of the wall clock. Dying puts him back at the last door he went through (each end of each room), with
@@ -2459,7 +2478,7 @@ further on wants, dead ends, and loops. `TombBranching` (`scripts/tomb_branching
 `"shape": "branching"` in `TombLevel.play` (`{"mode": "random", "seed": 12, "difficulty": 1, "shape": "branching"}`;
 the view is "3d" whatever is asked), with `-- tomb=12:1 shape=branching` on the command line, or with "Branching"
 on the card, beside "Side-on" and "Walk through". The other two kinds are what they were: the same plans and the
-same stone from the same numbers (`TombGenerator.VERSION` is still 2; `TombBranching.VERSION` is its own, 1).
+same stone from the same numbers (`TombBranching.VERSION` is its own: 2, since the creatures went in).
 
 - **How one is made**, each stage only adding what the ones before allow:
   1. *The trunk*: the way from the entrance to the burial chamber, four to seven rooms as the difficulty asks, on
@@ -2470,7 +2489,8 @@ same stone from the same numbers (`TombGenerator.VERSION` is still 2; `TombBranc
      `TombGenerator`'s (a block and plate, a plate for a block from the room before, the two plates, a brazier, the
      offering table, a seal stone in a loft or under a well, the pit and its hook, the sand, the way over the
      wall), and four more in which what opens the door is down another way: a block and plate in a side chamber,
-     a seal stone just inside one, a brazier in a dark one, and a seal stone in one that lets the sand in. A side
+     a seal stone just inside one, a brazier in a dark one, and a seal stone in one that lets the sand in. A gate
+     guardian's leaf lies in the open in a room before, or in a side chamber, a loft or under a well. A side
      chamber that holds something can be locked in its turn. One torch or one hook does for every place it can
      be carried to.
   3. *Dead ends*: rooms off the others with nothing in them, until there are as many rooms off the trunk as the

@@ -82,6 +82,8 @@ const THICK := 1.0
 ## left as he goes in), and the lane a room's own block is pushed along (to the right).
 const WALK := -1.0
 const LANE := 1.3
+## How far to the right of the middle of his gateway a gate guardian sits.
+const GATE_SIDE := 1.75
 ## How wide a plate is across the lane its block comes along.
 const PAD := 1.4
 ## How wide each kind of room is (`TombPlan.Role`), wall to wall.
@@ -553,9 +555,10 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 
 	# --- Just inside: a seal stone that opens the door behind him, the things that lie here, a plate
 	for trigger in plan.triggers:
-		if trigger.room == room.id and trigger.kind == TombPlan.Switch.LEVER and not _lets_sand_in(trigger, room.id):
+		if trigger.room == room.id and TombPlan.is_trodden(trigger) and not _lets_sand_in(trigger, room.id):
 			_area(1.6)
-			_seal(trigger, frame.at(_u - 0.8, _y, WALK))
+			# (a leaf lies to the right of his line: he goes to it, he does not trip over it)
+			_seal(trigger, frame.at(_u - 0.8, _y, WALK + 2.0 if trigger.kind == TombPlan.Switch.LEAF else WALK))
 	var entry := _area(2.6)
 	var west := frame.at(entry.u0 + 1.0, _y, WALK)
 	if _sky:
@@ -872,11 +875,26 @@ func _set_way(link: TombPlan.Link, frame: Frame, filler: float) -> float:
 			# (no wall: the bay opens onto the head of the ladder or the rope, or the foot of the face)
 			pass
 		_:
-			var gate := _area(WALL, roof if over else _y + way_high)
+			var keeper := plan.keeper_of(link, TombPlan.Switch.NAME)
+			# (a gate guardian's gateway is no wider than his knives bar: it is at the
+			# left of the passage, round the boy's line, and he sits against the wall to the right of it)
+			var gate := _area(WALL, roof if over else _y + way_high, -PASSAGE * 0.5, -PASSAGE * 0.5 + GATE_WIDE) if keeper \
+					else _area(WALL, roof if over else _y + way_high)
 			gate.gate = true
 			if loft:
 				moves.append({"kind": "under", "is": way_high, "room": _room})
-			if not link.switches.is_empty():
+			if keeper:
+				var middle := -PASSAGE * 0.5 + GATE_WIDE * 0.5
+				door_at[link.id] = frame.at(WALL * 0.5, _y + way_high * 0.5, middle)
+				switch_at[keeper.id] = frame.at(-0.05, _y, WALK)
+				stand_at[keeper.id] = switch_at[keeper.id]
+				var is_who: Dictionary = keepers(plan)[keeper.id]
+				parts.append({"kind": "guardian", "room": _room, "link": link.id, "trigger": keeper.id,
+						"at": frame.at(WALL * 0.5 - GATE_BACK, _y, middle + GATE_SIDE), "yaw": frame.yaw(-PI * 0.5), "gate_at": -GATE_SIDE,
+						"wide": GATE_WIDE, "tall": way_high, "who": is_who["who"], "seed": is_who["seed"]})
+				moves.append({"kind": "slot", "is": GATE_WIDE, "room": _room})
+				_sign(link, frame, turned, float(rooms[a.id].get("wide", PASSAGE)), _y + way_high + 0.5 if not loft else -1.0)
+			elif not link.switches.is_empty():
 				door_at[link.id] = frame.at(WALL * 0.5, _y + way_high * 0.5, 0.0)
 				parts.append({"kind": "door", "room": _room, "link": link.id, "at": door_at[link.id],
 						"size": frame.size(0.5, way_high, PASSAGE - 0.1), "sinks": over})
@@ -1084,6 +1102,9 @@ func _line(one: int, other: int) -> void:
 func _seal(trigger: TombPlan.Trigger, at: Vector3) -> void:
 	switch_at[trigger.id] = at
 	stand_at[trigger.id] = at
+	if trigger.kind == TombPlan.Switch.LEAF:
+		parts.append({"kind": "leaf", "room": _room, "trigger": trigger.id, "at": at, "who": leaf_name(plan, trigger.id)})
+		return
 	parts.append({"kind": "lever", "room": _room, "trigger": trigger.id, "at": at, "size": Vector3(1.2, 0.5, 1.2)})
 
 
