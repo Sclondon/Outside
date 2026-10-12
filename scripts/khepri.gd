@@ -78,7 +78,7 @@ const NOSE_DOWN := 0.75
 @export var beetle_length := 0.45
 ## How far its light reaches, and how bright it is.
 @export var light_reach := 7.0
-@export var light_energy := 2.2
+@export var light_energy := 1.6
 ## How near a sun disc must be for the sun to light it, metres.
 @export var sun_reach := 2.2
 ## Whether it makes a sound.
@@ -157,10 +157,9 @@ void fragment() {
 	// Tongues of deeper gold that go round with it: so that it is seen to roll.
 	vec3 n = normalize(at);
 	float round_it = atan(n.z, n.x);
-	float tongues = sin(round_it * 4.0 + sin(n.y * 3.0) * 1.6) * (1.0 - n.y * n.y);
-	float spots = sin(n.x * 9.0 + 1.0) * sin(n.y * 8.0) * sin(n.z * 9.0 + 2.0);
-	vec3 colour = mix(warm, deep, cut(tongues, 0.55));
-	colour = mix(colour, hot, cut(spots, 0.3));
+	float tongues = sin(round_it * 3.0 + n.y * 2.6 + sin(n.y * 5.0) * 0.8) * (1.0 - n.y * n.y * 0.7);
+	vec3 colour = mix(warm, deep, cut(tongues, 0.45));
+	colour = mix(colour, hot, cut(-tongues, 0.72));
 	// Hot in the middle of what is seen of it, deeper round its edge.
 	float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	colour = mix(colour, hot, cut(facing, 0.82) * 0.55);
@@ -171,23 +170,18 @@ void fragment() {
 
 const HALO_SHADER := """
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_add, cull_front, depth_draw_never, fog_disabled, shadows_disabled;
 
-uniform vec3 colour : source_color = vec3(1.0, 0.72, 0.28);
-uniform float strength = 0.55;
-
-void vertex() {
-	// (it faces whoever looks at it)
-	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
-	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
-}
+uniform vec3 colour : source_color = vec3(1.0, 0.7, 0.26);
+uniform float strength = 0.6;
 
 void fragment() {
-	float out_from = length(UV - vec2(0.5)) * 2.0;
-	float soft = pow(clamp(1.0 - out_from, 0.0, 1.0), 2.0);
-	// A ring close round the sun, and a wider, fainter one.
-	float ring = step(out_from, 0.56) * 0.35 + step(out_from, 0.78) * 0.12;
-	ALBEDO = colour * (soft + ring) * strength;
+	// The far half of a ball round the sun, so that whatever is beside the sun is in front of its glow: brightest
+	// against the sun's edge, and gone at its own, in two steps.
+	float through = abs(dot(normalize(NORMAL), normalize(VIEW)));
+	float soft = through * through;
+	float ring = step(0.62, through) * 0.3 + step(0.4, through) * 0.12;
+	ALBEDO = colour * (soft * 0.6 + ring) * strength;
 }
 """
 
@@ -279,9 +273,12 @@ func _ready() -> void:
 	_ball.position.y = R
 	add_child(_ball)
 	_halo = MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * SUN * 2.6
-	_halo.mesh = quad
+	var glow := SphereMesh.new()
+	glow.radius = R * 1.9
+	glow.height = SUN * 1.9
+	glow.radial_segments = 32
+	glow.rings = 16
+	_halo.mesh = glow
 	_halo.material_override = _shaded(HALO_SHADER, 1)
 	_halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_halo.position.y = R
@@ -290,9 +287,9 @@ func _ready() -> void:
 	_lamp.light_color = Color(1.0, 0.84, 0.52)
 	_lamp.light_energy = light_energy
 	_lamp.omni_range = light_reach
-	_lamp.omni_attenuation = 0.8
+	_lamp.omni_attenuation = 1.0
 	# (a little over the ball, so that the floor under it is not a white spot)
-	_lamp.position.y = SUN + 0.25
+	_lamp.position.y = SUN + 0.4
 	add_child(_lamp)
 
 	_beetle = Node3D.new()
@@ -643,7 +640,7 @@ func _pose(delta: float) -> void:
 	var was := _mount
 	_mount = move_toward(_mount, 1.0 if state == State.REST else 0.0, delta / GET_DOWN)
 	# Round the ball, from low behind it to the top of it; head down until it is nearly up.
-	var low := Vector2(R + 0.03 + 0.5 * long * cos(NOSE_DOWN), 0.5 * long * sin(NOSE_DOWN) + 0.02 - R)
+	var low := Vector2(R - 0.02 + 0.5 * long * cos(NOSE_DOWN), 0.5 * long * sin(NOSE_DOWN) + 0.02 - R)
 	var angle := lerp_angle(low.angle(), PI * 0.5, _mount)
 	var levelling := PI * 0.5 - NOSE_DOWN
 	var out_from := lerpf(low.length(), R - 0.03, smoothstep(low.angle(), levelling, angle))
@@ -683,14 +680,14 @@ func _pose(delta: float) -> void:
 		var side := 1.0 if i == 0 else -1.0
 		# (they open from along its back, and beat a little while it flies, and breathe when it sits)
 		var beat := sin(_clock * 22.0) * 0.35 if _fly > 0.0 and _fly < 1.0 else sin(_clock * 1.3) * 0.05
-		wing.rotation = Vector3(0.0, side * (1.0 - _open) * 1.35, side * (0.3 + beat))
+		wing.rotation = Vector3(-0.55 * _open, side * (1.0 - _open) * 1.35, side * (0.42 + beat))
 		wing.scale = Vector3(side, 1.0, 1.0) * long * lerpf(0.3, 1.0, _open)
 
 	# Risen, it lights the whole room.
 	var up := _rise if state == State.RISE else (1.0 if state == State.DONE else 0.0)
 	_lamp.light_energy = light_energy * (1.0 + up * 0.6)
 	_lamp.omni_range = light_reach * (1.0 + up * 0.8)
-	_halo.scale = Vector3.ONE * (1.0 + up * 0.5 + sin(_clock * 2.1) * 0.03)
+	_halo.scale = Vector3.ONE * (1.0 + up * 0.35 + sin(_clock * 2.1) * 0.03)
 	if _rumble:
 		var loud := -14.0 if state == State.ROLL else -60.0
 		_rumble.volume_db = move_toward(_rumble.volume_db, loud, delta * 120.0)
@@ -755,15 +752,12 @@ static func _wing() -> ArrayMesh:
 			for k: int in [0, 1, 2, 0, 2, 3]:
 				tool.add_vertex(corners[k])
 	_wing_mesh = tool.commit()
+	# (painted, and bright of itself: so near the sun, light would bleach it)
 	var paint := StandardMaterial3D.new()
+	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	paint.vertex_color_use_as_albedo = true
 	paint.cull_mode = BaseMaterial3D.CULL_DISABLED
-	paint.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
-	paint.roughness = 1.0
-	paint.metallic_specular = 0.0
-	paint.emission_enabled = true
-	paint.emission = Color(0.5, 0.36, 0.14)
-	paint.emission_energy_multiplier = 0.25
+	paint.albedo_color = Color(0.92, 0.92, 0.92)
 	_wing_mesh.surface_set_material(0, paint)
 	return _wing_mesh
 

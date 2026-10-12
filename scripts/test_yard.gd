@@ -11,6 +11,7 @@ extends Node3D
 ## hounds and the mummy, and two camels. Run `test_yard.tscn`. The camera orbits; drag to turn it.
 ## (And the parts puzzles are made of, at two stations: `_build_puzzles` and `_build_light_and_water`.)
 ## Oil, to pour and to set light to, has a station too, out to the east, beyond the low bars.
+## And Khepri and the sun have a walled court (`KhepriCourt`) in the far south-west corner, beyond the jackals.
 ##
 ## The ground is a `SandGround`, made here from `height_at`: dunes from
 ## `SandDunes` (small ones among the stations, big ones all round), pressed

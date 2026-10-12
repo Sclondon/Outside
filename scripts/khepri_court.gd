@@ -60,11 +60,11 @@ func _ready() -> void:
 			if (x + y) % 2 == 0:
 				continue
 			var middle := _local(x, y) + Vector3.UP * 0.003
-			for corner: Vector2 in [Vector2(-1, -1), Vector2(1, 1), Vector2(1, -1), Vector2(-1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+			for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, -1), Vector2(1, 1), Vector2(-1, 1)]:
 				squares.add_vertex(middle + Vector3(corner.x, 0.0, corner.y) * 0.5)
 	var chequer := MeshInstance3D.new()
 	chequer.mesh = squares.commit()
-	chequer.material_override = Toon.surface(PROP.darkened(0.1))
+	chequer.material_override = Toon.surface(PROP.darkened(0.12))
 	chequer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(chequer)
 	# (and a mark where each block is to go)
