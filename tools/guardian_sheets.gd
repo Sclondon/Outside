@@ -198,11 +198,8 @@ func run() -> void:
 			made.queue_free()
 			await frames(2)
 		await sheet("round", 6)
-		var tris := GuardianMesh.Clay.new()
 		for kind in BookOfTheDead.HEADS.size():
-			var clay := GuardianMesh.Clay.new()
-			GuardianMesh.head(clay, kind)
-			print("  head ", BookOfTheDead.HEADS[kind], ": ", clay.triangles(), " triangles")
+			print("  head ", BookOfTheDead.HEADS[kind], ": ", GuardianMesh.triangles(GuardianMesh.head(kind)), " triangles")
 
 	if wanted("far"):
 		# As the game's camera sees them: the boy among them for size.

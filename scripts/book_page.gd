@@ -111,31 +111,14 @@ func _build() -> void:
 	_paper.emission_texture = _paper.albedo_texture
 	_paper.emission_energy_multiplier = 0.2
 	_paper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	if rolled:
-		# A roll: the sheet wound round, a hand's breadth through.
-		var sides := 10
-		for n in sides:
-			for corner: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 0), Vector2i(1, 1), Vector2i(0, 1)]:
-				var turn := TAU * (n + corner.x) / sides
-				var out := Vector3(0.0, cos(turn), sin(turn))
-				tool.set_normal(out)
-				tool.set_uv(Vector2(corner.y, float(n + corner.x) / sides * 2.0))
-				tool.add_vertex(out * 0.06 + Vector3(corner.y * 0.5 - 0.25, 0.0, 0.0))
-	else:
-		# A sheet lying open, its ends curled up a little.
-		var strips := 8
-		for n in strips:
-			for corner: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 0), Vector2i(1, 1), Vector2i(0, 1)]:
-				var along := float(n + corner.x) / strips
-				var curl := pow(absf(along - 0.5) * 2.0, 3.0) * 0.07
-				tool.set_normal(Vector3.UP)
-				tool.set_uv(Vector2(along, corner.y))
-				tool.add_vertex(Vector3(along * 0.62 - 0.31, curl, corner.y * 0.44 - 0.22))
+	# The leaf is in the guardians' model, open and rolled; what is written on it is drawn here, and laid
+	# on by the model's texture coordinates. The rolled one has its cord, in the model's colour.
+	var sheet := GuardianMesh.model_mesh("leaf_rolled" if rolled else "leaf_open")
 	_leaf = MeshInstance3D.new()
-	_leaf.mesh = tool.commit()
-	_leaf.material_override = _paper
+	_leaf.mesh = sheet
+	for surface in sheet.get_surface_count():
+		var drawn := sheet.surface_get_material(surface) as BaseMaterial3D
+		_leaf.set_surface_override_material(surface, _paper if drawn == null or drawn.resource_name == "papyrus" else Toon.surface(drawn.albedo_color))
 	_leaf.rotation.z = 0.0 if rolled else 0.22
 	_leaf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_leaf)
@@ -154,8 +137,6 @@ func _build() -> void:
 	shade.position.y = 0.015
 	shade.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(shade)
-	if rolled:
-		PuzzleKit.rod(_leaf, Vector3.ZERO, 0.063, 0.05, Toon.surface(BookOfTheDead.RUBRIC), -1.0, 10).rotation.z = PI * 0.5
 
 
 # What is written on it, from far enough off that it cannot be read: lines of

@@ -44,7 +44,6 @@ const RISEN := Vector3(0.0, 1.14, 0.16)
 const ANKLE := Vector3(0.0, 0.33, 0.36)
 const THIGH := 0.48
 const SHIN := 0.54
-const SKIN := Color(0.62, 0.34, 0.2)
 
 ## Which keeper it is: its place in `BookOfTheDead.NAMES`.
 @export var who := 0
@@ -318,86 +317,36 @@ func _say(what: StringName) -> void:
 
 # --- How it is made ---
 
+# It is put together from the things in the model (`GuardianMesh`): one thing
+# to draw for each part of it that moves.
 func _build() -> void:
 	var kind := beast()
-	var hide: Color = BookOfTheDead.HIDES[kind]
-	var wrapped := dress == Dress.WRAPPINGS
-	var cloth := BookOfTheDead.LINEN
-	var flesh := cloth if wrapped else SKIN
-	var band := cloth.darkened(0.3)
+	var worn := "wrapped" if dress == Dress.WRAPPINGS else "kilt"
 	_figure = Node3D.new()
 	_figure.scale = Vector3.ONE * size
 	add_child(_figure)
 	# The plinth, the block it sits on, and its feet (which stay where they are).
-	var base := GuardianMesh.Clay.new()
-	base.box(GuardianMesh.STONE, Vector3(0.0, 0.125, 0.1), Vector3(1.0, 0.25, 1.2))
-	base.box(Color(0.16, 0.34, 0.32), Vector3(0.0, 0.5, -0.2), Vector3(0.6, 0.5, 0.62))
-	base.box(Color(0.16, 0.34, 0.32), Vector3(0.0, 0.9, -0.47), Vector3(0.6, 0.34, 0.1))
-	base.box(GuardianMesh.GOLD, Vector3(0.0, 0.74, -0.2), Vector3(0.62, 0.03, 0.64))
-	for x: float in [-0.1, 0.1]:
-		base.box(flesh, Vector3(x, 0.29, 0.43), Vector3(0.12, 0.08, 0.26))
-	_part(_figure, base)
+	_part(_figure, ["plinth", "seat", "feet_" + worn], kind)
 	# Thighs and shins, each pair one piece, modelled along +Z from the hip and from the knee.
-	var thighs := GuardianMesh.Clay.new()
-	var shins := GuardianMesh.Clay.new()
-	for x: float in [-0.1, 0.1]:
-		thighs.tube(flesh, Vector3(x, 0.0, -0.02), Vector3(x, 0.0, THIGH), 0.115, 0.095, 7)
-		thighs.ball(flesh, Vector3(x, 0.0, THIGH), Vector3.ONE * 0.097, Basis.IDENTITY, 7, 4)
-		shins.tube(flesh, Vector3(x, 0.0, 0.0), Vector3(x, 0.0, SHIN), 0.09, 0.065, 7)
-	if wrapped:
-		thighs.tube(band, Vector3(0.0, 0.0, 0.22), Vector3(0.0, 0.0, 0.27), 0.124, 0.122, 8, 1.75)
-		shins.tube(band, Vector3(0.0, 0.0, 0.2), Vector3(0.0, 0.0, 0.25), 0.092, 0.088, 8, 2.05)
-		shins.tube(band, Vector3(0.0, 0.0, 0.4), Vector3(0.0, 0.0, 0.44), 0.08, 0.078, 8, 2.3)
-	else:
-		# (a kilt over his lap, and its apron hanging between his knees)
-		thighs.box(cloth, Vector3(0.0, 0.01, 0.17), Vector3(0.46, 0.25, 0.42))
-		thighs.box(GuardianMesh.GOLD, Vector3(0.0, -0.02, 0.4), Vector3(0.12, 0.24, 0.04))
-	_thighs = _part(_figure, thighs)
-	_shins = _part(_figure, shins)
-	# The trunk: from the hips up, and what turns with it.
-	var trunk := GuardianMesh.Clay.new()
-	trunk.tube(flesh, Vector3(0.0, -0.1, 0.0), Vector3(0.0, 0.5, 0.0), 0.15, 0.16, 8, 1.3)
-	trunk.ball(flesh, Vector3(0.0, 0.5, 0.0), Vector3(0.29, 0.1, 0.15))
-	trunk.tube(hide, Vector3(0.0, 0.5, 0.0), Vector3(0.0, 0.7, 0.0), 0.075, 0.07, 7)
-	trunk.ball(GuardianMesh.GOLD, Vector3(0.0, 0.555, 0.02), Vector3(0.2, 0.055, 0.17))
-	if wrapped:
-		for y: float in [0.1, 0.3]:
-			trunk.tube(band, Vector3(0.0, y, 0.0), Vector3(0.0, y + 0.05, 0.0), 0.165, 0.166, 8, 1.3)
-	else:
-		trunk.tube(GuardianMesh.GOLD, Vector3(0.0, -0.02, 0.0), Vector3(0.0, 0.04, 0.0), 0.165, 0.165, 8, 1.3)
-	if kind != BookOfTheDead.Head.LION and kind != BookOfTheDead.Head.SNAKE and kind != BookOfTheDead.Head.VULTURE:
-		# (the wig: down his back, and a lappet on each shoulder)
-		trunk.box(BookOfTheDead.LAPIS, Vector3(0.0, 0.58, -0.13), Vector3(0.3, 0.36, 0.08))
-		for x: float in [-0.12, 0.12]:
-			trunk.box(BookOfTheDead.LAPIS, Vector3(x, 0.5, 0.135), Vector3(0.09, 0.26, 0.05))
-	_trunk = _part(_figure, trunk)
-	var skull := GuardianMesh.Clay.new()
-	GuardianMesh.head(skull, kind)
-	_head = _part(_trunk, skull)
-	_head.position = Vector3(0.0, 0.68, 0.0)
-	# (a little over life size: it is by its head that he is known, across a room)
-	_head.scale = Vector3.ONE * 1.2
+	_thighs = _part(_figure, ["thighs_" + worn], kind)
+	_shins = _part(_figure, ["shins_" + worn], kind)
+	# The trunk: from the hips up, and what turns with it (the wig down its back, if its head has one).
+	_trunk = _part(_figure, ["trunk_" + worn, "wig"] if GuardianMesh.has_wig(kind) else ["trunk_" + worn], kind)
+	_head = _part(_trunk, ["head_" + GuardianMesh.HEADS[kind]])
+	_head.position = GuardianMesh.at("neck")
 	# Its arms, each hung from the shoulder, and the knife that turns in each fist.
 	for side: float in [1.0, -1.0]:
-		var arm := GuardianMesh.Clay.new()
-		arm.tube(flesh, Vector3.ZERO, Vector3(0.0, -0.3, 0.06), 0.068, 0.056, 6)
-		arm.tube(flesh, Vector3(0.0, -0.3, 0.06), Vector3(0.0, -0.36, 0.4), 0.056, 0.046, 6)
-		arm.ball(hide if wrapped else flesh, Vector3(0.0, -0.36, 0.43), Vector3.ONE * 0.062, Basis.IDENTITY, 6, 4)
-		if wrapped:
-			arm.tube(band, Vector3(0.0, -0.345, 0.3), Vector3(0.0, -0.352, 0.34), 0.054, 0.052, 6)
-		else:
-			arm.tube(GuardianMesh.GOLD, Vector3(0.0, -0.12, 0.024), Vector3(0.0, -0.17, 0.034), 0.068, 0.066, 6)
-		var hung := _part(_trunk, arm)
-		hung.position = Vector3(0.275 * side, 0.49, 0.0)
+		var which := "left" if side > 0.0 else "right"
+		var hung := _part(_trunk, ["arm_%s_%s" % [worn, which]], kind)
+		hung.position = GuardianMesh.at("arm_%s_%s" % [worn, which])
 		_arms.append(hung)
-		var knife := GuardianMesh.Clay.new()
+		var held: Node3D
 		if side > 0.0 or knives > 1:
-			knife.tube(Color(0.14, 0.1, 0.08), Vector3(0.0, -0.09, 0.0), Vector3(0.0, 0.1, 0.0), 0.024, 0.024, 6)
-			knife.box(GuardianMesh.GOLD, Vector3(0.0, 0.1, 0.0), Vector3(0.1, 0.025, 0.05), Basis(Vector3.UP, 0.75 * side))
-			knife.slab(GuardianMesh.BLADE, PackedVector2Array([Vector2(-0.045, 0.1), Vector2(-0.1, 0.32), Vector2(-0.085, 0.54), Vector2(0.0, 0.72), Vector2(0.05, 0.5), Vector2(0.04, 0.1)]),
-				0.022, Transform3D(Basis(Vector3.UP, 0.75 * side), Vector3.ZERO))
-		var held := _part(hung, knife)
-		held.position = Vector3(0.0, -0.36, 0.43)
+			held = _part(hung, ["knife_" + which])
+		else:
+			held = Node3D.new()
+			hung.add_child(held)
+		held.position = GuardianMesh.at("knife_" + which)
 		_blades.append(held)
 	# What is solid: the plinth, and him on it.
 	PuzzleKit.shape(self, Vector3(0.0, 0.125, 0.1) * size, Vector3(1.0, 0.25, 1.2) * size)
@@ -407,27 +356,28 @@ func _build() -> void:
 
 
 # The gateway barred: two great knives crossed in it, each turning on its hilt
-# at the foot of one side, and something solid across it.
+# at the foot of one side, and something solid across it. The knife is
+# modelled for a gateway of one size, and is made as much bigger or smaller as
+# this gateway needs.
 func _build_bars() -> void:
 	var middle := Vector3(gate_at, 0.0, _line())
 	var long := Vector2(wide, tall).length() * 0.98
 	for side: float in [1.0, -1.0]:
-		var blade := GuardianMesh.Clay.new()
-		blade.tube(Color(0.14, 0.1, 0.08), Vector3(0.0, -0.05, 0.0), Vector3(0.0, 0.3, 0.0), 0.05, 0.05, 6)
-		blade.box(GuardianMesh.GOLD, Vector3(0.0, 0.3, 0.0), Vector3(0.3, 0.06, 0.1))
-		blade.slab(GuardianMesh.BLADE, PackedVector2Array([Vector2(-0.1, 0.3), Vector2(-0.17, long * 0.45), Vector2(-0.12, long * 0.8), Vector2(0.0, long), Vector2(0.1, long * 0.75),
-			Vector2(0.09, 0.3)]), 0.05, Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, 0.03 * side)))
 		var foot := Node3D.new()
 		foot.position = middle + Vector3(-side * wide * 0.5, 0.0, 0.0)
 		add_child(foot)
-		_bars.append(_part(foot, blade))
+		var blade := _part(foot, ["great_knife"])
+		blade.scale = Vector3.ONE * (long / GuardianMesh.tall("great_knife"))
+		# (one lies in front of the other where they cross)
+		blade.position.z = 0.03 * side
+		_bars.append(blade)
 	_bar_shape = PuzzleKit.shape(self, middle + Vector3(0.0, tall * 0.5, 0.0), Vector3(wide, tall, 0.3))
 	_bar_shape.disabled = on
 
 
-func _part(under: Node3D, clay: GuardianMesh.Clay) -> MeshInstance3D:
+func _part(under: Node3D, things: Array, kind := -1) -> MeshInstance3D:
 	var part := MeshInstance3D.new()
-	part.mesh = clay.mesh()
+	part.mesh = GuardianMesh.piece(things, kind)
 	under.add_child(part)
 	return part
 
