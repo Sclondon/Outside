@@ -47,6 +47,8 @@ const FLATS: Array[Rect2] = [
 	Rect2(-12, 46, 6, 5),
 ]
 const EASE := 9.0
+## Medjed's ground, out to the east beyond the rest (see `_build_medjed`): level like a patch of `FLATS`.
+const MEDJED := Rect2(76, 12, 9.5, 8)
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
 ## far it runs each way (it is level, like a patch of `FLATS`), and how far it
 ## is from the middle of one kind to the middle of the next.
@@ -115,6 +117,7 @@ func _ready() -> void:
 	_build_railway(Vector3(10.0, 0.0, 58.5))
 	_build_kinds()
 	_build_canines(Vector3(-50.0, 0.0, 50.0))
+	_build_medjed(Vector3(MEDJED.position.x, 0.0, MEDJED.position.y))
 	_settle_in.call_deferred()
 
 
@@ -176,6 +179,8 @@ func _shaped(dunes: float, x: float, z: float) -> float:
 		var beside := (at - KINDS.position).abs() - KINDS.size
 		level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(beside.x, 0.0), maxf(beside.y, 0.0)).length()))
 		hollow = HOLLOW_DEEP * (1.0 - smoothstep(0.0, HOLLOW_WIDE, at.distance_to(Vector2(HOLLOW.x, HOLLOW.z))))
+	var by_medjed := (Vector2(x, z) - MEDJED.position).abs() - MEDJED.size
+	level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(by_medjed.x, 0.0), maxf(by_medjed.y, 0.0)).length()))
 	var rim := 5.0 * smoothstep(YARD - 30.0, YARD, maxf(absf(x), absf(z)))
 	var open := dunes * level + rim - hollow
 	# The pond: a dish in the sand, its rim at the level of the water.
@@ -1366,3 +1371,46 @@ func _shape(body: PhysicsBody3D, at: Vector3, size: Vector3, color: Color) -> Ph
 	body.position = at
 	add_child(body)
 	return body
+
+
+## Medjed, who shoots with his eye (`scripts/medjed.gd`), out to the east beyond the light and mirrors. Two lanes with
+## a wall between them. In the north one he stands at the far end and looks from side to side: there are pillars to
+## get behind, a block to push along as a shield, a mirror to turn to face him, a plate at the near end that shuts his
+## eyes while it is stood on, and a lever at his feet that shuts them for good. In the south one is one that is unseen,
+## and that comes to look where he last saw the boy: as far as the kerb.
+func _build_medjed(at: Vector3) -> void:
+	_mark_here(at + Vector3(-8.5, 0.0, 0.0), "MEDJED
+who shoots with his eye, yet is unseen
+keep out of his gaze: go from cover to cover while he looks away
+the plate shuts his eyes  ·  so does a mirror turned to face him", 4.2)
+	_solid(at + Vector3(2.0, 1.1, 0.5), Vector3(14.0, 2.2, 0.4), PROP.darkened(0.12))
+	# The north lane.
+	var sentinel := Medjed.new()
+	sentinel.sweep = 100.0
+	sentinel.reach = 11.0
+	_part(sentinel, at + Vector3(7.5, 0.0, -3.5), -PI * 0.5)
+	sentinel.caught.connect(_on_caught.bind(sentinel))
+	for pillar: Vector3 in [Vector3(3.6, 0.8, -5.6), Vector3(0.6, 0.8, -1.6), Vector3(-2.6, 0.8, -5.2)]:
+		_solid(at + pillar, Vector3(1.0, 1.6, 1.0), PROP)
+	_block(at + Vector3(-4.6, 0.45, -2.6))
+	var mirror := Mirror.new()
+	mirror.turned = 1
+	_part(mirror, at + Vector3(-1.2, 0.0, -3.5))
+	var plate := _plate(at + Vector3(-6.4, 0.0, -6.4), Vector3(1.4, 0.5, 1.4), false)
+	plate.collision_mask = 2
+	var lever := _part(Lever.new(), at + Vector3(8.4, 0.0, -6.6), -PI * 0.5) as Lever
+	var shut := func(_on: bool) -> void: sentinel.worked = plate.pressed or lever.on
+	plate.changed.connect(shut)
+	lever.changed.connect(shut)
+	# The south lane: unseen, and he comes to look.
+	_sign(at + Vector3(-3.0, 3.0, 4.4), "this one is unseen, and comes to look\nthe kerb stops him")
+	var unseen := Medjed.new()
+	unseen.unseen = true
+	unseen.follows = true
+	unseen.roam = 6.0
+	unseen.sweep = 70.0
+	_part(unseen, at + Vector3(7.5, 0.0, 4.2), -PI * 0.5)
+	unseen.caught.connect(_on_caught.bind(unseen))
+	for pillar: Vector3 in [Vector3(2.4, 0.8, 6.0), Vector3(-1.2, 0.8, 2.6)]:
+		_solid(at + pillar, Vector3(1.0, 1.6, 1.0), PROP)
+	_solid(at + Vector3(4.6, 0.12, 4.2), Vector3(0.4, 0.24, 6.8), DARK)
