@@ -293,6 +293,19 @@ func _made(item: Dictionary) -> Node3D:
 			var cold := ColdBrazier.new()
 			cold.on = item.get("lit", false)
 			return cold
+		# Khepri and the sun, and the horizon it is brought to (`scripts/khepri.gd`, `scripts/akhet.gd`).
+		"khepri":
+			var khepri := Khepri.new()
+			khepri.turns = int(item.get("turns", 0)) as Khepri.Turns
+			khepri.pace = item.get("pace", 1.0)
+			khepri.step = item.get("step", 1.0)
+			khepri.starts_itself = item.get("starts_itself", false)
+			khepri.turns_back = item.get("back", true)
+			return khepri
+		"akhet":
+			var horizon := Akhet.new()
+			horizon.rise = item.get("rise", 0.55)
+			return horizon
 		# --- (the end of them)
 		"plate":
 			var plate := Plate.new()
@@ -536,6 +549,10 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 	# (a plain plate too: its mask is its own until it is in the level, so it is told here)
 	if item["kind"] == "plate" and item.get("what", "") == "" and item.get("only_him", false):
 		(made as Plate).collision_mask = 2
+	# The horizon is on once the sun has risen in it.
+	if made is Akhet:
+		_on[id] = (made as Akhet).on
+		(made as Akhet).changed.connect(func(on: bool) -> void: _on[id] = on)
 	# Oil: a spill is on once fire has reached its far end, a fire dish once oil burns in it. (A jar is a `Breakable`: on when it is broken.)
 	if made is OilSpill:
 		(made as OilSpill).burnt.connect(func() -> void: _on[id] = true)
@@ -670,6 +687,9 @@ func _physics_process(delta: float) -> void:
 			(node as Sluice).open = worked
 		elif node is Sphinx:
 			(node as Sphinx).uncovering = worked
+
+		elif node is Khepri:
+			(node as Khepri).running = bool(item.get("starts_itself", false)) != worked
 		elif node is SunBeam:
 			(node as SunBeam).shining = bool(item.get("shining", true)) != worked
 		elif node is Hound:

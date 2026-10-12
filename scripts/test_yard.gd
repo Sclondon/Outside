@@ -12,6 +12,8 @@ extends Node3D
 ## (And the parts puzzles are made of, at two stations: `_build_puzzles` and `_build_light_and_water`.)
 ## Oil, to pour and to set light to, has a station too, out to the east, beyond the low bars.
 ## Sphinxes have one out to the west, beyond the puzzle parts (`_build_sphinx`).
+
+## And Khepri and the sun have a walled court (`KhepriCourt`) in the far south-west corner, beyond the jackals.
 ##
 ## The ground is a `SandGround`, made here from `height_at`: dunes from
 ## `SandDunes` (small ones among the stations, big ones all round), pressed
@@ -56,6 +58,9 @@ const GUARDIANS := Rect2(0, 77, 12, 9)
 
 ## Level ground for the sphinxes, out to the west beyond the rest: its middle, and how far it runs each way.
 const SPHINXES := Rect2(-85, -12, 15, 14)
+
+## Khepri's court (`KhepriCourt`), out beyond the rest in the south-west corner: its middle, and how far the level ground runs each way.
+const KHEPRI_COURT := Rect2(-78, 78, 8.5, 8.5)
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
 ## far it runs each way (it is level, like a patch of `FLATS`), and how far it
 ## is from the middle of one kind to the middle of the next.
@@ -129,6 +134,8 @@ func _ready() -> void:
 	_build_guardians(Vector3(GUARDIANS.position.x, 0.0, GUARDIANS.position.y))
 
 	_build_sphinx(Vector3(SPHINXES.position.x, 0.0, SPHINXES.position.y))
+
+	_build_khepri(Vector3(KHEPRI_COURT.position.x, 0.0, KHEPRI_COURT.position.y))
 	_settle_in.call_deferred()
 
 
@@ -199,6 +206,10 @@ func _shaped(dunes: float, x: float, z: float) -> float:
 
 	var by_sphinxes := (Vector2(x, z) - SPHINXES.position).abs() - SPHINXES.size
 	level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(by_sphinxes.x, 0.0), maxf(by_sphinxes.y, 0.0)).length()))
+
+	# (Khepri's court is further out than the rest)
+	var court := (Vector2(x, z) - KHEPRI_COURT.position).abs() - KHEPRI_COURT.size
+	level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(court.x, 0.0), maxf(court.y, 0.0)).length()))
 	var rim := 5.0 * smoothstep(YARD - 30.0, YARD, maxf(absf(x), absf(z)))
 	var open := dunes * level + rim - hollow
 	# The pond: a dish in the sand, its rim at the level of the water.
@@ -1065,6 +1076,14 @@ whatever stands in the light stops it")
 	_puzzle_resets.append(func() -> void:
 		if key.held_by == null and key != _player.carried:
 			key.go_home())
+
+
+## Khepri and the sun (`scripts/khepri.gd`), in a walled court of its own (`KhepriCourt`, which says what is in it and
+## how it is done): a lever lets the sun go, two blocks to push turn it twice, and it comes to the horizon, which
+## opens a door.
+func _build_khepri(at: Vector3) -> void:
+	_mark_here(at + Vector3(2.0, 0.0, -7.5))
+	_part(KhepriCourt.new(), at)
 
 
 ## One of the puzzle parts, put in the yard: it is put back as it was (`reset`) when he starts again.

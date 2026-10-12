@@ -111,5 +111,9 @@ func _show() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# A sun that is near enough lights it as a beam does: anything in the group `sunlight` that says it `shines_on` it.
+	for light: Node in get_tree().get_nodes_in_group(&"sunlight"):
+		if _struck < 2 and light.has_method(&"shines_on") and light.call(&"shines_on", global_transform * Vector3(0.0, height, 0.0), self):
+			strike(light as Node3D)
 	_struck = maxi(_struck - 1, 0)
 	_switch(_struck > 0 or (latches and on))

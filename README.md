@@ -416,6 +416,10 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/guardian_panel.gd` | The leaf to read, and the three names to choose from, over the stopped game |
 | `tools/guardian_test.gd`, `tools/guardian_sheets.gd` | Not part of the game: run the guardians and the leaves with nothing drawn, by touch, and say what happened; and pictures of them, of the names on the screen of a phone and of the leaf |
 
+| `scripts/khepri.gd`, `scripts/akhet.gd` | Khepri and the sun: a big scarab that rolls a ball of sun over a floor of squares, turning at whatever is in its way; and the horizon it is brought to, which is then on for good |
+| `scripts/khepri_court.gd` | The court Khepri is tried in: the test yard's station for it, and what its test and its pictures are run in |
+| `tools/khepri_test.gd`, `tools/khepri_sheets.gd` | Not part of the game: run Khepri with nothing drawn and check each thing it does; and draw it |
+
 Tuning values are exported properties on the Player, Camera and TouchControls nodes.
 Set `move_mode` to `SIDE_SCROLL` on the Player to lock movement to a line.
 
@@ -1060,6 +1064,103 @@ The first draws all of it (strips are consecutive moments) and, with `cost`, pri
 50, 100 and 200 beetles. The second runs it with nothing drawn and ends PASSED or FAILED: they come out, go for him, are
 held off by a torch, catch him without one, give up when he is up on a block or across water or too far, go over a
 step, and come out when he comes near; and a web tears and a web burns.
+
+## Khepri and the sun
+
+`Khepri.new()` (`scripts/khepri.gd`) is a big scarab of lapis and gold, 0.45 m long, rolling a ball of sun 0.7 m
+across: backwards, head down, its hind legs on the ball, as the harmless one of the swarm rolls its dung (it is the
+same beetle, `Scarab.mesh()`, in other colours, with its legs moved the same way). The sun is a real light, so a dark
+room is lit as it comes, and it turns as far as it travels. `Akhet.new()` (`scripts/akhet.gd`) is where the sun is to
+be brought: two low hills of sandstone with a cradle of gold between them.
+
+**Where it comes from.** Khepri is the sun at dawn. The Egyptians watched the sacred scarab roll its ball of dung
+over the ground and saw in it what moves the sun over the sky; and because young beetles seemed to come out of the
+ball of themselves, the scarab is the sign for *kheper*, "to come into being", and the god's name means "he who
+comes into being". In the books painted in the royal tombs the night's journey ends with a scarab pushing the disc
+up out of the eastern horizon. The horizon, *akhet*, is written as the sun between two hills, which is what an
+`Akhet` is. Winged scarabs of gold and lapis holding up the sun are among the commonest jewels of the dead, and that
+is what the beetle is dressed as. How true the game is to it: the beetle is. A dung beetle does push backwards with
+its hind legs, head down; does keep a straight line; and does climb onto its ball and turn about on top of it, to
+take its bearings from the sky. In the paintings Khepri holds the disc before him in his fore legs: the game follows
+the beetle, not the paintings. That it turns right at a wall, that it can be steered with blocks, and that the
+horizon is a cradle that opens doors, are the game's.
+
+**How it moves** is simple, and can be learned by watching, like a wind-up toy on a floor of squares:
+
+- It rolls in a straight line, a metre a second (`pace`), from the middle of one square to the middle of the next
+  (`step`, 1 m), until something is in the way: a wall, a pillar, a pushed block, a shut door, a kerb higher than
+  0.25 m (`kerb`), the edge of a drop, water, or the boy.
+- Then it turns a quarter turn to the right (`turns`: or left); if that is shut too, the other way; if both are, back
+  the way it came (`turns_back`; turned off, it waits in a dead end instead); and shut in all round, it waits and tries
+  again every second.
+- Its squares are its own: counted from where it is put, lying as it is turned, and it sets off along its own +Z. It
+  never leaves them, and nothing in it is left to chance, so whoever makes a level can count squares. `square` is
+  where it is; `path` is every square it has come to.
+- It goes while it is let go (`running`: a lever, a plate or anything else linked to it, or `starts_itself`), and
+  finishes its square and stops when it is not. Stopped, the beetle climbs onto the ball and looks about.
+
+So the boy steers the sun through a room by pushing blocks into its way, standing in its way, opening and shutting
+doors on it, and working what lets it go. He can also turn it by hand: the act button beside it turns it a quarter
+turn (at once if it is stopped, at the next square if it is rolling). He cannot pick it up or push it: walking into it,
+he stops against it. If something comes into its way while it is between two squares it goes back to the one it left
+and thinks again. If he stands on it, it waits. It cannot be hurt and nothing chases it.
+
+**The horizon.** When the sun comes to the cradle of an `Akhet` the beetle lets it go: it rises between the hills on
+a short column of light and stays, the room is lit for good (its light reaches nearly twice as far), and the Akhet is
+on, for good: it is a thing that is on or off like a pressure plate, so a door or anything else is linked to it. The
+beetle flies up onto a hill and sits there with its wings out. An Akhet takes three squares in a row (a hill, the
+cradle, a hill: the hills are solid) and the sun comes in along its Z, from either side; stand it on the sun's squares.
+
+**What the sun does on the way**, from being a light and being heavy:
+
+- It lights a `SunDisc` it passes within 2.2 m of (`sun_reach`), for as long as it is that near, unless something
+  solid stands between. (`sun_disc.gd` asks everything in the group `sunlight` whether it `shines_on` it.)
+- Scarab swarms keep off it as they do off a flare, so he is safe beside it. It is not a fire: `Nearby.fires` does
+  not count it, so it burns no web and lights no torch or oil. `Nearby.feared(tree)` is the fires and the group
+  `sunlight` together, and is what the swarm now asks.
+- It presses any pressure plate it rolls onto, while it is on it (but not one that only he presses).
+- A beam of light is stopped by it, as by anything solid.
+
+`reset()` puts it back where it started, and an Akhet's `reset()` turns it off and sends its sun home. Moved in the
+level editor, it starts from where it is put.
+
+```gdscript
+var sun := Khepri.new()
+sun.turns = Khepri.Turns.RIGHT
+sun.position = the_first_square      # and turned to face the way it is to set off
+add_child(sun)
+var horizon := Akhet.new()
+horizon.position = sun.place_of(Vector2i(4, 2))
+add_child(horizon)
+horizon.changed.connect(func(on: bool) -> void: door.is_open = on)
+lever.changed.connect(func(on: bool) -> void: sun.running = on)
+```
+
+The level editor has "Khepri and the sun" (which side it turns to, its pace, the size of a square, whether it starts
+itself, whether it turns back from a dead end, and what lets it go) and "Horizon (akhet)" (how high the sun rises;
+choose a door and then the horizon, as with a plate) on its Puzzle page. Where the ground is not level it goes as far
+as a slope of one in four and no further, so in the desert give it level ground.
+
+The test yard has a station for it in the far south-west corner, beyond the jackals: a walled court with a floor of
+squares (`scripts/khepri_court.gd`, which says how it is done). The lever by the way in lets the sun go; left alone
+it goes round by the walls, through a dark alcove, past a sun disc and over a plate; push the two blocks onto their
+marks and it turns twice and comes to the horizon, which opens the door. The plate outside puts it all back.
+
+It is one draw for the beetle (140 triangles), one for the sun, one for its glow, two for the wings when they are
+out, and one light without shadows. What it asks of the world it asks only at the middle of a square (for each way it tries, six rays down
+and a shape swept along it) and once a step while it rolls (the shape again).
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/khepri_test.gd
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/khepri_sheets.gd -- <folder> [model camera roll dark sunrise akhet court yard]
+```
+
+The first runs it with nothing drawn and ends PASSED or FAILED: it rolls straight at its pace, turns at a wall, the
+other way, back from a dead end, waits shut in, is turned by the act button, is turned and stopped by the boy, keeps
+off drops and out of water, goes over a low kerb and not a high one, presses a plate, lights a disc, is feared by
+scarabs; in its court it never finds the horizon alone, and does with the blocks pushed (by the boy too), the same
+way square for square each time; and it is made, linked, kept and moved in the desert as the editor does it. The
+second draws it (add `--rendering-method gl_compatibility` for the web's renderer).
 
 ## Cobwebs
 
