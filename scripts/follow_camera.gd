@@ -66,6 +66,7 @@ func _ready() -> void:
 	# Run after the player has updated its visual position for this frame.
 	process_priority = 100
 	_add_stick_actions()
+	Gamepad.ensure(get_tree())
 	if mode == Mode.ORBIT:
 		fov = orbit_fov
 		_reach = distance
@@ -109,6 +110,9 @@ func look_along(along: Vector3) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if mode == Mode.ORBIT and event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_RIGHT:
 		_turn(event.relative * drag_sensitivity)
+	elif mode == Mode.ORBIT and Gamepad.pressed(event, &"pad_r3"):
+		# (the right stick pressed in: round behind him, as two taps of a finger)
+		look_behind()
 
 
 func _process(delta: float) -> void:
@@ -142,7 +146,12 @@ func _orbit(delta: float) -> void:
 		_turn(_touch.take_look() * drag_sensitivity)
 	var stick := Input.get_vector(&"look_left", &"look_right", &"look_up", &"look_down")
 	if stick.length_squared() > 0.0:
-		_turn(stick * stick_speed * delta)
+		# (pushed a little it turns slowly, to aim it; all the way, at its full speed. How fast that is, and
+		# which way up and down go, are his to choose: Settings.look_speed, Settings.look_invert)
+		stick *= stick.length()
+		if Settings.look_invert:
+			stick.y = -stick.y
+		_turn(stick * stick_speed * Settings.look_speed * delta)
 	_since_look += delta
 	if _swing:
 		var behind_him := target.facing_yaw + PI
@@ -268,4 +277,5 @@ static func _add_stick_actions() -> void:
 		var motion := InputEventJoypadMotion.new()
 		motion.axis = entry[1]
 		motion.axis_value = entry[2]
+		motion.device = Gamepad.device
 		InputMap.action_add_event(entry[0], motion)
