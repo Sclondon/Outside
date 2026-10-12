@@ -5,7 +5,8 @@ extends CharacterBody3D
 ## shoots with his eye, yet is unseen." The Greenfield papyrus draws him as a
 ## shroud with two eyes looking out of it and two bare feet under the hem, and
 ## that is all he is here: a sheet over a post, 0.8 m across at the
-## hem and 1.5 m tall.
+## hem and 1.5 m tall. The model is `models/medjed.glb`, built in Blender by
+## `tools/build_medjed.py` (which also keeps `tools/medjed.blend`).
 ##
 ## He stands at his post and looks. His gaze is drawn on the floor as a pale
 ## fan of light, as far as `reach` and `cone` degrees wide, with a thin line
@@ -46,13 +47,15 @@ const TALL := 1.5
 const EYES := 1.05
 ## How many spokes the fan on the floor has: each is felt out once in this many steps of the game.
 const SPOKES := 11
-## The shroud from the hem up: (height, radius).
-const PROFILE: Array[Vector2] = [
-	Vector2(0.16, 0.41), Vector2(0.23, 0.395), Vector2(0.45, 0.365), Vector2(0.7, 0.335), Vector2(0.92, 0.305), Vector2(1.1, 0.275),
-	Vector2(1.24, 0.24), Vector2(1.35, 0.195), Vector2(1.43, 0.14), Vector2(1.48, 0.08), Vector2(1.5, 0.0),
-]
-const CLOTH := Color(0.86, 0.83, 0.75)
-const SKIN := Color(0.66, 0.42, 0.3)
+## The model: built in Blender by `tools/build_medjed.py`, which also keeps `tools/medjed.blend` to look at and
+## change by hand. No bones: separate things, each named for what it is, and their colours are its materials.
+const MODEL := "res://models/medjed.glb"
+## What the things in it are called. The eyes hang from the shroud; a foot's origin is what it is lifted and tipped about.
+const SHROUD := "shroud"
+const EYE_THINGS: Array[String] = ["eye_left", "eye_right"]
+const FOOT_THINGS: Array[String] = ["foot_right", "foot_left"]
+## The shape keys of an eye: the lids closed, the lids wide, and the pupil moved to his left and to his right.
+const EYE_KEYS: Array[String] = ["shut", "wide", "look_left", "look_right"]
 const PALE := Color(0.6, 0.84, 1.0)
 const HOT := Color(1.0, 0.8, 0.45)
 
@@ -62,9 +65,11 @@ const SWAY := """
 uniform vec2 sway = vec2(0.0);
 uniform float twist = 0.0;
 uniform float flutter = 0.0;
+// How high the hem is: the lowest point of the model's shroud.
+uniform float hem = 0.16;
 
 void vertex() {
-	float low = clamp(1.0 - (VERTEX.y - 0.16) / 0.8, 0.0, 1.0);
+	float low = clamp(1.0 - (VERTEX.y - hem) / 0.8, 0.0, 1.0);
 	low *= low;
 	float about = atan(VERTEX.x, VERTEX.z);
 	float wound = twist * low;
@@ -74,41 +79,24 @@ void vertex() {
 }
 """
 
-## The eyes: an almond with a dark line round it, a dark pupil, and a heavy brow, drawn on a patch of the shroud.
+## The eyes: both of the model's, made one mesh, every point keeping the colour of the material it had (as a custom
+## value: the renderers do not agree what a mesh's own colours mean) and whether it is the white, which lights up.
 const EYE_SHADER := """
 shader_type spatial;
 render_mode cull_back;
 
-// 0: shut. 1: as he usually has them. More: wide.
-uniform float open = 1.0;
 uniform float glow = 0.2;
-// Where he is looking, -1..1 to his left and up.
-uniform vec2 look = vec2(0.0);
-uniform vec3 pale : source_color = vec3(0.97, 0.95, 0.88);
-uniform vec3 dark : source_color = vec3(0.07, 0.06, 0.07);
 uniform vec3 shine : source_color = vec3(1.0, 0.9, 0.65);
 
+varying vec4 paint;
+
+void vertex() {
+	paint = CUSTOM0;
+}
+
 void fragment() {
-	// (metres on the cloth, from the middle of the eye; x runs outwards)
-	vec2 p = vec2((UV.x - 0.5) * 0.2, (UV.y - 0.42) * 0.2);
-	float half_wide = 0.078;
-	float along = clamp(1.0 - (p.x * p.x) / (half_wide * half_wide), 0.0, 1.0);
-	float lid = 0.037 * open * along;
-	float pixel = max(fwidth(p.y), 0.0004);
-	float inside = (1.0 - smoothstep(-pixel, pixel, abs(p.y) - lid)) * step(abs(p.x), half_wide) * smoothstep(0.001, 0.005, lid);
-	float rim = 1.0 - smoothstep(-pixel, pixel, abs(p.y) - lid - 0.011);
-	rim *= 1.0 - smoothstep(-pixel, pixel, abs(p.x) - half_wide - 0.016);
-	float arch = 0.06 + 0.015 * along + 0.014 * (open - 1.0);
-	float brow = 1.0 - smoothstep(-pixel, pixel, abs(p.y - arch) - 0.013);
-	brow *= 1.0 - smoothstep(-pixel, pixel, abs(p.x) - half_wide - 0.012);
-	if (max(rim, brow) < 0.5) {
-		discard;
-	}
-	vec2 middle = vec2(look.x * UV2.x * 0.03, look.y * 0.008);
-	float pupil = 1.0 - smoothstep(-pixel, pixel, length(p - middle) - 0.027);
-	float white = inside * (1.0 - pupil);
-	ALBEDO = mix(dark, pale, white);
-	EMISSION = shine * glow * white;
+	ALBEDO = paint.rgb;
+	EMISSION = shine * glow * paint.a;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }
@@ -202,8 +190,11 @@ var rays_cast := 0
 var _figure: Node3D
 var _shroud: MeshInstance3D
 var _cloth: ShaderMaterial
-var _eyes: ShaderMaterial
+var _body: Node3D
+var _eyes: MeshInstance3D
+var _eye_material: ShaderMaterial
 var _feet: Array[MeshInstance3D] = []
+var _feet_at: Array[Vector3] = []
 var _floor: MeshInstance3D
 var _floor_material: ShaderMaterial
 var _lines: MeshInstance3D
@@ -243,9 +234,8 @@ var _lean_speed := Vector2.ZERO
 var _clock := 0.0
 var _foot_down := 0
 
-static var _shroud_mesh: ArrayMesh
+static var _things := {}
 static var _eye_mesh: ArrayMesh
-static var _foot_mesh: ArrayMesh
 static var _shaders := {}
 static var _streams := {}
 
@@ -268,29 +258,38 @@ func _ready() -> void:
 
 	_figure = Node3D.new()
 	add_child(_figure)
+	_read()
+	# (the shroud and the eyes on it rise and rock together as he shuffles)
+	_body = Node3D.new()
+	_figure.add_child(_body)
+	var sheet: Dictionary = _things[SHROUD]
 	_cloth = ShaderMaterial.new()
 	_cloth.shader = _shader(&"cloth", Toon.SHADER + SWAY)
-	_cloth.set_shader_parameter(&"albedo", CLOTH)
+	_cloth.set_shader_parameter(&"albedo", _colour(sheet.mesh, 0))
 	_cloth.set_shader_parameter(&"wrap", 0.25)
+	_cloth.set_shader_parameter(&"hem", (sheet.mesh as Mesh).get_aabb().position.y)
 	_shroud = MeshInstance3D.new()
-	_shroud.mesh = _shroud_shape()
+	_shroud.mesh = sheet.mesh
+	_shroud.transform = sheet.at
 	_shroud.material_override = _cloth
-	_figure.add_child(_shroud)
-	_eyes = ShaderMaterial.new()
-	_eyes.shader = _shader(&"eyes", EYE_SHADER)
-	var eyes := MeshInstance3D.new()
-	eyes.mesh = _eye_shape()
-	eyes.material_override = _eyes
-	eyes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_figure.add_child(eyes)
-	for side: float in [-1.0, 1.0]:
+	_body.add_child(_shroud)
+	_eye_material = ShaderMaterial.new()
+	_eye_material.shader = _shader(&"eyes", EYE_SHADER)
+	_eyes = MeshInstance3D.new()
+	_eyes.mesh = _eye_mesh
+	_eyes.material_override = _eye_material
+	_eyes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_body.add_child(_eyes)
+	for which in FOOT_THINGS:
+		var made: Dictionary = _things[which]
 		var foot := MeshInstance3D.new()
-		foot.mesh = _foot_shape()
-		foot.material_override = Toon.surface(SKIN)
-		foot.position = Vector3(side * 0.12, 0.0, 0.0)
-		foot.rotation.y = side * 0.14
+		foot.mesh = made.mesh
+		foot.transform = made.at
+		for surface in foot.mesh.get_surface_count():
+			foot.set_surface_override_material(surface, Toon.surface(_colour(foot.mesh, surface)))
 		_figure.add_child(foot)
 		_feet.append(foot)
+		_feet_at.append(foot.position)
 
 	_floor_material = ShaderMaterial.new()
 	_floor_material.shader = _shader(&"floor", FLOOR_SHADER)
@@ -633,8 +632,8 @@ func _process(delta: float) -> void:
 	for i in 2:
 		var beat := sin(_step * PI + i * PI)
 		var foot := _feet[i]
-		foot.position.y = maxf(beat, 0.0) * 0.045 * settle
-		foot.position.z = cos(_step * PI + i * PI) * 0.035 * settle
+		foot.position.y = _feet_at[i].y + maxf(beat, 0.0) * 0.045 * settle
+		foot.position.z = _feet_at[i].z + cos(_step * PI + i * PI) * 0.035 * settle
 		foot.rotation.x = -maxf(beat, 0.0) * 0.25 * settle
 	var down := int(floorf(_step))
 	if down != _foot_down:
@@ -642,19 +641,22 @@ func _process(delta: float) -> void:
 		if _sound and not _sound.playing and _watched:
 			_sound.stream = _stream(&"pat")
 			_sound.play()
-	_shroud.position.y = absf(sin(_step * PI)) * 0.012 * settle
-	_shroud.rotation.z = sin(_step * PI) * 0.025 * settle
+	_body.position.y = absf(sin(_step * PI)) * 0.012 * settle
+	_body.rotation.z = sin(_step * PI) * 0.025 * settle
 
 	# His eyes: where they look, how wide, how bright.
 	var aim := Vector3.ZERO
-	var look := Vector2(clampf(_turned * 0.8, -1.0, 1.0), 0.0)
+	var look := clampf(_turned * 0.8, -1.0, 1.0)
 	if boy and staring:
 		aim = boy.global_position + Vector3.UP * (boy.crouch_height if boy.is_ducking else boy.stand_height) * 0.6
 		var side := angle_difference(facing_yaw, atan2(aim.x - global_position.x, aim.z - global_position.z))
-		look = Vector2(clampf(side * 4.0, -1.0, 1.0), -0.5)
-	_eyes.set_shader_parameter(&"open", _lid)
-	_eyes.set_shader_parameter(&"look", look)
-	_eyes.set_shader_parameter(&"glow", (0.5 + charge * 2.2 + _flash * 4.0) * clampf(_lid, 0.0, 1.0))
+		look = clampf(side * 4.0, -1.0, 1.0)
+	# (the shape keys, in the order of `EYE_KEYS`: half shut is "shut" at a half, and wide is half as open again)
+	_eyes.set_blend_shape_value(0, clampf(1.0 - _lid, 0.0, 1.0))
+	_eyes.set_blend_shape_value(1, clampf((_lid - 1.0) * 2.0, 0.0, 1.0))
+	_eyes.set_blend_shape_value(2, maxf(look, 0.0))
+	_eyes.set_blend_shape_value(3, maxf(-look, 0.0))
+	_eye_material.set_shader_parameter(&"glow", (0.5 + charge * 2.2 + _flash * 4.0) * clampf(_lid, 0.0, 1.0))
 	_flash_light.visible = _flash > 0.01
 	_flash_light.light_energy = _flash * 8.0
 
@@ -743,101 +745,113 @@ static func _shader(named: StringName, code: String) -> Shader:
 	return _shaders[named]
 
 
-## How wide the shroud is at a height.
-static func radius_at(height: float) -> float:
-	for i in PROFILE.size() - 1:
-		if height <= PROFILE[i + 1].x:
-			return lerpf(PROFILE[i].y, PROFILE[i + 1].y, clampf(inverse_lerp(PROFILE[i].x, PROFILE[i + 1].x, height), 0.0, 1.0))
-	return 0.0
+# The model is read once: the shroud and each foot as they are, with where each is put, and the eyes made one mesh.
+static func _read() -> void:
+	if not _things.is_empty():
+		return
+	var model := (load(MODEL) as PackedScene).instantiate()
+	for which: String in [SHROUD] + FOOT_THINGS:
+		var part := model.find_child(which, true, false) as MeshInstance3D
+		if part == null:
+			push_error("Medjed's model has nothing in it called %s" % which)
+			_things[which] = {mesh = ArrayMesh.new(), at = Transform3D.IDENTITY}
+			continue
+		_things[which] = {mesh = part.mesh, at = _place(part, model)}
+	var eyes: Array[MeshInstance3D] = []
+	for which in EYE_THINGS:
+		var part := model.find_child(which, true, false) as MeshInstance3D
+		if part == null:
+			push_error("Medjed's model has nothing in it called %s" % which)
+			continue
+		eyes.append(part)
+	_eye_mesh = _eyes_as_one(eyes, model)
+	model.free()
 
 
-# The shroud: the profile turned round, with a few soft folds that deepen towards the hem.
-static func _shroud_shape() -> ArrayMesh:
-	if _shroud_mesh:
-		return _shroud_mesh
-	const SIDES := 20
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var rings := PROFILE.size()
-	for i in rings:
-		var here := PROFILE[i]
-		var below := PROFILE[maxi(i - 1, 0)]
-		var above := PROFILE[mini(i + 1, rings - 1)]
-		var slope := Vector2(above.x - below.x, below.y - above.y).normalized()
-		var low := pow(clampf(1.0 - (here.x - 0.16) / 1.0, 0.0, 1.0), 2.0)
-		for j in SIDES + 1:
-			var round := TAU * j / SIDES
-			var out := Vector3(sin(round), 0.0, cos(round))
-			var fold := sin(round * 5.0 + 1.0) * 0.024 * low
-			tool.set_normal(Vector3(out.x * slope.x, slope.y, out.z * slope.x).normalized())
-			tool.set_uv(Vector2(float(j) / SIDES, here.x / TALL))
-			tool.add_vertex(out * (here.y + fold) + Vector3.UP * (here.x + (sin(round * 5.0 + 2.2) * 0.02 if i == 0 else 0.0)))
-	for i in rings - 1:
-		for j in SIDES:
-			var a := i * (SIDES + 1) + j
-			var c := a + SIDES + 1
-			for index: int in [a, c, c + 1, a, c + 1, a + 1]:
-				tool.add_index(index)
-	_shroud_mesh = tool.commit()
-	return _shroud_mesh
+# Where a thing in the model is, in the model.
+static func _place(part: Node3D, model: Node) -> Transform3D:
+	var at := part.transform
+	var above := part.get_parent()
+	while above != model and above is Node3D:
+		at = (above as Node3D).transform * at
+		above = above.get_parent()
+	return at
 
 
-# The two patches of cloth the eyes are drawn on, a little off the shroud.
-static func _eye_shape() -> ArrayMesh:
-	if _eye_mesh:
-		return _eye_mesh
-	const ACROSS := 5
-	const ROWS := 3
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var start := 0
-	for side: float in [-1.0, 1.0]:
-		for v in ROWS + 1:
-			var height := lerpf(EYES - 0.094, EYES + 0.106, float(v) / ROWS)
-			var wide := radius_at(height) + 0.007
-			for u in ACROSS + 1:
-				var round := side * (0.035 + 0.2 / radius_at(EYES) * float(u) / ACROSS)
-				var out := Vector3(sin(round), 0.0, cos(round))
-				tool.set_normal((out + Vector3.UP * 0.17).normalized())
-				tool.set_uv(Vector2(float(u) / ACROSS, float(v) / ROWS))
-				tool.set_uv2(Vector2(side, 0.0))
-				tool.add_vertex(out * wide + Vector3.UP * height)
-		for v in ROWS:
-			for u in ACROSS:
-				var a := start + v * (ACROSS + 1) + u
-				var c := a + ACROSS + 1
-				var order: Array[int] = [a, c, c + 1, a, c + 1, a + 1]
-				if side < 0.0:
-					order.reverse()
-				for index in order:
-					tool.add_index(index)
-		start += (ACROSS + 1) * (ROWS + 1)
-	_eye_mesh = tool.commit()
-	return _eye_mesh
+# The colour of one of a mesh's materials, as it is seen.
+static func _colour(mesh: Mesh, surface: int) -> Color:
+	var paint := mesh.surface_get_material(surface) as BaseMaterial3D if surface < mesh.get_surface_count() else null
+	return paint.albedo_color if paint else Color.WHITE
 
 
-# A bare foot and the ankle over it, toes forward (+Z), out from under the hem.
-static func _foot_shape() -> ArrayMesh:
-	if _foot_mesh:
-		return _foot_mesh
-	var tool := SurfaceTool.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.5
-	ball.height = 1.0
-	ball.radial_segments = 8
-	ball.rings = 4
-	# (the foot, and a rounder ball for the toes)
-	tool.append_from(ball, 0, Transform3D(Basis.from_scale(Vector3(0.1, 0.07, 0.25)), Vector3(0.0, 0.035, 0.36)))
-	tool.append_from(ball, 0, Transform3D(Basis.from_scale(Vector3(0.118, 0.045, 0.09)), Vector3(0.0, 0.024, 0.45)))
-	var shin := CylinderMesh.new()
-	shin.top_radius = 0.034
-	shin.bottom_radius = 0.032
-	shin.height = 0.2
-	shin.radial_segments = 7
-	shin.rings = 1
-	tool.append_from(shin, 0, Transform3D(Basis.IDENTITY, Vector3(0.0, 0.14, 0.28)))
-	_foot_mesh = tool.commit()
-	return _foot_mesh
+# Both eyes, and every material of each, as one mesh in one material with the eyes' shape keys (`EYE_KEYS`), so
+# that they are one thing to draw. Each point carries the colour of the material it had, and whether that was the
+# white of the eye (a material with "white" in its name), which is what lights up.
+static func _eyes_as_one(eyes: Array[MeshInstance3D], model: Node) -> ArrayMesh:
+	var points := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var paint := PackedFloat32Array()
+	var order := PackedInt32Array()
+	var moved: Array[PackedVector3Array] = []
+	for key in EYE_KEYS:
+		moved.append(PackedVector3Array())
+	for eye in eyes:
+		var mesh := eye.mesh as ArrayMesh
+		var at := _place(eye, model)
+		var turned := at.basis.orthonormalized()
+		# (which of this eye's shape keys is which of ours: one it has not got leaves it as it is)
+		var theirs: Array[int] = []
+		for key in EYE_KEYS:
+			var found := -1
+			for k in mesh.get_blend_shape_count():
+				if String(mesh.get_blend_shape_name(k)) == key:
+					found = k
+			theirs.append(found)
+		var added := mesh.blend_shape_mode == Mesh.BLEND_SHAPE_MODE_RELATIVE
+		for surface in mesh.get_surface_count():
+			var material := mesh.surface_get_material(surface)
+			var colour := _colour(mesh, surface).srgb_to_linear()
+			var white := 1.0 if material and material.resource_name.to_lower().contains("white") else 0.0
+			var arrays := mesh.surface_get_arrays(surface)
+			var shapes := mesh.surface_get_blend_shape_arrays(surface)
+			var here: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var facing: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var start := points.size()
+			for i in here.size():
+				points.append(at * here[i])
+				normals.append(turned * facing[i])
+				paint.append_array([colour.r, colour.g, colour.b, white])
+			for k in EYE_KEYS.size():
+				var there: PackedVector3Array = shapes[theirs[k]][Mesh.ARRAY_VERTEX] if theirs[k] >= 0 else here
+				for i in here.size():
+					moved[k].append(at * (here[i] + there[i] if added and theirs[k] >= 0 else there[i]))
+			if arrays[Mesh.ARRAY_INDEX] != null:
+				for index: int in arrays[Mesh.ARRAY_INDEX]:
+					order.append(start + index)
+			else:
+				for i in here.size():
+					order.append(start + i)
+	var made := ArrayMesh.new()
+	made.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_NORMALIZED
+	for key in EYE_KEYS:
+		made.add_blend_shape(key)
+	if points.is_empty():
+		return made
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = points
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_CUSTOM0] = paint
+	arrays[Mesh.ARRAY_INDEX] = order
+	var shapes: Array[Array] = []
+	for k in EYE_KEYS.size():
+		var shape := []
+		shape.resize(Mesh.ARRAY_MAX)
+		shape[Mesh.ARRAY_VERTEX] = moved[k]
+		shape[Mesh.ARRAY_NORMAL] = normals
+		shapes.append(shape)
+	made.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, shapes, {}, Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	return made
 
 
 # His sounds, made here: a hum that rises as he makes ready, the stroke, and the pat of a bare foot.

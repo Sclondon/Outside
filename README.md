@@ -395,7 +395,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/mummy_priest_rig.gd`, `mummy_brute_rig.gd`, `mummy_crawler_rig.gd`, `mummy_child_rig.gd`, `mummy_royal_rig.gd` | How each of the other kinds of mummy walks and strikes |
 | `tools/build_mummy.py` | Builds the mummies in Blender: their proportions, the face under the wrappings, a chain of bones down each loose end, and what each kind has of its own |
 | `tools/mummy_sheets.gd` | Not part of the game: drives a mummy of any kind through each thing it does, saves pictures of it, and says which bones shook and whether its feet slid |
-| `scripts/medjed.gd` | Medjed: a shroud with two eyes and two feet who stands and looks from side to side; the boy seen in his gaze, drawn as a fan on the floor, is warned and then smitten. The figure, its eyes, its gaze and its sounds are all made here |
+| `scripts/medjed.gd` | Medjed: a shroud with two eyes and two feet who stands and looks from side to side; the boy seen in his gaze, drawn as a fan on the floor, is warned and then smitten. The figure is read from its model; its gaze and its sounds are made here |
+| `tools/build_medjed.py` | Builds Medjed in Blender (`tools/medjed.blend`, `models/medjed.glb`): the shroud, each eye with its shape keys, each foot, and named materials; no bones |
 | `tools/medjed_test.gd`, `tools/medjed_sheets.gd` | Not part of the game: run Medjed with nothing drawn and check each thing he does, and count his rays; and pictures of him and of each of those things |
 | `scripts/hound.gd` | A hound, of either breed: chases the player, leaps obstacles and gaps, bays and barks (recordings of dogs, in `audio/hounds/`), braces and barks under what it cannot reach, and plays, sits and sleeps when left alone |
 | `scripts/hound_rig.gd` | Animates a hound in code: walk, trot and rotary gallop on three-jointed legs, spine flex, a jaw that keeps time with its voice, a head that watches things, sitting, lying and the bow, a tail on springs, and ears that hang and swing or stand and turn |
@@ -1397,6 +1398,33 @@ he strikes with his eye, and that he can be unseen. The rest is made up for the 
 from side to side, that there is a moment's warning, that he comes shuffling to look, that a plate or a mirror shuts
 his eyes. Nothing old says how his look works, or that anything turns it back.
 
+- **The model** is `models/medjed.glb`, built in Blender by `tools/build_medjed.py`, which also keeps
+  `tools/medjed.blend` to look at and change by hand. It has no bones: it is separate things, each named for what it
+  is, which the game reads and moves.
+  - `shroud`: the sheet. Its origin is the ground under him; the game bobs and rocks it there as he shuffles. The
+    swing of the hem is still done by the game, which bends the mesh from its lowest point up for 0.8 m, so a shroud
+    reshaped in Blender swings as this one does.
+  - `eye_left` and `eye_right` (his own left is +X), hung from the shroud: the dark line round the eye, the white,
+    the pupil and the brow, lying just off the cloth. Each has four shape keys: `shut` (the lids closed, the brow
+    down), `wide` (as he stares), `look_left` and `look_right` (the pupil moved over). As he usually has them is the
+    Basis; the game sets the keys between 0 and 1 and mixes them.
+  - `foot_left` and `foot_right`: a bare foot with its toes and the shin over it. A foot's origin is the ground under
+    the middle of him, and is what the game lifts, slides and tips it about; it is turned a little toe out.
+
+  Its colours are materials with plain names: `linen` (a warm off-white, so that the sun does not burn it out to
+  white), `skin`, `eye_dark` and `eye_white`. The game takes each colour from the model, so changing a material's
+  Base Color and exporting changes him; whatever is painted in a material with "white" in its name is what lights up
+  as he makes ready. The game lights the shroud and the feet in flat tones as it does everything else, and makes the
+  two eyes one mesh in one material when the model is first read. To build it again, and have Godot take it up:
+
+  ```
+  blender --background --python tools/build_medjed.py
+  godot --headless --path . --import
+  ```
+
+  (Changed by hand in `tools/medjed.blend` instead, it is exported from there as glTF to `models/medjed.glb`, +Y up,
+  with shape keys; running the script again would overwrite both.) The fan on the floor and the lines from his eyes
+  are not in the model: they are drawn from what he can see at that moment.
 - **His gaze** is drawn on the floor: a pale fan as far as he sees (`reach`, 9 m) and as wide (`cone`, 30 degrees),
   with rings running out along it and a thin line from each eye down the middle of it. The fan stops at whatever stops
   his sight, so the shadow of a pillar in it is the place to stand. It is laid over what is under it rather than added
@@ -1439,7 +1467,7 @@ medjed.worked = plate.pressed     # shuts his eyes; `reset()` puts him back at h
 What he costs: two rays in a step of the game at the very most. While the boy is in the cone, one to his chest, and
 one to his head if that one gets through; otherwise one spoke of the fan, each of the eleven in its turn (so the fan
 on the floor is about a sixth of a second behind him). Far from the boy (45 m past his reach) he casts none and draws
-no gaze. He is 400 triangles of shroud, 60 of eyes and 200 a foot, and six draws with the gaze.
+no gaze. He is 456 triangles of shroud, 148 of eyes and 250 a foot, and six draws with the gaze.
 
 The level editor has "Medjed" on its People page: how far he looks round and how fast, how far he sees, the warning,
 unseen, whether he comes to look and how far, and "Eyes shut by" (with "Shut until then" for the other way about).
