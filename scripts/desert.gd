@@ -687,7 +687,6 @@ func _physics_process(delta: float) -> void:
 			(node as Sluice).open = worked
 		elif node is Sphinx:
 			(node as Sphinx).uncovering = worked
-
 		elif node is Khepri:
 			(node as Khepri).running = bool(item.get("starts_itself", false)) != worked
 		elif node is SunBeam:

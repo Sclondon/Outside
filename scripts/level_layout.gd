@@ -98,7 +98,6 @@ const PALETTE := {
 		["Scarab amulet", "amulet", ""], ["Scarab socket", "plate", "scarab"],
 		# The keepers of the gates of the underworld, and the leaves that carry their names (`scripts/gate_guardian.gd`, `scripts/book_page.gd`).
 		["Gate guardian", "guardian", ""], ["Leaf of the Book of the Dead", "bookpage", ""],
-
 		# Khepri (`scripts/khepri.gd`): the scarab that rolls the sun over a floor of squares, and the horizon it is to be brought to.
 		["Khepri and the sun", "khepri", ""], ["Horizon (akhet)", "akhet", ""],
 	],

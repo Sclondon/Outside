@@ -12,7 +12,6 @@ extends Node3D
 ## (And the parts puzzles are made of, at two stations: `_build_puzzles` and `_build_light_and_water`.)
 ## Oil, to pour and to set light to, has a station too, out to the east, beyond the low bars.
 ## Sphinxes have one out to the west, beyond the puzzle parts (`_build_sphinx`).
-
 ## And Khepri and the sun have a walled court (`KhepriCourt`) in the far south-west corner, beyond the jackals.
 ##
 ## The ground is a `SandGround`, made here from `height_at`: dunes from
