@@ -430,7 +430,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `tools/build_cat.py` | Builds the two cats in Blender, the way the hounds are built |
 | `tools/cut_cat_audio.py` | Not needed to run the game: cuts the cat's voice out of the recordings it comes from |
 | `tools/build_character.py` | Holds the tools `build_boy.py`, `build_hound.py` and `build_mummy.py` use |
-| `scripts/gate_guardian.gd`, `scripts/guardian_mesh.gd` | A keeper of a gate of the underworld: seated, with the head of a beast and knives; asks its name, is on for good when it is said, strikes when it is not; and the heads and the clay it is modelled from |
+| `scripts/gate_guardian.gd`, `scripts/guardian_mesh.gd` | A keeper of a gate of the underworld: seated, with the head of a beast and knives; asks its name, is on for good when it is said, strikes when it is not; and its model read into one thing to draw for each part that moves |
+| `tools/build_guardian.py` | Builds the gate guardians and the leaf of papyrus in Blender (`tools/guardian.blend`, `models/guardian.glb`): the figure in wrappings and in a kilt, the nine heads, the knives; separate named things and named materials, no bones |
 | `scripts/book_page.gd`, `scripts/book_of_the_dead.gd` | A leaf of the Book of the Dead to find, with the name of a keeper on it; and the names themselves, the drawings of the keepers, and which leaves he has found in this level |
 | `scripts/guardian_panel.gd` | The leaf to read, and the three names to choose from, over the stopped game |
 | `tools/guardian_test.gd`, `tools/guardian_sheets.gd` | Not part of the game: run the guardians and the leaves with nothing drawn, by touch, and say what happened; and pictures of them, of the names on the screen of a phone and of the leaf |
@@ -1700,9 +1701,48 @@ test yard has a station, south of the railway and beyond everything else: a wall
 each, the first keeping a stone door and the others barring their own, the first leaf in the open and each of the
 others in the cell behind the gate before.
 
-The figure is made in code (`scripts/guardian_mesh.gd`): a head is 260 to 550 triangles, the whole of it about 1,500
-triangles in 30 draws (a piece for each part that moves, a draw for each colour in it). The pictures on the leaf
-and the buttons are drawn in code too (`BookOfTheDead.draw_vignette`, `draw_signs`), and its voice is made in code,
+The figure is a Blender model, `models/guardian.glb`, built by `tools/build_guardian.py`, which also keeps
+`tools/guardian.blend` to look at and change by hand:
+
+```
+blender --background --python tools/build_guardian.py
+godot --headless --path . --import
+```
+
+(Changed by hand in `tools/guardian.blend` instead, it is exported from there as glTF to `models/guardian.glb`, +Y up;
+running the script again would put back what the script says.) It has no bones. It is separate things, each named for
+what it is, and where a thing's origin is put is where the game hinges it:
+
+- `guardian_wrapped` holds the figure in wrappings: `plinth`, `seat` (the block, its back and its line of gold),
+  `feet_wrapped`, `thighs_wrapped` and `shins_wrapped` (each pair one thing, lying along the limb from the hip and from
+  the knee), `trunk_wrapped` (origin the hips) and, hung from the trunk, `wig` (the cloth down its back, for the heads
+  that have one), `neck` (nothing to see: where a head is put), `arm_wrapped_left` and `arm_wrapped_right` (origin the
+  shoulder) and in each fist `knife_left` or `knife_right`.
+- `guardian_kilt` is the same figure in a kilt, beside the first: `feet_kilt`, `thighs_kilt`, `shins_kilt`,
+  `trunk_kilt`, `arm_kilt_left`, `arm_kilt_right`. What it shares with the first is shown again under names ending
+  `_again`, which the game does not read.
+- `head_crocodile`, `head_snake`, `head_vulture`, `head_hippopotamus`, `head_ram`, `head_jackal`, `head_hare`,
+  `head_lion`, `head_bull`: the heads, each facing forward with the top of the neck at its origin. The jackal's is on
+  the first figure and the bull's on the second; the rest stand in a row behind.
+- `great_knife` (and `great_knife_again`, crossed over it): a knife that bars a gateway, its origin the foot of the
+  gateway's side. It is modelled for a gateway 2.2 by 2.6; for another the game makes all of it bigger or smaller.
+- `leaf_open`, `leaf_rolled`: the leaf of papyrus. What is written on it the game draws, and lays on by the model's
+  texture coordinates.
+
+The colours are the model's materials, named plainly (`linen`, `linen_band`, `skin`, `seat`, `hilt`, `crocodile_belly`,
+`ram_horn`, ...), and the game takes each colour from there. A few names mean something to it (`scripts/guardian_mesh.gd`):
+`gold` and `blade` shine; `eye` is lit from within; `stone` is drawn as the game's sandstone in that colour; `hide`
+(the neck, and the fists of the wrapped figure) is painted in the colour of the head's own hide, which is the head's
+material whose name ends `_hide`; a head with anything painted `wig` gets the wig down its back; `papyrus` is written
+on and `tie` is the cord of the rolled leaf. The colours of the drawings on the leaf and the buttons are not the
+model's: they are `BookOfTheDead.HIDES`.
+
+A head is 660 to 1,200 triangles and the whole of a guardian 1,800 to 2,300 (it was about 1,500). It is ten things to draw (it was thirty):
+one for each part that moves, in one material that every guardian shares, each point carrying its colour, and one more
+for the stone of the plinth; the two great knives are one each. Where its hips, knees and ankles are as it sits and
+rises stays in `scripts/gate_guardian.gd` (`SEATED`, `RISEN`, `ANKLE`, `THIGH`, `SHIN`), since they are worked out as it
+moves. The pictures on the leaf and the buttons are drawn in code (`BookOfTheDead.draw_vignette`, `draw_signs`), as is
+the writing on the leaf lying on the ground and the shadow under it, and its voice is made in code,
 not recorded. `scripts/guardian_panel.gd` is the leaf to read and the names to choose from: nothing on it is under 88
 high to touch, or written under 26.
 
