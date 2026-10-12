@@ -94,6 +94,8 @@ const PALETTE := {
 		["Oil jar", "oil_jar", ""], ["Oil spill", "oil_spill", ""], ["Fire dish", "oil_mark", ""],
 		["Torch to carry", "torch", ""], ["Grappling hook", "grapple", ""], ["Grapple point", "grapple_point", ""], ["Rope", "rope", ""], ["Ladder", "ladder", ""], ["Sand fall", "sandfall", ""], ["Checkpoint", "checkpoint", ""], ["Where he starts", "start", ""], ["Sign", "sign", ""],
 		["Scarab amulet", "amulet", ""], ["Scarab socket", "plate", "scarab"],
+		# The keepers of the gates of the underworld, and the leaves that carry their names (`scripts/gate_guardian.gd`, `scripts/book_page.gd`).
+		["Gate guardian", "guardian", ""], ["Leaf of the Book of the Dead", "bookpage", ""],
 	],
 	"Guns": [
 		["Revolver", "thing", "revolver"], ["Rifle", "thing", "rifle"], ["Shotgun", "thing", "shotgun"], ["Flare pistol", "thing", "flare_pistol"],
@@ -213,6 +215,14 @@ const FIELDS := {
 	# A scarab of gold to carry, and the stone it is laid in, which is a plate that only it presses.
 	"amulet": [],
 	"plate:scarab": [["latches", "Stays on", "b", true]],
+	# A gate guardian (`GateGuardian`): on once he has said its name, and so works what a plate works. `who` is its
+	# place in `BookOfTheDead.NAMES`; `head` is 0 for the head that goes with the name, or one more than a `BookOfTheDead.Head`.
+	# A leaf (`BookPage`): `who` is 0 for the name of the nearest guardian without a leaf, or one more than a place in the names.
+	"guardian": [["who", "Its name", "c", BookOfTheDead.TITLES, 0], ["head", "Its head", "c", ["The one its name has", "Crocodile", "Snake", "Vulture", "Hippopotamus", "Ram", "Jackal", "Hare", "Lion", "Bull"], 0],
+		["dress", "Wears", "c", ["Wrappings", "Kilt"], 0], ["two", "A knife in each fist", "b", true], ["bars", "Bars the gateway itself", "b", false],
+		["gate_at", "The gateway is this far to its left (0: it sits in it)", "n", -8.0, 8.0, 0.1, 1.9], ["wide", "Width of the gateway", "n", 1.0, 8.0, 0.1, 2.2],
+		["tall", "Height of the gateway", "n", 1.5, 8.0, 0.1, 2.6], ["asks", "Asks whoever steps onto the threshold", "b", true], ["size", "Size", "n", 0.7, 1.6, 0.05, 1.0]],
+	"bookpage": [["who", "Whose name is on it", "c", BookOfTheDead.LEAF_TITLES, 0], ["rolled", "Rolled up", "b", false]],
 	# Cobwebs (`scripts/cobweb.gd`).
 	"cobweb:corner": [["size", "Size", "n", 0.3, 3.0, 0.05, 1.0], ["height", "Height of the corner", "n", 0.0, 8.0, 0.05, 2.4], ["tilt_x", "Tip forward", "n", -180.0, 180.0, 1.0, 0.0],
 		["dust", "Dust", "n", 0.0, 1.0, 0.05, 0.45], ["seed", "Which web", "n", 0.0, 99.0, 1.0, 1.0]],

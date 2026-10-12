@@ -229,6 +229,8 @@ func _made(item: Dictionary) -> Node3D:
 			return web
 		"amulet":
 			return ScarabAmulet.new()
+		"guardian", "bookpage":
+			return _gate_thing(item)
 		"plate" when what == "scarab":
 			var socket := ScarabSocket.new()
 			socket.latches = item.get("latches", true)
@@ -376,6 +378,29 @@ func _made(item: Dictionary) -> Node3D:
 	return null
 
 
+# A gate guardian, or a leaf of the Book of the Dead (see `LevelLayout.FIELDS`). Which names a guardian offers comes
+# from the ground's seed and its own number in the level: the level is the same each time it is played.
+func _gate_thing(item: Dictionary) -> Node3D:
+	if item["kind"] == "bookpage":
+		var leaf := BookPage.new()
+		leaf.who = int(item.get("who", 0)) - 1
+		leaf.rolled = item.get("rolled", false)
+		return leaf
+	var keeper := GateGuardian.new()
+	keeper.who = int(item.get("who", 0))
+	keeper.head = int(item.get("head", 0)) - 1
+	keeper.dress = int(item.get("dress", 0)) as GateGuardian.Dress
+	keeper.knives = 2 if item.get("two", true) else 1
+	keeper.bars_way = item.get("bars", false)
+	keeper.gate_at = item.get("gate_at", 1.9)
+	keeper.wide = item.get("wide", 2.2)
+	keeper.tall = item.get("tall", 2.6)
+	keeper.asks_at_threshold = item.get("asks", true)
+	keeper.size = item.get("size", 1.0)
+	keeper.seed = hash([int((layout.get("terrain", {}) as Dictionary).get("seed", 0)), int(item["id"]), "keeper"])
+	return keeper
+
+
 func _person(item: Dictionary, who: String) -> Node3D:
 	match who:
 		"townsperson":
@@ -499,6 +524,11 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier:
 		_on[id] = bool(made.get(&"on"))
 		made.connect(&"changed", func(on: bool) -> void: _on[id] = on)
+	elif made is GateGuardian:
+		# (a gate guardian is on once it is named, and catches him if he names it wrongly)
+		_on[id] = (made as GateGuardian).on
+		(made as GateGuardian).changed.connect(func(on: bool) -> void: _on[id] = on)
+		(made as GateGuardian).caught.connect(_on_caught.bind(made))
 	elif made is TimedPlate and item.get("only_him", true):
 		(made as Plate).collision_mask = 2
 	# (a plain plate too: its mask is its own until it is in the level, so it is told here)

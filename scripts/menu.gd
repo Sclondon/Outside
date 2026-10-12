@@ -39,8 +39,8 @@ const PLACES := {
 }
 ## The parts of the book, in the order of their pages, and what is written on the tab of each.
 const SECTIONS := ["journal", "me", "places", "notes"]
-const TABS := {"journal": "Journal", "me": "Me", "places": "Places", "notes": "Notes"}
-const TAB_COLOURS := {"journal": Color(0.90, 0.84, 0.70), "me": Color(0.62, 0.72, 0.78), "places": Color(0.86, 0.70, 0.42), "notes": Color(0.68, 0.76, 0.58)}
+const TABS := {"journal": "Journal", "me": "Me", "places": "Places", "notes": "Notes", "dead": "Papyrus"}
+const TAB_COLOURS := {"journal": Color(0.90, 0.84, 0.70), "me": Color(0.62, 0.72, 0.78), "places": Color(0.86, 0.70, 0.42), "notes": Color(0.68, 0.76, 0.58), "dead": Color(0.86, 0.77, 0.55)}
 
 ## A page, the thickness of the boards round the pages, and how far a tab stands out (and how tall it is).
 const PAGE := Vector2(520.0, 600.0)
@@ -407,8 +407,8 @@ func _turn_to(section: String, at := -1) -> void:
 	var is_now := {"section": section, "at": clampi(at, 0, _journal_spreads() - 1) if section == "journal" else 0}
 	if was == is_now:
 		return
-	var before: int = SECTIONS.find(was["section"]) * 1000 + int(was["at"])
-	var after: int = SECTIONS.find(is_now["section"]) * 1000 + int(is_now["at"])
+	var before: int = _parts().find(was["section"]) * 1000 + int(was["at"])
+	var after: int = _parts().find(is_now["section"]) * 1000 + int(is_now["at"])
 	_turn_from = was
 	_turn_dir = 1 if after > before else -1
 	_turn = 0.0
@@ -426,9 +426,9 @@ func _step_section(by: int) -> void:
 	if _section == "journal" and _journal_at + by >= 0 and _journal_at + by < _journal_spreads():
 		_turn_to("journal", _journal_at + by)
 		return
-	var next := SECTIONS.find(_section) + by
-	if next >= 0 and next < SECTIONS.size():
-		_turn_to(SECTIONS[next], (_journal_spreads() - 1) if by < 0 else 0)
+	var next := _parts().find(_section) + by
+	if next >= 0 and next < _parts().size():
+		_turn_to(_parts()[next], (_journal_spreads() - 1) if by < 0 else 0)
 
 
 ## Which pair of pages the page lying on that side (0 left, 1 right) belongs
@@ -544,24 +544,26 @@ func _paint_book(on: Leaf) -> void:
 	on.draw_rect(Rect2(SPINE + 8.0, 12.0, PAGE.x + BOARD, BOOK.y), Color(0.0, 0.0, 0.0, 0.3))
 	_board(on, Rect2(SPINE - 12.0, 0.0, PAGE.x + BOARD + 12.0, BOOK.y))
 	# The tabs: one stuck to the first page of each part, and the strap that holds the book shut below them
-	var names: Array = SECTIONS + ["away"]
+	var names: Array = _parts() + ["away"]
+	# (with a leaf of the Book of the Dead in it there is one tab more, and each is a little shorter)
+	var tab_tall := TAB.y if names.size() <= 5 else 90.0
 	for i in names.size():
 		var part: String = names[i]
 		var current: bool = part == _section and _open
-		var top := BOARD + 10.0 + i * (TAB.y + 6.0)
-		var tab := Rect2(BOOK.x - BOARD - 6.0, top, TAB.x + BOARD + (6.0 if current else -4.0), TAB.y)
+		var top := BOARD + 10.0 + i * (tab_tall + 6.0)
+		var tab := Rect2(BOOK.x - BOARD - 6.0, top, TAB.x + BOARD + (6.0 if current else -4.0), tab_tall)
 		var colour: Color = TAB_COLOURS.get(part, Ink.LEATHER.lightened(0.1))
 		_tab_box.bg_color = colour if current or part == "away" else colour.darkened(0.14)
 		on.draw_style_box(_tab_box, tab)
 		var label: String = TABS.get(part, "Put away")
-		var middle := Vector2(BOOK.x + (TAB.x + (10.0 if current else 0.0)) * 0.5 - 4.0, top + TAB.y * 0.5)
+		var middle := Vector2(BOOK.x + (TAB.x + (10.0 if current else 0.0)) * 0.5 - 4.0, top + tab_tall * 0.5)
 		on.draw_set_transform(middle, PI * 0.5)
 		var wide := Ink.width_of(label, 25)
 		on.draw_string(Ink.font(), Vector2(-wide * 0.5, 8.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 25, Ink.CARD if part == "away" else Ink.INK)
 		if current:
 			on.draw_line(Vector2(-wide * 0.5, 13.0), Vector2(wide * 0.5, 13.0), Ink.RED, 2.2, true)
 		on.draw_set_transform(Vector2.ZERO)
-		var touch := Rect2(BOOK.x - 8.0, top, TAB.x + 14.0, TAB.y)
+		var touch := Rect2(BOOK.x - 8.0, top, TAB.x + 14.0, tab_tall)
 		if part == "away":
 			_spot(on, "tab:away", touch, _set_open.bind(false))
 		else:
@@ -641,6 +643,8 @@ func _paint_side(on: Leaf, spread: Dictionary, side: int) -> void:
 				_page_map(on)
 			else:
 				_page_places(on)
+		"dead":
+			_page_dead(on, side)
 		"notes":
 			if side == 0:
 				_page_notes(on)
@@ -998,6 +1002,39 @@ func _page_getting_about(on: Leaf) -> void:
 	var olive := Color(0.36, 0.40, 0.20)
 	Ink.strokes(on, Rect2(310.0, 400.0, 150.0, 150.0), Ink.SKETCHES["leaf"], olive, 2.4)
 	Ink.write(on, Vector2(MARGIN + 6.0, 540.0), "from the garden at Shepheard's", 19, Ink.FAINT, -0.03)
+
+
+# --- The Book of the Dead
+
+## The parts of the book there are now: `SECTIONS`, and the leaves of the Book of the Dead once he has found one in this level.
+func _parts() -> Array:
+	var book := BookOfTheDead.of(self)
+	return SECTIONS + ["dead"] if book != null and not book.found.is_empty() else SECTIONS
+
+
+## The leaves he has found in this level, four to a page: the keeper of each gate, his name in signs, and in English.
+func _page_dead(on: Leaf, side: int) -> void:
+	var book := BookOfTheDead.of(self)
+	var found: Array = book.found if book else []
+	if side == 0:
+		_title(on, "Book of the Dead")
+	else:
+		Ink.write(on, Vector2(MARGIN, 60.0), "the keepers of the gates, and their names", 22, Ink.FAINT)
+	for row in 4:
+		var n := side * 4 + row
+		if n >= found.size():
+			break
+		var who: int = found[n]
+		var top := 92.0 + row * 124.0
+		var scrap := Rect2(MARGIN - 6.0, top, PAGE.x - MARGIN * 2.0 + 12.0, 116.0)
+		on.draw_rect(scrap, BookOfTheDead.PAPYRUS)
+		on.draw_rect(scrap, BookOfTheDead.PAPYRUS_DARK, false, 1.5)
+		BookOfTheDead.draw_vignette(on, Rect2(scrap.position + Vector2(6.0, 5.0), Vector2(92.0, 106.0)), who)
+		BookOfTheDead.draw_signs(on, Rect2(scrap.position + Vector2(108.0, 6.0), Vector2(scrap.size.x - 118.0, 56.0)), who)
+		var lines := Ink.wrap(BookOfTheDead.NAMES[who]["name"], scrap.size.x - 118.0, 21)
+		Ink.write_lines(on, scrap.position + Vector2(108.0, 84.0 if lines.size() < 2 else 80.0), lines, 21, Ink.INK, 22.0)
+	if side == 1 and found.size() > 8:
+		Ink.write(on, Vector2(MARGIN, PAGE.y - 14.0), "and %d more" % (found.size() - 8), 20, Ink.FAINT)
 
 
 # ---------------------------------------------------------------- what the pages do
