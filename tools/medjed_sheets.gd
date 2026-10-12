@@ -219,7 +219,7 @@ func model() -> void:
 		await snap()
 	light(true)
 	sheet("model", 3)
-	print("MODEL %d triangles in the shroud, %d in the eyes, %d in a foot" % [one._shroud.mesh.get_faces().size() / 3, Medjed._eye_shape().get_faces().size() / 3, Medjed._foot_shape().get_faces().size() / 3])
+	print("MODEL %d triangles in the shroud, %d in the eyes, %d in a foot" % [one._shroud.mesh.get_faces().size() / 3, one._eyes.mesh.get_faces().size() / 3, one._feet[0].mesh.get_faces().size() / 3])
 	await clear()
 
 
