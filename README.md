@@ -363,6 +363,9 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/desert_terrain.gd` | The desert's ground: dunes, level ground, and water cut into it |
 | `scripts/pyramid.gd` | A pyramid made from numbers: stepped core, smooth casing, gold cap, ruin (fallen corners, rubble, missing and slipped blocks), a doorway; its mesh and what is solid |
 | `scripts/sandstone.gd` | Stone drawn by a shader: blocks in courses, strata, weathering, cracks, rubble; and gold (`Toon.sandstone`, `Toon.gold`) |
+| `scripts/sphinx.gd` | A sphinx: a statue to climb on that wakes when he comes between its paws, asks a riddle, is on for good when it is given the thing that answers it, knocks a wrong thing away, and can lie buried in sand until something clears it |
+| `scripts/sphinx_mesh.gd` | Its stone, carved from numbers: the lion, and a king's, a ram's or a falcon's head; and what of it is solid |
+| `tools/sphinx_test.gd`, `tools/sphinx_sheets.gd` | Not part of the game: run the sphinx with nothing drawn and say what happened; and draw it |
 | `scripts/heat_mirage.gd` | Heat over the desert: far things near the level of the eye swim, and pools of sky lie on the far sand |
 | `scripts/tomb_parts.gd` | Torches, pressure plates and stone doors |
 | `scripts/test_yard.gd` | The test yard (`test_yard.tscn`) |
@@ -1073,6 +1076,96 @@ whatever light there is, so a torch carried past picks it out.
 
 The level editor has "Cobweb: corner", "Cobweb: across a passage", "Cobweb: hanging" and "Cobweb: draped" on its Stone
 page, each sized by sliders. The test yard has a short stone passage hung with them at the scarabs' station.
+
+## The sphinx
+
+`Sphinx.new()` (`scripts/sphinx.gd`) is a sphinx of sandstone: a lion lying on a low base with its forepaws out in
+front, and on its shoulders a king's head in the striped headcloth, a ram's, or a falcon's (`head`). It is a statue,
+and it is alive when it wants to be.
+
+- **Its size** (`size`) is its length: 2.5 m for one of an avenue, 6 for one that stands at a door, 12 and more for a
+  landmark. It is solid all over and he climbs about on it: onto the base, a forepaw or a hind paw, from there a haunch
+  or an elbow, from there its back, and from its back its head (on a great one each is a ledge to catch). `wear` is how
+  weathered it is: lumpy and stained, the cobra gone from its brow past a third, its beard past a half, its nose past
+  six tenths. `painted` is as it was new: the headcloth blue and yellow, the face red, the eyes lined in black.
+- **It asks for something.** Between its forepaws is a low offering slab, and behind that, against its chest, a stele
+  with a round top (an `Inscription`) that has its riddle on it in hieroglyphs. When he comes between the paws its eyes
+  open and glow, its head turns a little to look down at him, dust falls from its neck, there is a low sound of stone
+  moving (made in code), and the riddle comes up in words across the top of the screen and goes into the notebook. The
+  answer is a thing he can carry, put down between the paws or thrown onto the slab.
+- **The right thing**: it is taken onto the slab and stays there, the eyes blaze pale gold, and the sphinx is on for
+  good. It is a trigger like a pressure plate (`changed`, `on`): link a door, a bridge or a sand fall to it. With
+  `opens_itself` the stele sinks into the ground and there is a doorway in its chest, and a passage through it and out
+  under its tail: stand its rump against a wall or a pyramid's door and that is the way in. (The way is a tenth of its
+  length wide and 0.16 of it high: room to walk through one of 9 m or more. It has been tried at 12.)
+- **A wrong thing**: the eyes go red, it growls and shakes its head, and its right forepaw sweeps the slab clear. The
+  thing is put down unharmed on the ground beyond its left paw (a jar of oil is not broken), to be picked up again, and
+  the riddle is put up once more. It does not hurt him. With `wrathful`, the third wrong thing is one too many: the
+  paw is lifted and brought down and it emits `caught`, as a mummy does.
+- **Buried** (`buried`, 0 to 1) it lies in a heap of sand to its neck, as the Great Sphinx did for most of its life: a
+  `SandPile`, which he can walk up. It sleeps, and the paws and slab are under the sand. While what it is linked to is
+  on (a lever, a plate: "Sand cleared by" in the editor) the heap goes down, and is gone in eight seconds
+  (`uncover_time`); it stops if the lever is put back. Then it can be woken. With nothing linked to it, the sand is
+  only how it looks.
+
+What it can ask for (`wants`), and the riddle that goes with each (`riddle` puts other words in its mouth and on its
+stele; the thing wanted stays the same):
+
+| It wants | Its riddle |
+| --- | --- |
+| A burning torch | I eat wood and am never full. I drink water and I die. Bring me, living, on a stick. |
+| A torch that is out | Yesterday I was a sun in the hand. Today I am black and cold. Bring me the stick that waits for fire. |
+| The scarab amulet | Khepri rolls the sun up out of the night, as a beetle rolls its ball. Bring me Khepri, in gold and blue stone. |
+| The iron, bronze or gold key | I have teeth and bite nothing. I open what is shut. Bring me the black one, of iron. (...the brown one, of bronze; ...the one that shines like the sun.) |
+| A canopic jar | I wear a head for a lid. I keep safe what a dead man will want again. |
+| A jar of oil | The lamp drinks me. Poured out, I am a black road for fire to run along. Bring me in my jar, unbroken. |
+| A stone to throw | I am older than the kings. I have no wings, yet a boy's arm makes me fly. |
+| A pot | I was river mud until the fire made me hard. I am all mouth and belly, and my belly is empty. |
+| A shovel | I have one iron tongue and a long wooden neck. I eat sand all day and am never fed. |
+| A pickaxe | I have two horns of iron and one leg of wood. Where I strike, stone opens. |
+| A hand brush | I have a hundred hairs and no head. I wake old kings gently, a grain at a time. |
+| A lantern | I am a house of glass with a roof of tin. A flame lives in me and the wind cannot find it. |
+| A basket of spoil | I was the leaves of a palm. Now I carry the desert away, one load at a time. |
+| A khopesh | I am bronze, and bent like the new moon. The king holds me over his enemies. |
+| The grappling hook | I have iron claws and a tail of rope. I climb first, and you come after. |
+
+`Sphinx.what_is(thing)` is the name it knows a thing by (a torch is `torch` or `cold_torch` as it burns or not, so a
+torch can be lit to make it right); anything else can be given a name with the meta `sphinx_thing`. A thrown jar of
+oil breaks on whatever it hits first, so that one is put down (duck and act).
+
+In the level editor it is "Sphinx" on the Stone page: its length, head, how weathered, painted, what it wants, its own
+riddle, buried, opens itself, wrathful, and its stone. Choose a door and touch the sphinx as what opens it; choose the
+sphinx and "Sand cleared by" to say what uncovers it. (The "Great sphinx" beside it is the fixed model, 25 m long, that
+was called "Sphinx" before.) The test yard has a station out to the west, beyond the puzzle parts: a great one that
+wants the amulet and opens itself, with the things to give it in a row; a small ram-headed one that is wrathful; a
+painted falcon-headed one; and one buried, with its lever.
+
+What is Egyptian, and what is the game's. Egyptian: the sphinx itself, a lion with the head of the king (and it is
+the king: a guardian, not a monster); the ram-headed ones that line the avenue at Karnak, which are Amun's, and the
+falcon-headed ones; the headcloth, the cobra and the beard, and that the Great Sphinx has lost the last and its nose;
+that it was painted; that it lay buried to its neck; and the Dream Stele that stands between the Great Sphinx's paws,
+which says that Thutmose IV, a prince, slept in its shadow, and that it spoke to him in a dream, asked him to clear
+away the sand that lay on it, and promised him the throne. Offerings were laid before it. The game's: the riddles. A
+sphinx that asks riddles and kills is the Greek one at Thebes, a different creature; no Egyptian sphinx is known to
+have asked anything but that the sand be cleared. The riddles here are written for the game, in the manner of the
+Egyptian wisdom texts (short sayings, things that speak for themselves), and so are the glowing eyes, the paw that
+moves, and the way in through its chest (though people have looked for one in the Great Sphinx for centuries).
+
+What it costs: about 3,000 triangles for a king (the beasts fewer), built in code when it enters the level
+(`scripts/sphinx_mesh.gd`), in five draws bare (body, the paw that moves, head, two eyes) besides the slab and stele,
+with one light that is on only while its eyes are; painted, a few more.
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/sphinx_test.gd
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/sphinx_sheets.gd -- <folder> [heads faces sizes wear wake right wrong opens wrath buried night yard] [banded]
+```
+
+The first runs it with nothing drawn and ends PASSED or FAILED. The second draws it: each head from all round and
+close to, every size beside the boy, weathered and painted, each thing it does as a strip of moments, by torchlight,
+and its station in the yard.
+
+Not done: the paw that sweeps goes through him if he stands in its way (it does not push him); nothing but the things
+he carries can answer it; and the passage through it is a plain straight one.
 
 ## Hieroglyphs
 
