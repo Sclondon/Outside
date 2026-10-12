@@ -192,6 +192,8 @@ func _made(item: Dictionary) -> Node3D:
 			# And whatever would hold a grappling hook will: the ends of a lintel, the top of a column, the crown of a palm.
 			GrapplePoint.auto(prop, what)
 			return prop
+		"temple":
+			return Temple.from_item(item)
 		"pyramid":
 			return Pyramid.from_item(item)
 		"train":
