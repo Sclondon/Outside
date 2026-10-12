@@ -25,11 +25,14 @@ func _ready() -> void:
 	var collider := CollisionShape3D.new()
 	collider.shape = shape
 	add_child(collider)
-	var parts := Scarab.amulet()
-	for i in parts.size():
-		var part := MeshInstance3D.new()
-		part.mesh = parts[i]
-		part.material_override = Toon.gold() if i == 0 else Toon.surface(stone)
-		part.scale = Vector3.ONE * length
-		part.position.y = -0.15 * length
-		add_child(part)
+	# The model's amulet (`scarab_amulet` in `models/khepri.glb`): its stone in this one's colour, the rest gold.
+	var jewel := Scarab.amulet()
+	var part := MeshInstance3D.new()
+	part.mesh = jewel
+	for surface in jewel.get_surface_count():
+		var paint := jewel.surface_get_material(surface) as BaseMaterial3D
+		var is_stone := paint != null and paint.resource_name.contains("stone")
+		part.set_surface_override_material(surface, Toon.surface(stone) if is_stone else Toon.gold(paint.albedo_color if paint else Sandstone.GOLD))
+	part.scale = Vector3.ONE * length
+	part.position.y = -0.15 * length
+	add_child(part)
