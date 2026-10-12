@@ -11,6 +11,7 @@ extends Node3D
 ## hounds and the mummy, and two camels. Run `test_yard.tscn`. The camera orbits; drag to turn it.
 ## (And the parts puzzles are made of, at two stations: `_build_puzzles` and `_build_light_and_water`.)
 ## Oil, to pour and to set light to, has a station too, out to the east, beyond the low bars.
+## Apophis has forty metres to be chased along, at the east end of the north side.
 ##
 ## The ground is a `SandGround`, made here from `height_at`: dunes from
 ## `SandDunes` (small ones among the stations, big ones all round), pressed
@@ -45,6 +46,8 @@ const FLATS: Array[Rect2] = [
 	Rect2(-50, 50, 7, 6),
 	Rect2(10, 57, 45, 4),
 	Rect2(-12, 46, 6, 5),
+	# (Apophis: a long run to be chased down, along the north of the yard at its east end)
+	Rect2(40, -57.5, 21, 4),
 ]
 const EASE := 9.0
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
@@ -115,6 +118,7 @@ func _ready() -> void:
 	_build_railway(Vector3(10.0, 0.0, 58.5))
 	_build_kinds()
 	_build_canines(Vector3(-50.0, 0.0, 50.0))
+	_build_apophis(Vector3(40.0, 0.0, -57.5))
 	_settle_in.call_deferred()
 
 
@@ -670,6 +674,46 @@ func _build_mummy(at: Vector3) -> void:
 				other.reset()
 		if _player and not _player.respawned.is_connected(put_back):
 			_player.respawned.connect(put_back))
+
+
+## Apophis, and forty metres to be chased along, from east to west. He lies
+## coiled at the east end; the plate by him lets him out, and sends him home.
+## Then, going west: a torch to pick up, a kerb, a pillar and a block in the
+## way, a ledge to get up onto (he waits under it, then comes up), a brazier
+## he will not come near, and a passage with a gate that the plate beyond it
+## shuts behind the boy.
+func _build_apophis(at: Vector3) -> void:
+	_mark_here(at + Vector3(10.0, 0.0, 1.5), "APOPHIS
+the plate lets him out, and sends him home
+run west: he is slower than a run, and faster than a walk
+a torch holds him off  ·  the brazier is safe
+a ledge only holds him up  ·  the gate stops him", 4.2)
+	var snake := Apophis.new()
+	snake.position = at + Vector3(17.0, 0.0, 0.0)
+	add_child(snake)
+	snake.caught.connect(_on_caught.bind(snake))
+	_switch(at + Vector3(11.0, 0.0, -1.8), func() -> void: snake.loose = not snake.loose)
+	var torch := HandTorch.new()
+	torch.position = at + Vector3(8.0, 0.02, 2.2)
+	torch.rotation.z = 0.12
+	torch.freeze = true
+	add_child(torch)
+	_keep(torch)
+	_solid(at + Vector3(4.0, 0.25, 0.0), Vector3(0.4, 0.5, 8.0), DARK)
+	_solid(at + Vector3(1.0, 1.5, 0.3), Vector3(0.8, 3.0, 0.8), PROP)
+	_block(at + Vector3(-2.0, 0.45, -0.6))
+	# The ledge, and a step to get up onto it by
+	_solid(at + Vector3(-7.0, 1.25, -1.6), Vector3(3.0, 2.5, 3.0), PROP)
+	_solid(at + Vector3(-7.0, 0.6, 0.5), Vector3(1.2, 1.2, 1.2), PROP.darkened(0.08))
+	var brazier := _set_down("res://props/brazier.tscn", at + Vector3(-11.5, 0.0, 2.0))
+	var flame := brazier.find_child("Flame*", true, false) as Node3D
+	(flame if flame else brazier).add_child(Fire.brazier())
+	# The passage, its gate (open until the plate beyond it is trodden on), and the plate
+	for z: float in [-1.5, 1.5]:
+		_solid(at + Vector3(-17.0, 1.4, z * 1.12), Vector3(5.0, 2.8, 0.4), PROP.darkened(0.12))
+	var gate := _gate(at + Vector3(-17.0, 0.0, 0.0), "the plate beyond shuts it")
+	gate.is_open = true
+	_switch(at + Vector3(-19.4, 0.0, 0.0), func() -> void: gate.is_open = not gate.is_open)
 
 
 ## Camels: one saddled and tethered to a peg, and one couched with its packs on.

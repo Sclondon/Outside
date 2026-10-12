@@ -147,7 +147,8 @@ and keep it in the same form.
   sand. 0 is none.
 - **People**: townspeople (who, and how far they wander), his brother, a cat, hounds (which give chase when he comes
   within their distance, or when something sets them on) and the mummy, of whichever kind ("Kind": see The mummies).
-  Birds are here too (which kind, how many, how far they range: see The birds).
+  Birds are here too (which kind, how many, how far they range: see The birds). And Apophis, the great serpent, who
+  gives chase while what he is linked to is on (see Apophis).
 - **Puzzles**: pressure plates, targets and things that smash are either on or off; a door, a bridge or lift, a sand
   fall, a hound or the mummy has "Choose what works it": touch the plates and targets that should, and lines show
   what is joined to what. Also ropes, ladders, blocks to push, checkpoints, signs, and where he starts.
@@ -398,6 +399,9 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/birds.gd` | Birds: a flock of one kind that finds its own perches, ground and water, feeds, goes up when the boy comes near or a gun goes off, wheels, and comes down again; soarers that gather over what lies dead |
 | `scripts/bird_kinds.gd`, `scripts/bird_mesh.gd` | What each kind of bird is, as numbers; and the mesh built from them, with the shader that beats its wings and bends its neck and legs for a whole flock in one draw |
 | `tools/bird_sheets.gd`, `tools/bird_test.gd`, `tools/bird_place_check.gd` | Not part of the game: pictures of every kind of bird and of what each does, and what they cost; a run with nothing drawn that checks they settle, go up, come down, and stay in range and above the ground; and one that puts them into the desert as the editor would |
+| `scripts/apophis.gd` | Apophis, the great serpent: a head that hunts the boy by sight and by his trail, and a body laid along the path the head took and bent to it by a shader; held off by fire and sunlight, stopped by a shut door, sent home when what let him out goes off |
+| `tools/build_apophis.py`, `tools/apophis.blend`, `models/apophis.glb` | Builds his model in Blender: his head on bones, one length of his body, a knife; the same to open and change; and what the game reads |
+| `tools/apophis_test.gd`, `tools/apophis_sheets.gd` | Not part of the game: run him with nothing drawn and check each thing he does; and pictures of him doing them, with what a frame of him costs |
 | `tools/build_boy.py` | Builds the boy in Blender: one continuous body, modelled in a T-pose, in shirt, patched overalls and curls, and his cap as a separate object |
 | `tools/pose_sheets.gd` | Not part of the game: drives the Player through each thing he does and saves pictures of it |
 | `tools/build_hound.py` | Builds the two hounds in Blender from two lists of measurements |
@@ -747,6 +751,116 @@ godot --headless --path . --fixed-fps 60 --script tools/crocodile_test.gd
 The stage is a pond with a sloping bank. Add `lo` for the demade model. Under each gait it prints when each foot came
 down and how far a planted foot slid, and after each `m_` strip any bone that shook or jumped.
 
+
+## Apophis
+
+`Apophis` (`scripts/apophis.gd`) is the chase: a very big snake, 12 to 30 m long and half a metre thick, with a head
+bigger than the boy's chest. He lies coiled, or out of sight down a hole, until he is let out; then he comes after the
+boy and does not give up. `Apophis.new()` is a whole one.
+
+**Where he comes from.** Apep (Apophis is the Greek of it) is the serpent of chaos, who lies in wait in the underworld
+every night to stop the sun god's boat. He is first named in the Coffin Texts of the Middle Kingdom, and the books
+painted in the royal tombs of the New Kingdom, the Amduat and the Book of Gates, show him in the seventh hour of the
+night: a huge snake in many coils on a sandbank, bound, and with knives stuck in him. Set spears him from the prow of
+the boat; in the Book of the Dead (spell 17, and the tomb of Inherkha at Deir el-Medina) Ra as a great cat cuts him
+with a knife under a tree. A papyrus now in London (Bremner-Rhind) is a whole ritual for overthrowing him: he is spat
+on, trampled, speared, cut and burnt in wax, every day. And he is there again the next night: he is never killed.
+So what is true to that here is what he is and how he looks (one enormous snake, yellow, in coils, knives in him), that
+light and fire drive him back, that he cannot be killed, and that he is back the next time. What is ours: that he is
+after a boy and not the sun, that a hand torch is light enough, how he finds his way, and the hole. His markings are
+made up too; the paintings give him none to speak of.
+
+**How he is made.** His head is this node, and is what the world stops. Behind it is kept the path the head has
+taken, and his body is laid along that path: every part of him passes where his head passed, round the same corners,
+over the same kerbs and up the same faces, with a side-to-side wave over it that stands still on the ground while he
+slides through it. At rest the path is a coil, so he leaves it as a snake does, sliding out along himself; called
+home, he winds himself back in. He is drawn as one tube, which its shader bends along 80 places on the path: nothing
+is built each frame but those 80 places.
+
+**What he looks like is a model**, `models/apophis.glb`, built in Blender by `tools/build_apophis.py`, which also
+writes `tools/apophis.blend` to open and change. In it are his head (on bones: `head`, `jaw`, `tongue`, `fangs`), one
+length of his body (1.15 m of it, a saddle and the plates under it), and a knife. There is no picture on him: his
+colours are materials, a face at a time (`back`, `mark`, `edge`, `belly`, `belly_shade`, `mouth`, `tooth`, `tongue`,
+`eye`, `pupil`...). The game reads the model when he is made: it lays the one length end to end for as long as he is,
+thins it at his neck and down his tail, and makes each of the three one thing to draw, with the materials' colours on
+its points. The bones are not used as bones: which bone a point hangs from tells the shader that it goes with the jaw
+(which drops), is the tongue (which flicks), or is a fang (which is drawn out as the jaw drops). So to change how he
+looks, change the .blend (a material's colour, which faces have it, the shape of his head, where a bone starts) or
+the numbers at the top of the script, and build him again:
+
+```
+blender --background --python tools/build_apophis.py [-- <folder for pictures of the model>]
+godot --headless --path . --import
+```
+
+(A model changed by hand in Blender is exported from there as `models/apophis.glb`, glTF binary, +Y up, with its
+skin, and without applying the Array modifier that shows a length of him. The body's pattern must meet itself end to
+end. He has no demade model: he is about 4000 triangles as he is.)
+
+**The chase.**
+
+- His `speed` (3.6 m/s) is between the boy's walk (1.6) and his run (4.4). He goes a little faster than that on the
+  straight (4.0) and a good deal slower in a turn, so a clean run keeps ahead of him and a stumble does not, and a
+  boy who doubles back gains a few metres.
+- He steers straight for the boy while there is a clear line to him. When there is not, he follows the trail the boy
+  left (a place every 0.6 m), which is always a way through. There is no navigation mesh in the game, and he does
+  not use one. Held up against something for a second, he tries the other way round it and keeps to the trail; held
+  up for three, he goes up it.
+- Anything up to `step_over` (1 m) he goes over at once: he rears over it. That is a kerb, a block to push, a crate.
+  He swims, his head just under the surface, and he is low enough to go through a crawl.
+- **A ledge buys time, not safety.** Under one the boy is up on, he rears against it and sways with his head under the
+  boy for `ledge_wait` (3 s). Then he looks along the face to either side for a way up in steps he can go over (the
+  end of the ledge, a ramp, a stair) and goes round by it; and if there is none he goes up the face, at
+  `climb_speed` (0.6 m/s: four seconds for 2.5 m). So a 2.5 m ledge is worth about seven seconds.
+- **The strike.** Only his head catches. Within `strike_distance` (2.3 m) he stops, rears back with his mouth open
+  for `strike_warning` (0.6 s), and throws his head at where the boy was two tenths of a second before; `caught` is
+  emitted only if it finds him, and is wired as the mummy's is. A step to one side in that moment and he misses, and
+  is a second getting his head back. His body is in the way: it pushes the boy aside, and does not hurt him. While
+  he is out he is in the group `pursuers`, so the boy stands wary and watches him.
+- **Light drives him back.** He will not bring his head nearer a `Fire` or a flare than `light_reach` (2.5 m for a
+  torch, 3.4 for a brazier: `Nearby.reach_of`). With the boy inside it he rears, hisses and circles at the edge of
+  it, backs off as it comes at him, and strikes only when the light goes out or the boy leaves it. So a torch in the
+  hand does not end the chase but holds him off, and a lit brazier is a safe place to stand. A fire that is only in
+  his way he goes round. A beam of sunlight (`SunBeam`) is a wall to him, mirrors and all, and he throws himself
+  back if it is turned onto his head. `fears_light` off, he fears neither.
+- **His voice** is made in the script from noise: a long dry hiss, and the scrape of his scales as he moves. Both
+  are louder the nearer his head is to the boy (nothing at forty metres, all of it at three), wherever the camera is,
+  because left alone the camera looks the way the boy runs and he is behind it. He spits when he strikes, and his
+  head on a door is a thud.
+
+**What stops him, and what does not.**
+
+- `loose` is what lets him out (the level editor's "Let out by": he hunts while what he is linked to is on). When it
+  goes off he turns and goes home, back the way he came, and coils up or goes down his hole again. So a lever, a
+  lock or a plate that stays down lets him out for good, and a plate that comes up again calls him off.
+- "Wakes within" (`alert_distance`) wakes him when the boy comes that near where he rests; then only the boy's
+  starting again puts him back.
+- **A door shut in front of his head stops him** (`TombParts.Door`, which is the desert's door too), if it closes a
+  passage: he batters at it and waits, and comes on when it opens. It must be shut before his head is through; his
+  body does not hold it open or mind it shutting. He knows no way to the boy but a clear line and the boy's own
+  trail, so he does not go round by another passage, but a gate standing in open ground stops him only until he
+  can see the boy past it.
+- A beam of sunlight across a passage stops him for as long as it shines, and a fire wide enough to fill one.
+- Not stopped by: a pit or a gap (he goes down and comes up the other side), water, a ledge, a kerb, a block pushed
+  into his way (he goes over it) unless it is more than 8 m high (`climb_limit`), running a long way (he does not
+  tire or lose the trail), or being out of sight. A drop with no bottom takes him out of the world: he is put back
+  where he rests, and comes again.
+- When the boy is caught and starts again, he is back where he rests.
+
+In the level editor he is "Apophis" on the People page: his length, his speed, how near the boy wakes him (0: only
+what he is linked to does), whether he waits coiled or down a hole, whether he fears light, and "Let out by". The
+test yard has him at the east end of its north side, coiled at the end of forty metres to be chased along: a torch
+to pick up, a kerb, a pillar and a block, a ledge, a brazier, and a passage whose gate the plate beyond it shuts.
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/apophis_test.gd [-- trace]
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/apophis_sheets.gd -- <folder> [model head wake hole chase behind kerb ledge torch strike door home daylight cost yard]
+```
+
+The first runs him with nothing drawn and ends PASSED or FAILED: each thing above, and that no part of him is ever
+under the ground nor his head through a wall. The second draws him (add `--rendering-method gl_compatibility` to see
+him as the web build does). A frame of him costs about 0.02 ms to move and 0.06 ms to lay his body (on a desk), and he
+is 3000 to 6200 triangles, by his length, in three things to draw (body, head, knives) and their shadows.
 
 ## The birds
 
