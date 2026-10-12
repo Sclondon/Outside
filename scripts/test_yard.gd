@@ -11,6 +11,7 @@ extends Node3D
 ## hounds and the mummy, and two camels. Run `test_yard.tscn`. The camera orbits; drag to turn it.
 ## (And the parts puzzles are made of, at two stations: `_build_puzzles` and `_build_light_and_water`.)
 ## Oil, to pour and to set light to, has a station too, out to the east, beyond the low bars.
+## Sphinxes have one out to the west, beyond the puzzle parts (`_build_sphinx`).
 ##
 ## The ground is a `SandGround`, made here from `height_at`: dunes from
 ## `SandDunes` (small ones among the stations, big ones all round), pressed
@@ -52,6 +53,9 @@ const MEDJED := Rect2(76, 12, 9.5, 8)
 
 ## The gate guardians' station, south of the railway and beyond the rest: its middle, and how far it runs each way.
 const GUARDIANS := Rect2(0, 77, 12, 9)
+
+## Level ground for the sphinxes, out to the west beyond the rest: its middle, and how far it runs each way.
+const SPHINXES := Rect2(-85, -12, 15, 14)
 ## The kinds of ground, laid in a row to walk along: the middle of the row, how
 ## far it runs each way (it is level, like a patch of `FLATS`), and how far it
 ## is from the middle of one kind to the middle of the next.
@@ -123,6 +127,8 @@ func _ready() -> void:
 	_build_medjed(Vector3(MEDJED.position.x, 0.0, MEDJED.position.y))
 
 	_build_guardians(Vector3(GUARDIANS.position.x, 0.0, GUARDIANS.position.y))
+
+	_build_sphinx(Vector3(SPHINXES.position.x, 0.0, SPHINXES.position.y))
 	_settle_in.call_deferred()
 
 
@@ -190,6 +196,9 @@ func _shaped(dunes: float, x: float, z: float) -> float:
 	# (the gate guardians' ground lies outside the rest, and is levelled by itself)
 	var keepers := (Vector2(x, z) - GUARDIANS.position).abs() - GUARDIANS.size
 	level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(keepers.x, 0.0), maxf(keepers.y, 0.0)).length()))
+
+	var by_sphinxes := (Vector2(x, z) - SPHINXES.position).abs() - SPHINXES.size
+	level = minf(level, smoothstep(0.0, EASE, Vector2(maxf(by_sphinxes.x, 0.0), maxf(by_sphinxes.y, 0.0)).length()))
 	var rim := 5.0 * smoothstep(YARD - 30.0, YARD, maxf(absf(x), absf(z)))
 	var open := dunes * level + rim - hollow
 	# The pond: a dish in the sand, its rim at the level of the water.
@@ -1469,3 +1478,59 @@ a wrong name and the keeper strikes", 4.4)
 		leaf.position = at + (entry[0] as Vector3)
 		add_child(leaf)
 	_sign(at + Vector3(6.0, 2.2, 5.0), "all three named")
+
+## Sphinxes (`scripts/sphinx.gd`), out to the west beyond the puzzle parts. A great one that wants the scarab amulet
+## and then opens itself: a way through its chest and out under its tail, and a gate beside it that it opens too. The
+## things to give it lie in a row in front of it, most of them wrong. A small ram-headed one that is wrathful and
+## wants fire; a painted falcon-headed one that wants a stone; and one buried to its neck, with a lever that clears
+## the sand from it.
+func _build_sphinx(at: Vector3) -> void:
+	_mark_here(at + Vector3(14.0, 0.0, 0.0), "SPHINXES
+go between the paws and it asks a riddle
+put the answer on the slab, or throw it there", 4.2)
+	var great := Sphinx.new()
+	great.size = 12.0
+	great.wants = 2
+	great.opens_itself = true
+	_part(great, at + Vector3(-2.0, 0.0, 0.0), PI * 0.5)
+	var gate := _gate(at + Vector3(4.0, 0.0, 7.0), "the great one opens this")
+	great.changed.connect(func(on: bool) -> void: gate.is_open = on)
+	_keep(_part(ScarabAmulet.new(), at + Vector3(9.0, 0.1, -3.0)) as RigidBody3D)
+	_keep(_part(DoorKey.new(), at + Vector3(9.0, 0.1, -1.8)) as RigidBody3D)
+	_keep(_set_down("res://props/jar_canopic.tscn", at + Vector3(9.0, 0.25, -0.6)) as RigidBody3D)
+	_keep(_set_down("res://props/rock_small.tscn", at + Vector3(9.0, 0.15, 0.6)) as RigidBody3D)
+	_keep(_set_down("res://props/rock_small.tscn", at + Vector3(9.0, 0.15, 1.4)) as RigidBody3D)
+	var torch := HandTorch.new()
+	torch.position = at + Vector3(9.0, 0.02, 2.6)
+	torch.rotation.z = 0.12
+	torch.freeze = true
+	add_child(torch)
+	_keep(torch)
+	# A small one with a ram's head, which strikes at the third wrong thing.
+	var ram := Sphinx.new()
+	ram.size = 2.5
+	ram.head = Sphinx.Head.RAM
+	ram.wants = 0
+	ram.wrathful = true
+	ram.wear = 0.1
+	_part(ram, at + Vector3(10.0, 0.0, 9.5), PI * 0.5)
+	ram.caught.connect(_on_caught.bind(ram))
+	_sign(at + Vector3(10.0, 2.4, 9.5), "wrathful: three wrong things")
+	# A painted one with a falcon's head.
+	var falcon := Sphinx.new()
+	falcon.size = 4.0
+	falcon.head = Sphinx.Head.FALCON
+	falcon.wants = 8
+	falcon.painted = true
+	falcon.wear = 0.0
+	_part(falcon, at + Vector3(10.0, 0.0, -10.0), PI * 0.5)
+	# One in sand to its neck, and the lever that has the sand cleared away.
+	var sunk := Sphinx.new()
+	sunk.size = 6.0
+	sunk.wants = 6
+	sunk.wear = 0.75
+	sunk.buried = 0.9
+	_part(sunk, at + Vector3(-8.0, 0.0, -10.0), PI * 0.5)
+	var lever := _part(Lever.new(), at + Vector3(1.0, 0.0, -11.5), PI * 0.5) as Lever
+	lever.changed.connect(func(on: bool) -> void: sunk.uncovering = on)
+	_sign(at + Vector3(1.0, 2.2, -11.5), "the lever clears the sand")

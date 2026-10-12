@@ -375,6 +375,8 @@ func _made(item: Dictionary) -> Node3D:
 			return label
 		"inscription":
 			return Inscription.from_item(item)
+		"sphinx":
+			return Sphinx.from_item(item)
 	return null
 
 
@@ -521,7 +523,7 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 		(made as Medjed).caught.connect(_on_caught.bind(made))
 	# The puzzle parts that are on or off say so themselves, as a plate does: a lever, a lock, a sun disc, an offering
 	# table, a brazier to light. (And a timed plate that only he presses is told so here, once it is in the level.)
-	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier:
+	if made is Lever or made is KeyLock or made is SunDisc or made is OfferingTable or made is ColdBrazier or made is Sphinx:
 		_on[id] = bool(made.get(&"on"))
 		made.connect(&"changed", func(on: bool) -> void: _on[id] = on)
 	elif made is GateGuardian:
@@ -545,6 +547,9 @@ func _wire(item: Dictionary, made: Node3D) -> void:
 	if made is ScarabSwarm:
 		# (it finds him itself, and goes home itself when he starts again)
 		(made as ScarabSwarm).caught.connect(_on_caught.bind((made as ScarabSwarm).front))
+	if made is Sphinx:
+		# (a wrathful one strikes him; and what it is linked to clears its sand: see `_physics_process`)
+		(made as Sphinx).caught.connect(_on_caught.bind(made))
 	if item.has("links") or item["kind"] in ["door", "mover", "sandfall"] or made is Hound or made is Mummy:
 		made.set_meta(&"home", made.position)
 		_worked.append([item, made])
@@ -663,6 +668,8 @@ func _physics_process(delta: float) -> void:
 			(node as SandFall).running = bool(item.get("running", true)) != worked
 		elif node is Sluice:
 			(node as Sluice).open = worked
+		elif node is Sphinx:
+			(node as Sphinx).uncovering = worked
 		elif node is SunBeam:
 			(node as SunBeam).shining = bool(item.get("shining", true)) != worked
 		elif node is Hound:

@@ -53,6 +53,8 @@ const TRIGGERS := ["plate", "thing"]
 ## And the other puzzle parts that can: a lever, a lock, a sun disc, an offering table, a brazier to light.
 const PUZZLE_TRIGGERS := ["lever", "lock", "sundisc", "offering", "brazier", "guardian"]
 
+const PUZZLE_TRIGGERS := ["lever", "lock", "sundisc", "offering", "brazier", "sphinx"]
+
 ## Whether it is laid out for a phone (see `wants_phone`). Set before it goes into the tree, to have the other.
 var phone := wants_phone()
 var level: Desert
