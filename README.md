@@ -148,6 +148,7 @@ and keep it in the same form.
 - **People**: townspeople (who, and how far they wander), his brother, a cat, hounds (which give chase when he comes
   within their distance, or when something sets them on) and the mummy, of whichever kind ("Kind": see The mummies).
   Birds are here too (which kind, how many, how far they range: see The birds).
+  And the Ba, a spirit bird that leads him along a line of points (see The Ba).
 - **Puzzles**: pressure plates, targets and things that smash are either on or off; a door, a bridge or lift, a sand
   fall, a hound or the mummy has "Choose what works it": touch the plates and targets that should, and lines show
   what is joined to what. Also ropes, ladders, blocks to push, checkpoints, signs, and where he starts.
@@ -398,6 +399,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/birds.gd` | Birds: a flock of one kind that finds its own perches, ground and water, feeds, goes up when the boy comes near or a gun goes off, wheels, and comes down again; soarers that gather over what lies dead |
 | `scripts/bird_kinds.gd`, `scripts/bird_mesh.gd` | What each kind of bird is, as numbers; and the mesh built from them, with the shader that beats its wings and bends its neck and legs for a whole flock in one draw |
 | `tools/bird_sheets.gd`, `tools/bird_test.gd`, `tools/bird_place_check.gd` | Not part of the game: pictures of every kind of bird and of what each does, and what they cost; a run with nothing drawn that checks they settle, go up, come down, and stay in range and above the ground; and one that puts them into the desert as the editor would |
+| `scripts/ba.gd`, `scripts/ba_mesh.gd` | The Ba, a bird with a man'"'"'s head that leads the boy from place to place, calls him and comes back for him, and comes and goes with a switch; and what it looks like, made in code |
+| `tools/ba_sheets.gd`, `tools/ba_test.gd` | Not part of the game: pictures of the Ba and of each thing it does; and a run with nothing drawn that checks them |
 | `tools/build_boy.py` | Builds the boy in Blender: one continuous body, modelled in a T-pose, in shirt, patched overalls and curls, and his cap as a separate object |
 | `tools/pose_sheets.gd` | Not part of the game: drives the Player through each thing he does and saves pictures of it |
 | `tools/build_hound.py` | Builds the two hounds in Blender from two lists of measurements |
@@ -1050,6 +1053,70 @@ The first draws all of it (strips are consecutive moments) and, with `cost`, pri
 50, 100 and 200 beetles. The second runs it with nothing drawn and ends PASSED or FAILED: they come out, go for him, are
 held off by a torch, catch him without one, give up when he is up on a block or across water or too far, go over a
 step, and come out when he comes near; and a web tears and a web burns.
+
+## The Ba
+
+`Ba.new()` is a Ba (`scripts/ba.gd`): the part of a dead man that flies out of his tomb by day, which the Book of the
+Dead draws as a bird with his own head. Here it is a friend, the spirit of whoever lies in the tomb, and it shows the
+boy the way. It is a falcon's body half a metre high, pale, with painted wings (turquoise, a line of gold, long pale
+feathers tipped with blue), a man's head in the striped headcloth, and two small arms that it holds up when it calls.
+It shines a little, with a soft light round it and a small one that reaches a couple of metres, so it is seen in a
+dark tomb. That light is not a fire: nothing that looks for fires finds it.
+
+```gdscript
+var ba := Ba.new()
+ba.route = [first_place, second_place, the_last_place]   # in the world; or give it Marker3D children
+ba.position = where_it_waits
+add_child(ba)
+ba.arrived.connect(...)     # it has landed at somewhere it was leading him to
+ba.finished.connect(...)    # he has come to the last place with it
+ba.lead_to(the_door)        # or: one thing, or one place, to lead him to from wherever it is
+ba.show_way(points)         # or: fly these places once, look back, and come back (`came_back`): a hint
+ba.on = false               # it flies off and is gone; true, and it flies in out of the air
+```
+
+- **Leading.** It sits and watches him, its head turned to him. When he comes within `near` (4 m) it takes off and
+  flies ahead: to the next place, or `hop` (10 m) towards it, or less far if he could not see it there; lands, turns
+  round to look back at him, and waits. If he comes no nearer it calls (two soft notes, made in code, wings half out
+  and arms up), and when he has hung back for `patience` seconds (14), or gone well off the other way, it flies back,
+  lands beside him on the side it wants him to go, calls, and flies ahead again. Each time it has to come back it
+  waits longer before the next. At the last place it stays, or with `leaves_at_end` it goes once he has come.
+- **Only there.** With no way to lead it sits where it is put and watches him. With `shy` as well it sits on what is
+  high within `roam` of there (the tops of solid things, and any Marker3D in the groups `perches` or `bird_perches`)
+  and flits to the perch furthest from him when he comes near.
+- **Flying.** A crouch, hard beats to get up, beats and glides by turns, a lean into every turn, and a rearing back
+  with its legs down to land; its head stays level through all of it. Before it goes anywhere it finds a way that
+  touches nothing, by sweeping a ball along it: straight, or higher (as high as a roof lets it), or round one side.
+  If there is no way at all (a shut room) it goes as a spirit can: it fades where it is and comes back where it was
+  going (`spirited` counts these). It lands only where there is room for it, on whatever is under the place it was
+  given, so a place put a little over a block is the top of the block.
+- **It is not a body.** Nothing can touch it, catch it or be stopped by it; hounds, mummies and the rest do not know
+  it is there. The boy glances at it (it is in the group `interest`).
+- **How it is drawn** (`scripts/ba_mesh.gd`). About 830 triangles in eight pieces made in code (body and tail, head,
+  each wing in two halves, legs, arms) and moved by the script, in one material that lights it in two flat tones,
+  draws the stripes of the headcloth, adds its own shine, and thins it away when it comes and goes by leaving out
+  points of it. It casts no shadow.
+
+In the level editor it is "Ba (spirit bird)" on the People page. Its way is a line of points, as a river's is: drag
+each, add more with Points, take the last away (down to the one it sits at, which leaves it only there). It has Shy,
+how near he comes before it flies on, how far ahead it flies, how long before it comes back for him, whether it goes
+at the end, and "Called by": link it to a plate, a lever or anything else that is on or off and it is not there until
+that is on (and, unless "Stays once it has come" is off, stays after). With nothing linked it is there from the start.
+
+The test yard has a station for it, out beyond the scarabs and the grappling hook to the north (about -4, -76): one to follow
+round a wall to a block, a shy one on three posts, and two plates, one that calls a third out of the air and one that
+has it show the way round the wall.
+
+```
+godot --path . --fixed-fps 60 --resolution 960x960 --script tools/ba_sheets.gd -- <folder> [model wings far flight lead fetch appear shy show dark yard]
+godot --headless --path . --fixed-fps 60 --script tools/ba_test.gd
+```
+
+The first draws it (strips are consecutive moments). The second runs it with nothing drawn and ends PASSED or FAILED:
+it waits, flies when he nears, lands ahead where he can see it, goes round a wall and under a roof, calls and comes
+back when he hangs back or strays, ends at the last place, comes and goes with its switch, goes as a spirit out of a
+shut room, flits when shy, shows a way, is made and linked in the desert as the editor makes it, and is never inside
+anything solid or under the ground.
 
 ## Cobwebs
 
