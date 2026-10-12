@@ -39,6 +39,20 @@ void vertex() {
 	tint = CUSTOM0.rgb;
 }
 
+// The web's renderer (gl_compatibility) takes ALBEDO and EMISSION as colours for the screen and makes them into
+// light itself; the others take them as light. A colour that comes point by point (CUSTOM0) is not made
+// ready by either, so here it is light (see `srgb_to_linear` where the mesh is made) and worked in as light, and
+// for the web's renderer is made a colour for the screen again at the last, that both show the same thing.
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+vec3 shown(vec3 light) {
+	return mix(light * 12.92, 1.055 * pow(max(light, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), light));
+}
+#else
+vec3 shown(vec3 light) {
+	return light;
+}
+#endif
+
 void fragment() {
 	if (fade < 0.999) {
 		float grain = fract(52.9829189 * fract(dot(floor(FRAGCOORD.xy), vec2(0.06711056, 0.00583715))));
@@ -47,10 +61,10 @@ void fragment() {
 		}
 	}
 	// (what it gives out it does not also take: it is no brighter in the sun for shining)
-	ALBEDO = tint * (1.0 - glow * 0.5);
+	ALBEDO = shown(tint * (1.0 - glow * 0.5));
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
-	EMISSION = tint * glow;
+	EMISSION = shown(tint * glow);
 	// (the wings are flat and seen from both sides)
 	if (dot(NORMAL, VIEW) < 0.0) {
 		NORMAL = -NORMAL;

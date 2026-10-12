@@ -54,6 +54,14 @@ var _jump_alpha := 0.0
 var _duck_alpha := 0.0
 var _act_alpha := 0.0
 var _hint_alpha := 0.0
+## Whether a finger has been on the screen since the game started (a mouse made to stand for one does not count).
+static var touched := false
+
+
+## Whether the controls are to be drawn, and the editors laid out for a phone: on a phone or a tablet, in its own
+## game or in its browser; and anywhere else once a finger has really been on the screen. Never for a mouse.
+static func wanted() -> bool:
+	return touched or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
 
 
 func _init() -> void:
@@ -62,13 +70,15 @@ func _init() -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Shown on anything with a touch screen, and on the web always: a phone's browser
-	# does not always own up to having one. (Elsewhere they appear at the first touch.)
-	_hint_alpha = 1.0 if DisplayServer.is_touchscreen_available() or OS.has_feature("web") else 0.0
+	# Shown on a phone from the start; on a desk only once a finger has been on the screen (`wanted`).
+	_hint_alpha = 1.0 if wanted() else 0.0
 
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
+		# (a mouse standing for a finger still works them, but does not bring them up)
+		if event.device != InputEvent.DEVICE_ID_EMULATION:
+			touched = true
 		var pos: Vector2 = make_input_local(event).position
 		if event.pressed:
 			_press(event.index, pos)
@@ -116,7 +126,8 @@ func _press(index: int, pos: Vector2) -> void:
 	# The top right corner belongs to the menu button.
 	if pos.y < 64.0 and pos.x > size.x - 130.0:
 		return
-	_hint_alpha = 1.0
+	if wanted():
+		_hint_alpha = 1.0
 	var reach := _button_radius() * 1.3
 	if pos.x < size.x * stick_zone:
 		if _stick_index == -1:
