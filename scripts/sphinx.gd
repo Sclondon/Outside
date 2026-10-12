@@ -111,6 +111,7 @@ var sand := 0.0
 
 enum Stage { NONE, TAKING, WEIGHING, REFUSING }
 
+var _stone: SphinxMesh.Carved
 var _foot := 0.1
 var _slab_top := 0.2
 var _head: Node3D
@@ -267,29 +268,30 @@ func _exit_tree() -> void:
 # --- Making it
 
 func _build() -> void:
-	var parts := SphinxMesh.carve(size, int(head), wear, painted, colour, opens_itself)
-	_foot = parts["foot"]
+	# (kept hold of: another sphinx that is the same in every way shares it)
+	_stone = SphinxMesh.carve(size, int(head), wear, painted, colour, opens_itself)
+	_foot = _stone.foot
 	var body := MeshInstance3D.new()
 	body.name = "Body"
-	body.mesh = parts["body"]
+	body.mesh = _stone.body
 	add_child(body)
-	for solid: Array in parts["solids"]:
+	for solid: Array in _stone.solids:
 		var collider := CollisionShape3D.new()
 		collider.shape = solid[0]
 		collider.position = solid[1]
 		add_child(collider)
 	_paw = Node3D.new()
 	_paw.name = "Paw"
-	_paw.position = parts["paw_at"]
+	_paw.position = _stone.paw_at
 	var paw := MeshInstance3D.new()
-	paw.mesh = parts["paw"]
+	paw.mesh = _stone.paw
 	_paw.add_child(paw)
 	add_child(_paw)
 	_head = Node3D.new()
 	_head.name = "Head"
-	_head.position = parts["head_at"]
+	_head.position = _stone.head_at
 	var skull := MeshInstance3D.new()
-	skull.mesh = parts["head"]
+	skull.mesh = _stone.head
 	_head.add_child(skull)
 	add_child(_head)
 	# Its eyes: dark stone until they open, and then lit from inside.
@@ -298,7 +300,7 @@ func _build() -> void:
 	_eye_material.metallic_specular = 0.0
 	_eye_material.emission_enabled = true
 	var between := Vector3.ZERO
-	for eye: Array in parts["eyes"]:
+	for eye: Array in _stone.eyes:
 		var lid := MeshInstance3D.new()
 		lid.mesh = eye[2]
 		lid.material_override = _eye_material
@@ -306,7 +308,7 @@ func _build() -> void:
 		lid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_head.add_child(lid)
 		_eyes.append(lid)
-		between += (eye[0] as Vector3) / maxf((parts["eyes"] as Array).size(), 1.0)
+		between += (eye[0] as Vector3) / maxf(_stone.eyes.size(), 1.0)
 	_light = OmniLight3D.new()
 	_light.position = between + Vector3(0.0, -0.02, 0.16) * size
 	_light.omni_range = size * 0.55 + 2.0
@@ -318,7 +320,7 @@ func _build() -> void:
 	_dust = Dust.new()
 	add_child(_dust)
 	_speaker = AudioStreamPlayer3D.new()
-	_speaker.position = parts["head_at"]
+	_speaker.position = _stone.head_at
 	_speaker.unit_size = 5.0 + size
 	_speaker.max_distance = 60.0 + size * 3.0
 	add_child(_speaker)
@@ -335,18 +337,23 @@ func _build() -> void:
 
 
 # The offering slab between its paws: low, with the mat and the loaf of the sign for an offering cut in the top of it.
+# (It is the model's `slab`, made as long and wide as the sphinx wants and as tall as suits him.)
 func _slab() -> void:
 	var tall := clampf(size * 0.03, 0.08, 0.3)
 	var across := Vector3(SphinxMesh.SLAB_HALF.x * 2.0 * size, tall, SphinxMesh.SLAB_HALF.y * 2.0 * size)
 	var at := Vector3(0.0, _foot + tall * 0.5, SphinxMesh.SLAB * size)
 	_slab_top = _foot + tall
 	PuzzleKit.shape(self, at, across)
-	PuzzleKit.box(self, at, across, PuzzleKit.stone(colour.darkened(0.18)))
-	PuzzleKit.box(self, Vector3(0.0, _slab_top + 0.003, at.z + across.z * 0.24), Vector3(across.x * 0.62, 0.006, across.z * 0.2), PuzzleKit.stone(colour.darkened(0.55)))
-	PuzzleKit.rod(self, Vector3(0.0, _slab_top + 0.003, at.z - across.z * 0.12), across.x * 0.2, 0.006, Toon.gold(), -1.0, 14)
+	var slab := MeshInstance3D.new()
+	slab.name = "Slab"
+	slab.mesh = SphinxMesh.piece("slab", Vector3(size, tall / SphinxMesh.SLAB_TALL, size),
+			{"slab_stone": PuzzleKit.stone(colour.darkened(0.18)), "slab_mat": PuzzleKit.stone(colour.darkened(0.55)), "gold": Toon.gold()})
+	slab.position = Vector3(0.0, _foot, at.z)
+	add_child(slab)
 
 
 # The stele against its chest: a slab with a round top, the sun's disc in the round, and the riddle under it.
+# (The model's `stele`, made as wide and tall as the sphinx wants and as thick as will stand.)
 func _stand_stele() -> void:
 	var wide := 0.104 * size
 	var tall := 0.165 * size
@@ -357,12 +364,14 @@ func _stand_stele() -> void:
 	_stele.set_meta(&"surface", "stone")
 	var box := Vector3(wide, tall, thick)
 	PuzzleKit.shape(_stele, Vector3(0.0, tall * 0.5, 0.0), box)
-	var stone := PuzzleKit.box(_stele, Vector3(0.0, tall * 0.5, 0.0), box, PuzzleKit.stone(colour.lightened(0.06)))
-	var round := PuzzleKit.rod(_stele, Vector3(0.0, tall, 0.0), wide * 0.5, thick, PuzzleKit.stone(colour.lightened(0.06)), -1.0, 16)
-	round.rotation.x = PI * 0.5
-	var disc := PuzzleKit.rod(_stele, Vector3(0.0, tall + wide * 0.17, thick * 0.5), wide * 0.13, 0.01 + size * 0.002, Toon.gold(), -1.0, 12)
-	disc.rotation.x = PI * 0.5
-	_carved = Inscription.on_box(stone, box, Vector3.BACK, riddle_text(), {"colour": colour.lightened(0.06), "wear": wear * 0.6, "painted": painted}, wide * 0.07)
+	var stone := MeshInstance3D.new()
+	stone.mesh = SphinxMesh.piece("stele", Vector3(size, size, thick / SphinxMesh.STELE_THICK), {"stele_stone": PuzzleKit.stone(colour.lightened(0.06)), "gold": Toon.gold()})
+	_stele.add_child(stone)
+	# (the riddle is written on the flat of it, below the round)
+	var flat := Node3D.new()
+	flat.position.y = tall * 0.5
+	_stele.add_child(flat)
+	_carved = Inscription.on_box(flat, box, Vector3.BACK, riddle_text(), {"colour": colour.lightened(0.06), "wear": wear * 0.6, "painted": painted}, wide * 0.07)
 	add_child(_stele)
 	_place_stele()
 
