@@ -53,6 +53,8 @@ const PALETTE := {
 		["Boulder", "prop", "rock_a"], ["Rock", "prop", "rock_b"],
 		["Cobweb: corner", "cobweb", "corner"], ["Cobweb: across a passage", "cobweb", "sheet"], ["Cobweb: hanging", "cobweb", "hanging"], ["Cobweb: draped", "cobweb", "drape"],
 		["Inscription", "inscription", ""],
+		# The temples of Abu Simbel, at their true size (`scripts/abu_simbel.gd`).
+		["Abu Simbel", "abusimbel", ""],
 	],
 	"Camp": [
 		["Palm", "prop", "palm_a"], ["Bent palm", "prop", "palm_b"], ["Small palm", "prop", "palm_c"],
@@ -134,6 +136,10 @@ const FIELDS := {
 	"pyramid:fallen": [["base", "Width", "n", 8.0, 120.0, 1.0, 30.0], ["slope", "Steepness", "n", 40.0, 65.0, 1.0, 54.0], ["rise", "Height of a course", "n", 0.6, 1.6, 0.05, 1.35],
 		["casing", "Smooth casing left", "n", 0.0, 1.0, 0.05, 0.0], ["cap", "Gold cap", "b", false], ["ruin", "Ruined", "n", 0.0, 1.0, 0.05, 0.5],
 		["seed", "Which ruin", "n", 0.0, 99.0, 1.0, 1.0], ["door", "Doorway", "b", false], ["stone", "Stone", "c", ["Sandstone", "Pale limestone", "Red sandstone", "Dark stone"], 0]],
+	# The temples of Abu Simbel (`scripts/abu_simbel.gd`). It is on while the sun down its axis reaches the sanctuary: so it works what a plate works.
+	"abusimbel": [["scale", "Size (1 is the true size)", "n", 0.5, 1.0, 0.05, 1.0], ["which", "Which", "c", ["Both temples", "The Great Temple", "The Small Temple"], 0],
+		["drift", "Sand drift", "n", 0.0, 1.0, 0.05, 0.35], ["wear", "Weathered", "n", 0.0, 1.0, 0.05, 0.4], ["painted", "Painted inside", "b", true],
+		["sun", "The sun on its axis", "b", false]],
 	"pad": [["y", "Height", "n", -12.0, 40.0, 0.1, 0.0], ["half_x", "Half width", "n", 1.0, 80.0, 0.5, 8.0], ["half_z", "Half length", "n", 1.0, 80.0, 0.5, 8.0],
 		["round", "Round", "b", true], ["ease", "Rise of the dunes round it", "n", 0.5, 40.0, 0.5, 10.0]],
 	"dune": [["width", "Width", "n", 8.0, 140.0, 1.0, 46.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 6.0], ["horns", "Horns", "n", 0.2, 0.9, 0.01, 0.55]],
