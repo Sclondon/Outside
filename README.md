@@ -375,7 +375,6 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/sphinx.gd` | A sphinx: a statue to climb on that wakes when he comes between its paws, asks a riddle, is on for good when it is given the thing that answers it, knocks a wrong thing away, and can lie buried in sand until something clears it |
 | `scripts/sphinx_mesh.gd` | Its stone, carved from numbers: the lion, and a king's, a ram's or a falcon's head; and what of it is solid |
 | `tools/sphinx_test.gd`, `tools/sphinx_sheets.gd` | Not part of the game: run the sphinx with nothing drawn and say what happened; and draw it |
-
 | `scripts/temple.gd` | A temple made from numbers: pylon, courts, halls of columns, sanctuary, enclosure wall; set out as Edfu, Luxor, Kom Ombo or your own; ruin, sand, paint |
 | `scripts/temple_parts.gd`, `scripts/temple_stone.gd` | Reads the temple's models and places them, builds its plain walls and floors, and keeps what is solid; the shader all its stone is drawn with (courses, rows of relief, paint, granite), the light through its roof, and the figures cut in its pylon |
 | `tools/build_temple.py`, `tools/temple.blend`, `models/temple/temple.glb` | The temple's parts as models: the script that builds them in Blender, the file to look at and change them in, and what the game reads |
