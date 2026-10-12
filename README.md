@@ -399,7 +399,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/birds.gd` | Birds: a flock of one kind that finds its own perches, ground and water, feeds, goes up when the boy comes near or a gun goes off, wheels, and comes down again; soarers that gather over what lies dead |
 | `scripts/bird_kinds.gd`, `scripts/bird_mesh.gd` | What each kind of bird is, as numbers; and the mesh built from them, with the shader that beats its wings and bends its neck and legs for a whole flock in one draw |
 | `tools/bird_sheets.gd`, `tools/bird_test.gd`, `tools/bird_place_check.gd` | Not part of the game: pictures of every kind of bird and of what each does, and what they cost; a run with nothing drawn that checks they settle, go up, come down, and stay in range and above the ground; and one that puts them into the desert as the editor would |
-| `scripts/ba.gd`, `scripts/ba_mesh.gd` | The Ba, a bird with a man'"'"'s head that leads the boy from place to place, calls him and comes back for him, and comes and goes with a switch; and what it looks like, made in code |
+| `scripts/ba.gd`, `scripts/ba_mesh.gd` | The Ba, a bird with a man's head that leads the boy from place to place, calls him and comes back for him, and comes and goes with a switch; and its model read and made ready to draw |
+| `tools/build_ba.py` | Builds the Ba in Blender (`tools/ba.blend`, `models/ba.glb`): separate named things and named materials, no bones |
 | `tools/ba_sheets.gd`, `tools/ba_test.gd` | Not part of the game: pictures of the Ba and of each thing it does; and a run with nothing drawn that checks them |
 | `tools/build_boy.py` | Builds the boy in Blender: one continuous body, modelled in a T-pose, in shirt, patched overalls and curls, and his cap as a separate object |
 | `tools/pose_sheets.gd` | Not part of the game: drives the Player through each thing he does and saves pictures of it |
@@ -1092,10 +1093,24 @@ ba.on = false               # it flies off and is gone; true, and it flies in ou
   given, so a place put a little over a block is the top of the block.
 - **It is not a body.** Nothing can touch it, catch it or be stopped by it; hounds, mummies and the rest do not know
   it is there. The boy glances at it (it is in the group `interest`).
-- **How it is drawn** (`scripts/ba_mesh.gd`). About 830 triangles in eight pieces made in code (body and tail, head,
-  each wing in two halves, legs, arms) and moved by the script, in one material that lights it in two flat tones,
-  draws the stripes of the headcloth, adds its own shine, and thins it away when it comes and goes by leaving out
-  points of it. It casts no shadow.
+- **The model** is `models/ba.glb`, built in Blender by `tools/build_ba.py`, which also keeps `tools/ba.blend` to
+  look at and change by hand. It has no bones: it is separate things, each named for what it is (`body`, `head`,
+  `wing_arm` and `wing_hand` for the two halves of a wing, `legs`, `arms`; the other wing is the same two turned
+  over), and each thing's origin is where it is hinged, so moving an origin moves the joint. Its colours are
+  materials with plain names (`feather`, `turquoise`, `gold`, `skin`, `cloth_gold`, `cloth_blue`...); the stripes of
+  the headcloth are cut into it. To build it again, and have Godot take it up:
+
+  ```
+  blender --background --python tools/build_ba.py
+  godot --headless --path . --import
+  ```
+
+  (Changed by hand in `tools/ba.blend` instead, it is exported from there as glTF to `models/ba.glb`, +Y up; running
+  the script again would overwrite both.)
+- **How it is drawn** (`scripts/ba_mesh.gd`). About 980 triangles. Each of its things is made into one mesh in one
+  material when the model is first read, every point keeping the colour of the material it had, so a Ba is eight
+  things to draw however many colours it is painted in. That material lights it in two flat tones, adds its own
+  shine, and thins it away when it comes and goes by leaving out points of it. It casts no shadow.
 
 In the level editor it is "Ba (spirit bird)" on the People page. Its way is a line of points, as a river's is: drag
 each, add more with Points, take the last away (down to the one it sits at, which leaves it only there). It has Shy,
