@@ -806,6 +806,8 @@ func _drive_custom() -> void:
 		failed = true
 	if pick == "" and not await _sphinx_holds():
 		failed = true
+	if pick == "" and not await _gaze_holds():
+		failed = true
 	if walked and pick == "" and not await _carried_back3():
 		failed = true
 	_say_tally()
@@ -938,6 +940,75 @@ func _sphinx_holds() -> bool:
 	return sound and done and kept
 
 
+# Medjed by himself. With his eyes open the boy is run at him flat out (as
+# fast as he ever goes), down each side of the way and down the middle, and
+# then from behind him back towards the door: each time he must be struck down
+# well short, and put back at the last door. Then the tomb is played through.
+func _gaze_holds() -> bool:
+	await _open(0, 0, Shapes.one_medjed())
+	var layout := level.layout
+	var part := {}
+	for found in layout.parts:
+		if found["kind"] == "medjed":
+			part = found
+	var link: TombPlan.Link = level.plan.links[part["link"]]
+	var medjed: Medjed = level.built.watchers[link.id]
+	var post: Vector3 = part["at"]
+	var along := _along(link) if walked else Vector3.RIGHT
+	var across := Vector3(-along.z, 0.0, along.x)
+	var door: Vector3 = layout.door_at[link.id]
+	door.y = post.y
+	var was_speed := player.run_speed
+	player.run_speed = player.sprint_speed
+	var sound := true
+	var said: PackedStringArray = []
+	var runs: Array = [[0.0, false]]
+	if walked:
+		runs = [[-1.45, false], [0.0, false], [1.45, false], [-1.45, true], [1.45, true]]
+	else:
+		runs.append([0.0, true])
+	for run: Array in runs:
+		var lane: float = run[0]
+		var behind: bool = run[1]
+		var deaths := level.deaths
+		var from := (post + along * 2.5 if behind else door - along * 1.8) + across * lane
+		var to := (door - along * 4.0 if behind else post + along * 4.0) + across * lane
+		player.global_position = from + Vector3.UP * 0.1
+		player.velocity = Vector3.ZERO
+		await _wait(20)
+		var got := INF
+		for i in 420:
+			var at := player.global_position
+			var way := _flat(at, to).normalized()
+			touch.move = _stick(way, 1.0) if walked else Vector2(way.x, 0.0)
+			await _wait(1)
+			if not player.is_limp and level.deaths == deaths:
+				# (how near he came to being by: to Medjed from in front, to the door from behind)
+				got = minf(got, (at - door).dot(along) if behind else (post - at).dot(along))
+			if level.deaths > deaths and not player.is_limp:
+				break
+		_still()
+		await _wait(60)
+		var struck := level.deaths == deaths + 1 and got > 1.0
+		said.append("%s%s: %s, %.1f m short" % ["from behind" if behind else "from in front", (" %+.1f off the middle" % lane) if walked else "", "struck down" if level.deaths > deaths else "NOT STRUCK", got])
+		sound = sound and struck
+	player.run_speed = was_speed
+	print("  Medjed, his eyes open, run at flat out (%.1f m/s): %s: %s" % [player.sprint_speed, "; ".join(said), "nobody gets by" if sound else "HE GOT BY, OR NEARLY"])
+	# (being put down behind Medjed made the door beyond him the place to start again from, which it never is for
+	# a player who has not got by: he is put back before the doorway, and the tomb is played from there)
+	var before: Vector3 = part["stand"]
+	player.set_spawn(before + Vector3.UP * 0.05)
+	player.global_position = before + Vector3.UP * 0.05
+	player.velocity = Vector3.ZERO
+	await _wait(30)
+	var done := await _play_through("Medjed")
+	var shut := medjed.is_shut() and level.deaths == runs.size()
+	print("  Medjed, the block on its plate: %s" % ("his eyes are shut, and he was walked past" if shut and done else "HIS EYES DID NOT SHUT, or he struck again"))
+	level.get_parent().queue_free()
+	await _wait(5)
+	return sound and done and shut
+
+
 ## A tomb whose only way on is up the sand, which a block on its plate lets in.
 func only_sand() -> Dictionary:
 	return Shapes.only_sand()
@@ -1050,7 +1121,12 @@ func _play_through(called: String) -> bool:
 	var stopped := ""
 	for i in plan.solution.size():
 		var step: Array = plan.solution[i]
+		var died := level.deaths
 		var ok := await _do_step(step)
+		if not ok and level.deaths > died and not level.finished:
+			# (he died on the way, and is back at the last door: the step is tried once more from there)
+			await _wait(200)
+			ok = await _do_step(step)
 		if OS.has_environment("TOMB_TRACE"):
 			print("    step %d %s: %s, now at %s" % [i + 1, TombSolver.words(plan, step), ok, player.global_position])
 		if not ok:

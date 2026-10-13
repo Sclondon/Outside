@@ -113,6 +113,13 @@ static func attempt(seed_value: int, difficulty: int, sub: int) -> TombPlan:
 				break
 			weights[pick] = 0
 			if _apply(RULES[pick], plan, i, rng):
+				# A door that a block on its plate or a seal stone opens may be no door
+				# at all, but Medjed, who looks back down the passage beyond it: what
+				# would have opened it shuts his eyes. (Not in an easy tomb.)
+				if RULES[pick] in ["work", "lever"] and difficulty >= 1 and _keeper_ok(plan, i) and rng.chance(40):
+					var watched := plan.spine_link(i)
+					watched.watched = true
+					watched.hint = "gaze_" + watched.hint
 				made += 1
 				break
 

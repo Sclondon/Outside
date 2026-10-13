@@ -488,6 +488,12 @@ func _lock_one(link: TombPlan.Link) -> bool:
 			return false
 		weights[pick] = 0
 		if _apply(RULES[pick], link):
+			# A door that a block on its plate or a seal stone opens may be no door
+			# at all, but Medjed, who looks back down the passage beyond it: what
+			# would have opened it shuts his eyes. (Not in an easy tomb.)
+			if RULES[pick] in ["work", "work_afar", "lever", "lever_afar"] and plan.difficulty >= 1 and _keeper_ok(link.a) and _rng.chance(40):
+				link.watched = true
+				link.hint = "gaze_" + link.hint
 			return true
 	return false
 

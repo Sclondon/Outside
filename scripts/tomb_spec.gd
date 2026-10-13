@@ -57,13 +57,14 @@ const WAY_NOTES := {
 	"sand": "The next room is higher, over a face he cannot climb until sand has poured in to stand on. What lets it in is the lock below; with none, a seal stone at the foot of the face. Nothing is carried up it.",
 }
 ## What opens the door on, and what each is called.
-const LOCKS := ["none", "work", "cross", "pair", "brazier", "offering", "lever_above", "lever_below", "bypass", "name", "name_above", "name_below", "sphinx_jar", "sphinx_torch", "sphinx_hook"]
+const LOCKS := ["none", "work", "cross", "pair", "brazier", "offering", "lever_above", "lever_below", "bypass", "name", "name_above", "name_below", "sphinx_jar", "sphinx_torch", "sphinx_hook", "gaze_work", "gaze_above", "gaze_below"]
 const LOCK_TITLES := {"none": "No door", "work": "A block and its plate", "cross": "A plate, its block from the room before",
 	"pair": "Two plates: its own block, and one from the room before",
 	"brazier": "A brazier to light", "offering": "A block, and a jar on the table", "lever_above": "A seal stone up in a loft",
 	"lever_below": "A seal stone under a well", "bypass": "Opened from behind, over the wall",
 	"name": "A gate guardian, his leaf in a room before", "name_above": "A gate guardian, his leaf up in a loft", "name_below": "A gate guardian, his leaf under a well",
-	"sphinx_jar": "A sphinx that wants a jar", "sphinx_torch": "A sphinx that wants a burning torch", "sphinx_hook": "A sphinx that wants the grappling hook"}
+	"sphinx_jar": "A sphinx that wants a jar", "sphinx_torch": "A sphinx that wants a burning torch", "sphinx_hook": "A sphinx that wants the grappling hook",
+	"gaze_work": "Medjed, his eyes shut by a block on its plate", "gaze_above": "Medjed, his eyes shut by a seal stone in a loft", "gaze_below": "Medjed, his eyes shut by a seal stone under a well"}
 ## What each lock asks of whoever is making the tomb.
 const LOCK_NOTES := {
 	"none": "",
@@ -81,6 +82,9 @@ const LOCK_NOTES := {
 	"sphinx_jar": "A small sphinx lies at the end of the room and asks a riddle: the answer is a canopic jar, put down before its paws. It keeps the jar, and the door is open for good. Leave a jar in an earlier room.",
 	"sphinx_torch": "A small sphinx lies at the end of the room and asks a riddle: the answer is a burning torch, put down before its paws. It keeps the torch, and the door is open for good. Leave a torch in an earlier room.",
 	"sphinx_hook": "A small sphinx lies at the end of the room and asks a riddle: the answer is the grappling hook, put down before its paws. It keeps the hook: if a pit wants one too, leave two.",
+	"gaze_work": "No door: Medjed stands in the way beyond and looks back down it, and whoever comes under his eyes is struck dead after a moment. The block in this room, pushed onto its plate, shuts them for good.",
+	"gaze_above": "No door: Medjed stands in the way beyond and looks back down it, and whoever comes under his eyes is struck dead after a moment. A seal stone on a slab over a room shuts them for good.",
+	"gaze_below": "No door: Medjed stands in the way beyond and looks back down it, and whoever comes under his eyes is struck dead after a moment. A seal stone at the foot of a well shuts them for good.",
 }
 const THINGS := ["torch", "hook", "jar"]
 const THING_TITLES := {"torch": "Torch", "hook": "Grappling hook", "jar": "Jar"}
@@ -92,11 +96,11 @@ const BARRIER_TITLES := {"auto": "What suits it", "trench": "A trench", "kerb": 
 ## well), "inside" (on its floor); or nothing, for a lock that has no such thing.
 static func host_kind(lock: String) -> String:
 	match lock:
-		"lever_above", "name_above":
+		"lever_above", "name_above", "gaze_above":
 			return "above"
-		"lever_below", "name_below":
+		"lever_below", "name_below", "gaze_below":
 			return "below"
-		"seal", "name":
+		"seal", "name", "gaze_seal":
 			return "inside"
 	return ""
 
@@ -104,7 +108,18 @@ static func host_kind(lock: String) -> String:
 ## What the editors call the room a lock's `stone_in` says.
 static func host_title(lock: String) -> String:
 	return {"lever_above": "Its stone is over", "lever_below": "Its stone is under", "seal": "Its stone lies just inside",
-		"name": "His leaf lies in", "name_above": "His leaf is over", "name_below": "His leaf is under"}.get(lock, "It is in")
+		"name": "His leaf lies in", "name_above": "His leaf is over", "name_below": "His leaf is under",
+		"gaze_above": "The stone is over", "gaze_below": "The stone is under", "gaze_seal": "The stone lies just inside"}.get(lock, "It is in")
+
+
+## A lock that Medjed keeps (`gaze_...`) as the plain lock that would have had a door: what shuts his eyes is what would have opened it.
+static func plain_lock(lock: String) -> String:
+	return {"gaze_work": "work", "gaze_above": "lever_above", "gaze_below": "lever_below", "gaze_seal": "seal"}.get(lock, lock)
+
+
+## And the other way about: the lock of that kind that Medjed keeps, or the lock itself if he keeps none such.
+static func gaze_lock(lock: String) -> String:
+	return {"work": "gaze_work", "lever_above": "gaze_above", "lever_below": "gaze_below", "seal": "gaze_seal"}.get(lock, lock)
 
 
 ## Whether a lock is one of the creatures' that keep a way: no block is pushed along it.
@@ -177,7 +192,7 @@ static func from_plan(plan: TombPlan) -> Dictionary:
 		if i < along.size() - 1:
 			var link := plan.spine_link(i)
 			told["way"] = TombPlan.PASS_NAMES[link.pass_kind]
-			match link.hint:
+			match link.hint.trim_prefix("gaze_"):
 				"weight":
 					told["lock"] = "work"
 				"weight_from_afar":
@@ -201,6 +216,8 @@ static func from_plan(plan: TombPlan) -> Dictionary:
 				"lever_above", "lever_below", "sand_above", "sand_below":
 					told["lock"] = "lever_above" if link.hint.ends_with("above") else "lever_below"
 					told["stone_in"] = plan.rooms[plan.triggers[link.switches[0]].room].parent
+		if i < along.size() - 1 and plan.spine_link(i).watched:
+			told["lock"] = gaze_lock(told["lock"])
 		(spec["rooms"] as Array).append(told)
 	return spec
 
@@ -239,7 +256,7 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 		var title := room_title(spec, i)
 		var role: String = told.get("role", "")
 		var way: String = told.get("way", "open")
-		var lock: String = told.get("lock", "none")
+		var lock: String = plain_lock(told.get("lock", "none"))
 		if i > 0 and i < count - 1 and not role in MIDDLE_ROLES:
 			wrong.append("%s: only the first room is an entrance and only the last a burial chamber." % title)
 		var mummy := int(told.get("mummy", -1))
@@ -307,10 +324,10 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 	# (a gate guardian sits by his door, under where the floor of a loft would be)
 	for i in count - 1:
 		var kept_by: String = rooms[i].get("lock", "none")
-		if is_keeper(kept_by) or kept_by.begins_with("sphinx"):
+		if keeps_way(kept_by):
 			if rooms[i].get("way", "open") == "sand":
-				wrong.append("%s: a gate guardian or a sphinx keeps a doorway, stairs or water, not the way up the sand." % room_title(spec, i))
-			if lofts.has(i):
+				wrong.append("%s: a gate guardian, a sphinx or Medjed keeps a doorway, stairs or water, not the way up the sand." % room_title(spec, i))
+			if lofts.has(i) and not kept_by.begins_with("gaze"):
 				wrong.append("%s: its door has a gate guardian or a sphinx, and there is no loft over the room of one: put the loft over another room." % room_title(spec, i))
 	if not wrong.is_empty():
 		return wrong
@@ -371,7 +388,8 @@ static func compile(spec: Dictionary) -> TombPlan:
 			link.hint = "hook"
 		elif link.pass_kind == TombPlan.Pass.ROPE:
 			link.hint = "rope"
-		match told.get("lock", "none"):
+		var lock: String = plain_lock(told.get("lock", "none"))
+		match lock:
 			"work":
 				link.switches = [plan.add_trigger(TombPlan.Switch.WORK_PLATE, i).id]
 				link.hint = "weight"
@@ -418,6 +436,9 @@ static func compile(spec: Dictionary) -> TombPlan:
 				link.pass_kind = TombPlan.Pass.STAIRS
 				link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, i + 1).id]
 				link.hint = "over_the_wall"
+		if lock != told.get("lock", "none"):
+			link.watched = true
+			link.hint = "gaze_" + link.hint
 		# Up the sand: with no lock of its own, a seal stone at the foot of the face lets it in.
 		if link.pass_kind == TombPlan.Pass.SAND:
 			match link.hint:
@@ -503,6 +524,10 @@ static func step_words(spec: Dictionary, plan: TombPlan, step: Array) -> String:
 			var link: TombPlan.Link = plan.links[step[1]]
 			var how: String = {"open": "through the doorway", "stairs": "by the stairs", "crawl": "through the crawl", "flood": "through the water", "gap": "over the pit, on the hook",
 				"shaft": "by the ladder", "climb": "over the edge", "drop": "down the drop", "rope": "by the rope", "sand": "over the sand"}[TombPlan.PASS_NAMES[link.pass_kind]]
+			if link.watched:
+				how += ", past Medjed, whose eyes are shut"
+			elif plan.keeper_of(link, TombPlan.Switch.NAME) != null and step[2] == link.a:
+				how += ", under the guardian's knives"
 			return "Go to %s, %s" % [place_title(spec, plan, step[3]), how]
 		"push":
 			return "Push the block into %s" % place_title(spec, plan, step[4])

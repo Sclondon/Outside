@@ -127,7 +127,8 @@ static func branching() -> TombPlan:
 
 ## A tomb with the creatures that keep a way: a gate guardian whose leaf lies
 ## in the open in the room before, another whose leaf is up in a loft, and a
-## sphinx that wants the torch from the first corridor.
+## sphinx that wants the torch from the first corridor; and between the two
+## guardians a way that Medjed watches, his eyes shut by a block on its plate.
 static func keepers() -> Dictionary:
 	var spec := TombSpec.fresh("Keepers")
 	var rooms: Array = []
@@ -139,6 +140,7 @@ static func keepers() -> Dictionary:
 	rooms[4]["lock"] = "name_above"
 	rooms[4]["stone_in"] = 3
 	rooms[1]["torch"] = 1
+	rooms[3]["lock"] = "gaze_work"
 	rooms[5]["lock"] = "sphinx_torch"
 	rooms[5]["way"] = "stairs"
 	spec["rooms"] = rooms
@@ -155,5 +157,16 @@ static func one_sphinx() -> Dictionary:
 	rooms[1]["jar"] = 1
 	rooms[1]["torch"] = 1
 	rooms[2]["lock"] = "sphinx_jar"
+	spec["rooms"] = rooms
+	return spec
+
+
+## A tomb with a way that Medjed watches, his eyes shut by the block and plate of the room before it.
+static func one_medjed() -> Dictionary:
+	var spec := TombSpec.fresh("One Medjed")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "hall", "corridor", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[2]["lock"] = "gaze_work"
 	spec["rooms"] = rooms
 	return spec

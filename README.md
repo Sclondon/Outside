@@ -2280,6 +2280,7 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   | A face too high to catch, the next room at the top of it | A seal stone (at its foot, or in a loft or under a well) lets sand pour in from the roof; he walks up the heap |
   | A gate guardian, his knives crossed in the gateway | His name, which is on a leaf of the Book of the Dead lying somewhere before: in the open in an earlier room, in a loft, at the foot of the well |
   | A sphinx lying at the end of the room | The thing its riddle asks for, found earlier and put down before its paws: a canopic jar, a burning torch, or (in a hard tomb) the grappling hook. It keeps it |
+  | No door, but Medjed looking back down the way beyond | What would have opened a door there: the block in the room pushed onto its plate, or a seal stone in a loft or under a well (in a tomb that branches, also a block or a seal stone in a side chamber). It shuts his eyes for good |
 
   Between rooms: stairs down, a passage to duck through, water to swim (which makes him let go of what he carries), a
   shaft with a ladder, a shaft with a rope. A door, once open, stays open. He carries one thing at a time, and not up
@@ -2327,6 +2328,18 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   2.2 m short of where he stood, which seen from the side is on his line (`Sphinx.sweep_to`), to be picked up
   again. It is never `wrathful`, and dying does not undo it. Nothing in a tomb puts a torch out, so a torch brought
   to it is burning. No loft is over its room, and no block is pushed through its door.
+- **Medjed** (`Medjed`, see "Medjed") keeps a way with no door in it. Beyond the doorway is a plain stretch 7 m long,
+  and he stands half a metre from the far end of it and looks back down it to the doorway (`sweep` 0: he does not
+  turn): on the boy's line in a tomb seen from the side, in the middle of the passage in one that is walked through,
+  where his look is 90 degrees wide and so as wide as the passage. The boy walks through him, so he is no door
+  himself; his look is. It reaches 6.8 m, into the doorway and no further, so the bay and the place to start again
+  from are out of it, and anyone can stand at the jamb and see the fan on the floor. Whoever goes on is struck dead
+  0.6 s after he is seen, which at a sprint is three and a half metres short of Medjed; and whoever has come round
+  behind him (which no tomb the generators make allows) is struck two metres or more short of the doorway.
+  `tools/tomb_test.gd -- custom` runs at him flat out down both sides and the middle, and from behind. It is the
+  same in all three kinds of tomb: a look that sweeps, with pillars to hide behind, was not tried. To the solver the
+  way is a door, and what would have opened the door shuts his eyes (`Medjed.worked`), for good. Dying under his eyes
+  is a death like any other, and puts Medjed back at his post as he was (`reset`). No block is pushed down his way.
 - **Mummies** are of a kind chosen with something in the room that kind cannot get past, between it and whatever he has
   to stand still at: a trench for the shambler, the child and the royal one, a kerb for the priest and the crawler, two
   piers too close together for the brute. Each wakes as he passes, loses him after a few seconds of not being able to get

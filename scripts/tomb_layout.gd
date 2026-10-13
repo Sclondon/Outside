@@ -102,6 +102,16 @@ const TRACK := 2.6
 const GATE_AT := 1.6
 const GATE_BACK := 0.75
 const GATE_WIDE := 2.2
+## A way that Medjed watches: how long the stretch is that he looks back down
+## from the far end of, how high, how far from its end he stands, and how far
+## into the doorway his look reaches. He sees for `WATCH_LONG - WATCH_BACK +
+## WATCH_INTO` metres, and it takes him 0.6 s to smite: the boy at a sprint
+## (5.6 m/s) is still more than three metres short of him then, and coming at
+## him from behind has that far to go under his eyes once he is past.
+const WATCH_LONG := 7.0
+const WATCH_HIGH := 3.4
+const WATCH_BACK := 0.5
+const WATCH_INTO := 0.3
 ## A sphinx: how long it is, how far short of his line its paws stop, how long
 ## the stretch of floor before it is, and how far back along his line it puts
 ## down a thing it will not have (further than he has to be from it to give it one).
@@ -217,6 +227,14 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 	var info := {"x0": _x, "top": _y}
 
 	# --- What the way in is made of, this side of the wall
+	if way_in and way_in.watched:
+		# No slab shut the way in: Medjed stands at the far end of this stretch,
+		# on the boy's line, and looks back along it to the doorway. Nobody gets
+		# the length of it under his eyes (see `WATCH_LONG`), and the place to
+		# start again from, back in the room before, is out of his sight.
+		var watch := _span(WATCH_LONG, _y + WATCH_HIGH)
+		parts.append({"kind": "medjed", "room": _room, "link": way_in.id, "at": Vector3(watch.xb - WATCH_BACK, _y, 0.0), "yaw": -PI * 0.5,
+				"reach": WATCH_LONG - WATCH_BACK + WATCH_INTO, "cone": 30.0, "stand": Vector3(watch.xa - WALL - 0.9, _y, 0.0)})
 	if way_in:
 		match way_in.pass_kind:
 			TombPlan.Pass.STAIRS:
@@ -500,6 +518,9 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 						"at": Vector3((gate.xa + gate.xb) * 0.5 - GATE_BACK, _y, -GATE_AT), "yaw": -PI * 0.5, "gate_at": GATE_AT,
 						"wide": GATE_WIDE, "tall": way, "who": is_who["who"], "seed": is_who["seed"]})
 				moves.append({"kind": "slot", "is": GATE_WIDE, "room": _room})
+			elif way_out.watched:
+				# (no slab: Medjed is beyond, in the next room's way in)
+				door_at[way_out.id] = Vector3((gate.xa + gate.xb) * 0.5, _y + way * 0.5, 0.0)
 			elif not way_out.switches.is_empty():
 				door_at[way_out.id] = Vector3((gate.xa + gate.xb) * 0.5, _y + way * 0.5, 0.0)
 				parts.append({"kind": "door", "room": _room, "link": way_out.id, "at": door_at[way_out.id],

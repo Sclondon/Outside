@@ -909,6 +909,17 @@ func _set_way(link: TombPlan.Link, frame: Frame, filler: float) -> float:
 						"wide": GATE_WIDE, "tall": way_high, "who": is_who["who"], "seed": is_who["seed"]})
 				moves.append({"kind": "slot", "is": GATE_WIDE, "room": _room})
 				_sign(link, frame, turned, float(rooms[a.id].get("wide", PASSAGE)), _y + way_high + 0.5 if not loft else -1.0)
+			elif link.watched:
+				# No slab: Medjed stands at the far end of a plain stretch of passage and
+				# looks back down it to the doorway, his look as wide as the passage. The
+				# bay is out of his sight, round the jamb and beyond his reach.
+				door_at[link.id] = frame.at(WALL * 0.5, _y + way_high * 0.5, 0.0)
+				_sign(link, frame, turned, float(rooms[a.id].get("wide", PASSAGE)), _y + way_high + 0.5 if not loft else -1.0)
+				var watch := _area(WATCH_LONG, roof)
+				parts.append({"kind": "medjed", "room": _room, "link": link.id, "at": frame.at(watch.u1 - WATCH_BACK, _y, 0.0), "yaw": frame.yaw(-PI * 0.5),
+						"reach": WATCH_LONG - WATCH_BACK + WATCH_INTO, "cone": 90.0, "stand": frame.at(-1.6, _y, WALK)})
+				if not a.dark:
+					parts.append({"kind": "torch", "room": _room, "at": frame.at((watch.u0 + watch.u1) * 0.5, _y + 2.1, -PASSAGE * 0.5 + 0.05), "yaw": frame.yaw()})
 			elif not link.switches.is_empty():
 				door_at[link.id] = frame.at(WALL * 0.5, _y + way_high * 0.5, 0.0)
 				parts.append({"kind": "door", "room": _room, "link": link.id, "at": door_at[link.id],

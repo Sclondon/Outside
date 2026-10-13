@@ -155,6 +155,9 @@ func _ready() -> void:
 			thing.connect(&"caught", _on_caught.bind(thing))
 	# (a gate guardian given the wrong name strikes: he is caught as by a mummy,
 	# and starts again from the last door, which is the guardian's own)
+	# (and Medjed's look, which kills at once: back to the last door, as ever)
+	for id: int in built.watchers:
+		(built.watchers[id] as Medjed).caught.connect(_on_caught.bind(built.watchers[id]))
 	for id: int in built.keepers:
 		(built.keepers[id] as GateGuardian).caught.connect(_on_caught.bind(built.keepers[id]))
 	_settle_in.call_deferred()
@@ -394,6 +397,9 @@ func _work_switches(at: Vector3) -> void:
 		_open[link.id] = open
 		if built.doors.has(link.id):
 			(built.doors[link.id] as TombParts.Door).is_open = open
+		elif built.watchers.has(link.id):
+			# (what would have opened a door shuts Medjed's eyes, and they stay shut)
+			(built.watchers[link.id] as Medjed).worked = open
 		elif built.sands.has(link.id):
 			# Sand comes in until the heap is as big as it gets. Nothing ever
 			# empties it: what is done stays done, and so does the way up.
@@ -536,6 +542,9 @@ func _on_respawned() -> void:
 	for thing in built.hooked:
 		if thing and thing.has_method(&"reset"):
 			thing.call(&"reset")
+	# (Medjed is back at his post, looking the way he looked, as if he had seen nothing)
+	for id: int in built.watchers:
+		(built.watchers[id] as Medjed).reset()
 	for id: int in built.items:
 		_send_home(built.items[id], built.item_homes[id])
 	# A block goes back unless the plate it was for is done.

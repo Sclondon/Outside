@@ -3,7 +3,7 @@ extends SceneTree
 ## through the game's own camera: he is stood before each leaf of the Book,
 ## gate guardian, sphinx and Medjed of a tomb in turn, a little way off and
 ## then close to.
-## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_keeper_shots.gd -- <folder> [side|3d|branching] [<seed>:<difficulty> | keepers] [name=<prefix>]
+## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_keeper_shots.gd -- <folder> [side|3d|branching] [<seed>:<difficulty> | keepers | sphinx | medjed] [name=<prefix>]
 ## (add `--rendering-method gl_compatibility --rendering-driver opengl3` for the web's renderer)
 
 const Shapes := preload("res://tools/tomb_shapes.gd")
@@ -46,7 +46,7 @@ func _run() -> void:
 		var parts := tomb.split(":")
 		TombLevel.play = {"mode": "random", "seed": int(parts[0]), "difficulty": int(parts[1]), "view": view, "shape": shape}
 	else:
-		TombLevel.play = {"mode": "custom", "spec": Shapes.keepers(), "view": view}
+		TombLevel.play = {"mode": "custom", "spec": Shapes.one_medjed() if tomb == "medjed" else (Shapes.one_sphinx() if tomb == "sphinx" else Shapes.keepers()), "view": view}
 	var scene: Node = load("res://tomb.tscn").instantiate()
 	root.add_child(scene)
 	var player: Player = scene.get_node("Player")

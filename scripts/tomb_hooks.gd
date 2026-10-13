@@ -47,14 +47,20 @@ const HINTS := {
 	"sand_afar": "The seal that lets the desert in lies in another chamber. Climb what it brings.",
 	"from_within": "This door opens only from within. There is a longer way round to the back of it.",
 	# (a gate guardian, and where the leaf with his name on it lies)
-	"name": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf, back the way you came.",
-	"name_above": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf that lies over your head.",
-	"name_below": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf at the foot of the well.",
-	"name_afar": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf in another chamber.",
+	"name": "The keeper of this gate wants his name. It is written on a leaf, back the way you came.",
+	"name_above": "The keeper of this gate wants his name. It is written on a leaf that lies over your head.",
+	"name_below": "The keeper of this gate wants his name. It is written on a leaf at the foot of the well.",
+	"name_afar": "The keeper of this gate wants his name. It is written on a leaf in another chamber.",
 	# (a sphinx: its riddle says what it wants)
-	"sphinx_jar": "The lion with a king's face lies at this door and asks a gift. Hear what it asks, and lay it between its paws.",
-	"sphinx_torch": "The lion with a king's face lies at this door and asks a gift. Hear what it asks, and lay it between its paws.",
-	"sphinx_hook": "The lion with a king's face lies at this door and asks a gift. Hear what it asks, and lay it between its paws.",
+	"sphinx_jar": "The lion with a king's face asks a gift. Hear its riddle, and lay the answer before its paws.",
+	"sphinx_torch": "The lion with a king's face asks a gift. Hear its riddle, and lay the answer before its paws.",
+	"sphinx_hook": "The lion with a king's face asks a gift. Hear its riddle, and lay the answer before its paws.",
+	# (Medjed: what would have opened a door shuts his eyes)
+	"gaze_weight": "The smiter looks down this way. Lay a weight where the floor gives, and his eyes close.",
+	"gaze_weight_afar": "The smiter looks down this way. A floor gives in another chamber: weigh it, and his eyes close.",
+	"gaze_lever_above": "The smiter looks down this way. The seal that closes his eyes is over your head.",
+	"gaze_lever_below": "The smiter looks down this way. The seal that closes his eyes lies at the foot of the well.",
+	"gaze_seal_afar": "The smiter looks down this way. The seal that closes his eyes lies in another chamber.",
 }
 
 ## What has been read this run and could not be given to a notebook: [meaning, where].

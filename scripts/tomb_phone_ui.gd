@@ -943,7 +943,7 @@ func _fill_way() -> void:
 	var asks := "What lets the sand in" if sand else ("What opens its door" if floor else "What opens the door on")
 	_row("row:lock", asks, lock_rows[lock][1], lock_rows[lock][2], func() -> void:
 		_pick(asks + "?", lock_rows, lock, func(picked: int) -> void: editor.set_value("lock", locks[picked])))
-	if floor and told["lock"] in ["work", "brazier", "offering"]:
+	if floor and told["lock"] in ["work", "brazier", "offering", "gaze_work"]:
 		var others: Array = []
 		var other_rows: Array = []
 		for i in range(1, count):

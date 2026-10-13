@@ -348,6 +348,11 @@ func _editor() -> void:
 	editor.rebuild()
 	expect(editor.found["ok"] and int(editor.rooms()[1]["jar"]) == 1, "a sphinx chosen in the editor, and a jar left for it: %s" % editor.found["says"])
 	expect(_way_says(editor, ["Take the jar", "before the sphinx"]), "the way through does not say to give the sphinx its jar")
+	editor.set_value("lock", "gaze_work")
+	editor.rebuild()
+	expect(editor.found["ok"] and (editor.found["plan"] as TombPlan).links.any(func(link: TombPlan.Link) -> bool: return link.watched), "Medjed chosen in the editor: %s" % editor.found["says"])
+	expect(_way_says(editor, ["Push the block onto the plate", "past Medjed"]), "the way through does not say to shut Medjed's eyes and go past him")
+	expect(TombSpec.from_text(TombSpec.to_text(editor.spec)) == editor.spec, "a tomb with Medjed did not come back from text as it went")
 	# Every frame of it with a full tomb standing, for a while.
 	editor.take(TombSpec.from_seed(3, 2))
 	editor.rebuild()

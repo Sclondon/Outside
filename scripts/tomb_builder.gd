@@ -29,6 +29,8 @@ var doors := {}
 var sands := {}
 ## By link: the gate guardian that keeps it (a GateGuardian), where there is one.
 var keepers := {}
+## By link: Medjed, where he watches it (a Medjed).
+var watchers := {}
 ## The ropes that hang down shafts.
 var ropes: Array[Rope] = []
 ## By switch: the Plate (a plate, a seal stone, an offering table), or for a
@@ -268,6 +270,17 @@ func _part(part: Dictionary) -> void:
 			sphinx.rotation.y = part["yaw"]
 			node.add_child(sphinx)
 			switches[part["trigger"]] = sphinx
+		"medjed":
+			# Medjed, who looks one way and does not turn: down the stretch he keeps.
+			var watcher := Medjed.new()
+			watcher.sweep = 0.0
+			watcher.reach = part["reach"]
+			watcher.cone = part["cone"]
+			watcher.follows = false
+			watcher.position = at
+			watcher.rotation.y = part["yaw"]
+			node.add_child(watcher)
+			watchers[part["link"]] = watcher
 		"guardian":
 			# A keeper of a gate, who is his own door: his knives bar the gateway until he is named.
 			var keeper := GateGuardian.new()
