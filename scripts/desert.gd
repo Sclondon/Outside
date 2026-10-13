@@ -33,7 +33,9 @@ const WEB_SUN := 0.3
 const STONE := Color(0.62, 0.55, 0.44)
 const WOOD := Color(0.5, 0.38, 0.24)
 ## What the notebook's page says while each of the things that take longest is made (see `_ready`, and Loading).
-const BUILDING := {"cliff": "Raising the cliffs", "rocks": "Standing the rocks up", "valley": "Cutting the valley", "pyramid": "Building the pyramids", "temple": "Building the temple", "abu_simbel": "Cutting the great temple", "sphinx": "Carving the sphinx"}
+const BUILDING := {"cliff": "Raising the cliffs", "rocks": "Standing the rocks up", "valley": "Cutting the valley", "pyramid": "Building the pyramids", "temple": "Building the temple", "abusimbel": "Cutting Abu Simbel out of the rock", "sphinx": "Carving the sphinx"}
+## And for each of the temples that is a real place: they are big, and each has a step of the page to itself.
+const BUILDING_TEMPLES := {"edfu": "Building Edfu", "luxor": "Building Luxor", "kom_ombo": "Building Kom Ombo"}
 
 ## Where to put him when the level next opens, if anywhere: the editor's "Play from here".
 static var play_from := Vector3.INF
@@ -93,6 +95,9 @@ func _ready() -> void:
 	_items = Node3D.new()
 	_items.name = "Items"
 	add_child(_items)
+	# (behind the notebook's page the ground is laid a part at a time, and may not be there yet: see `DesertTerrain.rebuild`)
+	if terrain.laying:
+		await terrain.laid
 	# Opened behind the notebook's page (see Loading) it is made a little at a time, with a frame let
 	# go by between, so that the page is seen to move; opened any other way these waits are nothing.
 	var items: Array = layout["items"]
@@ -100,7 +105,11 @@ func _ready() -> void:
 	for i in items.size():
 		var item: Dictionary = items[i]
 		var far := 0.3 + 0.5 * i / maxf(items.size(), 1.0)
-		if BUILDING.has(item["kind"]) and item["kind"] != big:
+		if item["kind"] in ["temple", "abusimbel"]:
+			# (a temple is the longest of them: each has a step to itself, and the page names it)
+			big = item["kind"]
+			await Loading.stage(BUILDING_TEMPLES.get(item.get("what", ""), BUILDING[big]), far)
+		elif BUILDING.has(item["kind"]) and item["kind"] != big:
 			# (the ground's own rock and the great stones each take a while: the page says which first)
 			big = item["kind"]
 			await Loading.stage(BUILDING[big], far)
@@ -658,6 +667,9 @@ func _settle_in() -> void:
 		_player.global_position = start
 		_player.velocity = Vector3.ZERO
 		_player.set_spawn(start)
+		# (where he is drawn follows where he is, a little behind: it is put there too, or the camera, which looks at
+		# where he is drawn, comes gliding over from wherever the scene had him)
+		_player._reset_visuals()
 		var camera := get_parent().get_node_or_null(^"Camera") as FollowCamera
 		if camera:
 			camera.snap()

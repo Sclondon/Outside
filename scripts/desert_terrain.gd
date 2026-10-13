@@ -100,8 +100,13 @@ extends StaticBody3D
 @export_file("*.json") var layout_file := ""
 @export_tool_button("Rebuild") var _rebuild_button := rebuild
 
+## Sent when the ground has been made, if it was made a part at a time (see `rebuild`).
+signal laid
+
 ## In the game: what draws the ground (see `SandGround`). None in the editor.
 var ground: Node3D
+## Whether it is being made just now, a part at a time: until `laid`, there is no ground to stand anything on.
+var laying := false
 ## How long the ground last took to make, in thousandths of a second.
 var made_in := 0.0
 
@@ -149,7 +154,7 @@ func _ready() -> void:
 		var read: Variant = JSON.parse_string(FileAccess.get_file_as_string(layout_file))
 		if read is Dictionary:
 			shape_from(read)
-	rebuild()
+	rebuild(true)
 	set_process(Engine.is_editor_hint())
 
 
@@ -496,8 +501,14 @@ func _gather_pads() -> void:
 # --- Making it ---
 
 ## Makes the ground again: mesh, collider, the wall round it and the apron.
-func rebuild() -> void:
+##
+## It is the longest single piece of work in opening the desert, and longer the bigger the desert. With `in_parts`
+## (as it is made when the scene opens) and the notebook's page up (see `Loading`), it is made in five parts with a
+## frame let go by between them, so that the page is seen to move: `laying` is true meanwhile, and `laid` is sent
+## at the end. Any other way it is made all at once, and is there when this returns.
+func rebuild(in_parts := false) -> void:
 	_wait = -1.0
+	laying = in_parts
 	var began := Time.get_ticks_usec()
 	for old in _made:
 		old.queue_free()
@@ -518,6 +529,7 @@ func rebuild() -> void:
 		# `sharp` says: nothing in it is a crease, which a grid of squares can only
 		# draw as teeth. (Dunes scattered as they were are left as they were.)
 		bare = SandDunes.rounded(bare, side, side, 3 if sharp < 0.34 else (2 if sharp < 0.67 else 1))
+	began += await _breath(in_parts, "Pressing the ground level", 0.16)
 	var heights := PackedFloat32Array()
 	heights.resize(side * side)
 	var sunk := 0.2 * dune_height
@@ -547,12 +559,14 @@ func rebuild() -> void:
 	_grid_step = step
 	_splits = SandDunes.splits(heights, side, side) if dunes != SandDunes.Field.SCATTERED else PackedByteArray()
 	if Engine.is_editor_hint():
+		laying = false
 		var material := sand_material()
 		for chunk_row in range(0, count, CHUNK):
 			for chunk_column in range(0, count, CHUNK):
 				_add_chunk(heights, side, step, chunk_column, chunk_row, mini(CHUNK, count - chunk_column), mini(CHUNK, count - chunk_row), material)
 		_add_apron(material)
 		return
+	began += await _breath(in_parts, "Spreading the sand", 0.2)
 	# In the game a `SandGround` draws it, from the same heights. (By name, and
 	# untyped: it is not a tool script, and this one is.)
 	ground = (load("res://scripts/sand_ground.gd") as GDScript).new()
@@ -567,6 +581,7 @@ func rebuild() -> void:
 	ground.set(&"splits", _splits)
 	_keep(ground)
 	ground.call(&"build", heights)
+	began += await _breath(in_parts, "Sweeping between the dunes", 0.23)
 	if dunes != SandDunes.Field.SCATTERED:
 		# In a field of dunes the flat ground between them is swept bare: harder
 		# and paler than the dunes, a little more here and a little less there.
@@ -595,8 +610,23 @@ func rebuild() -> void:
 		var middle: Vector3 = global_transform * (pad[0] as Transform3D).affine_inverse().origin
 		var across: Vector2 = pad[1]
 		ground.call(&"paint", Sand.Kind.PACKED, Vector2(middle.x, middle.z), minf(across.x, across.y) * 0.8, 0.55, 4.0)
+	began += await _breath(in_parts, "Making it firm underfoot", 0.26)
 	_add_collider(heights, side, step)
 	made_in = (Time.get_ticks_usec() - began) / 1000.0
+	if laying:
+		laying = false
+		laid.emit()
+
+
+# Between two parts of the work: lets the notebook's page say what is being made and show a frame, if the level is
+# being opened behind it (`Loading.stage`: nothing, and no wait, with no page up). Says how long it waited, in
+# millionths of a second, which is not time spent making the ground.
+func _breath(wanted: bool, words: String, fraction: float) -> int:
+	if not wanted or Engine.is_editor_hint():
+		return 0
+	var from := Time.get_ticks_usec()
+	await Loading.stage(words, fraction)
+	return Time.get_ticks_usec() - from
 
 
 func _keep(node: Node) -> void:

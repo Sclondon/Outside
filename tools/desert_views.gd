@@ -29,6 +29,22 @@ const VIEWS := [
 	["obelisk", Vector3(-93, 6, 64), Vector3(-105, 1, 50), 55.0],
 	["from_pyramid", Vector3(0, 33, -97), Vector3(0, 0, 60), 60.0],
 ]
+## The temples by the river, where they are (the views above are of the old places, given as they were when he started
+## at 0, 165, and are moved to wherever those places are now).
+const TEMPLE_VIEWS := [
+	["whole_level", Vector3(60, 420, 520), Vector3(40, 0, 0), 50.0],
+	["edfu_way", Vector3(205, 1.2, 175), Vector3(130, 12, 175), 55.0],
+	["edfu_gate", Vector3(146, 1.2, 177), Vector3(120, 9, 175), 55.0],
+	["edfu_court", Vector3(112, 1.0, 175), Vector3(70, 6, 175), 55.0],
+	["edfu_hall", Vector3(68, 1.0, 175), Vector3(40, 3, 175), 55.0],
+	["kom_ombo", Vector3(158, 1.0, 110), Vector3(160, 6, 40), 55.0],
+	["kom_ombo_hall", Vector3(160, 2.9, 44), Vector3(160, 6, 10), 55.0],
+	["river_north", Vector3(214, 0.8, 120), Vector3(226, 4, 20), 55.0],
+	["abu_simbel_bank", Vector3(220, 0.8, -30), Vector3(196, 14, -100), 55.0],
+	["abu_simbel", Vector3(228, 0.8, -96), Vector3(188, 14, -100), 55.0],
+	["abu_simbel_hall", Vector3(183, 1.9, -100), Vector3(165, 3, -100), 55.0],
+	["small_temple", Vector3(224, 0.8, -196), Vector3(196, 7, -200), 55.0],
+]
 
 const YARD_VIEWS := [
 	["yard", Vector3(30, 70, 95), Vector3(0, 0, 0), 55.0],
@@ -87,11 +103,18 @@ func run() -> void:
 	for i in 20:
 		await physics_frame
 	var page := 0
+	var moved := Vector3.ZERO
+	if views == VIEWS:
+		for item: Dictionary in LevelLayout.built_in()["items"]:
+			if item["kind"] == "start":
+				moved = Vector3(float(item["at"][0]), 0.0, float(item["at"][1]) - 165.0)
+		views = VIEWS + TEMPLE_VIEWS
 	for view: Array in views:
 		if not only.is_empty() and not view[0] in only:
 			continue
-		cam.global_position = view[1]
-		cam.look_at(view[2])
+		var shift := moved if view in VIEWS else Vector3.ZERO
+		cam.global_position = (view[1] as Vector3) + shift
+		cam.look_at((view[2] as Vector3) + shift)
 		cam.fov = view[3]
 		cam.far = 3000.0
 		for i in 4:
