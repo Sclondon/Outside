@@ -372,13 +372,27 @@ static func next_id(layout: Dictionary) -> int:
 	return highest + 1
 
 
-## The layout to play: the one saved on this device, or the one the game came with.
+## The layout to play: the one saved on this device, or the one the game came with. The level the game comes with
+## carries a number, `issue`, that goes up when it is made anew (the temples went in at 2); a level kept on the
+## device remembers which it was made from. One made from an older issue is put aside (the same name with
+## `.before` after it) and the new level is played: otherwise nobody who had ever opened the editor would see it.
 static func load_layout() -> Dictionary:
 	if has_saved():
 		var saved := from_text(FileAccess.get_file_as_string(saved_at))
 		if not saved.is_empty():
-			return saved
+			if int(saved.get("issue", 0)) >= issue():
+				return saved
+			var aside := FileAccess.open(saved_at + ".before", FileAccess.WRITE)
+			if aside:
+				aside.store_string(to_text(saved))
+				aside.close()
+			forget_saved()
 	return built_in()
+
+
+## Which making of the level the game comes with this is.
+static func issue() -> int:
+	return int(built_in().get("issue", 0))
 
 
 static func built_in() -> Dictionary:
@@ -395,6 +409,8 @@ static func has_saved() -> bool:
 
 ## Keeps a layout on this device. Says whether it could.
 static func save(layout: Dictionary) -> bool:
+	# (it is of this issue of the level, wherever it came from: see `load_layout`)
+	layout["issue"] = issue()
 	var file := FileAccess.open(saved_at, FileAccess.WRITE)
 	if file == null:
 		return false
