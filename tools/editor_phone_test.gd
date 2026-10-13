@@ -23,6 +23,8 @@ var least_text := 999
 
 
 func _initialize() -> void:
+	# (levels are changed at once here, with no notebook page over them: tools/loading_test.gd tries that)
+	Loading.instant = true
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	DisplayServer.window_set_position(Vector2i(-6000, -6000))
 	out = OS.get_cmdline_user_args()[0]

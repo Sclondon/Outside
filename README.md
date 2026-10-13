@@ -513,6 +513,62 @@ paint and cloth). The writing is Patrick Hand, by Patrick Wagesreiter, under the
 godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 ```
 
+## Going between levels
+
+Every change of level goes through `Loading` (`scripts/loading.gd`), and nothing else changes the scene: the
+notebook's map and list, "Start this place again", the tomb's card and its "Back outside", a doorway of the Valley of
+the Kings, both editors' Play and the ways back from them.
+
+```
+Loading.go("res://desert.tscn")            # to a level; the page names it from its file
+Loading.go("res://tomb.tscn", "Tomb 12")   # or says what it is told
+Loading.again()                            # this level again
+await Loading.cover("The desert, as it came", work)   # the page over something long done to the level that is there
+```
+
+A page of the notebook comes across the picture from the right in a quarter of a second: squared paper, a pencil
+drawing of the place (the pyramids, the yard, a tomb's doorway), "On my way to" and its name, and under that what is
+being done just now. A scarab walks along the foot of the page the whole time, drawing a pencil line after it, and
+the line under the name grows as the level gets on. Behind the page the old level is put away, the new one's file is
+read (on another thread where there is one; in one go, with the page saying so first, where there is not, as in a web
+build without threads) and the level builds itself. The page is turned away to the left, in a third of a second, only
+when the level is built, has stood under it for a few frames with nothing slow in them and the camera still (so
+everything in sight has been drawn once, the camera is where it starts and he is on the ground), and the page has
+been up for four tenths of a second, so that a quick change is not a flash. A level that cannot be opened is said
+so on the page, and he is back where he was (or, at the first start, in the desert).
+
+Most of the wait is the level making itself in code, which stops everything while it runs. So the levels that take
+long build in stages and let a frame go by between them: `await Loading.stage("Raising the cliffs", 0.4)` always
+does, and `await Loading.breathe("Setting out the dig", 0.6)` does when 40 ms have gone by since the last; at the
+end of its `_ready` the level says `Loading.built()`. With no page up these do nothing and take no time. The desert
+is staged where `scripts/desert.gd` calls its builders (each thing it stands on the ground, then the wind and the far
+hills), the test yard between its stations. What cannot be split is a step: the page says what is being made, stands
+still while it is, and moves on. On a desk that is the desert's ground (0.3 s), the first hound of the test yard
+(0.7 s) and the whole of a tomb (0.1 to 0.5 s); a phone will be several times that.
+
+While the page is up `Loading.busy` is true, and that is the one place to ask. The game is stopped until the level
+is built; for the frames it then stands under the page it runs, but nothing pressed is passed on (the page takes it
+all), the Player reads no keys or stick, and a second change asked for is refused. So a tomb's clock, which starts at
+his first step, cannot start under the page. A key still held when the page goes works at once.
+
+The game opens with `start.tscn`, which is nothing but the page with the first level building behind it. `Loading`
+is not an autoload: the page is a node it puts under the root itself the first time one is wanted. With
+`Loading.instant` set there is no page and no waiting, and the scene is changed as it always was: it is set when
+nothing is drawn (`--headless`), and by the tools that work the menu and the editors in a window. The tools that
+change scene themselves still do.
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/loading_test.gd
+godot --path . --resolution 1560x720 --script tools/loading_sheets.gd -- <folder>
+godot --path . --script tools/loading_times.gd -- res://desert.tscn [through]
+```
+
+The first goes every way from each level to the others with the page asked for, and checks that it was across before
+the old level went and until the new one stood ready, that nothing pressed meanwhile did anything, and that a tomb's
+clock waited for his first step. The second saves a strip of pictures through each change. The third says where the
+time goes: on a desk, drawn as the web build draws, the desert took 1.1 s to open before and has the page fully up
+for 1.3 s now; the test yard 3.8 s and 3.9 s; a tomb 0.4 to 0.5 s and 0.5 to 0.6 s.
+
 ## Layout
 
 | File | What it does |
@@ -562,6 +618,8 @@ godot --path . --resolution 1280x720 --script tools/notebook_test.gd -- <folder>
 | `scripts/menu.gd`, `scripts/settings.gd` | The in-game menu, which is his notebook, and what it remembers |
 | `scripts/notebook.gd`, `scripts/notebook_ink.gd` | What the game has written in the notebook's journal (`Notebook.note(...)`); and the pencil, ink and paper its pages are drawn with |
 | `tools/notebook_test.gd` | Not part of the game: takes the notebook out, works every page of it with touches and keys in both levels, checks each took effect, and saves pictures |
+| `scripts/loading.gd`, `scripts/start.gd` | Going from one level to another behind a page of the notebook (`Loading.go(...)`), with the level building in stages behind it; and what the game opens with (`start.tscn`), which is that page over the first level |
+| `tools/loading_test.gd`, `tools/loading_sheets.gd`, `tools/loading_times.gd` | Not part of the game: go every way between the levels and check the page covered each change and nothing got past it; pictures of each change; and where the time goes when a level is opened |
 | `scripts/worn.gd` | What a figure wears that is not part of its model: the backpack and the helmets (`Worn.put_on(figure, &"helmet_anubis")`) |
 | `scripts/gear_prop.gd` | A prop whose gold, bronze and brass shine |
 | `tools/worn_sheets.gd` | Not part of the game: draws what is worn on everyone who can wear it, and the boy moving in it |

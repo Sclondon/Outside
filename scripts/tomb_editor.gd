@@ -370,13 +370,13 @@ func play(view := "side") -> void:
 		return
 	_keep()
 	TombLevel.play = {"mode": "custom", "spec": spec.duplicate(true), "view": view}
-	get_tree().change_scene_to_file("res://tomb.tscn")
+	Loading.go("res://tomb.tscn")
 
 
 func leave() -> void:
 	_keep()
 	TombLevel.play = {}
-	get_tree().change_scene_to_file("res://tomb.tscn")
+	Loading.go("res://tomb.tscn")
 
 
 ## Another name for the tomb being made (one no kept tomb has).

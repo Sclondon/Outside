@@ -1196,10 +1196,8 @@ func _edit() -> void:
 
 
 func _restart() -> void:
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	Loading.again()
 
 
 func _go_to(scene: String) -> void:
-	get_tree().paused = false
-	get_tree().change_scene_to_file(scene)
+	Loading.go(scene)

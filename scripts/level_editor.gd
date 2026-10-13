@@ -834,8 +834,7 @@ func _save_now(quietly := false) -> void:
 func _play(here: bool) -> void:
 	_save_now(true)
 	Desert.play_from = _focus if here else Vector3.INF
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	Loading.again()
 
 
 func _show_share(open: bool) -> void:
@@ -862,7 +861,8 @@ func _use_text(text: String) -> bool:
 func _back_to_original() -> void:
 	_remember()
 	LevelLayout.forget_saved()
-	_restore(LevelLayout.to_text(LevelLayout.built_in()))
+	# (the whole level is made again: behind a page of the notebook, as when a level is opened)
+	await Loading.cover("The desert, as it came", _restore.bind(LevelLayout.to_text(LevelLayout.built_in())), "Laying out the sand")
 	_save_in = -1.0
 	_show_share(false)
 	_say("The level is as the game came with it. Undo brings yours back.", 5.0)
