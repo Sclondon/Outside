@@ -53,6 +53,9 @@ var wake := &""
 var wake_at := Vector2.INF
 ## Whether what the buttons do is written along the foot of the screen while it has the gamepad.
 var legend := false
+## Whether it goes on working while the game stands still. (What stops the game, the notebook or a guardian's names,
+## has the gamepad then, unless whoever owns this stopped the game themselves: the level editor does.)
+var when_paused := false
 ## What the mark is on: a Control, or the id of one of the `extra`; null for nothing.
 var on_what: Variant = null
 
@@ -138,6 +141,8 @@ func put_on_first() -> void:
 ## Whether the gamepad is its own now: because it was given it (`active`), woken (`wake`), or something is up that
 ## is all there is to work (`scope`).
 func has_pad() -> bool:
+	if get_tree().paused and not when_paused:
+		return false
 	return active or _awake or _in_scope
 
 
@@ -302,6 +307,8 @@ func _type_in(line: LineEdit) -> void:
 func _input(event: InputEvent) -> void:
 	if typing() or not Gamepad.heard(event):
 		return
+	if get_tree().paused and not when_paused:
+		return
 	if wake != &"" and Gamepad.pressed(event, wake) and not active and not _in_scope:
 		_awake = not _awake
 		get_viewport().set_input_as_handled()
@@ -330,8 +337,7 @@ func _draw() -> void:
 		var told := [[&"pad_dpad", "move"], [&"pad_a", "choose"]]
 		if _awake and not _in_scope:
 			told.append([&"pad_b", "back to the game"])
-		draw_rect(Rect2(8.0, size.y - 44.0, 16.0 + Gamepad.draw_row(self, told, Vector2(-4000.0, 0.0), 13.0, Color.WHITE), 36.0), Color(0, 0, 0, 0.55))
-		Gamepad.draw_row(self, told, Vector2(16.0, size.y - 26.0), 13.0, Color.WHITE)
+		Gamepad.draw_legend(self, told, Vector2(8.0, size.y - 8.0))
 	var thing: Variant = now()
 	if thing == null:
 		return

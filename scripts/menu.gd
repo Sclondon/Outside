@@ -9,9 +9,12 @@ extends Control
 ##   Me       how he is turned out: his face, the cut and colour of his hair, his
 ##            skin and eyes, what he wears and the colour of each thing, his cap,
 ##            a helmet and a backpack, or all of it at random. A photograph of
-##            him is stuck in beside the lists, and is him as he stands.
+##            him is stuck in beside the lists, and is him as he stands. Every
+##            colour is chosen on the colour wheel (ColourWheel): touch what
+##            is to be painted, then the wheel.
 ##   Places   the levels, on a map; starting this one again; the level editor
-##   Notes    how things are drawn: figures full or demade, the world's light
+##   Notes    how things are drawn: figures full or demade, the world's light;
+##            and how a gamepad's stick turns the camera
 ##
 ## The game pauses while it is out. Touching anywhere off the book, the corner
 ## again, the strap at the foot of the tabs, or Esc puts it away.
@@ -21,8 +24,11 @@ extends Control
 ##
 ## Nothing here is a Button: every page is drawn by hand (NotebookInk), and
 ## each thing that can be touched is a "spot", a rectangle on a page noted as
-## the page is drawn (see `_spot`). A finger, the arrow keys or a stick, and
-## Enter or the jump button, all work the same spots.
+## the page is drawn (see `_spot`). A finger, the arrow keys, and a gamepad
+## all work the same spots: the keys and the gamepad move a mark from spot to
+## spot (`_focus`, `_move_focus`), and Enter or A works the one it is on. With
+## a gamepad B goes back (from a page to its tab, then away), and the shoulders
+## turn to the next part and the one before. See Gamepad (scripts/gamepad.gd).
 
 const Ink := preload("res://scripts/notebook_ink.gd")
 
@@ -1384,6 +1390,9 @@ func _choose_part(material: String) -> void:
 
 ## A gamepad (or the keys) takes hold of the colour wheel: see `_work_pad`.
 func _hold_wheel() -> void:
+	# (a finger that came down in a corner of it, off the ring and the square, did not mean this)
+	if not _keys:
+		return
 	_wheel_held = true
 	_wheel_was = _wheel.colour()
 	_refresh()

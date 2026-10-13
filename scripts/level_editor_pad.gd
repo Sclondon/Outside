@@ -56,6 +56,8 @@ func _ready() -> void:
 	mark.roots = [editor._ui, editor._share]
 	mark.scope = _scope
 	mark.left.connect(_back)
+	# (the editor stops the game itself, and its buttons are worked all the same)
+	mark.when_paused = true
 	add_child(mark)
 
 
@@ -323,7 +325,5 @@ func _draw() -> void:
 		told = [[&"pad_ls", "the cross"], [&"pad_a", "choose"], [&"pad_dpad", "what to put in"], [&"pad_lb", ""], [&"pad_rb", "pages"], [&"pad_y", "the desert"], [&"pad_start", "buttons"]]
 	else:
 		told = [[&"pad_a", "hold: carry it"], [&"pad_y", "its settings"], [&"pad_x", "remove"], [&"pad_b", "let it be"], [&"pad_l3", "undo"], [&"pad_r3", "redo"], [&"pad_start", "buttons"]]
-	var at := Vector2(204.0, size.y - 112.0)
-	var wide := Gamepad.draw_row(self, told, Vector2(-4000.0, 0.0), 12.0, Color.WHITE, Color(0, 0, 0, 0), font, 17)
-	draw_rect(Rect2(at.x - 10.0, at.y - 18.0, wide + 8.0, 36.0), Color(0.0, 0.0, 0.0, 0.6))
-	Gamepad.draw_row(self, told, at, 12.0, Color.WHITE, Color(0, 0, 0, 0), font, 17)
+	var room := size.x - 194.0 - (LevelEditor.PANEL + 24.0 if editor._side.visible else 16.0)
+	Gamepad.draw_legend(self, told, Vector2(194.0, size.y - 92.0), room)

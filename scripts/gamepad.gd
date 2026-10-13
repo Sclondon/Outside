@@ -348,3 +348,33 @@ static func draw_row(on: CanvasItem, told: Array, at: Vector2, radius: float, in
 		on.draw_string(font, Vector2(x, at.y + points * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, points, ink)
 		x += font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, points).x + radius * 1.5
 	return x - at.x
+
+
+## How wide `draw_row` would draw a row.
+static func row_width(told: Array, radius: float, font: Font = null, points := 0) -> float:
+	if font == null:
+		font = ThemeDB.fallback_font
+	if points == 0:
+		points = int(radius * 1.3)
+	var wide := 0.0
+	for entry: Array in told:
+		wide += mark_width(entry[0], radius, font) + radius * 0.45 + font.get_string_size(entry[1], HORIZONTAL_ALIGNMENT_LEFT, -1.0, points).x + radius * 1.5
+	return wide
+
+
+## What the buttons do, on a dark ground of its own: marks and words as
+## `draw_row` draws them, its bottom left corner at `at`, in as many rows (going
+## up) as keep it no wider than `most`.
+static func draw_legend(on: CanvasItem, told: Array, at: Vector2, most := INF, radius := 12.0, points := 17) -> void:
+	var rows: Array = [[]]
+	for entry: Array in told:
+		if not (rows[-1] as Array).is_empty() and row_width(rows[-1] + [entry], radius, null, points) > most - 20.0:
+			rows.append([])
+		(rows[-1] as Array).append(entry)
+	var tall := radius * 2.0 + 12.0
+	var widest := 0.0
+	for row: Array in rows:
+		widest = maxf(widest, row_width(row, radius, null, points))
+	on.draw_rect(Rect2(at.x, at.y - tall * rows.size(), widest + 8.0, tall * rows.size()), Color(0.0, 0.0, 0.0, 0.6))
+	for i in rows.size():
+		draw_row(on, rows[i], Vector2(at.x + 10.0, at.y - tall * (rows.size() - i) + tall * 0.5), radius, Color.WHITE, Color(0, 0, 0, 0), null, points)

@@ -113,8 +113,5 @@ func _draw() -> void:
 		told = [[&"pad_dpad", "the mark"], [&"pad_a", "press"], [&"pad_b", "close"]]
 	elif editor.mode != "":
 		told = [[&"pad_dpad", "to a ringed place"], [&"pad_a", "there"], [&"pad_b", "not now"]]
-	var font := ThemeDB.fallback_font
-	var at := Vector2(84.0, size.y - 112.0)
-	var wide := Gamepad.draw_row(self, told, Vector2(-4000.0, 0.0), 12.0, Color.WHITE, Color(0, 0, 0, 0), font, 17)
-	draw_rect(Rect2(at.x - 10.0, at.y - 18.0, wide + 8.0, 36.0), Color(0.0, 0.0, 0.0, 0.6))
-	Gamepad.draw_row(self, told, at, 12.0, Color.WHITE, Color(0, 0, 0, 0), font, 17)
+	var room := size.x - 74.0 - (TombEditor.PANEL + 24.0 if editor._side.visible else 16.0)
+	Gamepad.draw_legend(self, told, Vector2(74.0, size.y - 92.0), room)
