@@ -56,6 +56,20 @@ var seed := 1
 ## there (at about 8 degrees, having been 11 at its steepest), and the brink is
 ## a crease. Set it before adding dunes.
 var sharp := 0.0
+## Whether the back of a dune is as long at its ends as in its middle. It was
+## not: the back was seven times as long as the dune was high at each place
+## along it, so where a dune ran out at its end its back shrank to nothing
+## too, and the end was a steep-sided wedge. With this on a dune ends as a low
+## long tongue, and its ends are raised over a longer way. Set it before adding
+## dunes. (A field of dunes turns it on; dunes scattered as they were have it off.)
+var long_backs := false
+## Where a dune stands lower than this (metres) its lee side is not a slip
+## face but a gentler slope, the gentler the lower: as the horn of a dune is,
+## which is too low for sand to pile up and let go. 0: every lee side is a
+## slip face, however low. A slip face a metre high is under two metres long,
+## which a grid of heights two and a half metres apart draws as teeth; give
+## this about one and a third times the side of a square. Set it before adding dunes.
+var soft_below := 0.0
 
 ## The ways a field of dunes can be set out (see `field`). (New ones go on the
 ## end: levels keep these as numbers.)
@@ -78,7 +92,9 @@ var _dunes: Array = []
 func add_barchan(at: Vector2, width: float, height: float, horns := 0.55, lean := 0.0) -> float:
 	var brink := PackedFloat32Array()
 	var heights := PackedFloat32Array()
-	var count := 16
+	# (with `long_backs` the brink is in shorter pieces: each piece has a flat of slip
+	# face under it, and flats five metres wide show where the light turns to shade)
+	var count := clampi(int(width / 2.5), 16, 72) if long_backs else 16
 	height = minf(height, SQUAT * width * 0.5)
 	for i in count + 1:
 		var out := float(i) / count * 2.0 - 1.0
@@ -102,11 +118,13 @@ func add_ridge(from: Vector2, to: Vector2, height: float, sway := 0.05, wobble :
 		to = swap
 	var width := (to - from).dot(across)
 	var slant := (to - from).dot(wind)
-	var count := maxi(int(width / 5.0), 6)
+	var count := maxi(int(width / (2.5 if long_backs else 5.0)), 6)
 	var brink := PackedFloat32Array()
 	var heights := PackedFloat32Array()
 	height = minf(height, SQUAT * width * 0.5)
 	var taper := clampf(height / 0.34 / width, 0.08, 0.5)
+	if long_backs:
+		taper = clampf(height * 6.0 / width, 0.12, 0.5)
 	for i in count + 1:
 		var share := float(i) / count
 		var wander := _noise(share * 3.1 + wobble * 7.3, wobble * 1.7 + 0.5) - 0.5 + 0.5 * (_noise(share * 7.7 + wobble * 3.1, wobble * 5.1) - 0.5)
@@ -135,7 +153,7 @@ func add_barchanoid(from: Vector2, to: Vector2, height: float, horns := 0.4, wob
 	for i in range(1, links):
 		ends.append((i + (_hash(wobble * 31 + i, 77) - 0.5) * 0.5) / links)
 	ends.append(1.0)
-	var count := maxi(int(width / 3.5), links * 6)
+	var count := maxi(int(width / (2.5 if long_backs else 3.5)), links * 6)
 	var brink := PackedFloat32Array()
 	var heights := PackedFloat32Array()
 	height = minf(height, SQUAT * width / links * 0.8)
@@ -148,8 +166,10 @@ func add_barchanoid(from: Vector2, to: Vector2, height: float, horns := 0.4, wob
 		var out := (share - ends[link]) / (ends[link + 1] - ends[link]) * 2.0 - 1.0
 		var tall := height * (0.72 + 0.5 * _hash(wobble * 13 + link, 5))
 		var saddle := 0.4 + 0.25 * _hash(wobble * 7 + link, 19)
-		brink.append(slant * share + horns * span * 1.4 * (1.0 - sqrt(1.0 - 0.92 * out * out)) + (_noise(share * 2.3 + wobble * 3.7, 1.5) - 0.5) * span * 0.5)
-		var run_out := smoothstep(0.0, 0.5 / links, share) * smoothstep(0.0, 0.5 / links, 1.0 - share)
+		# (a wave, not arcs that meet in a point: the crest runs round each join in a curve)
+		brink.append(slant * share + horns * span * 0.3 * (1.0 - cos(PI * out)) + (_noise(share * 2.3 + wobble * 3.7, 1.5) - 0.5) * span * 0.5)
+		var end := clampf(height * 6.0 / width, 0.5 / links, 0.5) if long_backs else 0.5 / links
+		var run_out := smoothstep(0.0, end, share) * smoothstep(0.0, end, 1.0 - share)
 		heights.append(tall * (saddle + (1.0 - saddle) * pow(1.0 - out * out, 1.2)) * run_out)
 	_add(from, 0.0, width / count, brink, heights)
 	return height
@@ -206,23 +226,22 @@ func field(area: Rect2, kind: int, heights := Vector2(2.5, 8.0), flat := 0.35, t
 		var place := 0
 		while side < high.y and place < 400:
 			var key := seed * 7919 + row * 613 + place * 37
-			var tall := size * (0.7 + 0.6 * _hash(key, 1))
+			var tall := size * (0.82 + 0.36 * _hash(key, 1))
 			var sort := kind
 			if kind == Field.MIXED:
 				# (which sort grows here: it changes across the field, not dune by dune)
 				var middle := wind * along + across * side
 				var sand := _noise(middle.x / 95.0 + seed * 2.1, middle.y / 95.0 - seed * 0.7) + (_hash(key, 2) - 0.5) * 0.25
-				sort = Field.BARCHANS if sand < 0.42 else (Field.BARCHANOID if sand < 0.66 else Field.TRANSVERSE)
-				if _hash(key, 3) < 0.05 and tall > heights.y * 0.6:
-					sort = Field.STARS
+				# (no stars among them: a star is a peak, and a sea of dunes is long calm lines)
+				sort = Field.BARCHANS if sand < 0.3 else (Field.BARCHANOID if sand < 0.62 else Field.TRANSVERSE)
 			var width: float
 			match sort:
 				Field.BARCHANS:
 					width = tall * lerpf(7.5, 10.5, _hash(key, 4))
 				Field.TRANSVERSE:
-					width = tall * lerpf(14.0, 24.0, _hash(key, 4))
+					width = tall * lerpf(10.0, 15.0, _hash(key, 4))
 				Field.BARCHANOID:
-					width = tall * lerpf(17.0, 30.0, _hash(key, 4))
+					width = tall * lerpf(12.0, 18.0, _hash(key, 4))
 				_:
 					width = tall * lerpf(8.0, 10.0, _hash(key, 4))
 			var gap := width * (0.08 + (0.25 + flat * 1.3) * _hash(key, 5)) / thick
@@ -266,9 +285,34 @@ func lowered(share: Callable) -> SandDunes:
 			var heights: PackedFloat32Array = (dune[2] as PackedFloat32Array).duplicate()
 			var at := Vector2(frame[0], frame[1])
 			var blows := Vector2(frame[2], frame[3])
+			var keeps := PackedFloat32Array()
 			for i in heights.size():
-				if heights[i] > 0.0:
-					heights[i] *= float(share.call(at + across * (frame[4] + frame[5] * i) + blows * brink[i], heights[i] * BACK + 1.5, heights[i] / tan(REPOSE)))
+				keeps.append(float(share.call(at + across * (frame[4] + frame[5] * i) + blows * brink[i], heights[i] * BACK + 1.5, heights[i] / tan(REPOSE))) if heights[i] > 0.0 else 1.0)
+			# It runs out over some way, as the end of a dune does, and not in a
+			# step: first each place keeps no more than those near it do, then
+			# the line of them is evened out.
+			var reach := maxi(int(ceil(12.0 / frame[5])), 1)
+			for turn in 2:
+				var evened := keeps.duplicate()
+				for i in keeps.size():
+					var least := 1.0
+					var sum := 0.0
+					var count := 0
+					for j in range(maxi(i - reach, 0), mini(i + reach, keeps.size() - 1) + 1):
+						least = minf(least, keeps[j])
+						sum += keeps[j]
+						count += 1
+					evened[i] = least if turn == 0 else sum / count
+				keeps = evened
+			var whole := 0.0
+			var left := 0.0
+			for i in heights.size():
+				whole += heights[i]
+				heights[i] *= keeps[i]
+				left += heights[i]
+			# (and a dune with most of it gone is not left as a stump)
+			if left < whole * 0.2:
+				heights.fill(0.0)
 			dune[2] = heights
 		kept._dunes[index] = dune
 	return kept
@@ -361,6 +405,63 @@ func bake(origin: Vector2, cell: float, columns: int, rows: int, floor := true) 
 	return heights
 
 
+## A grid of heights (as `bake` gives it) with every sharp thing in it rounded
+## over: each corner becomes the mean of those round it, weighted 1, 2, 1 along
+## and then across, `passes` times (each pass rounds over about 0.7 of a
+## square more). A crest that is a crease cannot be drawn with a grid: it comes
+## out as teeth wherever it runs aslant to the squares. Rounded over two squares
+## or so it is a clean line from any side.
+static func rounded(heights: PackedFloat32Array, columns: int, rows: int, passes := 2) -> PackedFloat32Array:
+	var from := heights
+	for pass_no in passes:
+		var along := PackedFloat32Array()
+		along.resize(from.size())
+		for row in rows:
+			var first := row * columns
+			along[first] = (from[first] * 3.0 + from[first + 1]) * 0.25
+			along[first + columns - 1] = (from[first + columns - 1] * 3.0 + from[first + columns - 2]) * 0.25
+			for at in range(first + 1, first + columns - 1):
+				along[at] = (from[at - 1] + from[at] * 2.0 + from[at + 1]) * 0.25
+		var both := PackedFloat32Array()
+		both.resize(from.size())
+		for at in range(columns, columns * (rows - 1)):
+			both[at] = (along[at - columns] + along[at] * 2.0 + along[at + columns]) * 0.25
+		for column in columns:
+			both[column] = (along[column] * 3.0 + along[column + columns]) * 0.25
+			var last := (rows - 1) * columns + column
+			both[last] = (along[last] * 3.0 + along[last - columns]) * 0.25
+		from = both
+	return from
+
+
+## For a grid of heights with no creases in it: which way to split each of its
+## squares into two triangles, row by row (one fewer each way than there are
+## corners). 0 is from a square's first corner to the far one; 1 the other way.
+## Split all one way, a rounded crest that runs along the other diagonal is
+## notched at every square, by a hand's breadth: this picks, for each square,
+## the diagonal whose middle is nearer where a curved surface through the
+## corners round about would be.
+static func splits(heights: PackedFloat32Array, columns: int, rows: int) -> PackedByteArray:
+	var turned := PackedByteArray()
+	turned.resize((columns - 1) * (rows - 1))
+	for row in range(1, rows - 2):
+		for column in range(1, columns - 2):
+			var at := row * columns + column
+			var one := (heights[at] + heights[at + columns + 1]) * 0.5
+			var other := (heights[at + 1] + heights[at + columns]) * 0.5
+			if absf(one - other) < 0.01:
+				continue
+			# (the middle of the curved surface: nine sixteenths of the corners next
+			# to it each way, less a sixteenth of those beyond)
+			var inner := one + other
+			var beside := heights[at - columns] + heights[at - columns + 1] + heights[at - 1] + heights[at + 2] 					+ heights[at + columns - 1] + heights[at + columns + 2] + heights[at + columns * 2] + heights[at + columns * 2 + 1]
+			var beyond := heights[at - columns - 1] + heights[at - columns + 2] + heights[at + columns * 2 - 1] + heights[at + columns * 2 + 2]
+			var middle := (162.0 * inner - 9.0 * beside + beyond) / 256.0
+			if absf(other - middle) < absf(one - middle):
+				turned[row * (columns - 1) + column] = 1
+	return turned
+
+
 ## The same dunes, less those `drop` says yes to: it is given the ground each
 ## covers (a Rect2). For keeping dunes off places without disturbing the rest.
 func without(drop: Callable) -> SandDunes:
@@ -370,6 +471,8 @@ func without(drop: Callable) -> SandDunes:
 	kept.floor_span = floor_span
 	kept.seed = seed
 	kept.sharp = sharp
+	kept.long_backs = long_backs
+	kept.soft_below = soft_below
 	for dune: Array in _dunes:
 		if not drop.call(dune[3]):
 			kept._dunes.append(dune)
@@ -391,14 +494,19 @@ func _add(at: Vector2, first: float, gap: float, brink: PackedFloat32Array, heig
 	var downwind := -1.0e9
 	for i in brink.size():
 		highest = maxf(highest, heights[i])
-		upwind = minf(upwind, brink[i] - heights[i] * BACK - 1.5)
 		downwind = maxf(downwind, brink[i] + heights[i] / tan(REPOSE))
-	var reach := highest / tan(REPOSE)
+	var back := highest * BACK + 1.5 if long_backs else 0.0
+	for i in brink.size():
+		upwind = minf(upwind, brink[i] - (back if long_backs else heights[i] * BACK + 1.5))
+	var reach := maxf(highest, soft_below) / tan(REPOSE)
+	for i in brink.size():
+		if soft_below > 0.0 and heights[i] > 0.0:
+			downwind = maxf(downwind, brink[i] + soft_below / tan(REPOSE))
 	var last := first + gap * (brink.size() - 1)
 	var bounds := Rect2(at + across * first + wind * upwind, Vector2.ZERO)
 	for corner: Vector2 in [Vector2(first, downwind), Vector2(last, upwind), Vector2(last, downwind)]:
 		bounds = bounds.expand(at + across * corner.x + wind * corner.y)
-	_dunes.append([PackedFloat32Array([at.x, at.y, wind.x, wind.y, first, gap, reach, sharp]), brink, heights, bounds.grow(1.0)])
+	_dunes.append([PackedFloat32Array([at.x, at.y, wind.x, wind.y, first, gap, reach, sharp, back, soft_below]), brink, heights, bounds.grow(1.0)])
 
 
 # One dune's height at a place. Upwind of the brink it is the dune's back;
@@ -418,7 +526,9 @@ static func _dune_height(frame: PackedFloat32Array, brink: PackedFloat32Array, h
 	var edge := brink[index] + (brink[index + 1] - brink[index]) * part
 	if along <= edge:
 		var height := heights[index] + (heights[index + 1] - heights[index]) * part
-		var out := (edge - along) / (height * BACK + 1.5)
+		# (the back is as long as the dune's own height calls for, or, if it has
+		# `long_backs`, as its highest part does)
+		var out := (edge - along) / (frame[8] if frame[8] > 0.0 else height * BACK + 1.5)
 		if out >= 1.0:
 			return 0.0
 		if frame[7] > 0.0:
@@ -438,7 +548,9 @@ static func _dune_height(frame: PackedFloat32Array, brink: PackedFloat32Array, h
 		var share := clampf((off_across * gap + off_along * run) / (gap * gap + run * run), 0.0, 1.0)
 		off_across -= gap * share
 		off_along -= run * share
-		var heap := heights[i] + (heights[i + 1] - heights[i]) * share - steep * sqrt(off_across * off_across + off_along * off_along)
+		var tall := heights[i] + (heights[i + 1] - heights[i]) * share
+		# (a low part of a dune has a gentler lee side: see `soft_below`)
+		var heap := tall - steep * (1.0 if tall >= frame[9] else maxf(tall / frame[9], 0.3)) * sqrt(off_across * off_across + off_along * off_along)
 		if heap > best:
 			best = heap
 	return best

@@ -14,7 +14,8 @@ class_name LevelLayout
 ##     version   1
 ##     terrain   size, cell, dune_height, seed, scatter, rim_height, rim_width, wind [x, z];
 ##               and, if it says: dunes (how they are set out, as `SandDunes.Field`; without it, 0: scattered),
-##               sharp (their crests, 0..1), flat (level ground between them, 0..1), hills (the far hills, 0: none)
+##               sharp (their crests, 0..1), flat (level ground between them, 0..1), hills (the far hills, 0: none),
+##               ripples (the look of the sand's ripples, as `Sand.Ripples`; without it, 0: soft waves)
 ##     weather   0 calm, 1 a breeze, 2 a storm
 ##     mirage    how much the heat makes the distance swim, 0..1 (0: not at all)
 ##     items     a list of Dictionaries

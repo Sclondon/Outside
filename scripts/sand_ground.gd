@@ -90,6 +90,29 @@ const LOBE_SQUARES: Array[int] = [300, 700, 2000]
 ## Footprints with a heel, a sole and a lip round them, as snow takes them.
 ## Off, a print is a soft shallow dent. (`snow` turns them on by itself.)
 @export var crisp_prints := false
+## Draws the ground near the eye as a curved surface through the corners of its
+## grid, where it is otherwise the flat triangles the collider has: a rounded
+## crest then stands against the sky as a curve and not as a line of straight
+## pieces. For ground with no creases in it (see `SandDunes.rounded`): there
+## the two are never more than a few centimetres apart. Set it before or after
+## the ground is built.
+## Which way each square of the grid is split into its two triangles, row by
+## row: 0 from its first corner to the far one (as all are if this is empty), 1
+## the other way. `SandDunes.splits` works out which keeps a crest that runs
+## aslant from being notched. Set it before the ground is built.
+var splits := PackedByteArray()
+@export var curved := false:
+	set(value):
+		curved = value
+		if _material:
+			_material.set_shader_parameter(&"curve", 1.0 if curved else 0.0)
+## The look its wind ripples have (`Sand.Ripples`): 0 soft waves, 1 mixed, 2
+## fine forking lines, 3 none. Set it before or after the ground is built.
+@export_range(0, 3) var ripples := 0:
+	set(value):
+		ripples = clampi(value, 0, 3)
+		if _material:
+			_material.set_shader_parameter(&"ripples", float(ripples))
 ## How far the desert is drawn past the edge of the ground (nothing can be
 ## stood on there), and how high that plain lies above this node: left at
 ## INF, as high as the edge is on the whole.
@@ -201,6 +224,8 @@ func build(heights := PackedFloat32Array()) -> void:
 	lend(_material)
 	_material.set_shader_parameter(&"form_map", _form_map)
 	_material.set_shader_parameter(&"snow", 1.0 if snow else 0.0)
+	_material.set_shader_parameter(&"ripples", float(ripples))
+	_material.set_shader_parameter(&"curve", 1.0 if curved else 0.0)
 	for i in 3:
 		_kind_images.append(Image.create_from_data(wide, long, false, Image.FORMAT_RGBA8, _kinds[i]))
 		_kind_maps.append(ImageTexture.create_from_image(_kind_images[i]))
@@ -344,10 +369,12 @@ func _make_collider() -> void:
 			var b := Vector3(x + cell, _heights[corner + 1], z)
 			var c := Vector3(x + cell, _heights[corner + wide + 1], z + cell)
 			var d := Vector3(x, _heights[corner + wide], z + cell)
+			# (split as `height_at` has it)
+			var turned := splits.size() == _columns * _rows and splits[row * _columns + column] == 1
 			faces[next] = a
 			faces[next + 1] = b
-			faces[next + 2] = c
-			faces[next + 3] = a
+			faces[next + 2] = d if turned else c
+			faces[next + 3] = b if turned else a
 			faces[next + 4] = c
 			faces[next + 5] = d
 			next += 6
@@ -476,10 +503,16 @@ func height_at(x: float, z: float) -> float:
 	var corner := row * (_columns + 1) + column
 	var a := _heights[corner]
 	var d := _heights[corner + _columns + 2]
-	if across > along:
-		var b := _heights[corner + 1]
-		return a + across * (b - a) + along * (d - b) + _origin.y
+	var b := _heights[corner + 1]
 	var c := _heights[corner + _columns + 1]
+	# (each square is two triangles: split from this corner to the far one, or
+	# the other way if `splits` says so)
+	if splits.size() == _columns * _rows and splits[row * _columns + column] == 1:
+		if across + along < 1.0:
+			return a + across * (b - a) + along * (c - a) + _origin.y
+		return d + (1.0 - across) * (c - d) + (1.0 - along) * (b - d) + _origin.y
+	if across > along:
+		return a + across * (b - a) + along * (d - b) + _origin.y
 	return a + along * (c - a) + across * (d - c) + _origin.y
 
 
