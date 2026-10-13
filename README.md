@@ -1715,8 +1715,9 @@ while Medjed looks away; a mirror shuts his eyes; one that follows comes, no fur
 and goes home; and in the desert, made as the editor makes him, a plate shuts his eyes and off it the boy is caught.
 The second draws him (by day and in the dark by a torch; add `--rendering-method gl_compatibility` for the web's).
 
-Not in the tombs yet. In the tomb's side view the fan is seen nearly edge on: it shows as a pale band along the floor
-and the two lines over it, which is enough to see where he looks but not how wide.
+In the tombs he keeps a way that has no door (see "Tombs"): he stands at the far end of a plain stretch and looks back
+down it, and does not turn. In the tomb's side view the fan is seen nearly edge on: it shows as a pale band along the
+floor and the two lines over it, which is enough to see where he looks and how far, but not how wide.
 
 ## The sphinx
 
@@ -1847,6 +1848,9 @@ godot --path . --fixed-fps 60 --resolution 960x960 --script tools/sphinx_sheets.
 The first runs it with nothing drawn and ends PASSED or FAILED. The second draws it: each head from all round and
 close to, every size beside the boy, weathered and painted, each thing it does as a strip of moments, by torchlight,
 and its station in the yard.
+
+In a tomb the sphinx has one more thing said to it: `sweep_to`, the place in the world where a thing it refuses is put
+down (with none said, out beyond its paw as before). A tomb seen from the side has only one line a thing can lie on.
 
 Not done: the paw that sweeps goes through him if he stands in its way (it does not push him); nothing but the things
 he carries can answer it; and the passage through it is a plain straight one.
@@ -2356,6 +2360,39 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   time; it is in neither the plan nor the stone, so it is in neither fingerprint. `tools/tomb_test.gd -- ba` (and
   `3d ba`, `branching ba`) asks for the way at every step of tombs as they are played, sends the Ba, presses
   "Stuck", and plays on from the door by the Ba's own way.
+- **Apophis** (`Apophis`, see "Apophis") is in no tomb the generators make. The tomb editor can put him in a burial
+  chamber by hand ("Apophis", with the other switches of that room; `"apophis": true` in a `TombSpec`): he lies down
+  a hole beyond the falcon, comes out when it is taken, and follows the boy out by the boy's own trail. Dying at his
+  mouth is a death like any other: the boy is back at the last door with the falcon, the snake is back in his hole
+  (he goes there of himself whenever the boy starts again), and he comes out again at once, so a death shakes him
+  off only as far as that door is from the burial chamber, and costs a death. Why he is not in generated tombs: he
+  goes at 3.6 to 4 m/s against the boy's 4.4, and starts three metres behind him, so a clean run just keeps ahead,
+  and nothing else does. A crawl (1.3 m/s for the boy; the snake goes through at full speed), water, a ladder or a
+  rope up, the hook to be thrown again over its pit and a mummy's trench to climb out of each cost the boy more
+  seconds than he has, and what would give them back (a head start worked out for each tomb from its way out, lit
+  braziers placed for it) would have to be proved for every tomb in three views by something that knows how long
+  each of those takes him, which `TombSolver` does not. A tomb is proved finishable; with him in it, it would only
+  be hoped. So he is by hand, and the editor says of him that nothing proves he can be outrun. `tools/tomb_test.gd
+  -- custom` has a tomb of stairs and a doorway with him in it, which the automated player gets out of ahead of
+  him, seen from the side and walked through; and it lets him catch the boy, to see both put back.
+- **Khepri and the sun** are in no tomb. Seen from the side a tomb has no floor of squares, only a line; and in
+  the tombs that are walked through the blocks keep to a lane, which a sun steered about a hall would not. It was
+  not forced.
+- **How much of this a tomb has.** An easy tomb has at most one of the creatures that keep a way, and that a gate
+  guardian whose leaf lies in the open in a room before (a third of easy tombs have one). A middling tomb has up to
+  two, of a guardian (leaf in the open, in a loft or under a well), a sphinx (a jar or a torch) and Medjed; a hard
+  one up to three, and its sphinx may want the hook (`TombGenerator.KEEPERS`). No two of them keep doors of rooms
+  next to one another, so that one or two are on the screen at a time. Every tomb has the Ba. `tools/tomb_test.gd
+  -- sweep` counts them over the seeds of each shape and difficulty, and asks the solver of every one afresh:
+
+  | 300 seeds each | a guardian | a sphinx | Medjed | none | two or more | proved | tries thrown away |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | Down an axis, easy | 90 | 0 | 0 | 210 | 0 | 300 | 0 |
+  | Down an axis, middling | 87 | 109 | 84 | 75 | 77 | 300 | 0 |
+  | Down an axis, hard | 130 | 110 | 92 | 50 | 124 | 300 | 0 |
+  | Branching, easy | 57 | 0 | 0 | 243 | 0 | 300 | 0 |
+  | Branching, middling | 76 | 77 | 98 | 77 | 36 | 300 | 1 |
+  | Branching, hard | 106 | 86 | 113 | 50 | 93 | 300 | 18 |
 - **Mummies** are of a kind chosen with something in the room that kind cannot get past, between it and whatever he has
   to stand still at: a trench for the shambler, the child and the royal one, a kerb for the priest and the crawler, two
   piers too close together for the brute. Each wakes as he passes, loses him after a few seconds of not being able to get
@@ -2399,7 +2436,15 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   what holds it back, the torches, hooks and jars that lie in it, the way on (doorway, stairs, crawl, water, ladder,
   rope, a pit to swing over, up the sand) and what locks the door on (the generator's rules, by name; where the way on
   is up the sand, that is what lets the sand in, and with none it is a seal stone at the foot of the face). Whatever a lock needs that is
-  nowhere before it is left in the room before, and said. After every change the solver is run again and what it found
+  nowhere before it is left in the room before, and said. The creatures are among the locks, by name: a gate guardian
+  (with the room his leaf lies in, or the room whose loft or well it is in), a sphinx that wants a jar, a torch or the
+  hook (the thing is left in the room before if there is none earlier), and Medjed with what shuts his eyes (a block
+  on its plate, a seal stone in a loft or under a well; on a floor plan, also a seal stone in any room). The burial
+  chamber has a switch for Apophis. "Way through" says their steps in words ("Walk onto the leaf of the Book of the
+  Dead, and read the keeper's name", "Put the jar down before the sphinx: it keeps it", "Go to 4 Corridor, through
+  the doorway, past Medjed, whose eyes are shut"). `TombSpec.problems` refuses a loft over the room of a guardian or
+  a sphinx, a block pushed along a way one of them keeps, any of them on the way up the sand, and Apophis anywhere
+  but the burial chamber. Tombs kept before there were any of these open as they were. After every change the solver is run again and what it found
   is said under the buttons; "Way through" lists one way, step by step, or what is wrong. Every change is kept on the
   device (`user://my_tombs.json`), under the tomb's name; "Tombs" has the others, a new one, one of the generator's
   from a number to change by hand, and the tomb as text to copy out or paste in. "Play" plays it (`TombLevel.play =
@@ -2551,8 +2596,10 @@ same stone from the same numbers (`TombBranching.VERSION` is its own: 2, since t
   (`_reaches_all`: a lock's key is never behind that lock, or behind another whose key is behind it), and whether
   everything that is carried could still be brought to where it is wanted from every room it could be left in
   (`_carry_sound`: nothing wanted at the top can be taken down a rope or a drop). Then `TombSolver` plays it
-  through as it does any tomb, and only what passes is handed back. Over seeds 1 to 500 at each difficulty, 496,
-  500 and 475 passed at the first try, none fell back to the plain tomb, and the worst seed took three tries.
+  through as it does any tomb, and only what passes is handed back. With the creatures in, over seeds 1 to 300 at each difficulty, 300,
+  299 and 282 passed at the first try (every one of the others was too tangled to prove in the positions allowed),
+  none fell back to the plain tomb, and the worst seed took two tries. Of the tombs down an axis, all of 500 at each
+  difficulty passed at the first try.
 - **The solver** was already a search over a graph, not along a line, and needed nothing changed to prove these:
   `tools/tomb_test.gd -- branching plans` holds it to seven plans made by hand whose answers are known (a seal
   stone down the other way; a torch beyond water, with and without a crawl round it; a drop and a door opened
@@ -2642,6 +2689,7 @@ same stone from the same numbers (`TombBranching.VERSION` is its own: 2, since t
 | `tools/tomb_phone_shots.gd` | Not part of the game: a picture of every state of the editor on a phone, each measured |
 | `tools/tomb_phone_probe.gd` | Not part of the game: measures what can be touched on the phone layout against what a thumb needs (88 by 88, 12 apart, clear of the edges, words of 26) |
 | `scripts/tomb_hooks.gd` | Where scarabs, cobwebs, jackals, inscriptions and the notebook plug in |
+| `scripts/tomb_guide.gd` | What the Ba knows: the level as a position of the solver's, the next step from it, and the places to fly by to show it |
 | `scripts/tomb_random.gd` | The dice |
 | `tools/tomb_test.gd` | Not part of the game: checks plans, geometry and sameness over hundreds of seeds, and plays tombs through with the real Player, seen from the side or (`3d`) walked through |
 | `tools/tomb_sheets.gd` | Not part of the game: draws a tomb's plan, the whole of it as built, and each room as he sees it (from the side) |
@@ -2649,6 +2697,7 @@ same stone from the same numbers (`TombBranching.VERSION` is its own: 2, since t
 | `tools/tomb3d_probe.gd` | Not part of the game: prints how a tomb is set out to be walked through (cells, rooms, air, parts, his lines; with `at=x,z` the stone and the parts round a place) |
 | `tools/tomb_branch_shots.gd` | Not part of the game: pictures of what a tomb that branches adds to the screen (the card, the map small and large, forks and a loop as he sees them, the editor's floor plan) |
 | `tools/tomb_shapes.gd` | Not part of the game: tombs made by hand that the tools share (every lock; the two plates, the rope and the sand; every way; a plan with cells, a side chamber and a loop) |
+| `tools/tomb_keeper_shots.gd` | Not part of the game: pictures of the creatures in a tomb as he meets them (each leaf, guardian, sphinx and Medjed, far and near; Apophis coming out; the Ba showing the way), in either view |
 
 ```
 godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [plans] [geometry] [same] [kept] [drive] [templates] [custom] [seeds=500] [drive_seeds=1,2,3] [per=3]
@@ -2659,6 +2708,10 @@ godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb3d_sheets
 godot --headless --path . --script tools/tomb3d_probe.gd -- <seed>:<difficulty> [branching] [areas] [parts] [lines] [at=<x>,<z>]
 godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- branching [plans] [geometry] [same] [drive] [templates] [map] [doors] [seeds=500] [drive_seeds=1,2,3] [drive_difficulties=0,1,2]
 godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- 3d doors
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- sweep [seeds=300]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [3d | branching] ba [drive_seeds=1,2,3] [drive_difficulties=0,1,2]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- [3d] custom pick=guardian|sphinx|medjed|snake
+godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_keeper_shots.gd -- <folder> [side | 3d | branching] [<seed>:<difficulty> | keepers | sphinx | medjed | snake]
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_branch_shots.gd -- <folder> [seed:difficulty] [name=<prefix>]
 godot --path . --fixed-fps 60 --resolution 1280x720 res://tomb.tscn -- tomb=12:1 shape=branching
 godot --headless --path . --fixed-fps 60 --script tools/tomb_editor_test.gd -- [seeds=60] [fuzz=1200] [size=1280x720]

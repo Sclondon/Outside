@@ -51,6 +51,15 @@ extends SceneTree
 ##            and of the day's tomb that branches: apart from both, in a file
 ##            kept before there was such a thing as well as in a new one.
 ##            (In a file of its own: the player's is not touched.)
+##  sweep     the creatures of the funerary texts (gate guardian, sphinx, Medjed)
+##            over `seeds` tombs of each shape at each difficulty: how many tombs
+##            have each, that every one is proved, and how many tries were thrown away.
+##  ba        (side-on, with 3d, or with branching) the Ba's hint, asked for at
+##            every step of a few tombs as they are played, and sent; "Stuck"; and
+##            the way out behind it.
+##            (`custom` also runs a guardian, a sphinx, Medjed and Apophis each by
+##            itself: guesses right and wrong, the wrong thing given, his look run
+##            at flat out, the snake let out. `pick=guardian|sphinx|medjed|snake` for one.)
 ##  show      prints one plan and the way through it.
 ##  shots=<folder>  (not headless: `--resolution 1280x720`, and its window is kept
 ##            off the screen) saves pictures of the new templates as they are
@@ -781,6 +790,21 @@ func _say_tally() -> void:
 func _drive_custom() -> void:
 	print("CUSTOM: tombs made by hand, played by the real Player%s" % (", in the tomb that is walked through" if walked else ""))
 	TombLevel.bare = true
+	# (`pick=guardian`, `sphinx`, `medjed` or `snake`: only that one of the creatures by itself)
+	if pick in ["guardian", "sphinx", "medjed", "snake"]:
+		var held_up := true
+		match pick:
+			"guardian":
+				held_up = await _guardian_holds()
+			"sphinx":
+				held_up = await _sphinx_holds()
+			"medjed":
+				held_up = await _gaze_holds()
+			"snake":
+				held_up = await _snake_comes()
+		if not held_up:
+			failed = true
+		return
 	var specs: Array = [TombSpec.fresh(), every_lock(), three_new(), Shapes.keepers()]
 	if walked:
 		specs.append(Shapes.every_way())
@@ -809,6 +833,8 @@ func _drive_custom() -> void:
 	if pick == "" and not await _sphinx_holds():
 		failed = true
 	if pick == "" and not await _gaze_holds():
+		failed = true
+	if pick == "" and not await _snake_comes():
 		failed = true
 	if walked and pick == "" and not await _carried_back3():
 		failed = true
@@ -1135,6 +1161,52 @@ func _ba_shows() -> void:
 			failed = true
 		level.get_parent().queue_free()
 		await _wait(5)
+
+
+# Apophis, who is only ever put in a tomb by hand. With the falcon taken he
+# must come out of his hole and after the boy; the boy caught is back at the
+# last door and the snake back in his hole, and out again; and then the tomb
+# is played through from the start, and the boy gets out or does not: that is
+# said, with what it cost him, and is not held against the tomb (nothing proves
+# he can be outrun, which the editor says of him too).
+func _snake_comes() -> bool:
+	await _open(0, 0, Shapes.one_snake())
+	var snake := level.built.snake
+	var sound := snake != null and not snake.loose and not snake.is_awake()
+	var done := await _play_through("the snake")
+	var came := snake != null and snake.loose
+	print("  Apophis, in a tomb made by hand: asleep down his hole until the falcon is taken: %s; let out by it: %s; the boy %s, at a cost of %d deaths" % [
+			sound, came, "got out ahead of him" if done else "DID NOT GET OUT", level.deaths])
+	level.get_parent().queue_free()
+	await _wait(5)
+	# And caught on purpose: he stands by the falcon and waits for him.
+	await _open(0, 0, Shapes.one_snake())
+	snake = level.built.snake
+	var steps: Array = level.plan.solution
+	var took := true
+	for step: Array in steps:
+		took = took and await _do_step(step)
+		if level.has_treasure:
+			break
+	_still()
+	var woke := false
+	for i in 1500:
+		await _wait(1)
+		woke = woke or snake.is_awake()
+		if level.deaths >= 1 and not player.is_limp:
+			break
+	await _wait(30)
+	var home := snake.global_position.distance_to(snake.get_parent().to_global(snake.position)) < 0.01 and level.deaths == 1
+	var back: bool = level.layout.plan_room_at(player.global_position) >= 0 and level.has_treasure
+	for i in 600:
+		await _wait(1)
+		if snake.is_awake():
+			break
+	var again := snake.is_awake() and snake.loose
+	print("  Apophis, waited for by the falcon: he came (%s) and caught him (deaths %d); the boy is back at a door with the falcon (%s); the snake came out again (%s)" % [woke, level.deaths, back, again])
+	level.get_parent().queue_free()
+	await _wait(5)
+	return sound and came and took and woke and home and back and again
 
 
 ## A tomb whose only way on is up the sand, which a block on its plate lets in.

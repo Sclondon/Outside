@@ -776,6 +776,11 @@ func _set_burial(room: TombPlan.Room, info: Dictionary, with_bay: bool) -> void:
 		parts.append({"kind": "mummy", "room": _room, "what": room.mummy, "guardian": true, "at": _f.at(niche.u1 - 0.9, _y, 1.4),
 				"safe_at": held, "safe_way": -_f.dir(), "wake": 3.0})
 		parts.append({"kind": "jackal", "room": _room, "at": _f.at(niche.u1 - 0.9, _y, -2.4)})
+	if room.snake:
+		# Apophis, down a hole beyond the falcon: he comes out behind the boy as it is taken.
+		if room.mummy < 0:
+			_area(2.6)
+		parts.append({"kind": "apophis", "room": _room, "at": _f.at(_u - 0.8, _y, 0.0)})
 	if with_bay:
 		var bay := _area(BAY)
 		info["east"] = _f.at((bay.u0 + bay.u1) * 0.5, _y, WALK)

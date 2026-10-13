@@ -883,6 +883,8 @@ func _fill_room() -> void:
 	if index > 0:
 		_section("What is in it")
 		_switch("switch:dark", "Dark", "No torches on its walls.", told["dark"], func() -> void: editor.set_value("dark", not told["dark"]))
+		if burial:
+			_switch("switch:apophis", "Apophis", TombSpec.APOPHIS_NOTE, told.get("apophis", false), func() -> void: editor.set_value("apophis", not told.get("apophis", false)))
 		if not burial:
 			_switch("switch:pit", "A pit to jump", "A pit across the floor, narrow enough to jump.", told["pit"], func() -> void: editor.set_value("pit", not told["pit"]))
 		var mummies: Array = [["none", "None", "Nothing wakes in this room."]]

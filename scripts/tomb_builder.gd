@@ -31,6 +31,8 @@ var sands := {}
 var keepers := {}
 ## By link: Medjed, where he watches it (a Medjed).
 var watchers := {}
+## Apophis, where a tomb made by hand has him in its burial chamber.
+var snake: Apophis
 ## The ropes that hang down shafts.
 var ropes: Array[Rope] = []
 ## By switch: the Plate (a plate, a seal stone, an offering table), or for a
@@ -281,6 +283,13 @@ func _part(part: Dictionary) -> void:
 			watcher.rotation.y = part["yaw"]
 			node.add_child(watcher)
 			watchers[part["link"]] = watcher
+		"apophis":
+			# The serpent, down his hole until the falcon is taken. (Not put away with the room: he leaves it.)
+			snake = Apophis.new()
+			snake.rest = Apophis.Rest.HOLE
+			snake.length = 14.0
+			snake.position = at
+			root.add_child(snake)
 		"guardian":
 			# A keeper of a gate, who is his own door: his knives bar the gateway until he is named.
 			var keeper := GateGuardian.new()

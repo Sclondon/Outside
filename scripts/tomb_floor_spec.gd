@@ -128,6 +128,7 @@ static func from_plan(plan: TombPlan) -> Dictionary:
 		var told := room(TombPlan.ROLE_NAMES[made.role], Vector2i(made.cell.x, made.cell.z), int(index[came.a]) if came else -1)
 		told["dark"] = made.dark
 		told["pit"] = made.pit
+		told["apophis"] = made.snake
 		told["mummy"] = made.mummy
 		if made.mummy >= 0 and made.barrier != TombGenerator.BARRIER_FOR.get(made.mummy, TombPlan.Barrier.NONE):
 			told["barrier"] = TombPlan.BARRIER_NAMES[made.barrier]
@@ -461,6 +462,8 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 		var lock: String = TombSpec.plain_lock(told.get("lock", "none"))
 		if int(told.get("mummy", -1)) >= TombSpec.MUMMY_TITLES.size():
 			wrong.append("%s: there is no such mummy." % title)
+		if i != burial and told.get("apophis", false):
+			wrong.append("%s: Apophis lies in the burial chamber, and nowhere else." % title)
 		if i == burial and told.get("pit", false):
 			wrong.append("%s: there is no pit in the burial chamber." % title)
 		if not way in TombSpec.WAYS:
@@ -631,6 +634,7 @@ static func compile(spec: Dictionary) -> TombPlan:
 		made.spine = i
 		made.dark = told.get("dark", false)
 		made.pit = told.get("pit", false)
+		made.snake = told.get("apophis", false) and made.role == TombPlan.Role.BURIAL
 		made.mummy = int(told.get("mummy", -1))
 		var cell := cell_of(told)
 		made.cell = Vector3i(cell.x, level[i] if level[i] != 9999 else 0, cell.y)

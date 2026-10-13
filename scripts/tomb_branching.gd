@@ -642,6 +642,10 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 		"gap":
 			# No door: a pit too wide to jump, and a grappling hook somewhere before it.
 			# (One hook does for every pit it can be brought to.)
+			# (not across the way to what a sphinx is to be given: see "sphinx")
+			for thing in plan.things:
+				if _given.has(thing.id) and _inside(thing.room, beyond):
+					return false
 			if _count(TombPlan.Pass.GAP) >= 2:
 				return false
 			link.pass_kind = TombPlan.Pass.GAP
@@ -729,7 +733,9 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 					or not _has_room_for(1, 1) or plan.rooms.size() > TombPlan.GONE:
 				return false
 			var wanted: int = [TombPlan.Item.JAR, TombPlan.Item.TORCH, TombPlan.Item.HOOK][_rng.weighted([3, 3, 2 if plan.difficulty >= 2 else 0])]
-			var from := _host_for_item(link, 3, here, wanted == TombPlan.Item.HOOK)
+			# (never beyond a pit, even the hook: it is given away, and whatever hook was
+			# swung over on to fetch it would be left on the far side)
+			var from := _host_for_item(link, 3, here, false)
 			if from == -1 or not _reaches_all({link.id: [here, from]}):
 				return false
 			var gift := plan.add_thing(wanted, from)

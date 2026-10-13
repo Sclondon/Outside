@@ -1306,6 +1306,9 @@ func _show_floor_inspector() -> void:
 		_choice("What it is", titles, TombSpec.MIDDLE_ROLES.find(told["role"]), func(picked: int) -> void: set_value("role", TombSpec.MIDDLE_ROLES[picked]))
 	else:
 		_inspector.add_child(_caption("The burial chamber: the falcon is here, at its far end." if burial else "The entrance: out of doors, where he starts and where he has to get back to."))
+		if burial:
+			_toggle("Apophis: the serpent comes out after him when the falcon is taken", "apophis")
+			_inspector.add_child(_caption(TombSpec.APOPHIS_NOTE))
 	if index > 0:
 		_toggle("Dark: no torches on its walls", "dark")
 		if not burial:
@@ -1623,6 +1626,9 @@ func _show_inspector() -> void:
 		_choice("What it is", titles, TombSpec.MIDDLE_ROLES.find(told["role"]), func(picked: int) -> void: set_value("role", TombSpec.MIDDLE_ROLES[picked]))
 	else:
 		_inspector.add_child(_caption("The burial chamber: the falcon is here, at its far end." if last else "The entrance: out of doors, where he starts and where he has to get back to."))
+		if last:
+			_toggle("Apophis: the serpent comes out after him when the falcon is taken", "apophis")
+			_inspector.add_child(_caption(TombSpec.APOPHIS_NOTE))
 	if index > 0:
 		_toggle("Dark: no torches on its walls", "dark")
 	if _is_middle(index):

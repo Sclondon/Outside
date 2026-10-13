@@ -353,6 +353,18 @@ func _editor() -> void:
 	expect(editor.found["ok"] and (editor.found["plan"] as TombPlan).links.any(func(link: TombPlan.Link) -> bool: return link.watched), "Medjed chosen in the editor: %s" % editor.found["says"])
 	expect(_way_says(editor, ["Push the block onto the plate", "past Medjed"]), "the way through does not say to shut Medjed's eyes and go past him")
 	expect(TombSpec.from_text(TombSpec.to_text(editor.spec)) == editor.spec, "a tomb with Medjed did not come back from text as it went")
+	# Apophis, by hand, in the burial chamber and nowhere else.
+	editor.choose(editor.rooms().size() - 1)
+	editor.set_value("apophis", true)
+	editor.rebuild()
+	expect(editor.found["ok"] and ((editor.found["plan"] as TombPlan).rooms[(editor.found["plan"] as TombPlan).goal_trigger().room] as TombPlan.Room).snake, "Apophis put in the burial chamber in the editor: %s" % editor.found["says"])
+	editor.choose(1)
+	editor.set_value("apophis", true)
+	editor.rebuild()
+	expect(not (editor.found["problems"] as PackedStringArray).is_empty(), "Apophis in a corridor was let through")
+	editor.undo()
+	editor.rebuild()
+	expect(editor.found["ok"], "undoing Apophis in a corridor did not put it right: %s" % editor.found["says"])
 	# Every frame of it with a full tomb standing, for a while.
 	editor.take(TombSpec.from_seed(3, 2))
 	editor.rebuild()

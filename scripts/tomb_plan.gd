@@ -72,6 +72,10 @@ class Room:
 	var mummy := -1
 	var barrier := Barrier.NONE
 	var guardian := false
+	## The burial chamber only: Apophis is down a hole at its far end, and comes
+	## out after the boy when the falcon is taken. (Put in by hand: the solver
+	## knows nothing of him, and no generator makes one.)
+	var snake := false
 	## Whether it has a pit across it that kills (a trench does not).
 	var pit := false
 	## Where it is on the floor plan of a tomb that is walked through: x and z
@@ -292,6 +296,8 @@ func describe() -> String:
 			line += " dark"
 		if room.pit:
 			line += " pit"
+		if room.snake:
+			line += " apophis"
 		if room.mummy >= 0:
 			line += " mummy=%d behind=%s%s" % [room.mummy, BARRIER_NAMES[room.barrier], " guardian" if room.guardian else ""]
 		# (only a plan that was given cells says so: one that was not is the plan it always was)

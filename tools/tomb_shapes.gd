@@ -170,3 +170,15 @@ static func one_medjed() -> Dictionary:
 	rooms[2]["lock"] = "gaze_work"
 	spec["rooms"] = rooms
 	return spec
+
+
+## A tomb with Apophis in its burial chamber, and nothing between that and the way out but stairs and a doorway.
+static func one_snake() -> Dictionary:
+	var spec := TombSpec.fresh("One snake")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "hall", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[1]["way"] = "stairs"
+	rooms[3]["apophis"] = true
+	spec["rooms"] = rooms
+	return spec

@@ -556,6 +556,11 @@ func _lay_burial(room: TombPlan.Room, info: Dictionary) -> void:
 		parts.append({"kind": "mummy", "room": _room, "what": room.mummy, "guardian": true,
 				"at": Vector3(niche.xb - 0.9, _y, BACK + 1.4), "from": info["west"].x, "to": niche.xb, "east": false, "safe": info["safe"]})
 		parts.append({"kind": "jackal", "room": _room, "at": Vector3(niche.xb - 0.9, _y, FRONT - 1.2)})
+	if room.snake:
+		# Apophis, down a hole beyond the falcon: he comes out behind the boy as it is taken.
+		if room.mummy < 0:
+			_span(2.6, _ceil)
+		parts.append({"kind": "apophis", "room": _room, "at": Vector3(_x - 0.7, _y, 0.0 if room.mummy >= 0 else BACK + 1.0)})
 	info["x1"] = _x
 	rooms[room.id] = info
 	var end := _span(ROCK, _ceil)

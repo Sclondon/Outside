@@ -86,6 +86,8 @@ const LOCK_NOTES := {
 	"gaze_above": "No door: Medjed stands in the way beyond and looks back down it, and whoever comes under his eyes is struck dead after a moment. A seal stone on a slab over a room shuts them for good.",
 	"gaze_below": "No door: Medjed stands in the way beyond and looks back down it, and whoever comes under his eyes is struck dead after a moment. A seal stone at the foot of a well shuts them for good.",
 }
+## What the editors say of Apophis, who is only ever put in by hand.
+const APOPHIS_NOTE := "The serpent lies down a hole at the far end of the burial chamber and comes out when the falcon is taken. He follows the boy out by the boy's own trail, a little slower than a clean run. Nothing proves he can be outrun: try the tomb."
 const THINGS := ["torch", "hook", "jar"]
 const THING_TITLES := {"torch": "Torch", "hook": "Grappling hook", "jar": "Jar"}
 const MUMMY_TITLES := ["Shambler", "Priest", "Brute", "Crawler", "Child", "Royal"]
@@ -154,7 +156,7 @@ static func is_branching(spec: Dictionary) -> bool:
 
 ## A room of that kind as it starts.
 static func room(role: String) -> Dictionary:
-	var made := {"role": role, "dark": false, "pit": false, "mummy": -1, "barrier": "auto", "torch": 0, "hook": 0, "jar": 0, "way": "open", "lock": "none", "stone_in": 0}
+	var made := {"role": role, "dark": false, "pit": false, "mummy": -1, "barrier": "auto", "torch": 0, "hook": 0, "jar": 0, "way": "open", "lock": "none", "stone_in": 0, "apophis": false}
 	if role == "entrance":
 		made["way"] = "stairs"
 	return made
@@ -182,6 +184,7 @@ static func from_plan(plan: TombPlan) -> Dictionary:
 		var told := room(TombPlan.ROLE_NAMES[from.role])
 		told["dark"] = from.dark
 		told["pit"] = from.pit
+		told["apophis"] = from.snake
 		told["mummy"] = from.mummy
 		if from.mummy >= 0 and from.barrier != TombGenerator.BARRIER_FOR.get(from.mummy, TombPlan.Barrier.NONE):
 			told["barrier"] = TombPlan.BARRIER_NAMES[from.barrier]
@@ -269,6 +272,8 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 				wrong.append("%s: the way in from outside is a doorway or stairs." % title)
 			if lock != "none":
 				wrong.append("%s: the way in has no door." % title)
+		if i < count - 1 and told.get("apophis", false):
+			wrong.append("%s: Apophis lies in the burial chamber, and nowhere else." % title)
 		if i == count - 1:
 			if told.get("pit", false):
 				wrong.append("%s: there is no pit in the burial chamber." % title)
@@ -364,6 +369,7 @@ static func compile(spec: Dictionary) -> TombPlan:
 		made.spine = i
 		made.dark = told.get("dark", false)
 		made.pit = told.get("pit", false)
+		made.snake = told.get("apophis", false) and made.role == TombPlan.Role.BURIAL
 		made.mummy = int(told.get("mummy", -1))
 		if made.mummy >= 0:
 			var barrier: String = told.get("barrier", "auto")

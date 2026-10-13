@@ -172,6 +172,8 @@ func _ready() -> void:
 	# (and Medjed's look, which kills at once: back to the last door, as ever)
 	for id: int in built.watchers:
 		(built.watchers[id] as Medjed).caught.connect(_on_caught.bind(built.watchers[id]))
+	if built.snake:
+		built.snake.caught.connect(_on_caught.bind(built.snake))
 	for id: int in built.keepers:
 		(built.keepers[id] as GateGuardian).caught.connect(_on_caught.bind(built.keepers[id]))
 	_settle_in.call_deferred()
@@ -440,6 +442,10 @@ func _take_treasure() -> void:
 		if entry["guardian"] and entry["node"].has_method(&"wake"):
 			entry["node"].call(&"wake")
 	_say("You have the falcon. Now get out.", 5.0)
+	# (and Apophis, if he is here, is out of his hole and after him: he goes back to it of himself
+	# whenever the boy starts again, and comes out again)
+	if built.snake:
+		built.snake.loose = true
 	_lead_out()
 
 
