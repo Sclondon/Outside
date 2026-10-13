@@ -795,7 +795,11 @@ func _ramp(middle: Vector2, way: Vector2, from: float, top: float) -> void:
 		var t := float(i) / steps
 		var h := top * (1.0 - t) + 0.05
 		var centre := middle + way * (from + long * t)
-		var foot := half + (h + 1.5) / tan(deg_to_rad(33.0))
+		# (its sides lie at the angle sand lies at, but steeper the nearer the top, where it is banked against the
+		# rock: lying at that angle all the way up, the top of it stood out 75 m either side, far past the hill,
+		# and its upper end was open there: he could walk in under the sand, and see through it from the river)
+		var lies := deg_to_rad(lerpf(62.0, 33.0, smoothstep(0.0, 0.45, t)))
+		var foot := half + (h + 1.5) / tan(lies)
 		var row := PackedVector3Array()
 		for corner: Array in [[-foot, -1.5], [-half, h], [half, h], [foot, -1.5]]:
 			var p: Vector2 = centre + across * float(corner[0])

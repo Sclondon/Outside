@@ -2,8 +2,9 @@ extends SceneTree
 ## Not part of the game. Opens desert.tscn and saves pictures of it from a set of
 ## viewpoints (an overview, each landmark, some at the boy's eye level), four to a
 ## sheet, and prints what each costs to draw.
-## godot --path . --resolution 960x960 --script tools/desert_views.gd -- <outdir> [banded] [yard] [name ...]
-## With `yard`: the test yard (test_yard.tscn) and its stations instead.
+## godot --path . --resolution 960x960 --script tools/desert_views.gd -- <outdir> [banded] [yard] [q0|q1|q2] [name ...]
+## With `yard`: the test yard (test_yard.tscn) and its stations instead. `q1` is the sand as a phone draws it.
+## The desert is the one the game came with, not the one kept on this device.
 
 const CELL := 640
 const VIEWS := [
@@ -58,6 +59,12 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	out = args[0]
 	only = args.slice(1)
+	for quality in 3:
+		if "q%d" % quality in only:
+			only.erase("q%d" % quality)
+			Sand.quality = quality
+	LevelLayout.saved_at = "user://desert_views_none.json"
+	Gamepad.device = 99
 	if "banded" in only:
 		only.erase("banded")
 		Settings.world_banded = true

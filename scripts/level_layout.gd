@@ -177,7 +177,7 @@ const FIELDS := {
 	"abusimbel": [["scale", "Size (1 is the true size)", "n", 0.75, 1.0, 0.05, 1.0], ["which", "Which", "c", ["Both temples", "The Great Temple", "The Small Temple"], 0],
 		["drift", "Sand drift", "n", 0.0, 1.0, 0.05, 0.35], ["wear", "Weathered", "n", 0.0, 1.0, 0.05, 0.4], ["painted", "Painted inside", "b", true],
 		["sun", "The sun on its axis", "b", false]],
-	"pad": [["y", "Height", "n", -12.0, 40.0, 0.1, 0.0], ["half_x", "Half width", "n", 1.0, 80.0, 0.5, 8.0], ["half_z", "Half length", "n", 1.0, 80.0, 0.5, 8.0],
+	"pad": [["y", "Height", "n", -12.0, 40.0, 0.1, 0.0], ["half_x", "Half width", "n", 1.0, 160.0, 0.5, 8.0], ["half_z", "Half length", "n", 1.0, 160.0, 0.5, 8.0],
 		["round", "Round", "b", true], ["ease", "Rise of the dunes round it", "n", 0.5, 40.0, 0.5, 10.0]],
 	"dune": [["width", "Width", "n", 8.0, 140.0, 1.0, 46.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 6.0], ["horns", "Horns", "n", 0.2, 0.9, 0.01, 0.55]],
 	"ridge": [["length", "Length", "n", 20.0, 300.0, 2.0, 110.0], ["height", "Height", "n", 0.5, 22.0, 0.25, 7.0]],
