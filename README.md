@@ -294,6 +294,33 @@ on the ground exactly as it is drawn and stood on, where they used to stand on t
 from, which between two corners of the ground's grid could differ by a hand's breadth. To give such a level the new
 dunes, choose a kind on its Level page; the ripples and the far hills are there too.
 
+**The desert has no edge.** The level is still a square of ground (`size` across: its pads, its water and everything
+that stands in it are there), but it is no longer closed in by a rim with a wall nothing could see inside it. He can
+walk out of the square any way he likes and the dune sea goes on, for as far as he cares to walk:
+
+- What lies past the edge is the level's own open sand, as it is before any pad is pressed into it or any water cut,
+  over and over in every direction. The dunes are made so that the square meets itself (`SandDunes.wrap`: a dune that
+  reaches past one edge comes in again at the far one), so the same kind of dunes, from the same numbers, lie out
+  there as in here, and a place out there is the same place whenever he comes back to it. Whatever a level puts
+  within 30 m of the square's edge (`DesertTerrain.JOIN`) runs out into that open sand: there is no step, no crease
+  and no change in the sand where the square ends. (Paint a path right up to the edge and the path does stop there.)
+- It is drawn by the same `SandGround` in the same one draw call, with not a triangle more: the mesh followed him
+  already, and past the edge it now reads a second set of heights (`far_heights`) where it used to draw a plain. It
+  takes his prints out there as it does anywhere. `height_at`, `give_at` and the rest answer for it.
+- It is solid a piece at a time (`DesertTerrain._tread`): pieces 80 m across, those within two pieces of him or of
+  anything on a rig or any hound that has followed him out, one made in a frame (under 3 ms; `tread_ms`), and a piece's
+  shape is kept and used again wherever that part of the square comes round. Nothing is made until somebody nears
+  the edge, so opening the level costs no more for it than the second set of heights (about a thirtieth longer).
+- The far hills stand still while the eye is inside the square and go with it when it is outside
+  (`DesertHorizon.round_square`), so they are never walked up to, and the whole level is always inside them.
+- The river no longer runs to the edge: each end comes to a pool with reeds round it, short of it.
+- Nothing lives out there. The level editor's cross and view keep to the square. "Start again" in the notebook brings
+  him back, as anywhere.
+
+An old level may still say `rim_height` and `rim_width`: they are not used, and the row for them is gone from the
+editor's Level page. (The test yard makes ground of its own and is as it was: it ends in a plain.) The sea is one
+square repeated, 800 m on in the shipped desert: from the ground that cannot be told, from high above it could be.
+
 The ground is made again by the editor a moment after any change: that takes about a quarter of a second for the
 shipped desert on a desk (it was asked of the dunes corner by corner, and is now worked out dune by dune).
 

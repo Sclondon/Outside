@@ -4284,16 +4284,16 @@
                320
             ],
             [
-               380,
-               346
+               350,
+               330
             ],
             [
-               425,
-               380
+               356,
+               333
             ],
             [
-               380,
-               346
+               350,
+               330
             ],
             [
                332,
@@ -4352,12 +4352,12 @@
                -304
             ],
             [
-               380,
-               -332
+               350,
+               -314
             ],
             [
-               425,
-               -366
+               356,
+               -318
             ]
          ],
          "width":24,
@@ -5059,6 +5059,146 @@
       },
       {
          "at":[
+            365.5,
+            324.5
+         ],
+         "id":367,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":0
+      },
+      {
+         "at":[
+            369.5,
+            331.5
+         ],
+         "id":368,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.15,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":67
+      },
+      {
+         "at":[
+            367,
+            339
+         ],
+         "id":369,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.3,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":134
+      },
+      {
+         "at":[
+            362,
+            345.5
+         ],
+         "id":370,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":201
+      },
+      {
+         "at":[
+            354,
+            345.5
+         ],
+         "id":371,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.15,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":268
+      },
+      {
+         "at":[
+            365.5,
+            -309.5
+         ],
+         "id":372,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":0
+      },
+      {
+         "at":[
+            369.5,
+            -316.5
+         ],
+         "id":373,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.15,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":67
+      },
+      {
+         "at":[
+            367,
+            -324
+         ],
+         "id":374,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.3,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":134
+      },
+      {
+         "at":[
+            362,
+            -330.5
+         ],
+         "id":375,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":201
+      },
+      {
+         "at":[
+            354,
+            -330.5
+         ],
+         "id":376,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.15,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":268
+      },
+      {
+         "at":[
             233.5,
             -88
          ],
@@ -5249,8 +5389,6 @@
       "dunes":1,
       "flat":0.2,
       "hills":0.6,
-      "rim_height":9,
-      "rim_width":45,
       "ripples":1,
       "scatter":1.3,
       "seed":7,
@@ -5261,7 +5399,7 @@
          -0.280000001192093
       ]
    },
-   "issue":2,
+   "issue":3,
    "version":1,
    "weather":1
 }

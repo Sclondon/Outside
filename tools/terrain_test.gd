@@ -451,6 +451,8 @@ func open(layout: Dictionary) -> void:
 		scene.queue_free()
 		await process_frame
 		await process_frame
+	# (as a level kept from this issue of the game: one from an older issue is put aside for the one the game came with)
+	layout["issue"] = LevelLayout.issue()
 	var file := FileAccess.open(KEPT, FileAccess.WRITE)
 	file.store_string(LevelLayout.to_text(layout))
 	file.close()
