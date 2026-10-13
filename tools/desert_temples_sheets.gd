@@ -206,17 +206,17 @@ func puzzles() -> void:
 	var temple: Node3D = named("Edfu")
 	var keeper: Node3D = named("EdfuKeeper")
 	if temple and keeper:
-		await inside(temple, "Edfu, the keeper", temple.to_local(keeper.global_position) + Vector3(3.4, 0.0, 2.4), Vector3(-0.3, 0.0, -1.0), 3.0, 2.0)
+		await inside(temple, "Edfu, the keeper", temple.to_local(keeper.global_position) + Vector3(2.6, 0.0, 1.5), Vector3(-0.3, 0.0, -1.0), 2.6, 2.0)
 		await inside(temple, "Edfu, the leaf", temple.to_local(named("EdfuLeaf").global_position) + Vector3(3.5, 0.0, 0.5), Vector3.LEFT, 3.0, 2.0)
 		(keeper as GateGuardian).on = true
 		for i in 60:
 			await physics_frame
-		await inside(temple, "Edfu, the keeper named", temple.to_local(keeper.global_position) + Vector3(3.4, 0.0, 2.4), Vector3(-0.3, 0.0, -1.0), 3.0, 2.0)
+		await inside(temple, "Edfu, the keeper named", temple.to_local(keeper.global_position) + Vector3(2.6, 0.0, 1.5), Vector3(-0.3, 0.0, -1.0), 2.6, 2.0)
 		await inside(temple, "Edfu, the naos", marker(temple, &"temple_sanctuary", 0) + Vector3(-1.0, 0.0, -1.0), Vector3(0.2, 0.0, -1.0), 2.8, 2.0)
 	temple = named("KomOmbo")
 	keeper = named("KomOmboKeeper")
 	if temple and keeper:
-		await inside(temple, "Kom Ombo, the keeper", temple.to_local(keeper.global_position) + Vector3(3.2, 0.0, 2.2), Vector3(-0.3, 0.0, -1.0), 3.0, 2.0)
+		await inside(temple, "Kom Ombo, the keeper", temple.to_local(keeper.global_position) + Vector3(2.2, 0.0, 1.2), Vector3(-0.35, 0.0, -1.0), 2.6, 2.0)
 		await inside(temple, "Kom Ombo, the leaf", temple.to_local(named("KomOmboLeaf").global_position) + Vector3(3.0, 0.0, 3.0), Vector3(-0.7, 0.0, -0.7), 3.0, 2.0)
 		await shoot("Kom Ombo, the sanctuaries from above", temple.global_transform * Vector3(4.0, 16.0, -8.0), temple.global_transform * Vector3(-3.0, 1.75, -28.0), 55.0)
 	temple = named("AbuSimbel")
@@ -233,7 +233,7 @@ func puzzles() -> void:
 		await inside(temple, "Abu Simbel, the slab up", Vector3(-1.2, 1.2, -15.0), Vector3.FORWARD, 3.0, 2.2)
 		await inside(temple, "Abu Simbel, the sun on the gods", Vector3(-0.8, 1.2, -38.4), Vector3(0.15, 0.0, -1.0), 2.4, 1.9)
 		await inside(temple, "Abu Simbel, the sun down the second hall", Vector3(-0.9, 1.2, -26.0), Vector3.FORWARD, 2.6, 2.0)
-		await inside(temple, "Abu Simbel, the store-room that opens", Vector3(5.0, 1.2, -8.7), Vector3.RIGHT, 2.4, 1.9)
+		await inside(temple, "Abu Simbel, the store-room that opens", Vector3(6.6, 1.2, -8.45), Vector3.RIGHT, 2.8, 1.9)
 		await inside(temple, "Abu Simbel, what is in it", Vector3(15.5, 1.2, -8.7), Vector3.RIGHT, 2.4, 1.9)
 
 
