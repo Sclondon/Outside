@@ -1,5198 +1,5266 @@
 {
-	"version": 1,
-	"terrain": {
-		"size": 640,
-		"cell": 2.5,
-		"dune_height": 7,
-		"seed": 7,
-		"scatter": 1.3,
-		"dunes": 1,
-		"sharp": 0.5,
-		"flat": 0.2,
-		"ripples": 1,
-		"rim_height": 9,
-		"rim_width": 45,
-		"wind": [
-			-0.959999978542328,
-			-0.280000001192093
-		],
-		"hills": 0.6
-	},
-	"weather": 1,
-	"mirage": 0.5,
-	"items": [
-		{
-			"id": 1,
-			"kind": "pad",
-			"at": [
-				-120,
-				45
-			],
-			"y": 0,
-			"yaw": 0,
-			"half_x": 8,
-			"half_z": 8,
-			"round": true,
-			"ease": 12
-		},
-		{
-			"id": 2,
-			"kind": "prop",
-			"at": [
-				-124,
-				42
-			],
-			"yaw": 0,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 3,
-			"kind": "prop",
-			"at": [
-				-115.5,
-				41
-			],
-			"yaw": 40,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 4,
-			"kind": "prop",
-			"at": [
-				-117,
-				48.5
-			],
-			"yaw": 20,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 5,
-			"kind": "prop",
-			"at": [
-				-124.5,
-				47.5
-			],
-			"yaw": 12,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 6,
-			"kind": "prop",
-			"at": [
-				-122.5,
-				38.5
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 7,
-			"kind": "prop",
-			"at": [
-				-117.5,
-				38.5
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 8,
-			"kind": "prop",
-			"at": [
-				-113.5,
-				50.5
-			],
-			"yaw": 70,
-			"what": "palm_c",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.01
-		},
-		{
-			"id": 9,
-			"kind": "prop",
-			"at": [
-				-118.5,
-				46
-			],
-			"yaw": 161.17,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.1
-		},
-		{
-			"id": 10,
-			"kind": "prop",
-			"at": [
-				-118.1,
-				46.5
-			],
-			"yaw": 68.03,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.1
-		},
-		{
-			"id": 11,
-			"kind": "prop",
-			"at": [
-				-118.9,
-				46.8
-			],
-			"yaw": -59.96,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.1
-		},
-		{
-			"id": 12,
-			"kind": "prop",
-			"at": [
-				-123.5,
-				19
-			],
-			"yaw": 0,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.15
-		},
-		{
-			"id": 13,
-			"kind": "prop",
-			"at": [
-				-116.5,
-				18
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.05
-		},
-		{
-			"id": 14,
-			"kind": "prop",
-			"at": [
-				-116,
-				-3
-			],
-			"yaw": 0,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.2
-		},
-		{
-			"id": 15,
-			"kind": "prop",
-			"at": [
-				-123,
-				-5
-			],
-			"yaw": 30,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.05
-		},
-		{
-			"id": 16,
-			"kind": "prop",
-			"at": [
-				-124,
-				-25
-			],
-			"yaw": 0,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.15
-		},
-		{
-			"id": 17,
-			"kind": "prop",
-			"at": [
-				-116,
-				-26
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.05
-		},
-		{
-			"id": 18,
-			"kind": "pad",
-			"at": [
-				-182,
-				-15
-			],
-			"y": 0.5,
-			"yaw": 0,
-			"half_x": 20,
-			"half_z": 15,
-			"round": false,
-			"ease": 14
-		},
-		{
-			"id": 19,
-			"kind": "prop",
-			"at": [
-				-194,
-				-23
-			],
-			"yaw": 20,
-			"what": "tent",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 20,
-			"kind": "prop",
-			"at": [
-				-185.5,
-				-25
-			],
-			"yaw": -8,
-			"what": "tent",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 21,
-			"kind": "prop",
-			"at": [
-				-176.5,
-				-24
-			],
-			"yaw": 14,
-			"what": "tent",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 22,
-			"kind": "prop",
-			"at": [
-				-192,
-				-6
-			],
-			"yaw": -180,
-			"what": "awning",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 23,
-			"kind": "prop",
-			"at": [
-				-185,
-				-5
-			],
-			"yaw": -176,
-			"what": "awning",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 24,
-			"kind": "prop",
-			"at": [
-				-177,
-				-5.8
-			],
-			"yaw": 172,
-			"what": "awning",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 25,
-			"kind": "prop",
-			"at": [
-				-170,
-				-14.5
-			],
-			"yaw": 15,
-			"what": "well",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 26,
-			"kind": "prop",
-			"at": [
-				-184,
-				-16
-			],
-			"yaw": 0,
-			"what": "campfire",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 27,
-			"kind": "prop",
-			"at": [
-				-189,
-				-19
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 28,
-			"kind": "prop",
-			"at": [
-				-178.5,
-				-19.5
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 29,
-			"kind": "prop",
-			"at": [
-				-172,
-				-25.5
-			],
-			"yaw": 5,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 30,
-			"kind": "prop",
-			"at": [
-				-171,
-				-25.3
-			],
-			"yaw": 28,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 31,
-			"kind": "prop",
-			"at": [
-				-171.6,
-				-25.4
-			],
-			"yaw": 14,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.9
-		},
-		{
-			"id": 32,
-			"kind": "prop",
-			"at": [
-				-198,
-				-13
-			],
-			"yaw": 0,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 33,
-			"kind": "prop",
-			"at": [
-				-197,
-				-11.8
-			],
-			"yaw": 40,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 34,
-			"kind": "prop",
-			"at": [
-				-167.5,
-				-7
-			],
-			"yaw": 0,
-			"what": "pot_large",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 35,
-			"kind": "prop",
-			"at": [
-				-166.6,
-				-7.9
-			],
-			"yaw": 0,
-			"what": "pot_large",
-			"scale": 0.85,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 36,
-			"kind": "prop",
-			"at": [
-				-199,
-				-18
-			],
-			"yaw": 0,
-			"what": "pot_large",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 37,
-			"kind": "prop",
-			"at": [
-				-173.5,
-				-9
-			],
-			"yaw": 0,
-			"what": "pot_large",
-			"scale": 0.9,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 38,
-			"kind": "prop",
-			"at": [
-				-190.6,
-				-8.6
-			],
-			"yaw": 0,
-			"what": "pot",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.16
-		},
-		{
-			"id": 39,
-			"kind": "prop",
-			"at": [
-				-183.8,
-				-7.6
-			],
-			"yaw": 60,
-			"what": "pot",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.16
-		},
-		{
-			"id": 40,
-			"kind": "prop",
-			"at": [
-				-181.6,
-				-15.2
-			],
-			"yaw": 20,
-			"what": "pot",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.16
-		},
-		{
-			"id": 41,
-			"kind": "prop",
-			"at": [
-				-175.4,
-				-8
-			],
-			"yaw": 0,
-			"what": "jar_canopic",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 42,
-			"kind": "prop",
-			"at": [
-				-174.8,
-				-7.7
-			],
-			"yaw": -160,
-			"what": "jar_canopic_jackal",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 43,
-			"kind": "prop",
-			"at": [
-				-185.4,
-				-14.8
-			],
-			"yaw": -76.6,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.1
-		},
-		{
-			"id": 44,
-			"kind": "prop",
-			"at": [
-				-185,
-				-14.4
-			],
-			"yaw": -149.11,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.1
-		},
-		{
-			"id": 45,
-			"kind": "prop",
-			"at": [
-				-185.7,
-				-14.3
-			],
-			"yaw": -42.03,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.1
-		},
-		{
-			"id": 46,
-			"kind": "prop",
-			"at": [
-				-190,
-				-14
-			],
-			"yaw": 0,
-			"what": "block_push",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.45
-		},
-		{
-			"id": 47,
-			"kind": "prop",
-			"at": [
-				-165,
-				-24.5
-			],
-			"yaw": -90,
-			"what": "scaffold",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 48,
-			"kind": "prop",
-			"at": [
-				-201,
-				-28
-			],
-			"yaw": 30,
-			"what": "palm_a",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 49,
-			"kind": "prop",
-			"at": [
-				-162.5,
-				-2.5
-			],
-			"yaw": -160,
-			"what": "palm_b",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 50,
-			"kind": "prop",
-			"at": [
-				-202.5,
-				-4
-			],
-			"yaw": 100,
-			"what": "palm_c",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 51,
-			"kind": "prop",
-			"at": [
-				-183.5,
-				-0.5
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 52,
-			"kind": "prop",
-			"at": [
-				-180,
-				-0.5
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 53,
-			"kind": "pad",
-			"at": [
-				-58,
-				-42
-			],
-			"y": -0.6,
-			"yaw": 0,
-			"half_x": 24,
-			"half_z": 24,
-			"round": true,
-			"ease": 16
-		},
-		{
-			"id": 54,
-			"kind": "pad",
-			"at": [
-				-58,
-				-42
-			],
-			"y": -2.4,
-			"yaw": 0,
-			"half_x": 8,
-			"half_z": 7,
-			"round": true,
-			"ease": 7
-		},
-		{
-			"id": 55,
-			"kind": "pool",
-			"at": [
-				-58,
-				-42
-			],
-			"y": -1,
-			"yaw": 0,
-			"size_x": 30,
-			"size_z": 30,
-			"depth": 2.40000009536743
-		},
-		{
-			"id": 56,
-			"kind": "prop",
-			"at": [
-				-37.03,
-				-44.11
-			],
-			"yaw": -41.11,
-			"what": "palm_a",
-			"scale": 0.927,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 57,
-			"kind": "prop",
-			"at": [
-				-37.61,
-				-35.61
-			],
-			"yaw": -37.27,
-			"what": "palm_b",
-			"scale": 0.93,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 58,
-			"kind": "prop",
-			"at": [
-				-46.97,
-				-30.61
-			],
-			"yaw": -151.39,
-			"what": "palm_c",
-			"scale": 1.029,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 59,
-			"kind": "prop",
-			"at": [
-				-52.19,
-				-27.18
-			],
-			"yaw": 5.11,
-			"what": "palm_a",
-			"scale": 0.998,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 60,
-			"kind": "prop",
-			"at": [
-				-61.34,
-				-24.76
-			],
-			"yaw": 111.16,
-			"what": "palm_b",
-			"scale": 0.941,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 61,
-			"kind": "prop",
-			"at": [
-				-66.91,
-				-22.69
-			],
-			"yaw": 69.23,
-			"what": "palm_c",
-			"scale": 1.092,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 62,
-			"kind": "prop",
-			"at": [
-				-72.77,
-				-29.68
-			],
-			"yaw": -157.17,
-			"what": "palm_a",
-			"scale": 0.945,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 63,
-			"kind": "prop",
-			"at": [
-				-74.31,
-				-39.76
-			],
-			"yaw": -36.66,
-			"what": "palm_b",
-			"scale": 0.973,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 64,
-			"kind": "prop",
-			"at": [
-				-76.19,
-				-47.23
-			],
-			"yaw": -68.23,
-			"what": "palm_c",
-			"scale": 1.118,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 65,
-			"kind": "prop",
-			"at": [
-				-72.38,
-				-52.63
-			],
-			"yaw": 151.43,
-			"what": "palm_a",
-			"scale": 1.123,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 66,
-			"kind": "prop",
-			"at": [
-				-66.83,
-				-60.55
-			],
-			"yaw": 123.32,
-			"what": "palm_b",
-			"scale": 0.91,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 67,
-			"kind": "prop",
-			"at": [
-				-59.06,
-				-56.76
-			],
-			"yaw": 172.28,
-			"what": "palm_c",
-			"scale": 1.009,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 68,
-			"kind": "prop",
-			"at": [
-				-51.84,
-				-62.41
-			],
-			"yaw": -56.96,
-			"what": "palm_a",
-			"scale": 0.959,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 69,
-			"kind": "prop",
-			"at": [
-				-46.24,
-				-54.33
-			],
-			"yaw": 152.41,
-			"what": "palm_b",
-			"scale": 0.982,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 70,
-			"kind": "prop",
-			"at": [
-				-38.96,
-				-51.52
-			],
-			"yaw": -162.95,
-			"what": "palm_c",
-			"scale": 0.928,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 71,
-			"kind": "prop",
-			"at": [
-				-58,
-				-42
-			],
-			"yaw": 90,
-			"what": "oasis_rim",
-			"scale": 2.1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 1.18
-		},
-		{
-			"id": 72,
-			"kind": "prop",
-			"at": [
-				-58,
-				-42
-			],
-			"yaw": -180,
-			"what": "oasis_rim",
-			"scale": 2.1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 1.18
-		},
-		{
-			"id": 73,
-			"kind": "prop",
-			"at": [
-				-71.5,
-				-36
-			],
-			"yaw": 40,
-			"what": "rock_b",
-			"scale": 1.2,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.15
-		},
-		{
-			"id": 74,
-			"kind": "prop",
-			"at": [
-				-70,
-				-32.5
-			],
-			"yaw": -170,
-			"what": "rock_b",
-			"scale": 0.8,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 75,
-			"kind": "prop",
-			"at": [
-				-49,
-				-29.5
-			],
-			"yaw": 100,
-			"what": "rock_b",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.15
-		},
-		{
-			"id": 76,
-			"kind": "prop",
-			"at": [
-				-39,
-				-28
-			],
-			"yaw": 20,
-			"what": "rock_a",
-			"scale": 0.9,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.3
-		},
-		{
-			"id": 77,
-			"kind": "prop",
-			"at": [
-				-78,
-				-51
-			],
-			"yaw": -110,
-			"what": "rock_a",
-			"scale": 0.7,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.2
-		},
-		{
-			"id": 78,
-			"kind": "prop",
-			"at": [
-				-73.5,
-				-46
-			],
-			"yaw": 80,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 79,
-			"kind": "prop",
-			"at": [
-				-74,
-				-41.5
-			],
-			"yaw": 100,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 80,
-			"kind": "prop",
-			"at": [
-				-74.5,
-				-43.8
-			],
-			"yaw": 0,
-			"what": "pot_large",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 81,
-			"kind": "prop",
-			"at": [
-				-72.6,
-				-43.6
-			],
-			"yaw": 0,
-			"what": "pot",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.16
-		},
-		{
-			"id": 82,
-			"kind": "prop",
-			"at": [
-				-72.2,
-				-44.3
-			],
-			"yaw": 90,
-			"what": "pot",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.16
-		},
-		{
-			"id": 83,
-			"kind": "prop",
-			"at": [
-				-75.5,
-				-38.5
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 84,
-			"kind": "prop",
-			"at": [
-				-77,
-				-45
-			],
-			"yaw": 90,
-			"what": "awning",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 85,
-			"kind": "pad",
-			"at": [
-				-120,
-				-80
-			],
-			"y": 1,
-			"yaw": 0,
-			"half_x": 12,
-			"half_z": 31,
-			"round": false,
-			"ease": 12
-		},
-		{
-			"id": 86,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-54
-			],
-			"yaw": -90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 87,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-56.3
-			],
-			"yaw": 90,
-			"what": "lintel",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 6
-		},
-		{
-			"id": 88,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-58.6
-			],
-			"yaw": 90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 89,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-63.2
-			],
-			"yaw": -87.51,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 90,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-67.8
-			],
-			"yaw": -180,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 91,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-70.1
-			],
-			"yaw": 90,
-			"what": "lintel",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 6
-		},
-		{
-			"id": 92,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-72.4
-			],
-			"yaw": -180,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 93,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-77
-			],
-			"yaw": 151.37,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 94,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-81.6
-			],
-			"yaw": -172.98,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 95,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-86.2
-			],
-			"yaw": 90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 96,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-88.5
-			],
-			"yaw": 90,
-			"what": "lintel",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 6
-		},
-		{
-			"id": 97,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-90.8
-			],
-			"yaw": -180,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 98,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-95.4
-			],
-			"yaw": -180,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 99,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-100
-			],
-			"yaw": -151.5,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 100,
-			"kind": "prop",
-			"at": [
-				-131.1,
-				-100.6
-			],
-			"yaw": -82,
-			"what": "column_fallen",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 101,
-			"kind": "prop",
-			"at": [
-				-125.5,
-				-104.6
-			],
-			"yaw": 90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 102,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-54
-			],
-			"yaw": 90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 103,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-58.6
-			],
-			"yaw": -58.3,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 104,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-63.2
-			],
-			"yaw": 90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 105,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-65.5
-			],
-			"yaw": 90,
-			"what": "lintel",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 6
-		},
-		{
-			"id": 106,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-67.8
-			],
-			"yaw": -180,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 107,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-72.4
-			],
-			"yaw": -90.53,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 108,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-77
-			],
-			"yaw": 41.07,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 109,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-81.6
-			],
-			"yaw": 90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 110,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-83.9
-			],
-			"yaw": 90,
-			"what": "lintel",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 6
-		},
-		{
-			"id": 111,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-86.2
-			],
-			"yaw": -90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 112,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-90.8
-			],
-			"yaw": -46.05,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 113,
-			"kind": "prop",
-			"at": [
-				-108.9,
-				-91.4
-			],
-			"yaw": 98,
-			"what": "column_fallen",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 114,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-95.4
-			],
-			"yaw": -90,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 115,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-97.7
-			],
-			"yaw": 90,
-			"what": "lintel",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 6
-		},
-		{
-			"id": 116,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-100
-			],
-			"yaw": 0,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 117,
-			"kind": "prop",
-			"at": [
-				-114.5,
-				-104.6
-			],
-			"yaw": 0,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 118,
-			"kind": "prop",
-			"at": [
-				-129.3,
-				-52
-			],
-			"yaw": 0,
-			"what": "statue_pharaoh",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 119,
-			"kind": "prop",
-			"at": [
-				-110.7,
-				-52
-			],
-			"yaw": 0,
-			"what": "statue_pharaoh",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 120,
-			"kind": "prop",
-			"at": [
-				-123,
-				-50.5
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 121,
-			"kind": "prop",
-			"at": [
-				-117,
-				-50.5
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 122,
-			"kind": "prop",
-			"at": [
-				-130.6,
-				-83
-			],
-			"yaw": 90,
-			"what": "wall_glyphs",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 123,
-			"kind": "prop",
-			"at": [
-				-109.4,
-				-71.5
-			],
-			"yaw": -90,
-			"what": "wall_glyphs",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 124,
-			"kind": "prop",
-			"at": [
-				-109.4,
-				-97
-			],
-			"yaw": 90,
-			"what": "wall_ruin",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 125,
-			"kind": "prop",
-			"at": [
-				-130.6,
-				-68
-			],
-			"yaw": -90,
-			"what": "wall_ruin",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 126,
-			"kind": "prop",
-			"at": [
-				-129.6,
-				-102.5
-			],
-			"yaw": 20,
-			"what": "sarcophagus",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 127,
-			"kind": "prop",
-			"at": [
-				-128,
-				-101
-			],
-			"yaw": 0,
-			"what": "jar_canopic",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 128,
-			"kind": "prop",
-			"at": [
-				-128.3,
-				-103.9
-			],
-			"yaw": 140,
-			"what": "jar_canopic_jackal",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 129,
-			"kind": "prop",
-			"at": [
-				-130.9,
-				-100.6
-			],
-			"yaw": 80,
-			"what": "jar_canopic",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 130,
-			"kind": "prop",
-			"at": [
-				-111,
-				-61
-			],
-			"yaw": 30,
-			"what": "block_stack",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 131,
-			"kind": "prop",
-			"at": [
-				-129.5,
-				-60
-			],
-			"yaw": 70,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 132,
-			"kind": "prop",
-			"at": [
-				-110.5,
-				-82
-			],
-			"yaw": 0,
-			"what": "pot_large",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 133,
-			"kind": "prop",
-			"at": [
-				-109.8,
-				-83.1
-			],
-			"yaw": 0,
-			"what": "pot_large",
-			"scale": 0.8,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 134,
-			"kind": "prop",
-			"at": [
-				-119.2,
-				-92
-			],
-			"yaw": 10,
-			"what": "block_push",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.45
-		},
-		{
-			"id": 135,
-			"kind": "prop",
-			"at": [
-				-118.5,
-				-77
-			],
-			"yaw": 24,
-			"what": "lintel",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 136,
-			"kind": "prop",
-			"at": [
-				-128.5,
-				-109
-			],
-			"yaw": 0,
-			"what": "obelisk",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 137,
-			"kind": "prop",
-			"at": [
-				-111.5,
-				-109
-			],
-			"yaw": 0,
-			"what": "obelisk",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 138,
-			"kind": "pad",
-			"at": [
-				-120,
-				-150
-			],
-			"y": 2,
-			"yaw": 0,
-			"half_x": 11,
-			"half_z": 19,
-			"round": false,
-			"ease": 14
-		},
-		{
-			"id": 139,
-			"kind": "prop",
-			"at": [
-				-120,
-				-151
-			],
-			"yaw": 0,
-			"what": "sphinx",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 140,
-			"kind": "prop",
-			"at": [
-				-126.5,
-				-135.5
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 141,
-			"kind": "prop",
-			"at": [
-				-113.5,
-				-135.5
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 142,
-			"kind": "prop",
-			"at": [
-				-123.4,
-				-133.5
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 143,
-			"kind": "prop",
-			"at": [
-				-116.6,
-				-133.5
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 144,
-			"kind": "prop",
-			"at": [
-				-112,
-				-163
-			],
-			"yaw": 50,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 145,
-			"kind": "prop",
-			"at": [
-				-128.2,
-				-156
-			],
-			"yaw": 85,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 146,
-			"kind": "prop",
-			"at": [
-				-112.4,
-				-146
-			],
-			"yaw": 95,
-			"what": "block_stack",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 147,
-			"kind": "prop",
-			"at": [
-				-118.6,
-				-143.5
-			],
-			"yaw": -0.11,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 1.72
-		},
-		{
-			"id": 148,
-			"kind": "prop",
-			"at": [
-				-118.4,
-				-143
-			],
-			"yaw": -156.23,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 1.72
-		},
-		{
-			"id": 149,
-			"kind": "prop",
-			"at": [
-				-118.2,
-				-142.5
-			],
-			"yaw": -67.3,
-			"what": "rock_small",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 1.72
-		},
-		{
-			"id": 150,
-			"kind": "prop",
-			"at": [
-				-120,
-				-145.8
-			],
-			"yaw": 0,
-			"what": "jar_canopic",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 151,
-			"kind": "pad",
-			"at": [
-				-120,
-				-230
-			],
-			"y": 4,
-			"yaw": 0,
-			"half_x": 42,
-			"half_z": 42,
-			"round": false,
-			"ease": 22
-		},
-		{
-			"id": 152,
-			"kind": "prop",
-			"at": [
-				-120,
-				-230
-			],
-			"yaw": 0,
-			"what": "pyramid_great",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 153,
-			"kind": "prop",
-			"at": [
-				-120,
-				-197.2
-			],
-			"yaw": 0,
-			"what": "pyramid_entrance",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 154,
-			"kind": "prop",
-			"at": [
-				-127.5,
-				-191.5
-			],
-			"yaw": 0,
-			"what": "statue_anubis",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 155,
-			"kind": "prop",
-			"at": [
-				-112.5,
-				-191.5
-			],
-			"yaw": 0,
-			"what": "statue_anubis",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 156,
-			"kind": "prop",
-			"at": [
-				-123.3,
-				-192.5
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 157,
-			"kind": "prop",
-			"at": [
-				-116.7,
-				-192.5
-			],
-			"yaw": 0,
-			"what": "torch_stand",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 158,
-			"kind": "prop",
-			"at": [
-				-142,
-				-194
-			],
-			"yaw": 0,
-			"what": "statue_pharaoh",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 159,
-			"kind": "prop",
-			"at": [
-				-98,
-				-194
-			],
-			"yaw": 0,
-			"what": "statue_pharaoh",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 160,
-			"kind": "prop",
-			"at": [
-				-154,
-				-210
-			],
-			"yaw": 80,
-			"what": "block_stack",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 161,
-			"kind": "prop",
-			"at": [
-				-86.5,
-				-236
-			],
-			"yaw": 100,
-			"what": "block_stack",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 162,
-			"kind": "prop",
-			"at": [
-				-86,
-				-218
-			],
-			"yaw": 10,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 163,
-			"kind": "prop",
-			"at": [
-				-87,
-				-215.5
-			],
-			"yaw": 60,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 164,
-			"kind": "prop",
-			"at": [
-				-153,
-				-245
-			],
-			"yaw": 95,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 165,
-			"kind": "prop",
-			"at": [
-				-152.5,
-				-225
-			],
-			"yaw": 0,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 166,
-			"kind": "prop",
-			"at": [
-				-108,
-				-197
-			],
-			"yaw": 80,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 167,
-			"kind": "prop",
-			"at": [
-				-100,
-				-263
-			],
-			"yaw": 160,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 168,
-			"kind": "prop",
-			"at": [
-				-153.5,
-				-217.5
-			],
-			"yaw": 15,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 169,
-			"kind": "prop",
-			"at": [
-				-154.2,
-				-222
-			],
-			"yaw": 50,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 170,
-			"kind": "pad",
-			"at": [
-				-2,
-				-158
-			],
-			"y": 1.5,
-			"yaw": 0,
-			"half_x": 18,
-			"half_z": 18,
-			"round": false,
-			"ease": 14
-		},
-		{
-			"id": 171,
-			"kind": "prop",
-			"at": [
-				-2,
-				-158
-			],
-			"yaw": -90,
-			"what": "pyramid_ruined",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 172,
-			"kind": "prop",
-			"at": [
-				-2,
-				-167.75
-			],
-			"yaw": -90,
-			"what": "scaffold",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 173,
-			"kind": "prop",
-			"at": [
-				-2,
-				-163.3
-			],
-			"yaw": 0,
-			"what": "jar_canopic_jackal",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 7.41
-		},
-		{
-			"id": 174,
-			"kind": "prop",
-			"at": [
-				-4.5,
-				-169.5
-			],
-			"yaw": 20,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 175,
-			"kind": "prop",
-			"at": [
-				-16,
-				-148
-			],
-			"yaw": 0,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 176,
-			"kind": "prop",
-			"at": [
-				11.5,
-				-171
-			],
-			"yaw": 120,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 177,
-			"kind": "prop",
-			"at": [
-				13,
-				-145
-			],
-			"yaw": 0,
-			"what": "rock_a",
-			"scale": 0.8,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.2
-		},
-		{
-			"id": 178,
-			"kind": "prop",
-			"at": [
-				-17.5,
-				-172
-			],
-			"yaw": 140,
-			"what": "palm_a",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 179,
-			"kind": "prop",
-			"at": [
-				-18.5,
-				-168.5
-			],
-			"yaw": 20,
-			"what": "palm_c",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 180,
-			"kind": "prop",
-			"at": [
-				-5,
-				-170.5
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 181,
-			"kind": "pad",
-			"at": [
-				-232,
-				-152
-			],
-			"y": 1,
-			"yaw": 0,
-			"half_x": 12,
-			"half_z": 11,
-			"round": false,
-			"ease": 12
-		},
-		{
-			"id": 182,
-			"kind": "prop",
-			"at": [
-				-232,
-				-160.5
-			],
-			"yaw": 0,
-			"what": "wall_glyphs",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 183,
-			"kind": "prop",
-			"at": [
-				-236.7,
-				-160.5
-			],
-			"yaw": 0,
-			"what": "wall_glyphs",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 184,
-			"kind": "prop",
-			"at": [
-				-227.3,
-				-160.5
-			],
-			"yaw": 0,
-			"what": "wall_glyphs",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 185,
-			"kind": "prop",
-			"at": [
-				-239.4,
-				-157
-			],
-			"yaw": 90,
-			"what": "wall_glyphs",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 186,
-			"kind": "prop",
-			"at": [
-				-224.6,
-				-157
-			],
-			"yaw": -90,
-			"what": "wall_glyphs",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 187,
-			"kind": "prop",
-			"at": [
-				-236.6,
-				-148.5
-			],
-			"yaw": 0,
-			"what": "statue_anubis",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 188,
-			"kind": "prop",
-			"at": [
-				-227.4,
-				-148.5
-			],
-			"yaw": 0,
-			"what": "statue_anubis",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 189,
-			"kind": "prop",
-			"at": [
-				-232,
-				-155.5
-			],
-			"yaw": 90,
-			"what": "sarcophagus",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 190,
-			"kind": "prop",
-			"at": [
-				-234.6,
-				-151.2
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 191,
-			"kind": "prop",
-			"at": [
-				-229.4,
-				-151.2
-			],
-			"yaw": 0,
-			"what": "brazier",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 192,
-			"kind": "prop",
-			"at": [
-				-233.5,
-				-153.2
-			],
-			"yaw": 0,
-			"what": "jar_canopic",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 193,
-			"kind": "prop",
-			"at": [
-				-232.5,
-				-153
-			],
-			"yaw": 30,
-			"what": "jar_canopic_jackal",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 194,
-			"kind": "prop",
-			"at": [
-				-231.5,
-				-153.1
-			],
-			"yaw": 110,
-			"what": "jar_canopic",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 195,
-			"kind": "prop",
-			"at": [
-				-230.5,
-				-153.3
-			],
-			"yaw": -60,
-			"what": "jar_canopic_jackal",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.21
-		},
-		{
-			"id": 196,
-			"kind": "prop",
-			"at": [
-				-241.5,
-				-144
-			],
-			"yaw": 0,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 197,
-			"kind": "prop",
-			"at": [
-				-222.5,
-				-144
-			],
-			"yaw": 0,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 198,
-			"kind": "prop",
-			"at": [
-				-238,
-				-155
-			],
-			"yaw": 0,
-			"what": "pot",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.16
-		},
-		{
-			"id": 199,
-			"kind": "prop",
-			"at": [
-				-223.5,
-				-153
-			],
-			"yaw": 40,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 200,
-			"kind": "pad",
-			"at": [
-				-15,
-				30
-			],
-			"y": 0.8,
-			"yaw": 0,
-			"half_x": 10,
-			"half_z": 9,
-			"round": false,
-			"ease": 10
-		},
-		{
-			"id": 201,
-			"kind": "prop",
-			"at": [
-				-17,
-				23.5
-			],
-			"yaw": -180,
-			"what": "wall_ruin",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 202,
-			"kind": "prop",
-			"at": [
-				-22,
-				28.5
-			],
-			"yaw": 90,
-			"what": "wall_ruin",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 203,
-			"kind": "prop",
-			"at": [
-				-9,
-				24
-			],
-			"yaw": 0,
-			"what": "column",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 204,
-			"kind": "prop",
-			"at": [
-				-8.5,
-				31
-			],
-			"yaw": 12,
-			"what": "column_fallen",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 205,
-			"kind": "prop",
-			"at": [
-				-16,
-				30.5
-			],
-			"yaw": 30,
-			"what": "tent",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 206,
-			"kind": "prop",
-			"at": [
-				-13,
-				34.5
-			],
-			"yaw": 0,
-			"what": "campfire",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 207,
-			"kind": "prop",
-			"at": [
-				-19,
-				34.5
-			],
-			"yaw": 30,
-			"what": "crate",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 208,
-			"kind": "prop",
-			"at": [
-				-18,
-				35.2
-			],
-			"yaw": 0,
-			"what": "pot",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0.16
-		},
-		{
-			"id": 209,
-			"kind": "prop",
-			"at": [
-				-24.5,
-				21.5
-			],
-			"yaw": 0,
-			"what": "palm_a",
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 210,
-			"kind": "prop",
-			"at": [
-				-23.5,
-				37.5
-			],
-			"yaw": 90,
-			"what": "palm_c",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": 0
-		},
-		{
-			"id": 211,
-			"kind": "prop",
-			"at": [
-				-225,
-				-70
-			],
-			"yaw": 35,
-			"what": "obelisk",
-			"scale": 1,
-			"tilt_x": 86,
-			"tilt_z": 0,
-			"lift": 0.3
-		},
-		{
-			"id": 212,
-			"kind": "prop",
-			"at": [
-				-229,
-				-73
-			],
-			"yaw": 60,
-			"what": "rock_a",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.3
-		},
-		{
-			"id": 213,
-			"kind": "prop",
-			"at": [
-				-221.5,
-				-66
-			],
-			"yaw": 10,
-			"what": "rock_b",
-			"scale": 1.3,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.15
-		},
-		{
-			"id": 214,
-			"kind": "prop",
-			"at": [
-				-227.5,
-				-67
-			],
-			"yaw": 0,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.05
-		},
-		{
-			"id": 215,
-			"kind": "prop",
-			"at": [
-				-231,
-				-65
-			],
-			"yaw": -140,
-			"what": "palm_b",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.1
-		},
-		{
-			"id": 216,
-			"kind": "prop",
-			"at": [
-				-2.85,
-				-8.15
-			],
-			"yaw": 39.03,
-			"what": "rock_a",
-			"scale": 1.35,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.34
-		},
-		{
-			"id": 217,
-			"kind": "prop",
-			"at": [
-				-197.34,
-				-147.06
-			],
-			"yaw": -60.83,
-			"what": "rock_b",
-			"scale": 0.825,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.21
-		},
-		{
-			"id": 218,
-			"kind": "prop",
-			"at": [
-				-277.22,
-				-159.96
-			],
-			"yaw": 41.29,
-			"what": "rock_a",
-			"scale": 1.368,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.34
-		},
-		{
-			"id": 219,
-			"kind": "prop",
-			"at": [
-				-75.06,
-				-105.14
-			],
-			"yaw": 154.59,
-			"what": "rock_b",
-			"scale": 1.372,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.34
-		},
-		{
-			"id": 220,
-			"kind": "prop",
-			"at": [
-				-173.87,
-				-157.72
-			],
-			"yaw": -129.88,
-			"what": "rock_b",
-			"scale": 1.416,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.34
-		},
-		{
-			"id": 221,
-			"kind": "prop",
-			"at": [
-				-17.53,
-				-8.14
-			],
-			"yaw": -118.39,
-			"what": "palm_a",
-			"scale": 1.056,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 222,
-			"kind": "prop",
-			"at": [
-				-264.39,
-				-117.75
-			],
-			"yaw": 31.74,
-			"what": "palm_b",
-			"scale": 1.016,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 223,
-			"kind": "prop",
-			"at": [
-				15.51,
-				29.67
-			],
-			"yaw": -69.6,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 224,
-			"kind": "prop",
-			"at": [
-				-226.19,
-				38.11
-			],
-			"yaw": -135.86,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 225,
-			"kind": "prop",
-			"at": [
-				25.09,
-				-274.99
-			],
-			"yaw": -56.22,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 226,
-			"kind": "prop",
-			"at": [
-				-199.38,
-				-144.07
-			],
-			"yaw": -142.42,
-			"what": "rock_a",
-			"scale": 1.491,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.37
-		},
-		{
-			"id": 227,
-			"kind": "prop",
-			"at": [
-				-240.47,
-				-77.83
-			],
-			"yaw": -110.36,
-			"what": "palm_c",
-			"scale": 1.084,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 228,
-			"kind": "prop",
-			"at": [
-				-200.19,
-				-147.2
-			],
-			"yaw": 9.02,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 229,
-			"kind": "prop",
-			"at": [
-				-201.53,
-				-55.86
-			],
-			"yaw": 57.52,
-			"what": "rock_a",
-			"scale": 1.396,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.35
-		},
-		{
-			"id": 230,
-			"kind": "prop",
-			"at": [
-				-144.47,
-				-22.38
-			],
-			"yaw": 80.71,
-			"what": "rock_b",
-			"scale": 1.159,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.29
-		},
-		{
-			"id": 231,
-			"kind": "prop",
-			"at": [
-				35.74,
-				16.39
-			],
-			"yaw": -140.86,
-			"what": "rock_a",
-			"scale": 1.106,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.28
-		},
-		{
-			"id": 232,
-			"kind": "prop",
-			"at": [
-				-211.31,
-				-47.66
-			],
-			"yaw": -161.08,
-			"what": "rock_b",
-			"scale": 0.88,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.22
-		},
-		{
-			"id": 233,
-			"kind": "prop",
-			"at": [
-				10.6,
-				-16.23
-			],
-			"yaw": -131.66,
-			"what": "rock_b",
-			"scale": 1.421,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.36
-		},
-		{
-			"id": 234,
-			"kind": "prop",
-			"at": [
-				-24.54,
-				-266.49
-			],
-			"yaw": 1.81,
-			"what": "palm_a",
-			"scale": 0.951,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 235,
-			"kind": "prop",
-			"at": [
-				-200.56,
-				-83.23
-			],
-			"yaw": 98.48,
-			"what": "palm_b",
-			"scale": 1.032,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 236,
-			"kind": "prop",
-			"at": [
-				-265.7,
-				-94.87
-			],
-			"yaw": 143.32,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 237,
-			"kind": "prop",
-			"at": [
-				-172.15,
-				-157.84
-			],
-			"yaw": -40.79,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 238,
-			"kind": "prop",
-			"at": [
-				-176.82,
-				-74.8
-			],
-			"yaw": 33.88,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 239,
-			"kind": "prop",
-			"at": [
-				-190.27,
-				-164.6
-			],
-			"yaw": -119.06,
-			"what": "rock_a",
-			"scale": 1.188,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.3
-		},
-		{
-			"id": 240,
-			"kind": "prop",
-			"at": [
-				-227.52,
-				19.23
-			],
-			"yaw": 88.54,
-			"what": "palm_c",
-			"scale": 0.957,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 241,
-			"kind": "prop",
-			"at": [
-				-74.76,
-				-119.73
-			],
-			"yaw": 96.76,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 242,
-			"kind": "prop",
-			"at": [
-				-62.32,
-				6.3
-			],
-			"yaw": -82.39,
-			"what": "rock_a",
-			"scale": 1.384,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.35
-		},
-		{
-			"id": 243,
-			"kind": "prop",
-			"at": [
-				-193.47,
-				-109.53
-			],
-			"yaw": 160.08,
-			"what": "rock_b",
-			"scale": 1.395,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.35
-		},
-		{
-			"id": 244,
-			"kind": "prop",
-			"at": [
-				-134.9,
-				-18.57
-			],
-			"yaw": 36,
-			"what": "rock_a",
-			"scale": 0.639,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.16
-		},
-		{
-			"id": 245,
-			"kind": "prop",
-			"at": [
-				-71.07,
-				-142.1
-			],
-			"yaw": 58.36,
-			"what": "rock_b",
-			"scale": 1.015,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.25
-		},
-		{
-			"id": 246,
-			"kind": "prop",
-			"at": [
-				-168.42,
-				-161.61
-			],
-			"yaw": -168.78,
-			"what": "rock_b",
-			"scale": 0.896,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.22
-		},
-		{
-			"id": 247,
-			"kind": "prop",
-			"at": [
-				-222.6,
-				-14.74
-			],
-			"yaw": 79.51,
-			"what": "palm_a",
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 248,
-			"kind": "prop",
-			"at": [
-				-268.58,
-				-156.07
-			],
-			"yaw": 116.5,
-			"what": "palm_b",
-			"scale": 1.031,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 249,
-			"kind": "prop",
-			"at": [
-				-184.67,
-				-148.36
-			],
-			"yaw": -10.42,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 250,
-			"kind": "prop",
-			"at": [
-				-235.07,
-				-56.59
-			],
-			"yaw": 120.59,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 251,
-			"kind": "prop",
-			"at": [
-				-204.33,
-				26.56
-			],
-			"yaw": 0.29,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 252,
-			"kind": "prop",
-			"at": [
-				-92.96,
-				8.4
-			],
-			"yaw": -102.36,
-			"what": "rock_a",
-			"scale": 1.286,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.32
-		},
-		{
-			"id": 253,
-			"kind": "prop",
-			"at": [
-				16.33,
-				-244.42
-			],
-			"yaw": -98.13,
-			"what": "palm_c",
-			"scale": 1.059,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 254,
-			"kind": "prop",
-			"at": [
-				29.37,
-				-205.42
-			],
-			"yaw": 179.26,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 255,
-			"kind": "prop",
-			"at": [
-				-40.4,
-				-103.19
-			],
-			"yaw": -30.06,
-			"what": "rock_a",
-			"scale": 0.622,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.16
-		},
-		{
-			"id": 256,
-			"kind": "prop",
-			"at": [
-				-220.47,
-				-146.89
-			],
-			"yaw": 33.75,
-			"what": "rock_b",
-			"scale": 0.721,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.18
-		},
-		{
-			"id": 257,
-			"kind": "prop",
-			"at": [
-				-272.52,
-				-132.02
-			],
-			"yaw": 138.64,
-			"what": "rock_a",
-			"scale": 1.466,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.37
-		},
-		{
-			"id": 258,
-			"kind": "prop",
-			"at": [
-				7.1,
-				-205.44
-			],
-			"yaw": -0.46,
-			"what": "rock_b",
-			"scale": 1.192,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.3
-		},
-		{
-			"id": 259,
-			"kind": "prop",
-			"at": [
-				-7.06,
-				8.83
-			],
-			"yaw": -156.91,
-			"what": "rock_b",
-			"scale": 0.785,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.2
-		},
-		{
-			"id": 260,
-			"kind": "prop",
-			"at": [
-				-278.09,
-				26.26
-			],
-			"yaw": 151.52,
-			"what": "palm_a",
-			"scale": 1.032,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 261,
-			"kind": "prop",
-			"at": [
-				-108.97,
-				16.28
-			],
-			"yaw": 19.38,
-			"what": "palm_b",
-			"scale": 1.113,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 262,
-			"kind": "prop",
-			"at": [
-				-18.86,
-				-112.61
-			],
-			"yaw": 156.7,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 263,
-			"kind": "prop",
-			"at": [
-				-163.34,
-				-118.77
-			],
-			"yaw": 75.73,
-			"what": "column_stump",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 264,
-			"kind": "prop",
-			"at": [
-				-130.08,
-				-27.62
-			],
-			"yaw": 133.56,
-			"what": "block",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 265,
-			"kind": "prop",
-			"at": [
-				-183.53,
-				-177.62
-			],
-			"yaw": 81.32,
-			"what": "rock_a",
-			"scale": 1.397,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.35
-		},
-		{
-			"id": 266,
-			"kind": "prop",
-			"at": [
-				-225.16,
-				-150.92
-			],
-			"yaw": 148.14,
-			"what": "palm_c",
-			"scale": 0.98,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 267,
-			"kind": "prop",
-			"at": [
-				-2.49,
-				-253.67
-			],
-			"yaw": -4.79,
-			"what": "column_broken",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 268,
-			"kind": "prop",
-			"at": [
-				-188.43,
-				-145.93
-			],
-			"yaw": 66.43,
-			"what": "rock_a",
-			"scale": 1.29,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.3
-		},
-		{
-			"id": 269,
-			"kind": "prop",
-			"at": [
-				-200.69,
-				-141.01
-			],
-			"yaw": 114.37,
-			"what": "rock_b",
-			"scale": 1.215,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.3
-		},
-		{
-			"id": 270,
-			"kind": "prop",
-			"at": [
-				-14.37,
-				-249.86
-			],
-			"yaw": 148.18,
-			"what": "rock_a",
-			"scale": 1.233,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.31
-		},
-		{
-			"id": 271,
-			"kind": "prop",
-			"at": [
-				38.49,
-				-4.92
-			],
-			"yaw": 116.42,
-			"what": "rock_b",
-			"scale": 1.285,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.32
-		},
-		{
-			"id": 272,
-			"kind": "prop",
-			"at": [
-				-224.21,
-				-26.94
-			],
-			"yaw": 115.89,
-			"what": "rock_b",
-			"scale": 1.123,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.28
-		},
-		{
-			"id": 273,
-			"kind": "prop",
-			"at": [
-				-99.11,
-				19.06
-			],
-			"yaw": 82.61,
-			"what": "palm_a",
-			"scale": 1.118,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 274,
-			"kind": "prop",
-			"at": [
-				-171.73,
-				-130.33
-			],
-			"yaw": -69.21,
-			"what": "palm_b",
-			"scale": 1.113,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 275,
-			"kind": "prop",
-			"at": [
-				-201.69,
-				-148.02
-			],
-			"yaw": 122.78,
-			"what": "rubble",
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0,
-			"lift": -0.12
-		},
-		{
-			"id": 276,
-			"kind": "checkpoint",
-			"at": [
-				-120,
-				45
-			],
-			"yaw": 0,
-			"name": "Start",
-			"lift": 0
-		},
-		{
-			"id": 277,
-			"kind": "checkpoint",
-			"at": [
-				-182,
-				-2
-			],
-			"yaw": 0,
-			"name": "AtCamp",
-			"lift": 0
-		},
-		{
-			"id": 278,
-			"kind": "checkpoint",
-			"at": [
-				-78,
-				-40
-			],
-			"yaw": 0,
-			"name": "AtOasis",
-			"lift": 0
-		},
-		{
-			"id": 279,
-			"kind": "checkpoint",
-			"at": [
-				-120,
-				-51
-			],
-			"yaw": 0,
-			"name": "AtColonnade",
-			"lift": 0
-		},
-		{
-			"id": 280,
-			"kind": "checkpoint",
-			"at": [
-				-120,
-				-133.5
-			],
-			"yaw": 0,
-			"name": "AtSphinx",
-			"lift": 0
-		},
-		{
-			"id": 281,
-			"kind": "checkpoint",
-			"at": [
-				-120,
-				-190
-			],
-			"yaw": 0,
-			"name": "AtPyramid",
-			"lift": 0
-		},
-		{
-			"id": 282,
-			"kind": "checkpoint",
-			"at": [
-				-18,
-				-158
-			],
-			"yaw": 0,
-			"name": "AtRuinedPyramid",
-			"lift": 0
-		},
-		{
-			"id": 283,
-			"kind": "checkpoint",
-			"at": [
-				-232,
-				-143
-			],
-			"yaw": 0,
-			"name": "AtShrine",
-			"lift": 0
-		},
-		{
-			"id": 284,
-			"kind": "checkpoint",
-			"at": [
-				-15,
-				23
-			],
-			"yaw": 0,
-			"name": "AtOutpost",
-			"lift": 0
-		},
-		{
-			"id": 285,
-			"kind": "start",
-			"at": [
-				-120,
-				45
-			],
-			"lift": 0,
-			"yaw": 0
-		},
-		{
-			"id": 286,
-			"kind": "person",
-			"what": "townsperson",
-			"at": [
-				-178,
-				-15
-			],
-			"lift": 0.3,
-			"yaw": 0,
-			"seed": 11,
-			"sex": 0,
-			"wander": 3.5
-		},
-		{
-			"id": 287,
-			"kind": "person",
-			"what": "townsperson",
-			"at": [
-				-180.66,
-				-10.18
-			],
-			"lift": 0.3,
-			"yaw": 0,
-			"seed": 12,
-			"sex": 0,
-			"wander": 3.5
-		},
-		{
-			"id": 288,
-			"kind": "person",
-			"what": "townsperson",
-			"at": [
-				-187.14,
-				-11.91
-			],
-			"lift": 0.3,
-			"yaw": 0,
-			"seed": 13,
-			"sex": 0,
-			"wander": 3.5
-		},
-		{
-			"id": 289,
-			"kind": "person",
-			"what": "townsperson",
-			"at": [
-				-187.08,
-				-19.81
-			],
-			"lift": 0.3,
-			"yaw": 0,
-			"seed": 14,
-			"sex": 0,
-			"wander": 3.5
-		},
-		{
-			"id": 290,
-			"kind": "person",
-			"what": "townsperson",
-			"at": [
-				-178.25,
-				-22.07
-			],
-			"lift": 0.3,
-			"yaw": 0,
-			"seed": 15,
-			"sex": 0,
-			"wander": 3.5
-		},
-		{
-			"id": 291,
-			"kind": "person",
-			"what": "brother",
-			"at": [
-				-122,
-				46
-			],
-			"lift": 0.1,
-			"yaw": 0
-		},
-		{
-			"id": 292,
-			"kind": "pyramid",
-			"what": "finished",
-			"at": [
-				26,
-				-94
-			],
-			"lift": -0.05,
-			"yaw": -90,
-			"base": 36,
-			"slope": 54,
-			"rise": 1.35,
-			"casing": 1,
-			"cap": true,
-			"ruin": 0,
-			"seed": 1,
-			"door": true,
-			"stone": 1
-		},
-		{
-			"id": 293,
-			"kind": "pyramid",
-			"what": "fallen",
-			"at": [
-				8,
-				-54
-			],
-			"lift": -0.05,
-			"yaw": 0,
-			"base": 30,
-			"slope": 54,
-			"rise": 1.35,
-			"casing": 0,
-			"cap": false,
-			"ruin": 0.5,
-			"seed": 3,
-			"door": false,
-			"stone": 0
-		},
-		{
-			"id": 294,
-			"kind": "pyramid",
-			"at": [
-				-34,
-				-210
-			],
-			"lift": -0.05,
-			"yaw": 0,
-			"base": 34,
-			"slope": 54,
-			"rise": 1.35,
-			"casing": 0,
-			"cap": false,
-			"ruin": 0,
-			"seed": 1,
-			"door": false,
-			"stone": 0
-		},
-		{
-			"id": 295,
-			"kind": "valley",
-			"at": [
-				-248,
-				-238
-			],
-			"y": 0,
-			"yaw": 0,
-			"size": 0.75,
-			"height": 12,
-			"tombs": 4,
-			"open": 1,
-			"leads": 1,
-			"tomb_seed": 1,
-			"difficulty": 1,
-			"seed": 1
-		},
-		{
-			"id": 296,
-			"kind": "cliff",
-			"at": [
-				-80,
-				-292
-			],
-			"lift": 0,
-			"yaw": 0,
-			"length": 170,
-			"bend": -14,
-			"height": 13,
-			"depth": 12,
-			"scree": 0.3,
-			"rough": 2,
-			"ways": 2,
-			"seed": 3,
-			"stone": 1
-		},
-		{
-			"id": 297,
-			"kind": "cliff",
-			"what": "mesa",
-			"at": [
-				50,
-				-242
-			],
-			"lift": 0,
-			"yaw": 0,
-			"width": 28,
-			"height": 12,
-			"scree": 0.35,
-			"rough": 1.5,
-			"ways": 1,
-			"seed": 4,
-			"stone": 2
-		},
-		{
-			"id": 298,
-			"kind": "rocks",
-			"at": [
-				-278,
-				-32
-			],
-			"lift": 0,
-			"yaw": 0,
-			"count": 34,
-			"radius": 42,
-			"from": 1,
-			"to": 7,
-			"mix": 0,
-			"seed": 3,
-			"stone": 0
-		},
-		{
-			"id": 300,
-			"kind": "pad",
-			"at": [
-				65,
-				175
-			],
-			"yaw": 0,
-			"y": -1,
-			"half_x": 86,
-			"half_z": 56,
-			"round": false,
-			"ease": 14,
-			"name": "EdfuGround"
-		},
-		{
-			"id": 301,
-			"kind": "pad",
-			"at": [
-				176,
-				175
-			],
-			"yaw": 0,
-			"y": -1,
-			"half_x": 34,
-			"half_z": 9,
-			"round": false,
-			"ease": 10,
-			"name": "EdfuWay"
-		},
-		{
-			"id": 302,
-			"kind": "pad",
-			"at": [
-				166,
-				26
-			],
-			"yaw": 0,
-			"y": -1,
-			"half_x": 56,
-			"half_z": 68,
-			"round": false,
-			"ease": 14,
-			"name": "KomOmboGround"
-		},
-		{
-			"id": 303,
-			"kind": "pad",
-			"at": [
-				152,
-				-137.5
-			],
-			"yaw": 0,
-			"y": -1,
-			"half_x": 90,
-			"half_z": 112,
-			"round": false,
-			"ease": 16,
-			"name": "AbuSimbelGround"
-		},
-		{
-			"id": 304,
-			"kind": "river",
-			"at": [
-				246,
-				-100
-			],
-			"lift": 0,
-			"yaw": 0,
-			"points": [
-				[
-					246,
-					-100
-				],
-				[
-					246,
-					-50
-				],
-				[
-					240,
-					0
-				],
-				[
-					236,
-					40
-				],
-				[
-					232,
-					100
-				],
-				[
-					228,
-					175
-				],
-				[
-					232,
-					230
-				],
-				[
-					250,
-					272
-				],
-				[
-					290,
-					302
-				],
-				[
-					332,
-					320
-				],
-				[
-					290,
-					302
-				],
-				[
-					250,
-					272
-				],
-				[
-					232,
-					230
-				],
-				[
-					228,
-					175
-				],
-				[
-					232,
-					100
-				],
-				[
-					236,
-					40
-				],
-				[
-					240,
-					0
-				],
-				[
-					246,
-					-50
-				],
-				[
-					246,
-					-100
-				],
-				[
-					248,
-					-200
-				],
-				[
-					258,
-					-250
-				],
-				[
-					290,
-					-284
-				],
-				[
-					332,
-					-304
-				]
-			],
-			"width": 24,
-			"depth": 1.6,
-			"level": -1.2,
-			"bank": 8,
-			"name": "Nile"
-		},
-		{
-			"id": 305,
-			"kind": "temple",
-			"what": "edfu",
-			"at": [
-				60,
-				175
-			],
-			"lift": 0,
-			"yaw": 90,
-			"size": 1,
-			"ruin": 0,
-			"buried": 0,
-			"seed": 1,
-			"painted": 0.15,
-			"stone": 0,
-			"name": "Edfu"
-		},
-		{
-			"id": 306,
-			"kind": "temple",
-			"what": "kom_ombo",
-			"at": [
-				160,
-				20
-			],
-			"lift": 0,
-			"yaw": 0,
-			"size": 1,
-			"ruin": 0.25,
-			"buried": 0,
-			"seed": 1,
-			"painted": 0.15,
-			"stone": 0,
-			"name": "KomOmbo"
-		},
-		{
-			"id": 307,
-			"kind": "abusimbel",
-			"at": [
-				188,
-				-100
-			],
-			"lift": 0,
-			"yaw": 90,
-			"scale": 1,
-			"which": 0,
-			"drift": 0.35,
-			"wear": 0.4,
-			"painted": true,
-			"sun": true,
-			"name": "AbuSimbel"
-		},
-		{
-			"id": 308,
-			"kind": "guardian",
-			"at": [
-				22.1,
-				177.5
-			],
-			"lift": 0.15,
-			"yaw": 90,
-			"who": 3,
-			"head": 0,
-			"dress": 0,
-			"two": true,
-			"bars": true,
-			"gate_at": 2.5,
-			"wide": 2.8,
-			"tall": 4.5,
-			"asks": true,
-			"size": 1.3,
-			"name": "EdfuKeeper"
-		},
-		{
-			"id": 309,
-			"kind": "bookpage",
-			"at": [
-				-2.3,
-				192.2
-			],
-			"lift": 0.15,
-			"yaw": 90,
-			"who": 4,
-			"rolled": false,
-			"name": "EdfuLeaf"
-		},
-		{
-			"id": 310,
-			"kind": "prop",
-			"what": "helmet_horus",
-			"at": [
-				14.5,
-				171.8
-			],
-			"lift": 0.15,
-			"yaw": 90,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 311,
-			"kind": "checkpoint",
-			"at": [
-				142,
-				175
-			],
-			"lift": 0,
-			"yaw": 0,
-			"name": "AtEdfu"
-		},
-		{
-			"id": 312,
-			"kind": "checkpoint",
-			"at": [
-				36,
-				175
-			],
-			"lift": 0.15,
-			"yaw": 0,
-			"name": "InEdfu"
-		},
-		{
-			"id": 313,
-			"kind": "prop",
-			"what": "statue_anubis",
-			"at": [
-				151,
-				184
-			],
-			"lift": 0,
-			"yaw": 180,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 314,
-			"kind": "prop",
-			"what": "statue_anubis",
-			"at": [
-				151,
-				166
-			],
-			"lift": 0,
-			"yaw": 0,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 315,
-			"kind": "prop",
-			"what": "statue_anubis",
-			"at": [
-				165,
-				184
-			],
-			"lift": 0,
-			"yaw": 180,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 316,
-			"kind": "prop",
-			"what": "statue_anubis",
-			"at": [
-				165,
-				166
-			],
-			"lift": 0,
-			"yaw": 0,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 317,
-			"kind": "prop",
-			"what": "statue_anubis",
-			"at": [
-				179,
-				184
-			],
-			"lift": 0,
-			"yaw": 180,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 318,
-			"kind": "prop",
-			"what": "statue_anubis",
-			"at": [
-				179,
-				166
-			],
-			"lift": 0,
-			"yaw": 0,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 319,
-			"kind": "prop",
-			"what": "statue_anubis",
-			"at": [
-				193,
-				184
-			],
-			"lift": 0,
-			"yaw": 180,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 320,
-			"kind": "prop",
-			"what": "statue_anubis",
-			"at": [
-				193,
-				166
-			],
-			"lift": 0,
-			"yaw": 0,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 321,
-			"kind": "guardian",
-			"at": [
-				154.1,
-				-4.72
-			],
-			"lift": 1.75,
-			"yaw": 0,
-			"who": 8,
-			"head": 1,
-			"dress": 1,
-			"two": true,
-			"bars": true,
-			"gate_at": 2.1,
-			"wide": 2.6,
-			"tall": 2.6,
-			"asks": true,
-			"size": 1,
-			"name": "KomOmboKeeper"
-		},
-		{
-			"id": 322,
-			"kind": "bookpage",
-			"at": [
-				126.4,
-				17.6
-			],
-			"lift": 1.75,
-			"yaw": 0,
-			"who": 9,
-			"rolled": false,
-			"name": "KomOmboLeaf"
-		},
-		{
-			"id": 323,
-			"kind": "prop",
-			"what": "helmet_sobek",
-			"at": [
-				154.4,
-				-11.5
-			],
-			"lift": 1.75,
-			"yaw": 0,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 324,
-			"kind": "checkpoint",
-			"at": [
-				160,
-				84
-			],
-			"lift": 0,
-			"yaw": 0,
-			"name": "AtKomOmbo"
-		},
-		{
-			"id": 325,
-			"kind": "checkpoint",
-			"at": [
-				160,
-				15
-			],
-			"lift": 1.75,
-			"yaw": 0,
-			"name": "InKomOmbo"
-		},
-		{
-			"id": 326,
-			"kind": "lever",
-			"at": [
-				179.5,
-				-79.6
-			],
-			"lift": 1.2,
-			"yaw": 180,
-			"starts_on": false,
-			"returns": 0,
-			"name": "AbuLever"
-		},
-		{
-			"id": 327,
-			"kind": "prop",
-			"what": "torch_stand",
-			"at": [
-				178.3,
-				-79.1
-			],
-			"lift": 1.2,
-			"yaw": 90,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 328,
-			"kind": "door",
-			"at": [
-				165.7,
-				-100
-			],
-			"lift": 3.7,
-			"yaw": 90,
-			"wide": 2.2,
-			"tall": 5,
-			"thick": 0.6,
-			"links": [
-				326
-			],
-			"needs_all": false,
-			"inverted": false,
-			"name": "AbuSlab"
-		},
-		{
-			"id": 329,
-			"kind": "sundisc",
-			"at": [
-				145.24,
-				-100.75
-			],
-			"lift": 1.2,
-			"yaw": 90,
-			"height": 0.95,
-			"latches": true,
-			"name": "AbuSunDisc"
-		},
-		{
-			"id": 330,
-			"kind": "door",
-			"at": [
-				179.3,
-				-109
-			],
-			"lift": 2.9,
-			"yaw": 180,
-			"wide": 1.8,
-			"tall": 3.4,
-			"thick": 0.5,
-			"links": [
-				307,
-				329
-			],
-			"needs_all": false,
-			"inverted": false,
-			"name": "AbuStoreDoor"
-		},
-		{
-			"id": 331,
-			"kind": "prop",
-			"what": "khopesh_stand",
-			"at": [
-				179.3,
-				-119.5
-			],
-			"lift": 1.2,
-			"yaw": 0,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 332,
-			"kind": "torch",
-			"at": [
-				201,
-				-104.2
-			],
-			"lift": 1.4,
-			"yaw": 0,
-			"lit": true
-		},
-		{
-			"id": 333,
-			"kind": "checkpoint",
-			"at": [
-				215,
-				-100
-			],
-			"lift": 0,
-			"yaw": 0,
-			"name": "AtAbuSimbel"
-		},
-		{
-			"id": 334,
-			"kind": "checkpoint",
-			"at": [
-				182,
-				-100
-			],
-			"lift": 1.2,
-			"yaw": 0,
-			"name": "InAbuSimbel"
-		},
-		{
-			"id": 335,
-			"kind": "checkpoint",
-			"at": [
-				208,
-				120
-			],
-			"lift": 0,
-			"yaw": 0,
-			"name": "AtTheRiver"
-		},
-		{
-			"id": 336,
-			"kind": "prop",
-			"what": "palm_a",
-			"at": [
-				224,
-				-160
-			],
-			"lift": 0,
-			"yaw": 20,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 337,
-			"kind": "prop",
-			"what": "palm_b",
-			"at": [
-				226,
-				-148
-			],
-			"lift": 0,
-			"yaw": 200,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 338,
-			"kind": "prop",
-			"what": "palm_c",
-			"at": [
-				222,
-				-168
-			],
-			"lift": 0,
-			"yaw": 80,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 339,
-			"kind": "prop",
-			"what": "palm_a",
-			"at": [
-				227,
-				-236
-			],
-			"lift": 0,
-			"yaw": 300,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 340,
-			"kind": "prop",
-			"what": "palm_b",
-			"at": [
-				223,
-				-52
-			],
-			"lift": 0,
-			"yaw": 140,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 341,
-			"kind": "prop",
-			"what": "palm_a",
-			"at": [
-				221,
-				-40
-			],
-			"lift": 0,
-			"yaw": 10,
-			"scale": 0.9,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 342,
-			"kind": "prop",
-			"what": "palm_doum",
-			"at": [
-				216,
-				-24
-			],
-			"lift": 0,
-			"yaw": 60,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 343,
-			"kind": "prop",
-			"what": "palm_a",
-			"at": [
-				216,
-				62
-			],
-			"lift": 0,
-			"yaw": 250,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 344,
-			"kind": "prop",
-			"what": "palm_c",
-			"at": [
-				214,
-				84
-			],
-			"lift": 0,
-			"yaw": 30,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 345,
-			"kind": "prop",
-			"what": "palm_b",
-			"at": [
-				211,
-				96
-			],
-			"lift": 0,
-			"yaw": 110,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 346,
-			"kind": "prop",
-			"what": "palm_a",
-			"at": [
-				209,
-				128
-			],
-			"lift": 0,
-			"yaw": 190,
-			"scale": 1.05,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 347,
-			"kind": "prop",
-			"what": "palm_doum",
-			"at": [
-				206,
-				146
-			],
-			"lift": 0,
-			"yaw": 0,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 348,
-			"kind": "prop",
-			"what": "palm_a",
-			"at": [
-				205,
-				160
-			],
-			"lift": 0,
-			"yaw": 330,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 349,
-			"kind": "prop",
-			"what": "palm_b",
-			"at": [
-				204,
-				190
-			],
-			"lift": 0,
-			"yaw": 45,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 350,
-			"kind": "prop",
-			"what": "palm_c",
-			"at": [
-				207,
-				198
-			],
-			"lift": 0,
-			"yaw": 270,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 351,
-			"kind": "prop",
-			"what": "palm_a",
-			"at": [
-				210,
-				214
-			],
-			"lift": 0,
-			"yaw": 160,
-			"scale": 0.95,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 352,
-			"kind": "prop",
-			"what": "palm_sucker",
-			"at": [
-				212,
-				108
-			],
-			"lift": 0,
-			"yaw": 0,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 353,
-			"kind": "prop",
-			"what": "palm_sucker",
-			"at": [
-				207,
-				204
-			],
-			"lift": 0,
-			"yaw": 90,
-			"scale": 1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 354,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				233.5,
-				-88
-			],
-			"lift": 0,
-			"yaw": 111.5,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 355,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				233,
-				-114
-			],
-			"lift": 0,
-			"yaw": 167,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 356,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				233.5,
-				-44
-			],
-			"lift": 0,
-			"yaw": 235.5,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 357,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				226,
-				6
-			],
-			"lift": 0,
-			"yaw": 148,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 358,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				223.5,
-				34
-			],
-			"lift": 0,
-			"yaw": 3.5,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 359,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				222,
-				60
-			],
-			"lift": 0,
-			"yaw": 234,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 360,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				216,
-				166
-			],
-			"lift": 0,
-			"yaw": 98,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 361,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				215.5,
-				184
-			],
-			"lift": 0,
-			"yaw": 277.5,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 362,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				217,
-				200
-			],
-			"lift": 0,
-			"yaw": 149,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		},
-		{
-			"id": 363,
-			"kind": "prop",
-			"what": "reeds",
-			"at": [
-				219,
-				120
-			],
-			"lift": 0,
-			"yaw": 63,
-			"scale": 1.1,
-			"tilt_x": 0,
-			"tilt_z": 0
-		}
-	]
+   "items":[
+      {
+         "at":[
+            -120,
+            45
+         ],
+         "ease":12,
+         "half_x":8,
+         "half_z":8,
+         "id":1,
+         "kind":"pad",
+         "round":true,
+         "y":0,
+         "yaw":0
+      },
+      {
+         "at":[
+            -124,
+            42
+         ],
+         "id":2,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":0
+      },
+      {
+         "at":[
+            -115.5,
+            41
+         ],
+         "id":3,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":40
+      },
+      {
+         "at":[
+            -117,
+            48.5
+         ],
+         "id":4,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":20
+      },
+      {
+         "at":[
+            -124.5,
+            47.5
+         ],
+         "id":5,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":12
+      },
+      {
+         "at":[
+            -122.5,
+            38.5
+         ],
+         "id":6,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -117.5,
+            38.5
+         ],
+         "id":7,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -113.5,
+            50.5
+         ],
+         "id":8,
+         "kind":"prop",
+         "lift":-0.01,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":70
+      },
+      {
+         "at":[
+            -118.5,
+            46
+         ],
+         "id":9,
+         "kind":"prop",
+         "lift":0.1,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":161.17
+      },
+      {
+         "at":[
+            -118.1,
+            46.5
+         ],
+         "id":10,
+         "kind":"prop",
+         "lift":0.1,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":68.03
+      },
+      {
+         "at":[
+            -118.9,
+            46.8
+         ],
+         "id":11,
+         "kind":"prop",
+         "lift":0.1,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":-59.96
+      },
+      {
+         "at":[
+            -123.5,
+            19
+         ],
+         "id":12,
+         "kind":"prop",
+         "lift":-0.15,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":0
+      },
+      {
+         "at":[
+            -116.5,
+            18
+         ],
+         "id":13,
+         "kind":"prop",
+         "lift":-0.05,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -116,
+            -3
+         ],
+         "id":14,
+         "kind":"prop",
+         "lift":-0.2,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":0
+      },
+      {
+         "at":[
+            -123,
+            -5
+         ],
+         "id":15,
+         "kind":"prop",
+         "lift":-0.05,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":30
+      },
+      {
+         "at":[
+            -124,
+            -25
+         ],
+         "id":16,
+         "kind":"prop",
+         "lift":-0.15,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":0
+      },
+      {
+         "at":[
+            -116,
+            -26
+         ],
+         "id":17,
+         "kind":"prop",
+         "lift":-0.05,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -182,
+            -15
+         ],
+         "ease":14,
+         "half_x":20,
+         "half_z":15,
+         "id":18,
+         "kind":"pad",
+         "round":false,
+         "y":0.5,
+         "yaw":0
+      },
+      {
+         "at":[
+            -194,
+            -23
+         ],
+         "id":19,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"tent",
+         "yaw":20
+      },
+      {
+         "at":[
+            -185.5,
+            -25
+         ],
+         "id":20,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"tent",
+         "yaw":-8
+      },
+      {
+         "at":[
+            -176.5,
+            -24
+         ],
+         "id":21,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"tent",
+         "yaw":14
+      },
+      {
+         "at":[
+            -192,
+            -6
+         ],
+         "id":22,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"awning",
+         "yaw":-180
+      },
+      {
+         "at":[
+            -185,
+            -5
+         ],
+         "id":23,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"awning",
+         "yaw":-176
+      },
+      {
+         "at":[
+            -177,
+            -5.8
+         ],
+         "id":24,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"awning",
+         "yaw":172
+      },
+      {
+         "at":[
+            -170,
+            -14.5
+         ],
+         "id":25,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"well",
+         "yaw":15
+      },
+      {
+         "at":[
+            -184,
+            -16
+         ],
+         "id":26,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"campfire",
+         "yaw":0
+      },
+      {
+         "at":[
+            -189,
+            -19
+         ],
+         "id":27,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -178.5,
+            -19.5
+         ],
+         "id":28,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -172,
+            -25.5
+         ],
+         "id":29,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":5
+      },
+      {
+         "at":[
+            -171,
+            -25.3
+         ],
+         "id":30,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":28
+      },
+      {
+         "at":[
+            -171.6,
+            -25.4
+         ],
+         "id":31,
+         "kind":"prop",
+         "lift":0.9,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":14
+      },
+      {
+         "at":[
+            -198,
+            -13
+         ],
+         "id":32,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":0
+      },
+      {
+         "at":[
+            -197,
+            -11.8
+         ],
+         "id":33,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":40
+      },
+      {
+         "at":[
+            -167.5,
+            -7
+         ],
+         "id":34,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot_large",
+         "yaw":0
+      },
+      {
+         "at":[
+            -166.6,
+            -7.9
+         ],
+         "id":35,
+         "kind":"prop",
+         "lift":0,
+         "scale":0.85,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot_large",
+         "yaw":0
+      },
+      {
+         "at":[
+            -199,
+            -18
+         ],
+         "id":36,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot_large",
+         "yaw":0
+      },
+      {
+         "at":[
+            -173.5,
+            -9
+         ],
+         "id":37,
+         "kind":"prop",
+         "lift":0,
+         "scale":0.9,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot_large",
+         "yaw":0
+      },
+      {
+         "at":[
+            -190.6,
+            -8.6
+         ],
+         "id":38,
+         "kind":"prop",
+         "lift":0.16,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot",
+         "yaw":0
+      },
+      {
+         "at":[
+            -183.8,
+            -7.6
+         ],
+         "id":39,
+         "kind":"prop",
+         "lift":0.16,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot",
+         "yaw":60
+      },
+      {
+         "at":[
+            -181.6,
+            -15.2
+         ],
+         "id":40,
+         "kind":"prop",
+         "lift":0.16,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot",
+         "yaw":20
+      },
+      {
+         "at":[
+            -175.4,
+            -8
+         ],
+         "id":41,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic",
+         "yaw":0
+      },
+      {
+         "at":[
+            -174.8,
+            -7.7
+         ],
+         "id":42,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic_jackal",
+         "yaw":-160
+      },
+      {
+         "at":[
+            -185.4,
+            -14.8
+         ],
+         "id":43,
+         "kind":"prop",
+         "lift":0.1,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":-76.6
+      },
+      {
+         "at":[
+            -185,
+            -14.4
+         ],
+         "id":44,
+         "kind":"prop",
+         "lift":0.1,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":-149.11
+      },
+      {
+         "at":[
+            -185.7,
+            -14.3
+         ],
+         "id":45,
+         "kind":"prop",
+         "lift":0.1,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":-42.03
+      },
+      {
+         "at":[
+            -190,
+            -14
+         ],
+         "id":46,
+         "kind":"prop",
+         "lift":0.45,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block_push",
+         "yaw":0
+      },
+      {
+         "at":[
+            -165,
+            -24.5
+         ],
+         "id":47,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"scaffold",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -201,
+            -28
+         ],
+         "id":48,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":30
+      },
+      {
+         "at":[
+            -162.5,
+            -2.5
+         ],
+         "id":49,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":-160
+      },
+      {
+         "at":[
+            -202.5,
+            -4
+         ],
+         "id":50,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":100
+      },
+      {
+         "at":[
+            -183.5,
+            -0.5
+         ],
+         "id":51,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -180,
+            -0.5
+         ],
+         "id":52,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -58,
+            -42
+         ],
+         "ease":16,
+         "half_x":24,
+         "half_z":24,
+         "id":53,
+         "kind":"pad",
+         "round":true,
+         "y":-0.6,
+         "yaw":0
+      },
+      {
+         "at":[
+            -58,
+            -42
+         ],
+         "ease":7,
+         "half_x":8,
+         "half_z":7,
+         "id":54,
+         "kind":"pad",
+         "round":true,
+         "y":-2.4,
+         "yaw":0
+      },
+      {
+         "at":[
+            -58,
+            -42
+         ],
+         "depth":2.40000009536743,
+         "id":55,
+         "kind":"pool",
+         "size_x":30,
+         "size_z":30,
+         "y":-1,
+         "yaw":0
+      },
+      {
+         "at":[
+            -37.03,
+            -44.11
+         ],
+         "id":56,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.927,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":-41.11
+      },
+      {
+         "at":[
+            -37.61,
+            -35.61
+         ],
+         "id":57,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.93,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":-37.27
+      },
+      {
+         "at":[
+            -46.97,
+            -30.61
+         ],
+         "id":58,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":1.029,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":-151.39
+      },
+      {
+         "at":[
+            -52.19,
+            -27.18
+         ],
+         "id":59,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.998,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":5.11
+      },
+      {
+         "at":[
+            -61.34,
+            -24.76
+         ],
+         "id":60,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.941,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":111.16
+      },
+      {
+         "at":[
+            -66.91,
+            -22.69
+         ],
+         "id":61,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":1.092,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":69.23
+      },
+      {
+         "at":[
+            -72.77,
+            -29.68
+         ],
+         "id":62,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.945,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":-157.17
+      },
+      {
+         "at":[
+            -74.31,
+            -39.76
+         ],
+         "id":63,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.973,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":-36.66
+      },
+      {
+         "at":[
+            -76.19,
+            -47.23
+         ],
+         "id":64,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":1.118,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":-68.23
+      },
+      {
+         "at":[
+            -72.38,
+            -52.63
+         ],
+         "id":65,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":1.123,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":151.43
+      },
+      {
+         "at":[
+            -66.83,
+            -60.55
+         ],
+         "id":66,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.91,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":123.32
+      },
+      {
+         "at":[
+            -59.06,
+            -56.76
+         ],
+         "id":67,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":1.009,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":172.28
+      },
+      {
+         "at":[
+            -51.84,
+            -62.41
+         ],
+         "id":68,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.959,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":-56.96
+      },
+      {
+         "at":[
+            -46.24,
+            -54.33
+         ],
+         "id":69,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.982,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":152.41
+      },
+      {
+         "at":[
+            -38.96,
+            -51.52
+         ],
+         "id":70,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.928,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":-162.95
+      },
+      {
+         "at":[
+            -58,
+            -42
+         ],
+         "id":71,
+         "kind":"prop",
+         "lift":1.18,
+         "scale":2.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"oasis_rim",
+         "yaw":90
+      },
+      {
+         "at":[
+            -58,
+            -42
+         ],
+         "id":72,
+         "kind":"prop",
+         "lift":1.18,
+         "scale":2.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"oasis_rim",
+         "yaw":-180
+      },
+      {
+         "at":[
+            -71.5,
+            -36
+         ],
+         "id":73,
+         "kind":"prop",
+         "lift":-0.15,
+         "scale":1.2,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":40
+      },
+      {
+         "at":[
+            -70,
+            -32.5
+         ],
+         "id":74,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":0.8,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":-170
+      },
+      {
+         "at":[
+            -49,
+            -29.5
+         ],
+         "id":75,
+         "kind":"prop",
+         "lift":-0.15,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":100
+      },
+      {
+         "at":[
+            -39,
+            -28
+         ],
+         "id":76,
+         "kind":"prop",
+         "lift":-0.3,
+         "scale":0.9,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":20
+      },
+      {
+         "at":[
+            -78,
+            -51
+         ],
+         "id":77,
+         "kind":"prop",
+         "lift":-0.2,
+         "scale":0.7,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":-110
+      },
+      {
+         "at":[
+            -73.5,
+            -46
+         ],
+         "id":78,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":80
+      },
+      {
+         "at":[
+            -74,
+            -41.5
+         ],
+         "id":79,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":100
+      },
+      {
+         "at":[
+            -74.5,
+            -43.8
+         ],
+         "id":80,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot_large",
+         "yaw":0
+      },
+      {
+         "at":[
+            -72.6,
+            -43.6
+         ],
+         "id":81,
+         "kind":"prop",
+         "lift":0.16,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot",
+         "yaw":0
+      },
+      {
+         "at":[
+            -72.2,
+            -44.3
+         ],
+         "id":82,
+         "kind":"prop",
+         "lift":0.16,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot",
+         "yaw":90
+      },
+      {
+         "at":[
+            -75.5,
+            -38.5
+         ],
+         "id":83,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -77,
+            -45
+         ],
+         "id":84,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"awning",
+         "yaw":90
+      },
+      {
+         "at":[
+            -120,
+            -80
+         ],
+         "ease":12,
+         "half_x":12,
+         "half_z":31,
+         "id":85,
+         "kind":"pad",
+         "round":false,
+         "y":1,
+         "yaw":0
+      },
+      {
+         "at":[
+            -125.5,
+            -54
+         ],
+         "id":86,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -125.5,
+            -56.3
+         ],
+         "id":87,
+         "kind":"prop",
+         "lift":6,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"lintel",
+         "yaw":90
+      },
+      {
+         "at":[
+            -125.5,
+            -58.6
+         ],
+         "id":88,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":90
+      },
+      {
+         "at":[
+            -125.5,
+            -63.2
+         ],
+         "id":89,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":-87.51
+      },
+      {
+         "at":[
+            -125.5,
+            -67.8
+         ],
+         "id":90,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":-180
+      },
+      {
+         "at":[
+            -125.5,
+            -70.1
+         ],
+         "id":91,
+         "kind":"prop",
+         "lift":6,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"lintel",
+         "yaw":90
+      },
+      {
+         "at":[
+            -125.5,
+            -72.4
+         ],
+         "id":92,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":-180
+      },
+      {
+         "at":[
+            -125.5,
+            -77
+         ],
+         "id":93,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":151.37
+      },
+      {
+         "at":[
+            -125.5,
+            -81.6
+         ],
+         "id":94,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":-172.98
+      },
+      {
+         "at":[
+            -125.5,
+            -86.2
+         ],
+         "id":95,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":90
+      },
+      {
+         "at":[
+            -125.5,
+            -88.5
+         ],
+         "id":96,
+         "kind":"prop",
+         "lift":6,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"lintel",
+         "yaw":90
+      },
+      {
+         "at":[
+            -125.5,
+            -90.8
+         ],
+         "id":97,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":-180
+      },
+      {
+         "at":[
+            -125.5,
+            -95.4
+         ],
+         "id":98,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":-180
+      },
+      {
+         "at":[
+            -125.5,
+            -100
+         ],
+         "id":99,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":-151.5
+      },
+      {
+         "at":[
+            -131.1,
+            -100.6
+         ],
+         "id":100,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_fallen",
+         "yaw":-82
+      },
+      {
+         "at":[
+            -125.5,
+            -104.6
+         ],
+         "id":101,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":90
+      },
+      {
+         "at":[
+            -114.5,
+            -54
+         ],
+         "id":102,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":90
+      },
+      {
+         "at":[
+            -114.5,
+            -58.6
+         ],
+         "id":103,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":-58.3
+      },
+      {
+         "at":[
+            -114.5,
+            -63.2
+         ],
+         "id":104,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":90
+      },
+      {
+         "at":[
+            -114.5,
+            -65.5
+         ],
+         "id":105,
+         "kind":"prop",
+         "lift":6,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"lintel",
+         "yaw":90
+      },
+      {
+         "at":[
+            -114.5,
+            -67.8
+         ],
+         "id":106,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":-180
+      },
+      {
+         "at":[
+            -114.5,
+            -72.4
+         ],
+         "id":107,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":-90.53
+      },
+      {
+         "at":[
+            -114.5,
+            -77
+         ],
+         "id":108,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":41.07
+      },
+      {
+         "at":[
+            -114.5,
+            -81.6
+         ],
+         "id":109,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":90
+      },
+      {
+         "at":[
+            -114.5,
+            -83.9
+         ],
+         "id":110,
+         "kind":"prop",
+         "lift":6,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"lintel",
+         "yaw":90
+      },
+      {
+         "at":[
+            -114.5,
+            -86.2
+         ],
+         "id":111,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -114.5,
+            -90.8
+         ],
+         "id":112,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":-46.05
+      },
+      {
+         "at":[
+            -108.9,
+            -91.4
+         ],
+         "id":113,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_fallen",
+         "yaw":98
+      },
+      {
+         "at":[
+            -114.5,
+            -95.4
+         ],
+         "id":114,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -114.5,
+            -97.7
+         ],
+         "id":115,
+         "kind":"prop",
+         "lift":6,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"lintel",
+         "yaw":90
+      },
+      {
+         "at":[
+            -114.5,
+            -100
+         ],
+         "id":116,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":0
+      },
+      {
+         "at":[
+            -114.5,
+            -104.6
+         ],
+         "id":117,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":0
+      },
+      {
+         "at":[
+            -129.3,
+            -52
+         ],
+         "id":118,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_pharaoh",
+         "yaw":0
+      },
+      {
+         "at":[
+            -110.7,
+            -52
+         ],
+         "id":119,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_pharaoh",
+         "yaw":0
+      },
+      {
+         "at":[
+            -123,
+            -50.5
+         ],
+         "id":120,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -117,
+            -50.5
+         ],
+         "id":121,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -130.6,
+            -83
+         ],
+         "id":122,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_glyphs",
+         "yaw":90
+      },
+      {
+         "at":[
+            -109.4,
+            -71.5
+         ],
+         "id":123,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_glyphs",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -109.4,
+            -97
+         ],
+         "id":124,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_ruin",
+         "yaw":90
+      },
+      {
+         "at":[
+            -130.6,
+            -68
+         ],
+         "id":125,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_ruin",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -129.6,
+            -102.5
+         ],
+         "id":126,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"sarcophagus",
+         "yaw":20
+      },
+      {
+         "at":[
+            -128,
+            -101
+         ],
+         "id":127,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic",
+         "yaw":0
+      },
+      {
+         "at":[
+            -128.3,
+            -103.9
+         ],
+         "id":128,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic_jackal",
+         "yaw":140
+      },
+      {
+         "at":[
+            -130.9,
+            -100.6
+         ],
+         "id":129,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic",
+         "yaw":80
+      },
+      {
+         "at":[
+            -111,
+            -61
+         ],
+         "id":130,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block_stack",
+         "yaw":30
+      },
+      {
+         "at":[
+            -129.5,
+            -60
+         ],
+         "id":131,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":70
+      },
+      {
+         "at":[
+            -110.5,
+            -82
+         ],
+         "id":132,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot_large",
+         "yaw":0
+      },
+      {
+         "at":[
+            -109.8,
+            -83.1
+         ],
+         "id":133,
+         "kind":"prop",
+         "lift":0,
+         "scale":0.8,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot_large",
+         "yaw":0
+      },
+      {
+         "at":[
+            -119.2,
+            -92
+         ],
+         "id":134,
+         "kind":"prop",
+         "lift":0.45,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block_push",
+         "yaw":10
+      },
+      {
+         "at":[
+            -118.5,
+            -77
+         ],
+         "id":135,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"lintel",
+         "yaw":24
+      },
+      {
+         "at":[
+            -128.5,
+            -109
+         ],
+         "id":136,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"obelisk",
+         "yaw":0
+      },
+      {
+         "at":[
+            -111.5,
+            -109
+         ],
+         "id":137,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"obelisk",
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            -150
+         ],
+         "ease":14,
+         "half_x":11,
+         "half_z":19,
+         "id":138,
+         "kind":"pad",
+         "round":false,
+         "y":2,
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            -151
+         ],
+         "id":139,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"sphinx",
+         "yaw":0
+      },
+      {
+         "at":[
+            -126.5,
+            -135.5
+         ],
+         "id":140,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -113.5,
+            -135.5
+         ],
+         "id":141,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -123.4,
+            -133.5
+         ],
+         "id":142,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -116.6,
+            -133.5
+         ],
+         "id":143,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -112,
+            -163
+         ],
+         "id":144,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":50
+      },
+      {
+         "at":[
+            -128.2,
+            -156
+         ],
+         "id":145,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":85
+      },
+      {
+         "at":[
+            -112.4,
+            -146
+         ],
+         "id":146,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block_stack",
+         "yaw":95
+      },
+      {
+         "at":[
+            -118.6,
+            -143.5
+         ],
+         "id":147,
+         "kind":"prop",
+         "lift":1.72,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":-0.11
+      },
+      {
+         "at":[
+            -118.4,
+            -143
+         ],
+         "id":148,
+         "kind":"prop",
+         "lift":1.72,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":-156.23
+      },
+      {
+         "at":[
+            -118.2,
+            -142.5
+         ],
+         "id":149,
+         "kind":"prop",
+         "lift":1.72,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_small",
+         "yaw":-67.3
+      },
+      {
+         "at":[
+            -120,
+            -145.8
+         ],
+         "id":150,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic",
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            -230
+         ],
+         "ease":22,
+         "half_x":42,
+         "half_z":42,
+         "id":151,
+         "kind":"pad",
+         "round":false,
+         "y":4,
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            -230
+         ],
+         "id":152,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pyramid_great",
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            -197.2
+         ],
+         "id":153,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pyramid_entrance",
+         "yaw":0
+      },
+      {
+         "at":[
+            -127.5,
+            -191.5
+         ],
+         "id":154,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":0
+      },
+      {
+         "at":[
+            -112.5,
+            -191.5
+         ],
+         "id":155,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":0
+      },
+      {
+         "at":[
+            -123.3,
+            -192.5
+         ],
+         "id":156,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -116.7,
+            -192.5
+         ],
+         "id":157,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            -142,
+            -194
+         ],
+         "id":158,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_pharaoh",
+         "yaw":0
+      },
+      {
+         "at":[
+            -98,
+            -194
+         ],
+         "id":159,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_pharaoh",
+         "yaw":0
+      },
+      {
+         "at":[
+            -154,
+            -210
+         ],
+         "id":160,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block_stack",
+         "yaw":80
+      },
+      {
+         "at":[
+            -86.5,
+            -236
+         ],
+         "id":161,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block_stack",
+         "yaw":100
+      },
+      {
+         "at":[
+            -86,
+            -218
+         ],
+         "id":162,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":10
+      },
+      {
+         "at":[
+            -87,
+            -215.5
+         ],
+         "id":163,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":60
+      },
+      {
+         "at":[
+            -153,
+            -245
+         ],
+         "id":164,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":95
+      },
+      {
+         "at":[
+            -152.5,
+            -225
+         ],
+         "id":165,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":0
+      },
+      {
+         "at":[
+            -108,
+            -197
+         ],
+         "id":166,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":80
+      },
+      {
+         "at":[
+            -100,
+            -263
+         ],
+         "id":167,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":160
+      },
+      {
+         "at":[
+            -153.5,
+            -217.5
+         ],
+         "id":168,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":15
+      },
+      {
+         "at":[
+            -154.2,
+            -222
+         ],
+         "id":169,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":50
+      },
+      {
+         "at":[
+            -2,
+            -158
+         ],
+         "ease":14,
+         "half_x":18,
+         "half_z":18,
+         "id":170,
+         "kind":"pad",
+         "round":false,
+         "y":1.5,
+         "yaw":0
+      },
+      {
+         "at":[
+            -2,
+            -158
+         ],
+         "id":171,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pyramid_ruined",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -2,
+            -167.75
+         ],
+         "id":172,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"scaffold",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -2,
+            -163.3
+         ],
+         "id":173,
+         "kind":"prop",
+         "lift":7.41,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic_jackal",
+         "yaw":0
+      },
+      {
+         "at":[
+            -4.5,
+            -169.5
+         ],
+         "id":174,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":20
+      },
+      {
+         "at":[
+            -16,
+            -148
+         ],
+         "id":175,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":0
+      },
+      {
+         "at":[
+            11.5,
+            -171
+         ],
+         "id":176,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":120
+      },
+      {
+         "at":[
+            13,
+            -145
+         ],
+         "id":177,
+         "kind":"prop",
+         "lift":-0.2,
+         "scale":0.8,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":0
+      },
+      {
+         "at":[
+            -17.5,
+            -172
+         ],
+         "id":178,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":140
+      },
+      {
+         "at":[
+            -18.5,
+            -168.5
+         ],
+         "id":179,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":20
+      },
+      {
+         "at":[
+            -5,
+            -170.5
+         ],
+         "id":180,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -232,
+            -152
+         ],
+         "ease":12,
+         "half_x":12,
+         "half_z":11,
+         "id":181,
+         "kind":"pad",
+         "round":false,
+         "y":1,
+         "yaw":0
+      },
+      {
+         "at":[
+            -232,
+            -160.5
+         ],
+         "id":182,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_glyphs",
+         "yaw":0
+      },
+      {
+         "at":[
+            -236.7,
+            -160.5
+         ],
+         "id":183,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_glyphs",
+         "yaw":0
+      },
+      {
+         "at":[
+            -227.3,
+            -160.5
+         ],
+         "id":184,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_glyphs",
+         "yaw":0
+      },
+      {
+         "at":[
+            -239.4,
+            -157
+         ],
+         "id":185,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_glyphs",
+         "yaw":90
+      },
+      {
+         "at":[
+            -224.6,
+            -157
+         ],
+         "id":186,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_glyphs",
+         "yaw":-90
+      },
+      {
+         "at":[
+            -236.6,
+            -148.5
+         ],
+         "id":187,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":0
+      },
+      {
+         "at":[
+            -227.4,
+            -148.5
+         ],
+         "id":188,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":0
+      },
+      {
+         "at":[
+            -232,
+            -155.5
+         ],
+         "id":189,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"sarcophagus",
+         "yaw":90
+      },
+      {
+         "at":[
+            -234.6,
+            -151.2
+         ],
+         "id":190,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -229.4,
+            -151.2
+         ],
+         "id":191,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"brazier",
+         "yaw":0
+      },
+      {
+         "at":[
+            -233.5,
+            -153.2
+         ],
+         "id":192,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic",
+         "yaw":0
+      },
+      {
+         "at":[
+            -232.5,
+            -153
+         ],
+         "id":193,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic_jackal",
+         "yaw":30
+      },
+      {
+         "at":[
+            -231.5,
+            -153.1
+         ],
+         "id":194,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic",
+         "yaw":110
+      },
+      {
+         "at":[
+            -230.5,
+            -153.3
+         ],
+         "id":195,
+         "kind":"prop",
+         "lift":0.21,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"jar_canopic_jackal",
+         "yaw":-60
+      },
+      {
+         "at":[
+            -241.5,
+            -144
+         ],
+         "id":196,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":0
+      },
+      {
+         "at":[
+            -222.5,
+            -144
+         ],
+         "id":197,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":0
+      },
+      {
+         "at":[
+            -238,
+            -155
+         ],
+         "id":198,
+         "kind":"prop",
+         "lift":0.16,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot",
+         "yaw":0
+      },
+      {
+         "at":[
+            -223.5,
+            -153
+         ],
+         "id":199,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":40
+      },
+      {
+         "at":[
+            -15,
+            30
+         ],
+         "ease":10,
+         "half_x":10,
+         "half_z":9,
+         "id":200,
+         "kind":"pad",
+         "round":false,
+         "y":0.8,
+         "yaw":0
+      },
+      {
+         "at":[
+            -17,
+            23.5
+         ],
+         "id":201,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_ruin",
+         "yaw":-180
+      },
+      {
+         "at":[
+            -22,
+            28.5
+         ],
+         "id":202,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"wall_ruin",
+         "yaw":90
+      },
+      {
+         "at":[
+            -9,
+            24
+         ],
+         "id":203,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column",
+         "yaw":0
+      },
+      {
+         "at":[
+            -8.5,
+            31
+         ],
+         "id":204,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_fallen",
+         "yaw":12
+      },
+      {
+         "at":[
+            -16,
+            30.5
+         ],
+         "id":205,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"tent",
+         "yaw":30
+      },
+      {
+         "at":[
+            -13,
+            34.5
+         ],
+         "id":206,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"campfire",
+         "yaw":0
+      },
+      {
+         "at":[
+            -19,
+            34.5
+         ],
+         "id":207,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"crate",
+         "yaw":30
+      },
+      {
+         "at":[
+            -18,
+            35.2
+         ],
+         "id":208,
+         "kind":"prop",
+         "lift":0.16,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"pot",
+         "yaw":0
+      },
+      {
+         "at":[
+            -24.5,
+            21.5
+         ],
+         "id":209,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":0
+      },
+      {
+         "at":[
+            -23.5,
+            37.5
+         ],
+         "id":210,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":90
+      },
+      {
+         "at":[
+            -225,
+            -70
+         ],
+         "id":211,
+         "kind":"prop",
+         "lift":0.3,
+         "scale":1,
+         "tilt_x":86,
+         "tilt_z":0,
+         "what":"obelisk",
+         "yaw":35
+      },
+      {
+         "at":[
+            -229,
+            -73
+         ],
+         "id":212,
+         "kind":"prop",
+         "lift":-0.3,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":60
+      },
+      {
+         "at":[
+            -221.5,
+            -66
+         ],
+         "id":213,
+         "kind":"prop",
+         "lift":-0.15,
+         "scale":1.3,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":10
+      },
+      {
+         "at":[
+            -227.5,
+            -67
+         ],
+         "id":214,
+         "kind":"prop",
+         "lift":-0.05,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":0
+      },
+      {
+         "at":[
+            -231,
+            -65
+         ],
+         "id":215,
+         "kind":"prop",
+         "lift":-0.1,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":-140
+      },
+      {
+         "at":[
+            -2.85,
+            -8.15
+         ],
+         "id":216,
+         "kind":"prop",
+         "lift":-0.34,
+         "scale":1.35,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":39.03
+      },
+      {
+         "at":[
+            -197.34,
+            -147.06
+         ],
+         "id":217,
+         "kind":"prop",
+         "lift":-0.21,
+         "scale":0.825,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":-60.83
+      },
+      {
+         "at":[
+            -277.22,
+            -159.96
+         ],
+         "id":218,
+         "kind":"prop",
+         "lift":-0.34,
+         "scale":1.368,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":41.29
+      },
+      {
+         "at":[
+            -75.06,
+            -105.14
+         ],
+         "id":219,
+         "kind":"prop",
+         "lift":-0.34,
+         "scale":1.372,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":154.59
+      },
+      {
+         "at":[
+            -173.87,
+            -157.72
+         ],
+         "id":220,
+         "kind":"prop",
+         "lift":-0.34,
+         "scale":1.416,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":-129.88
+      },
+      {
+         "at":[
+            -17.53,
+            -8.14
+         ],
+         "id":221,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.056,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":-118.39
+      },
+      {
+         "at":[
+            -264.39,
+            -117.75
+         ],
+         "id":222,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.016,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":31.74
+      },
+      {
+         "at":[
+            15.51,
+            29.67
+         ],
+         "id":223,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":-69.6
+      },
+      {
+         "at":[
+            -226.19,
+            38.11
+         ],
+         "id":224,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":-135.86
+      },
+      {
+         "at":[
+            25.09,
+            -274.99
+         ],
+         "id":225,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":-56.22
+      },
+      {
+         "at":[
+            -199.38,
+            -144.07
+         ],
+         "id":226,
+         "kind":"prop",
+         "lift":-0.37,
+         "scale":1.491,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":-142.42
+      },
+      {
+         "at":[
+            -240.47,
+            -77.83
+         ],
+         "id":227,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.084,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":-110.36
+      },
+      {
+         "at":[
+            -200.19,
+            -147.2
+         ],
+         "id":228,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":9.02
+      },
+      {
+         "at":[
+            -201.53,
+            -55.86
+         ],
+         "id":229,
+         "kind":"prop",
+         "lift":-0.35,
+         "scale":1.396,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":57.52
+      },
+      {
+         "at":[
+            -144.47,
+            -22.38
+         ],
+         "id":230,
+         "kind":"prop",
+         "lift":-0.29,
+         "scale":1.159,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":80.71
+      },
+      {
+         "at":[
+            35.74,
+            16.39
+         ],
+         "id":231,
+         "kind":"prop",
+         "lift":-0.28,
+         "scale":1.106,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":-140.86
+      },
+      {
+         "at":[
+            -211.31,
+            -47.66
+         ],
+         "id":232,
+         "kind":"prop",
+         "lift":-0.22,
+         "scale":0.88,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":-161.08
+      },
+      {
+         "at":[
+            10.6,
+            -16.23
+         ],
+         "id":233,
+         "kind":"prop",
+         "lift":-0.36,
+         "scale":1.421,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":-131.66
+      },
+      {
+         "at":[
+            -24.54,
+            -266.49
+         ],
+         "id":234,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":0.951,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":1.81
+      },
+      {
+         "at":[
+            -200.56,
+            -83.23
+         ],
+         "id":235,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.032,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":98.48
+      },
+      {
+         "at":[
+            -265.7,
+            -94.87
+         ],
+         "id":236,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":143.32
+      },
+      {
+         "at":[
+            -172.15,
+            -157.84
+         ],
+         "id":237,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":-40.79
+      },
+      {
+         "at":[
+            -176.82,
+            -74.8
+         ],
+         "id":238,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":33.88
+      },
+      {
+         "at":[
+            -190.27,
+            -164.6
+         ],
+         "id":239,
+         "kind":"prop",
+         "lift":-0.3,
+         "scale":1.188,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":-119.06
+      },
+      {
+         "at":[
+            -227.52,
+            19.23
+         ],
+         "id":240,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":0.957,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":88.54
+      },
+      {
+         "at":[
+            -74.76,
+            -119.73
+         ],
+         "id":241,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":96.76
+      },
+      {
+         "at":[
+            -62.32,
+            6.3
+         ],
+         "id":242,
+         "kind":"prop",
+         "lift":-0.35,
+         "scale":1.384,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":-82.39
+      },
+      {
+         "at":[
+            -193.47,
+            -109.53
+         ],
+         "id":243,
+         "kind":"prop",
+         "lift":-0.35,
+         "scale":1.395,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":160.08
+      },
+      {
+         "at":[
+            -134.9,
+            -18.57
+         ],
+         "id":244,
+         "kind":"prop",
+         "lift":-0.16,
+         "scale":0.639,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":36
+      },
+      {
+         "at":[
+            -71.07,
+            -142.1
+         ],
+         "id":245,
+         "kind":"prop",
+         "lift":-0.25,
+         "scale":1.015,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":58.36
+      },
+      {
+         "at":[
+            -168.42,
+            -161.61
+         ],
+         "id":246,
+         "kind":"prop",
+         "lift":-0.22,
+         "scale":0.896,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":-168.78
+      },
+      {
+         "at":[
+            -222.6,
+            -14.74
+         ],
+         "id":247,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":79.51
+      },
+      {
+         "at":[
+            -268.58,
+            -156.07
+         ],
+         "id":248,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.031,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":116.5
+      },
+      {
+         "at":[
+            -184.67,
+            -148.36
+         ],
+         "id":249,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":-10.42
+      },
+      {
+         "at":[
+            -235.07,
+            -56.59
+         ],
+         "id":250,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":120.59
+      },
+      {
+         "at":[
+            -204.33,
+            26.56
+         ],
+         "id":251,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":0.29
+      },
+      {
+         "at":[
+            -92.96,
+            8.4
+         ],
+         "id":252,
+         "kind":"prop",
+         "lift":-0.32,
+         "scale":1.286,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":-102.36
+      },
+      {
+         "at":[
+            16.33,
+            -244.42
+         ],
+         "id":253,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.059,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":-98.13
+      },
+      {
+         "at":[
+            29.37,
+            -205.42
+         ],
+         "id":254,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":179.26
+      },
+      {
+         "at":[
+            -40.4,
+            -103.19
+         ],
+         "id":255,
+         "kind":"prop",
+         "lift":-0.16,
+         "scale":0.622,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":-30.06
+      },
+      {
+         "at":[
+            -220.47,
+            -146.89
+         ],
+         "id":256,
+         "kind":"prop",
+         "lift":-0.18,
+         "scale":0.721,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":33.75
+      },
+      {
+         "at":[
+            -272.52,
+            -132.02
+         ],
+         "id":257,
+         "kind":"prop",
+         "lift":-0.37,
+         "scale":1.466,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":138.64
+      },
+      {
+         "at":[
+            7.1,
+            -205.44
+         ],
+         "id":258,
+         "kind":"prop",
+         "lift":-0.3,
+         "scale":1.192,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":-0.46
+      },
+      {
+         "at":[
+            -7.06,
+            8.83
+         ],
+         "id":259,
+         "kind":"prop",
+         "lift":-0.2,
+         "scale":0.785,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":-156.91
+      },
+      {
+         "at":[
+            -278.09,
+            26.26
+         ],
+         "id":260,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.032,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":151.52
+      },
+      {
+         "at":[
+            -108.97,
+            16.28
+         ],
+         "id":261,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.113,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":19.38
+      },
+      {
+         "at":[
+            -18.86,
+            -112.61
+         ],
+         "id":262,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":156.7
+      },
+      {
+         "at":[
+            -163.34,
+            -118.77
+         ],
+         "id":263,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_stump",
+         "yaw":75.73
+      },
+      {
+         "at":[
+            -130.08,
+            -27.62
+         ],
+         "id":264,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"block",
+         "yaw":133.56
+      },
+      {
+         "at":[
+            -183.53,
+            -177.62
+         ],
+         "id":265,
+         "kind":"prop",
+         "lift":-0.35,
+         "scale":1.397,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":81.32
+      },
+      {
+         "at":[
+            -225.16,
+            -150.92
+         ],
+         "id":266,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":0.98,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":148.14
+      },
+      {
+         "at":[
+            -2.49,
+            -253.67
+         ],
+         "id":267,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"column_broken",
+         "yaw":-4.79
+      },
+      {
+         "at":[
+            -188.43,
+            -145.93
+         ],
+         "id":268,
+         "kind":"prop",
+         "lift":-0.3,
+         "scale":1.29,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":66.43
+      },
+      {
+         "at":[
+            -200.69,
+            -141.01
+         ],
+         "id":269,
+         "kind":"prop",
+         "lift":-0.3,
+         "scale":1.215,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":114.37
+      },
+      {
+         "at":[
+            -14.37,
+            -249.86
+         ],
+         "id":270,
+         "kind":"prop",
+         "lift":-0.31,
+         "scale":1.233,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_a",
+         "yaw":148.18
+      },
+      {
+         "at":[
+            38.49,
+            -4.92
+         ],
+         "id":271,
+         "kind":"prop",
+         "lift":-0.32,
+         "scale":1.285,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":116.42
+      },
+      {
+         "at":[
+            -224.21,
+            -26.94
+         ],
+         "id":272,
+         "kind":"prop",
+         "lift":-0.28,
+         "scale":1.123,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rock_b",
+         "yaw":115.89
+      },
+      {
+         "at":[
+            -99.11,
+            19.06
+         ],
+         "id":273,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.118,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":82.61
+      },
+      {
+         "at":[
+            -171.73,
+            -130.33
+         ],
+         "id":274,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1.113,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":-69.21
+      },
+      {
+         "at":[
+            -201.69,
+            -148.02
+         ],
+         "id":275,
+         "kind":"prop",
+         "lift":-0.12,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"rubble",
+         "yaw":122.78
+      },
+      {
+         "at":[
+            -120,
+            45
+         ],
+         "id":276,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"Start",
+         "yaw":0
+      },
+      {
+         "at":[
+            -182,
+            -2
+         ],
+         "id":277,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtCamp",
+         "yaw":0
+      },
+      {
+         "at":[
+            -78,
+            -40
+         ],
+         "id":278,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtOasis",
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            -51
+         ],
+         "id":279,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtColonnade",
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            -133.5
+         ],
+         "id":280,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtSphinx",
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            -190
+         ],
+         "id":281,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtPyramid",
+         "yaw":0
+      },
+      {
+         "at":[
+            -18,
+            -158
+         ],
+         "id":282,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtRuinedPyramid",
+         "yaw":0
+      },
+      {
+         "at":[
+            -232,
+            -143
+         ],
+         "id":283,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtShrine",
+         "yaw":0
+      },
+      {
+         "at":[
+            -15,
+            23
+         ],
+         "id":284,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtOutpost",
+         "yaw":0
+      },
+      {
+         "at":[
+            -120,
+            45
+         ],
+         "id":285,
+         "kind":"start",
+         "lift":0,
+         "yaw":0
+      },
+      {
+         "at":[
+            -178,
+            -15
+         ],
+         "id":286,
+         "kind":"person",
+         "lift":0.3,
+         "seed":11,
+         "sex":0,
+         "wander":3.5,
+         "what":"townsperson",
+         "yaw":0
+      },
+      {
+         "at":[
+            -180.66,
+            -10.18
+         ],
+         "id":287,
+         "kind":"person",
+         "lift":0.3,
+         "seed":12,
+         "sex":0,
+         "wander":3.5,
+         "what":"townsperson",
+         "yaw":0
+      },
+      {
+         "at":[
+            -187.14,
+            -11.91
+         ],
+         "id":288,
+         "kind":"person",
+         "lift":0.3,
+         "seed":13,
+         "sex":0,
+         "wander":3.5,
+         "what":"townsperson",
+         "yaw":0
+      },
+      {
+         "at":[
+            -187.08,
+            -19.81
+         ],
+         "id":289,
+         "kind":"person",
+         "lift":0.3,
+         "seed":14,
+         "sex":0,
+         "wander":3.5,
+         "what":"townsperson",
+         "yaw":0
+      },
+      {
+         "at":[
+            -178.25,
+            -22.07
+         ],
+         "id":290,
+         "kind":"person",
+         "lift":0.3,
+         "seed":15,
+         "sex":0,
+         "wander":3.5,
+         "what":"townsperson",
+         "yaw":0
+      },
+      {
+         "at":[
+            -122,
+            46
+         ],
+         "id":291,
+         "kind":"person",
+         "lift":0.1,
+         "what":"brother",
+         "yaw":0
+      },
+      {
+         "at":[
+            26,
+            -94
+         ],
+         "base":36,
+         "cap":true,
+         "casing":1,
+         "door":true,
+         "id":292,
+         "kind":"pyramid",
+         "lift":-0.05,
+         "rise":1.35,
+         "ruin":0,
+         "seed":1,
+         "slope":54,
+         "stone":1,
+         "what":"finished",
+         "yaw":-90
+      },
+      {
+         "at":[
+            8,
+            -54
+         ],
+         "base":30,
+         "cap":false,
+         "casing":0,
+         "door":false,
+         "id":293,
+         "kind":"pyramid",
+         "lift":-0.05,
+         "rise":1.35,
+         "ruin":0.5,
+         "seed":3,
+         "slope":54,
+         "stone":0,
+         "what":"fallen",
+         "yaw":0
+      },
+      {
+         "at":[
+            -34,
+            -210
+         ],
+         "base":34,
+         "cap":false,
+         "casing":0,
+         "door":false,
+         "id":294,
+         "kind":"pyramid",
+         "lift":-0.05,
+         "rise":1.35,
+         "ruin":0,
+         "seed":1,
+         "slope":54,
+         "stone":0,
+         "yaw":0
+      },
+      {
+         "at":[
+            -248,
+            -238
+         ],
+         "difficulty":1,
+         "height":12,
+         "id":295,
+         "kind":"valley",
+         "leads":1,
+         "open":1,
+         "seed":1,
+         "size":0.75,
+         "tomb_seed":1,
+         "tombs":4,
+         "y":0,
+         "yaw":0
+      },
+      {
+         "at":[
+            -80,
+            -292
+         ],
+         "bend":-14,
+         "depth":12,
+         "height":13,
+         "id":296,
+         "kind":"cliff",
+         "length":170,
+         "lift":0,
+         "rough":2,
+         "scree":0.3,
+         "seed":3,
+         "stone":1,
+         "ways":2,
+         "yaw":0
+      },
+      {
+         "at":[
+            50,
+            -242
+         ],
+         "height":12,
+         "id":297,
+         "kind":"cliff",
+         "lift":0,
+         "rough":1.5,
+         "scree":0.35,
+         "seed":4,
+         "stone":2,
+         "ways":1,
+         "what":"mesa",
+         "width":28,
+         "yaw":0
+      },
+      {
+         "at":[
+            -278,
+            -32
+         ],
+         "count":34,
+         "from":1,
+         "id":298,
+         "kind":"rocks",
+         "lift":0,
+         "mix":0,
+         "radius":42,
+         "seed":3,
+         "stone":0,
+         "to":7,
+         "yaw":0
+      },
+      {
+         "at":[
+            65,
+            175
+         ],
+         "ease":14,
+         "half_x":86,
+         "half_z":56,
+         "id":300,
+         "kind":"pad",
+         "name":"EdfuGround",
+         "round":false,
+         "y":-1,
+         "yaw":0
+      },
+      {
+         "at":[
+            176,
+            175
+         ],
+         "ease":10,
+         "half_x":34,
+         "half_z":9,
+         "id":301,
+         "kind":"pad",
+         "name":"EdfuWay",
+         "round":false,
+         "y":-1,
+         "yaw":0
+      },
+      {
+         "at":[
+            166,
+            26
+         ],
+         "ease":14,
+         "half_x":56,
+         "half_z":68,
+         "id":302,
+         "kind":"pad",
+         "name":"KomOmboGround",
+         "round":false,
+         "y":-1,
+         "yaw":0
+      },
+      {
+         "at":[
+            152,
+            -137.5
+         ],
+         "ease":16,
+         "half_x":90,
+         "half_z":112,
+         "id":303,
+         "kind":"pad",
+         "name":"AbuSimbelGround",
+         "round":false,
+         "y":-1,
+         "yaw":0
+      },
+      {
+         "at":[
+            246,
+            -100
+         ],
+         "bank":8,
+         "depth":1.6,
+         "id":304,
+         "kind":"river",
+         "level":-1.2,
+         "lift":0,
+         "name":"Nile",
+         "points":[
+            [
+               246,
+               -100
+            ],
+            [
+               246,
+               -50
+            ],
+            [
+               240,
+               0
+            ],
+            [
+               236,
+               40
+            ],
+            [
+               232,
+               100
+            ],
+            [
+               228,
+               175
+            ],
+            [
+               232,
+               230
+            ],
+            [
+               250,
+               272
+            ],
+            [
+               290,
+               302
+            ],
+            [
+               332,
+               320
+            ],
+            [
+               380,
+               346
+            ],
+            [
+               425,
+               380
+            ],
+            [
+               380,
+               346
+            ],
+            [
+               332,
+               320
+            ],
+            [
+               290,
+               302
+            ],
+            [
+               250,
+               272
+            ],
+            [
+               232,
+               230
+            ],
+            [
+               228,
+               175
+            ],
+            [
+               232,
+               100
+            ],
+            [
+               236,
+               40
+            ],
+            [
+               240,
+               0
+            ],
+            [
+               246,
+               -50
+            ],
+            [
+               246,
+               -100
+            ],
+            [
+               248,
+               -200
+            ],
+            [
+               258,
+               -250
+            ],
+            [
+               290,
+               -284
+            ],
+            [
+               332,
+               -304
+            ],
+            [
+               380,
+               -332
+            ],
+            [
+               425,
+               -366
+            ]
+         ],
+         "width":24,
+         "yaw":0
+      },
+      {
+         "at":[
+            60,
+            175
+         ],
+         "buried":0,
+         "id":305,
+         "kind":"temple",
+         "lift":0,
+         "name":"Edfu",
+         "painted":0.15,
+         "ruin":0,
+         "seed":1,
+         "size":1,
+         "stone":0,
+         "what":"edfu",
+         "yaw":90
+      },
+      {
+         "at":[
+            160,
+            20
+         ],
+         "buried":0,
+         "id":306,
+         "kind":"temple",
+         "lift":0,
+         "name":"KomOmbo",
+         "painted":0.15,
+         "ruin":0.25,
+         "seed":1,
+         "size":1,
+         "stone":0,
+         "what":"kom_ombo",
+         "yaw":0
+      },
+      {
+         "at":[
+            188,
+            -100
+         ],
+         "drift":0.35,
+         "id":307,
+         "kind":"abusimbel",
+         "lift":0,
+         "name":"AbuSimbel",
+         "painted":true,
+         "scale":1,
+         "sun":true,
+         "wear":0.4,
+         "which":0,
+         "yaw":90
+      },
+      {
+         "asks":true,
+         "at":[
+            22.1,
+            177.5
+         ],
+         "bars":true,
+         "dress":0,
+         "gate_at":2.5,
+         "head":0,
+         "id":308,
+         "kind":"guardian",
+         "lift":0.15,
+         "name":"EdfuKeeper",
+         "size":1.3,
+         "tall":4.5,
+         "two":true,
+         "who":3,
+         "wide":2.8,
+         "yaw":90
+      },
+      {
+         "at":[
+            -2.3,
+            192.2
+         ],
+         "id":309,
+         "kind":"bookpage",
+         "lift":0.15,
+         "name":"EdfuLeaf",
+         "rolled":false,
+         "who":4,
+         "yaw":90
+      },
+      {
+         "at":[
+            14.5,
+            171.8
+         ],
+         "id":310,
+         "kind":"prop",
+         "lift":0.15,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"helmet_horus",
+         "yaw":90
+      },
+      {
+         "at":[
+            142,
+            175
+         ],
+         "id":311,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtEdfu",
+         "yaw":0
+      },
+      {
+         "at":[
+            36,
+            175
+         ],
+         "id":312,
+         "kind":"checkpoint",
+         "lift":0.15,
+         "name":"InEdfu",
+         "yaw":0
+      },
+      {
+         "at":[
+            151,
+            184
+         ],
+         "id":313,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":180
+      },
+      {
+         "at":[
+            151,
+            166
+         ],
+         "id":314,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":0
+      },
+      {
+         "at":[
+            165,
+            184
+         ],
+         "id":315,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":180
+      },
+      {
+         "at":[
+            165,
+            166
+         ],
+         "id":316,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":0
+      },
+      {
+         "at":[
+            179,
+            184
+         ],
+         "id":317,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":180
+      },
+      {
+         "at":[
+            179,
+            166
+         ],
+         "id":318,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":0
+      },
+      {
+         "at":[
+            193,
+            184
+         ],
+         "id":319,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":180
+      },
+      {
+         "at":[
+            193,
+            166
+         ],
+         "id":320,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"statue_anubis",
+         "yaw":0
+      },
+      {
+         "asks":true,
+         "at":[
+            154.1,
+            -4.72
+         ],
+         "bars":true,
+         "dress":1,
+         "gate_at":2.1,
+         "head":1,
+         "id":321,
+         "kind":"guardian",
+         "lift":1.75,
+         "name":"KomOmboKeeper",
+         "size":1,
+         "tall":2.6,
+         "two":true,
+         "who":8,
+         "wide":2.6,
+         "yaw":0
+      },
+      {
+         "at":[
+            126.4,
+            17.6
+         ],
+         "id":322,
+         "kind":"bookpage",
+         "lift":1.75,
+         "name":"KomOmboLeaf",
+         "rolled":false,
+         "who":9,
+         "yaw":0
+      },
+      {
+         "at":[
+            154.4,
+            -11.5
+         ],
+         "id":323,
+         "kind":"prop",
+         "lift":1.75,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"helmet_sobek",
+         "yaw":0
+      },
+      {
+         "at":[
+            160,
+            84
+         ],
+         "id":324,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtKomOmbo",
+         "yaw":0
+      },
+      {
+         "at":[
+            160,
+            15
+         ],
+         "id":325,
+         "kind":"checkpoint",
+         "lift":1.75,
+         "name":"InKomOmbo",
+         "yaw":0
+      },
+      {
+         "at":[
+            179.5,
+            -79.6
+         ],
+         "id":326,
+         "kind":"lever",
+         "lift":1.2,
+         "name":"AbuLever",
+         "returns":0,
+         "starts_on":false,
+         "yaw":180
+      },
+      {
+         "at":[
+            178.3,
+            -79.1
+         ],
+         "id":327,
+         "kind":"prop",
+         "lift":1.2,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"torch_stand",
+         "yaw":90
+      },
+      {
+         "at":[
+            165.7,
+            -100
+         ],
+         "id":328,
+         "inverted":false,
+         "kind":"door",
+         "lift":3.7,
+         "links":[
+            326
+         ],
+         "name":"AbuSlab",
+         "needs_all":false,
+         "tall":5,
+         "thick":0.6,
+         "wide":2.2,
+         "yaw":90
+      },
+      {
+         "at":[
+            145.24,
+            -100.75
+         ],
+         "height":0.95,
+         "id":329,
+         "kind":"sundisc",
+         "latches":true,
+         "lift":1.2,
+         "name":"AbuSunDisc",
+         "yaw":90
+      },
+      {
+         "at":[
+            179.3,
+            -109
+         ],
+         "id":330,
+         "inverted":false,
+         "kind":"door",
+         "lift":2.9,
+         "links":[
+            307,
+            329
+         ],
+         "name":"AbuStoreDoor",
+         "needs_all":false,
+         "tall":3.4,
+         "thick":0.5,
+         "wide":1.8,
+         "yaw":180
+      },
+      {
+         "at":[
+            179.3,
+            -119.5
+         ],
+         "id":331,
+         "kind":"prop",
+         "lift":1.2,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"khopesh_stand",
+         "yaw":0
+      },
+      {
+         "at":[
+            201,
+            -104.2
+         ],
+         "id":332,
+         "kind":"torch",
+         "lift":1.4,
+         "lit":true,
+         "yaw":0
+      },
+      {
+         "at":[
+            215,
+            -100
+         ],
+         "id":333,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtAbuSimbel",
+         "yaw":0
+      },
+      {
+         "at":[
+            182,
+            -100
+         ],
+         "id":334,
+         "kind":"checkpoint",
+         "lift":1.2,
+         "name":"InAbuSimbel",
+         "yaw":0
+      },
+      {
+         "at":[
+            208,
+            120
+         ],
+         "id":335,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"AtTheRiver",
+         "yaw":0
+      },
+      {
+         "at":[
+            224,
+            -160
+         ],
+         "id":336,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":20
+      },
+      {
+         "at":[
+            226,
+            -148
+         ],
+         "id":337,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":200
+      },
+      {
+         "at":[
+            222,
+            -168
+         ],
+         "id":338,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":80
+      },
+      {
+         "at":[
+            227,
+            -236
+         ],
+         "id":339,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":300
+      },
+      {
+         "at":[
+            223,
+            -52
+         ],
+         "id":340,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":140
+      },
+      {
+         "at":[
+            221,
+            -40
+         ],
+         "id":341,
+         "kind":"prop",
+         "lift":0,
+         "scale":0.9,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":10
+      },
+      {
+         "at":[
+            216,
+            -24
+         ],
+         "id":342,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_doum",
+         "yaw":60
+      },
+      {
+         "at":[
+            216,
+            62
+         ],
+         "id":343,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":250
+      },
+      {
+         "at":[
+            214,
+            84
+         ],
+         "id":344,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":30
+      },
+      {
+         "at":[
+            211,
+            96
+         ],
+         "id":345,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":110
+      },
+      {
+         "at":[
+            209,
+            128
+         ],
+         "id":346,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.05,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":190
+      },
+      {
+         "at":[
+            206,
+            146
+         ],
+         "id":347,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_doum",
+         "yaw":0
+      },
+      {
+         "at":[
+            205,
+            160
+         ],
+         "id":348,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":330
+      },
+      {
+         "at":[
+            204,
+            190
+         ],
+         "id":349,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_b",
+         "yaw":45
+      },
+      {
+         "at":[
+            207,
+            198
+         ],
+         "id":350,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_c",
+         "yaw":270
+      },
+      {
+         "at":[
+            210,
+            214
+         ],
+         "id":351,
+         "kind":"prop",
+         "lift":0,
+         "scale":0.95,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_a",
+         "yaw":160
+      },
+      {
+         "at":[
+            212,
+            108
+         ],
+         "id":352,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_sucker",
+         "yaw":0
+      },
+      {
+         "at":[
+            207,
+            204
+         ],
+         "id":353,
+         "kind":"prop",
+         "lift":0,
+         "scale":1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"palm_sucker",
+         "yaw":90
+      },
+      {
+         "at":[
+            233.5,
+            -88
+         ],
+         "id":354,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":111.5
+      },
+      {
+         "at":[
+            233,
+            -114
+         ],
+         "id":355,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":167
+      },
+      {
+         "at":[
+            233.5,
+            -44
+         ],
+         "id":356,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":235.5
+      },
+      {
+         "at":[
+            226,
+            6
+         ],
+         "id":357,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":148
+      },
+      {
+         "at":[
+            223.5,
+            34
+         ],
+         "id":358,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":3.5
+      },
+      {
+         "at":[
+            222,
+            60
+         ],
+         "id":359,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":234
+      },
+      {
+         "at":[
+            216,
+            166
+         ],
+         "id":360,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":98
+      },
+      {
+         "at":[
+            215.5,
+            184
+         ],
+         "id":361,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":277.5
+      },
+      {
+         "at":[
+            217,
+            200
+         ],
+         "id":362,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":149
+      },
+      {
+         "at":[
+            219,
+            120
+         ],
+         "id":363,
+         "kind":"prop",
+         "lift":0,
+         "scale":1.1,
+         "tilt_x":0,
+         "tilt_z":0,
+         "what":"reeds",
+         "yaw":63
+      },
+      {
+         "at":[
+            -10,
+            298
+         ],
+         "ease":10,
+         "half_x":160,
+         "half_z":46,
+         "id":364,
+         "kind":"pad",
+         "name":"LuxorGround",
+         "round":false,
+         "y":-1,
+         "yaw":0
+      },
+      {
+         "at":[
+            -20,
+            298
+         ],
+         "buried":0,
+         "id":365,
+         "kind":"temple",
+         "lift":0,
+         "name":"Luxor",
+         "painted":0.15,
+         "ruin":0.15,
+         "seed":1,
+         "size":1,
+         "stone":0,
+         "what":"luxor",
+         "yaw":90
+      },
+      {
+         "at":[
+            128,
+            298
+         ],
+         "id":366,
+         "kind":"checkpoint",
+         "lift":0,
+         "name":"Luxor",
+         "yaw":0
+      }
+   ],
+   "mirage":0.5,
+   "terrain":{
+      "cell":2.5,
+      "dune_height":7,
+      "dunes":1,
+      "flat":0.2,
+      "hills":0.6,
+      "rim_height":9,
+      "rim_width":45,
+      "ripples":1,
+      "scatter":1.3,
+      "seed":7,
+      "sharp":0.5,
+      "size":800,
+      "wind":[
+         -0.959999978542328,
+         -0.280000001192093
+      ]
+   },
+   "version":1,
+   "weather":1
 }
