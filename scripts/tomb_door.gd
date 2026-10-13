@@ -164,4 +164,4 @@ func enter() -> void:
 	var scene := get_tree().current_scene
 	TombLevel.back_to = scene.scene_file_path if scene else ""
 	TombLevel.back_at = global_transform * Vector3(0.0, 0.3, 7.5)
-	get_tree().change_scene_to_file.call_deferred("res://tomb.tscn")
+	Loading.go("res://tomb.tscn")
