@@ -380,7 +380,7 @@ static func load_layout() -> Dictionary:
 	if has_saved():
 		var saved := from_text(FileAccess.get_file_as_string(saved_at))
 		if not saved.is_empty():
-			if int(saved.get("issue", 0)) >= issue():
+			if saved_at != SAVED or int(saved.get("issue", 0)) >= issue():  # (only the player's own level is ever put aside: the tools' are left alone)
 				return saved
 			var aside := FileAccess.open(saved_at + ".before", FileAccess.WRITE)
 			if aside:

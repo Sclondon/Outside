@@ -78,7 +78,7 @@ static func dress(level: Desert) -> void:
 		var horizon := DesertHorizon.new()
 		horizon.name = "Horizon"
 		horizon.hills = hills
-		horizon.distance = level.terrain.size * 0.5 + 170.0
+		horizon.distance = level.terrain.size * 0.5 + 600.0
 		horizon.seed = level.terrain.seed
 		horizon.round_square = level.terrain.size
 		horizon.position.y = 7.5
