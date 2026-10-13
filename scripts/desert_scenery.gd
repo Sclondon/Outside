@@ -14,15 +14,19 @@ static func _usual(own: Dictionary) -> void:
 	if not own.has("dunes"):
 		own["dunes"] = 0
 	if not own.has("sharp"):
-		own["sharp"] = 0.0 if int(own["dunes"]) == 0 else 0.8
+		own["sharp"] = 0.0 if int(own["dunes"]) == 0 else 0.3
 	if not own.has("flat"):
 		own["flat"] = 0.35
+	if not own.has("ripples"):
+		own["ripples"] = 0
 	if not own.has("hills"):
 		own["hills"] = 0.0
 
 ## The kinds of item that are made here.
 const KINDS: Array[String] = ["cliff", "rock", "rocks", "valley", "tomb_door"]
 ## How the dunes can be set out, as the editor names them, in the order of `SandDunes.Field`.
+## The looks the sand's ripples can have, as the editor names them, in the order of `Sand.Ripples`.
+const RIPPLES: Array[String] = ["Soft waves, as they were", "Mixed, as a desert is", "Fine lines", "None"]
 const DUNES: Array[String] = ["Scattered, as they were", "Crescents", "Ridges across the wind", "Linked crescents", "Star dunes", "A sea of all kinds"]
 
 
@@ -84,6 +88,8 @@ static func dress(level: Desert) -> void:
 	var sand := level.terrain.ground as SandGround
 	if sand == null:
 		return
+	# (a level that does not say has its ripples as they always were: soft waves)
+	sand.ripples = int(own.get("ripples", 0))
 	for item: Dictionary in level.layout["items"]:
 		var node: Node3D = level.nodes.get(item["id"])
 		if node is KingsValley:
@@ -113,8 +119,21 @@ static func dress(level: Desert) -> void:
 				sand.paint(Sand.Kind.WHITE, Vector2(at.x, at.z) + Vector2(Rock.chance(i, 5) - 0.5, Rock.chance(i, 6) - 0.5) * float(rock[1]) * 2.0,
 						float(rock[1]) * lerpf(0.8, 1.6, Rock.chance(i, 7)), 0.85, 3.0)
 				sand.paint(Sand.Kind.PACKED, Vector2(at.x, at.z), float(rock[1]) * 1.1, 0.5, 3.0)
-		elif node is RockFormation and (node as RockFormation).colour.v > 0.7 and (node as RockFormation).size > 3.0:
-			sand.paint(Sand.Kind.WHITE, Vector2(node.global_position.x, node.global_position.z), (node as RockFormation).size * 1.1, 0.7, 3.0)
+			# And round every one of them the ground is the pale drift that is banked against
+			# it (`Rock.drift`), fading out some metres off: the bank then has no edge to see.
+			for rock: Array in field.rocks:
+				var at := field.global_transform * (rock[0] as Vector3)
+				_drift_round(sand, Vector2(at.x, at.z), float(rock[1]))
+		elif node is RockFormation:
+			if (node as RockFormation).colour.v > 0.7 and (node as RockFormation).size > 3.0:
+				sand.paint(Sand.Kind.WHITE, Vector2(node.global_position.x, node.global_position.z), (node as RockFormation).size * 1.1, 0.7, 3.0)
+			_drift_round(sand, Vector2(node.global_position.x, node.global_position.z), (node as RockFormation).size)
+
+
+# Makes the ground round a rock `size` across the same sand as its bank is.
+static func _drift_round(sand: SandGround, at: Vector2, size: float) -> void:
+	sand.paint(Sand.Kind.WHITE, at, size * 0.8 + 1.0, 0.3, 5.0)
+	sand.paint(Sand.Kind.PALE, at, size * 0.8 + 1.0, 0.45, 5.0)
 
 
 ## The rows of the "Level" page that are about the dunes and the far hills,
@@ -136,6 +155,17 @@ static func desk_rows(editor: Object, own: Dictionary) -> void:
 	editor.call(&"_number", "How sharp their crests are", own, "sharp", 0.0, 1.0, 0.05, "terrain")
 	editor.call(&"_number", "Flat ground between them", own, "flat", 0.0, 1.0, 0.05, "terrain")
 	editor.call(&"_number", "Far hills (0: none)", own, "hills", 0.0, 1.0, 0.05, "terrain")
+	inspector.add_child(editor.call(&"_caption", "Ripples in the sand"))
+	var look := OptionButton.new()
+	look.focus_mode = Control.FOCUS_NONE
+	look.custom_minimum_size.y = 50.0
+	for named in RIPPLES:
+		look.add_item(named)
+	look.selected = clampi(int(own.get("ripples", 0)), 0, RIPPLES.size() - 1)
+	look.item_selected.connect(func(index: int) -> void:
+		editor.call(&"_remember")
+		editor.call(&"_put_number", own, "ripples", index, "terrain"))
+	inspector.add_child(look)
 
 
 ## The same rows for the editor's screen for a phone. (`phone` is the `LevelEditorPhone`.)
@@ -144,6 +174,9 @@ static func phone_rows(phone: Object, own: Dictionary) -> void:
 	var rows: Control = phone.get(&"_rows")
 	rows.add_child(phone.call(&"_row", "Kind of dunes: %s" % DUNES[clampi(int(own.get("dunes", 0)), 0, DUNES.size() - 1)], func() -> void:
 		phone.set(&"_choice", {"title": "Kind of dunes", "options": DUNES, "holder": own, "key": "dunes", "usual": 0})
+		phone.call(&"_show", "choice"), "next"))
+	rows.add_child(phone.call(&"_row", "Ripples in the sand: %s" % RIPPLES[clampi(int(own.get("ripples", 0)), 0, RIPPLES.size() - 1)], func() -> void:
+		phone.set(&"_choice", {"title": "Ripples in the sand", "options": RIPPLES, "holder": own, "key": "ripples", "usual": 0})
 		phone.call(&"_show", "choice"), "next"))
 	for spec: Array in [["How sharp their crests are", "sharp"], ["Flat ground between them", "flat"], ["Far hills (0: none)", "hills"]]:
 		phone.call(&"_number_row", phone.call(&"_spec", spec[0], own, spec[1], 0.0, 1.0, 0.05, "terrain"))

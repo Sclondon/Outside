@@ -59,6 +59,17 @@ const SNOW := Color(0.8, 0.85, 0.93)
 ## (New ones go on the end: levels keep these as numbers.)
 enum Kind { COARSE, DAMP, PACKED, PALE, DIRT, SANDSTONE, WHITE, RED, BLACK, SNOW }
 
+## The looks wind ripples can have (the shader's `ripples`; `SandGround.ripples`).
+## - SOFT: soft waves wherever sand lies open and flattish, as they always were.
+## - MIXED: as a desert is. Soft waves on most open sand and on the backs of
+##   dunes; fine forking lines in patches where the ground is level and swept
+##   hard, and on trodden sand; bare smooth sand in other patches, round chalk
+##   rock, in the lee and on slip faces.
+## - FINE: fine forking lines wherever there are ripples.
+## - NONE: no ripples.
+## (New ones go on the end: levels keep these as numbers.)
+enum Ripples { SOFT, MIXED, FINE, NONE }
+
 const SHADER := """
 shader_type spatial;
 render_mode world_vertex_coords;
@@ -77,7 +88,12 @@ uniform float grain = 0.13;
 uniform float patch = 0.05;
 uniform float ripple = 0.035;
 uniform float ripple_relief = 0.5;
-uniform float ripple_gap = 0.34;
+uniform float ripple_gap = 0.3;
+// Which look the ripples have (`Sand.Ripples`). 0: soft waves everywhere, as
+// they always were; 1: mixed, as a desert is (soft waves on most open sand,
+// fine forking lines in patches on flat hard ground, none in others and in the
+// lee); 2: fine lines everywhere; 3: none.
+uniform float ripples = 0.0;
 // How bright a glint is, how nearly a grain must face the light to show one
 // (nearer 1: fewer), and how far the grains are tipped from the surface.
 uniform float sparkle = 2.2;
@@ -120,6 +136,9 @@ uniform float sun_gain = 1.0;
 // The ground's own shape: how high each corner of its grid stands; which way
 // it faces, how sharply it bends and how deep in a hollow it lies; what has
 // been painted on it; and what has been pressed into it round the player.
+// 1: the fine part of the mesh is drawn as a curved surface through the grid's
+// corners, not as its flat triangles (`SandGround.curved`).
+uniform float curve = 0.0;
 uniform sampler2D height_map : filter_nearest, repeat_disable;
 uniform sampler2D form_map : filter_linear, repeat_disable;
 uniform sampler2D kind_map : filter_linear, repeat_disable, hint_default_black;
@@ -148,12 +167,50 @@ float ground(vec2 xz) {
 	float a = texelFetch(height_map, corner, 0).r;
 	float d = texelFetch(height_map, corner + ivec2(1, 1), 0).r;
 	// (each square is two triangles, split the way the collider splits it)
+	if (curve > 0.5) {
+		// (curved ground, where the mesh is too coarse to be curved: evenly
+		// between the four corners, which notches no crest whichever way it runs)
+		float e = texelFetch(height_map, corner + ivec2(1, 0), 0).r;
+		float f = texelFetch(height_map, corner + ivec2(0, 1), 0).r;
+		return mix(mix(a, e, part.x), mix(f, d, part.x), part.y) + field.w;
+	}
 	if (part.x > part.y) {
 		float b = texelFetch(height_map, corner + ivec2(1, 0), 0).r;
 		return a + part.x * (b - a) + part.y * (d - b) + field.w;
 	}
 	float c = texelFetch(height_map, corner + ivec2(0, 1), 0).r;
 	return a + part.y * (c - a) + part.x * (d - c) + field.w;
+}
+
+// The same ground as a curved surface through the same corners (a Catmull-Rom
+// patch over the sixteen round a place): what the fine part of the mesh is
+// drawn as when `curve` is on. Flat triangles two and a half metres across
+// show as a line of straight pieces wherever a rounded crest stands against
+// the sky; this bends through them. It is above the triangles on a crest and
+// under them in a hollow by a few centimetres, no more, as long as the ground
+// has no creases in it (at a crease it would rise in a lip).
+vec4 spline(float t) {
+	float t2 = t * t;
+	float t3 = t2 * t;
+	return vec4(-0.5 * t3 + t2 - 0.5 * t, 1.5 * t3 - 2.5 * t2 + 1.0, -1.5 * t3 + 2.0 * t2 + 0.5 * t, 0.5 * t3 - 0.5 * t2);
+}
+
+float curved(vec2 xz) {
+	vec2 square = (xz - field.xy) / field.z;
+	vec2 whole = clamp(floor(square), vec2(0.0), field_cells - 1.0);
+	vec2 part = clamp(square - whole, 0.0, 1.0);
+	ivec2 corner = ivec2(whole);
+	ivec2 last = ivec2(field_cells);
+	vec4 along = spline(part.x);
+	vec4 down = spline(part.y);
+	ivec4 columns = clamp(ivec4(corner.x - 1, corner.x, corner.x + 1, corner.x + 2), ivec4(0), ivec4(last.x));
+	float sum = 0.0;
+	for (int j = 0; j < 4; j++) {
+		int row = clamp(corner.y + j - 1, 0, last.y);
+		sum += down[j] * dot(along, vec4(texelFetch(height_map, ivec2(columns.x, row), 0).r, texelFetch(height_map, ivec2(columns.y, row), 0).r,
+				texelFetch(height_map, ivec2(columns.z, row), 0).r, texelFetch(height_map, ivec2(columns.w, row), 0).r));
+	}
+	return sum + field.w;
 }
 
 // How much of the dents shows at a place: all of it near the middle of their
@@ -170,6 +227,8 @@ varying vec3 at;
 varying vec3 faces;
 varying vec3 facet;
 varying float spot;
+// Which way the ground faces without its ripples.
+varying vec3 plain;
 
 // (no sines: they give different numbers on different phones)
 vec3 hash3(vec3 p) {
@@ -217,10 +276,10 @@ float cracks(vec2 p) {
 
 // One wind ripple, at a share of the way from one trough to the next: how
 // high it stands there (-1..1), and how it slopes along the wind. Its back
-// is long and its lee side short, so the lee is a thin dark line.
+// is long and its lee side shorter, so the lee is the darker.
 // (No sines: this is the same on every phone.)
 vec2 ripple_of(float share) {
-	float back = 0.74;
+	float back = 0.68;
 	float part = share < back ? share / back : (1.0 - share) / (1.0 - back);
 	float rate = share < back ? 1.0 / back : -1.0 / (1.0 - back);
 	return vec2(part * part * (3.0 - 2.0 * part) * 2.0 - 1.0, 6.0 * part * (1.0 - part) * rate);
@@ -239,7 +298,9 @@ void vertex() {
 	// of the edge to a rolling plain.
 	vec2 within = clamp(xz, field.xy, field.xy + field_cells * field.z);
 	float past = length(xz - within);
-	float y = ground(within);
+	// (curved where the mesh is finer than the grid of heights; further off its
+	// own squares are as coarse as the grid, or coarser, and it is drawn flat)
+	float y = curve > 0.5 && step_by < field.z * 0.99 ? curved(within) : ground(within);
 	if (past > 0.0) {
 		y = mix(y, field.w + apron.x + (patches(xz / 70.0) - 0.5) * apron.y, smoothstep(0.0, 60.0, past));
 	}
@@ -327,7 +388,8 @@ void fragment() {
 	float region = patches(at.xz / 41.0 + 3.7);
 	float lesser = patches(at.xz / 15.0 - 9.1);
 	float coarse = variety * smoothstep(0.56, 0.74, region * 0.7 + lesser * 0.3 + hollow * 0.45 - crest * 0.5);
-	coarse = clamp(coarse * (1.0 - snowy) + painted.r, 0.0, 1.0) * (1.0 - slip) * (1.0 - hard);
+	// (where white sand has been laid it is fine drift, and the coarse grains are under it)
+	coarse = clamp(coarse * (1.0 - snowy) * (1.0 - smoothstep(0.2, 0.3, laid.b)) + painted.r, 0.0, 1.0) * (1.0 - slip) * (1.0 - hard);
 	float pale = variety * smoothstep(0.5, 0.72, (1.0 - region) * 0.6 + lesser * 0.4 + crest * 0.5 - hollow * 0.3);
 	pale = clamp(pale * (1.0 - snowy) + painted.a, 0.0, 1.0) * (1.0 - coarse) * (1.0 - hard);
 	float damp = painted.g;
@@ -368,11 +430,44 @@ void fragment() {
 	// their lines bent by the rise of the ground and a little by chance.
 	float rippled = (1.0 - slip) * (1.0 - packed) * (1.0 - 0.75 * coarse) * (1.0 - 0.6 * damp) * (1.0 - smoothstep(0.1, 0.2, steep)) * step(soft, 0.0);
 	rippled *= (1.0 - hard) * (1.0 - snowy);
-	rippled *= clamp(ripple_gap * 0.18 / reach - 0.5, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.25, 0.6, lesser + pale * 0.4));
+	rippled *= 0.55 + 0.45 * smoothstep(0.25, 0.6, lesser + pale * 0.4);
+	vec3 unrippled = up;
+	// Which look they have here: soft waves, fine forking lines, or none.
+	float waves = 1.0;
+	float lines = 0.0;
+	if (ripples > 2.5) {
+		waves = 0.0;
+	} else if (ripples > 1.5) {
+		waves = 0.0;
+		lines = 1.0;
+	} else if (ripples > 0.5) {
+		// It differs from place to place, in patches some tens of metres
+		// across. Fine lines only where the ground is level and swept hard
+		// (and there trodden sand has them too); bare smooth sand in other
+		// patches, and round chalk; soft waves on the rest.
+		float lay = patches(at.xz / 29.0 + 17.0) + (lesser - 0.5) * 0.2;
+		float level_here = 1.0 - smoothstep(0.004, 0.02, steep);
+		lines = level_here * max(smoothstep(0.6, 0.7, lay), smoothstep(0.12, 0.3, packed) * smoothstep(0.42, 0.56, lay)) * (1.0 - 0.75 * coarse) * (1.0 - 0.6 * damp) * (1.0 - slip) * (1.0 - hard) * (1.0 - snowy) * step(soft, 0.0);
+		waves = (1.0 - lines) * smoothstep(0.24, 0.36, lay) * (1.0 - 0.85 * laid.b);
+		// (and fewer where the ground falls away down wind: the lee is sheltered)
+		waves *= 1.0 - 0.8 * smoothstep(0.1, 0.6, lee) * smoothstep(0.01, 0.05, steep);
+	}
+	// (each fades out before it would be too fine to draw)
+	waves *= rippled * clamp(ripple_gap * 0.22 / reach - 0.5, 0.0, 1.0);
+	lines *= mix(rippled, 1.0, step(0.5, ripples) * step(ripples, 1.5)) * clamp(ripple_gap * 0.17 / reach - 0.5, 0.0, 1.0);
 	float wave = 0.0;
-	if (rippled > 0.0) {
-		// (measured along the wind and across it; and over the ground, not up
-		// it, so that they do not break where one piece of a slope meets the next)
+	float tilt = 0.0;
+	if (waves > 0.0) {
+		// Soft waves, rising and falling evenly, a little steeper on the lee side.
+		float along = dot(at.xz, blows) + at.y * 0.55;
+		float bent = patches(at.xz * 0.23 + 4.0) * 2.4 + patches(at.xz * 0.9) * 0.5;
+		float turn = (along / ripple_gap + bent) * TAU;
+		wave = sin(turn + 0.5 * sin(turn)) * waves;
+		tilt = cos(turn + 0.5 * sin(turn)) * (1.0 + 0.5 * cos(turn)) * waves * ripple_relief;
+	}
+	if (lines > 0.0) {
+		// Fine lines. (Measured along the wind and across it; and over the ground,
+		// not up it.)
 		vec2 lie = vec2(dot(at.xz, blows), dot(at.xz, vec2(-blows.y, blows.x)));
 		float bent = patches(lie * vec2(0.8, 0.21) + 4.0) * 1.7 + patches(lie * vec2(0.3, 0.07) + 9.0) * 2.2;
 		// There are two sets of them, one a little closer together than the
@@ -380,12 +475,14 @@ void fragment() {
 		// Where one gives way to the other a ripple runs into the next and
 		// ends, or one becomes two: they fork and join.
 		float other = smoothstep(0.4, 0.6, patches(lie * vec2(0.8, 0.26) + 31.0) + (patches(lie * vec2(1.9, 0.6)) - 0.5) * 0.3);
-		float turn = lie.x / ripple_gap + bent;
+		float turn = lie.x / (ripple_gap * 0.8) + bent;
 		vec2 one = ripple_of(fract(turn));
 		vec2 two = ripple_of(fract(turn * 1.25 + 0.37));
-		vec2 both = mix(one, two, other) * rippled;
-		wave = both.x;
-		float tilt = both.y * 0.26 * ripple_relief;
+		vec2 both = mix(one, two, other) * lines;
+		wave += both.x * 0.7;
+		tilt += both.y * 0.09 * ripple_relief;
+	}
+	if (waves + lines > 0.0) {
 		if (detail > 0.5) {
 			up = normalize(up - vec3(blows.x, 0.0, blows.y) * tilt);
 		} else {
@@ -452,6 +549,7 @@ void fragment() {
 	SPECULAR = 0.0;
 	AO = sky.r + sky.g + sky.b > 0.0 ? 0.0 : 1.0;
 	NORMAL = normalize(mat3(VIEW_MATRIX) * up);
+	plain = normalize(mat3(VIEW_MATRIX) * unrippled);
 	// Which way this grain's mirror faces, and a round spot in the middle of it.
 	facet = normalize(NORMAL + mat3(VIEW_MATRIX) * (near * 2.0 - 1.0) * scatter);
 	// (dirt and rock have none; black sand and white, and snow, more than most)
@@ -468,7 +566,11 @@ float cut(float value, float edge) {
 void light() {
 	float reach = clamp(ATTENUATION, 0.0, 1.0);
 	float facing = (dot(NORMAL, LIGHT) + wrap) / (1.0 + wrap);
-	float hard = cut(facing * smoothstep(0.15, 0.6, reach), 0.04) * reach;
+	// (in bands the line between light and shade is drawn from the ground without
+	// its ripples, so that it is one clean line and not a row of teeth, and the
+	// ripples are shaded on top of it)
+	float even = (dot(plain, LIGHT) + wrap) / (1.0 + wrap);
+	float hard = cut(even * smoothstep(0.15, 0.6, reach), 0.04) * reach * clamp(1.0 + (facing - even) * 1.6, 0.55, 1.3);
 	float smooth_lit = clamp(dot(NORMAL, LIGHT), 0.0, 1.0) * reach;
 	float lit = mix(smooth_lit, hard, banded);
 	// (only the sun is turned back up, and the sky is added once, with it: a

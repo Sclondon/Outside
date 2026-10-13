@@ -13,6 +13,12 @@ extends SceneTree
 ##   valley     the Valley of the Kings from its mouth, from inside, a doorway, and from above
 ##   horizon    the far hills, from the ground and from a height
 ##   level      the shipped desert where the new things are
+##   crests     the shipped desert's highest crests: close, along the crest, far off, at noon and low sun
+##   start      the shipped desert from where he starts
+##   relief     the shape of the ground alone as a map: the shipped desert and each kind of field
+##   looks      each look the sand's ripples have: close, a little way off, and where two meet
+## A word like `sharp=0.8` (or dune_height=, scatter=, flat=, seed=, dunes=, ripples=) gives every level that number.
+## `full` saves every picture by itself as well, at the size it was drawn (<what>_<name>.png).
 ## Each is the desert (desert.tscn) made from a layout of the tool's own, kept in a
 ## file of its own (`LevelLayout.saved_at`): the level made in the game is left alone.
 ## Prints what each picture costs to draw. Four pictures to a sheet (<what>_NN.png).
@@ -31,6 +37,7 @@ var cells: Array[Image] = []
 var names: Array = []
 var prefix := ""
 var page := 0
+var full := false
 
 
 func _initialize() -> void:
@@ -43,6 +50,9 @@ func _initialize() -> void:
 		if "q%d" % quality in only:
 			only.erase("q%d" % quality)
 			Sand.quality = quality
+	if "full" in only:
+		only.erase("full")
+		full = true
 	if "banded" in only:
 		only.erase("banded")
 		Settings.world_banded = true
@@ -51,7 +61,7 @@ func _initialize() -> void:
 
 
 func wanted(what: String) -> bool:
-	return only.is_empty() or what in only
+	return only.filter(func(word: String) -> bool: return not "=" in word).is_empty() or what in only
 
 
 func run() -> void:
@@ -61,7 +71,7 @@ func run() -> void:
 			Input.action_release(action)
 	if wanted("dunes"):
 		await dunes()
-	for what: String in ["kinds", "ripples", "rocks", "field", "cliff", "valley", "horizon"]:
+	for what: String in ["kinds", "ripples", "rocks", "field", "cliff", "valley", "horizon", "crests", "start", "looks", "relief"]:
 		if wanted(what) and has_method(what):
 			await call(what)
 	if wanted("level"):
@@ -96,7 +106,7 @@ func kinds() -> void:
 	for kind: int in [1, 2, 3, 4, 5, 0]:
 		if "k%d" % kind not in only and only.any(func(word: String) -> bool: return word.begins_with("k") and word.length() == 2):
 			continue
-		await open(bare_level({"dunes": kind, "sharp": 0.0 if kind == 0 else 0.8}))
+		await open(bare_level({"dunes": kind, "sharp": 0.0 if kind == 0 else 0.3}))
 		print("GROUND %-24s made in %.0f ms" % [names_of[kind], level.terrain.made_in])
 		await from_rise("%s, noon" % names_of[kind], Vector2(-60, 170), Vector2(20, -60), 16.0)
 		await shoot("%s, from above" % names_of[kind], Vector3(0, 400, 90), Vector3(0, 0, 0), 50.0)
@@ -232,6 +242,156 @@ func horizon() -> void:
 	finish()
 
 
+## The shipped desert's highest crests.
+func crests() -> void:
+	begin("crests")
+	var layout := LevelLayout.built_in()
+	layout["weather"] = 0
+	await open(layout)
+	# (the highest places on open sand, no two near each other)
+	var tops: Array[Vector3] = []
+	for pass_no in 3:
+		var best := Vector3(0, -100, 0)
+		for row in range(-150, 151, 5):
+			for column in range(-150, 151, 5):
+				var here := Vector3(column, level.height_at(column, row), row)
+				var near := false
+				for top in tops:
+					near = near or Vector2(top.x - here.x, top.z - here.z).length() < 90.0
+				for item: Dictionary in layout["items"]:
+					if item["kind"] in ["pyramid", "valley", "cliff", "rocks"]:
+						near = near or Vector2(float(item["at"][0]) - here.x, float(item["at"][1]) - here.z).length() < 50.0
+				if not near and here.y > best.y:
+					best = here
+		tops.append(best)
+		print("CREST %d at %s" % [pass_no, best])
+	var blows := level.terrain.wind.normalized()
+	var across := Vector2(-blows.y, blows.x)
+	for low: bool in [false, true]:
+		sun(14.0 if low else 50.0, 118.0 if low else 148.0)
+		var when := "low" if low else "noon"
+		for i in tops.size():
+			var top := Vector2(tops[i].x, tops[i].z)
+			# on its back just short of the crest, looking along it; below its slip face looking up; and from far off, both sides
+			await boy("c%d along, %s" % [i, when], top - blows * 3.0 - across * 6.0, rad_to_deg(atan2(across.x, across.y)))
+			await boy("c%d up the face, %s" % [i, when], top + blows * 16.0, rad_to_deg(atan2(-blows.x, -blows.y)) + 25.0)
+			await from_rise("c%d from 60 m, %s" % [i, when], top + blows * 45.0 + across * 40.0, top, 5.0, 40.0)
+			await from_rise("c%d from 130 m, %s" % [i, when], top - blows * 60.0 + across * 115.0, top, 8.0, 30.0)
+	finish()
+
+
+## Each look the sand's ripples have (`Sand.Ripples`): at his feet, behind him and
+## a little way off, at noon and with the sun low; and, mixed, places where two
+## looks meet.
+func looks() -> void:
+	begin("looks")
+	var names_of := ["soft", "mixed", "fine"]
+	for look: int in [0, 2, 1]:
+		await open(bare_level({"dunes": 1, "scatter": 0.5, "ripples": look}))
+		for low: bool in [false, true]:
+			sun(15.0 if low else 50.0, 60.0 if low else 148.0)
+			var when := "low sun" if low else "noon"
+			var place := stand(Vector2(8, 30), 200.0)
+			await shoot("%s at his feet, %s" % [names_of[look], when], place + Vector3(0.5, 1.5, 2.4), place + Vector3(0, 0, -1.5), 55.0, 14)
+			await boy("%s behind him, %s" % [names_of[look], when], Vector2(8, 30), 200.0)
+			await shoot("%s a little way off, %s" % [names_of[look], when], place + Vector3(0, 2.2, 4), place + Vector3(-6, 0, -16), 55.0)
+			await boy("%s on a dune, %s" % [names_of[look], when], Vector2(-52, 62), 250.0)
+	# (still the mixed one) Where fine lines give way to soft waves, and soft waves to bare sand.
+	for edge: float in [0.65, 0.3]:
+		var found := Vector2.ZERO
+		var best := 1.0
+		for row in range(-120, 121, 3):
+			for column in range(-120, 121, 3):
+				var at := Vector2(column, row)
+				var slope := absf(level.height_at(at.x + 2.0, at.y) - level.height_at(at.x - 2.0, at.y)) + absf(level.height_at(at.x, at.y + 2.0) - level.height_at(at.x, at.y - 2.0))
+				var off := absf(lay(at) - edge) + slope * 0.5 + at.length() * 0.0005
+				if off < best:
+					best = off
+					found = at
+		for low: bool in [false, true]:
+			sun(15.0 if low else 50.0, 60.0 if low else 148.0)
+			var what := "lines meet waves" if edge > 0.5 else "waves meet bare sand"
+			await boy("%s, %s" % [what, "low sun" if low else "noon"], found + Vector2(0, 3), 180.0)
+			await from_rise("%s from 5 m, %s" % [what, "low sun" if low else "noon"], found + Vector2(0, 9), found + Vector2(0, -4), 5.0, 55.0)
+	finish()
+
+
+# What the sand shader's `lay` comes to at a place: which look the ripples have there when they are mixed.
+func lay(at: Vector2) -> float:
+	return shader_patches(at / 29.0 + Vector2(17.0, 17.0)) + (shader_patches(at / 15.0 - Vector2(9.1, 9.1)) - 0.5) * 0.2
+
+
+func shader_patches(p: Vector2) -> float:
+	var whole := p.floor()
+	var part := p - whole
+	part = part * part * (Vector2(3.0, 3.0) - 2.0 * part)
+	return lerpf(lerpf(shader_hash(whole), shader_hash(whole + Vector2(1, 0)), part.x), lerpf(shader_hash(whole + Vector2(0, 1)), shader_hash(whole + Vector2(1, 1)), part.x), part.y)
+
+
+func shader_hash(p: Vector2) -> float:
+	var q := Vector3(fposmod(p.x * 0.1031, 1.0), fposmod(p.y * 0.1031, 1.0), fposmod(p.x * 0.1031, 1.0))
+	var add := q.dot(Vector3(q.y, q.z, q.x) + Vector3.ONE * 33.33)
+	q += Vector3.ONE * add
+	return fposmod((q.x + q.y) * q.z, 1.0)
+
+
+## The shape of the ground alone, as a map lit from low in the east (north at the
+## top, 4 dots to a square of the grid; ground that dunes keep off is tinted
+## blue): the shipped desert, and each kind of field on bare ground.
+func relief() -> void:
+	begin("relief")
+	var shipped := LevelLayout.built_in()
+	var tried := ""
+	for word: String in only:
+		if "=" in word:
+			tried += "_" + word.replace("=", "")
+	await open(shipped)
+	relief_map("shipped" + tried)
+	if tried != "":
+		return
+	for kind: int in [1, 2, 3, 4, 5]:
+		await open(bare_level({"dunes": kind}))
+		relief_map("kind%d" % kind)
+
+
+func relief_map(name: String) -> void:
+	var ground := level.terrain
+	var side := ground._grid_side
+	var claimed := ground._claimed()
+	var image := Image.create(side * 4, side * 4, false, Image.FORMAT_RGB8)
+	var light := Vector3(-0.8, 0.45, 0.3).normalized()
+	var steepest := 0.0
+	for y in side * 4:
+		for x in side * 4:
+			var at := Vector2(x * 0.25 * ground._grid_step - ground.size * 0.5, y * 0.25 * ground._grid_step - ground.size * 0.5)
+			var here := ground.height_at(at.x, at.y)
+			var facing := Vector3(here - ground.height_at(at.x + 0.6, at.y), 0.6, here - ground.height_at(at.x, at.y + 0.6)).normalized()
+			steepest = maxf(steepest, rad_to_deg(acos(facing.y)))
+			var lit := clampf(0.55 + (facing.dot(light) - light.y) * 1.3, 0.0, 1.0)
+			var spoken: float = claimed[clampi(int((at.y + ground.size * 0.5) / ground.size * 128.0), 0, 127) * 128 + clampi(int((at.x + ground.size * 0.5) / ground.size * 128.0), 0, 127)]
+			image.set_pixel(x, y, Color(lit, lit, lit).lerp(Color(lit * 0.6, lit * 0.7, lit), spoken * 0.6))
+	image.save_png(out.path_join("relief_%s.png" % name))
+	print("RELIEF %s: steepest %.1f degrees" % [name, steepest])
+
+
+## The shipped desert from where he starts, looking each way.
+func start() -> void:
+	begin("start")
+	var layout := LevelLayout.built_in()
+	layout["weather"] = 0
+	await open(layout)
+	var from := Vector2(0, 165)
+	for item: Dictionary in layout["items"]:
+		if item["kind"] == "start":
+			from = Vector2(item["at"][0], item["at"][1])
+	for low: bool in [false, true]:
+		if low:
+			sun(14.0, 118.0)
+		for yaw: float in [180.0, 120.0, 240.0, 0.0]:
+			await boy("start, facing %d%s" % [int(yaw), ", low" if low else ""], from, yaw)
+	finish()
+
+
 ## The shipped desert, where the new things are.
 func level_views() -> void:
 	begin("level")
@@ -257,7 +417,7 @@ func level_views() -> void:
 ## shipped desert's) and a list of items (each is given an id).
 func bare_level(terrain := {}, items: Array = [], start := Vector2.ZERO) -> Dictionary:
 	var own := {"size": 400.0, "cell": 2.5, "dune_height": 7.0, "seed": 7, "scatter": 1.0, "rim_height": 9.0, "rim_width": 45.0,
-		"wind": [-0.96, -0.28], "dunes": 5, "sharp": 0.8, "flat": 0.35}
+		"wind": [-0.96, -0.28], "dunes": 5, "sharp": 0.3, "flat": 0.35}
 	own.merge(terrain, true)
 	var all: Array = [{"id": 1, "kind": "start", "at": [start.x, start.y], "lift": 0.0, "yaw": 0.0}]
 	for item: Dictionary in items:
@@ -291,6 +451,10 @@ func open(layout: Dictionary) -> void:
 		scene.queue_free()
 		await process_frame
 		await process_frame
+	# (for trying numbers out: any of dune_height=, scatter=, flat=, seed=, dunes=, sharp=, ripples= given as words)
+	for word: String in only:
+		if "=" in word:
+			layout["terrain"][word.get_slice("=", 0)] = float(word.get_slice("=", 1))
 	var file := FileAccess.open(KEPT, FileAccess.WRITE)
 	file.store_string(LevelLayout.to_text(layout))
 	file.close()
@@ -364,6 +528,8 @@ func shoot(name: String, from: Vector3, to: Vector3, fov: float, frames := 8) ->
 	var side: int = mini(image.get_width(), image.get_height())
 	image = image.get_region(Rect2i((image.get_width() - side) / 2, (image.get_height() - side) / 2, side, side))
 	image.resize(CELL, CELL, Image.INTERPOLATE_LANCZOS)
+	if full:
+		root.get_texture().get_image().save_png(out.path_join("%s_%s.png" % [prefix, name.replace(",", "").replace(" ", "_")]))
 	cells.append(image)
 	names.append(name)
 	print("VIEW %-9s %-28s draw calls %4d  triangles %7d  frame %5.2f ms" % [prefix, name,

@@ -136,6 +136,9 @@ var _stand: Array = []
 var _grid := PackedFloat32Array()
 var _grid_side := 0
 var _grid_step := 1.0
+# In a field of dunes: which way each square of the grid is split into its two
+# triangles (`SandDunes.splits`). Empty: all one way, as they always were.
+var _splits := PackedByteArray()
 var _made: Array[Node] = []
 var _wait := -1.0
 
@@ -199,11 +202,15 @@ func height_at(x: float, z: float) -> float:
 		var part := Vector2(across - int(across), down - int(down))
 		var a := _grid[corner]
 		var d := _grid[corner + _grid_side + 1]
-		# (each square is two triangles, split the way the collider splits it)
-		if part.x > part.y:
-			var b := _grid[corner + 1]
-			return a + part.x * (b - a) + part.y * (d - b)
+		var b := _grid[corner + 1]
 		var c := _grid[corner + _grid_side]
+		# (each square is two triangles, split the way the collider splits it: see `_splits`)
+		if _splits.size() > 0 and _splits[int(down) * (_grid_side - 1) + int(across)] == 1:
+			if part.x + part.y < 1.0:
+				return a + part.x * (b - a) + part.y * (c - a)
+			return d + (1.0 - part.x) * (c - d) + (1.0 - part.y) * (b - d)
+		if part.x > part.y:
+			return a + part.x * (b - a) + part.y * (d - b)
 		return a + part.y * (c - a) + part.x * (d - c)
 	var height := _dry_at(x, z)
 	for carve: Array in _carves:
@@ -234,7 +241,7 @@ func shape_from(layout: Dictionary) -> void:
 	scatter = own.get("scatter", scatter)
 	# (a level from before there were kinds of dune has them as they were: scattered, and round at the crest)
 	dunes = int(own.get("dunes", 0))
-	sharp = own.get("sharp", 0.0 if dunes == 0 else 0.8)
+	sharp = own.get("sharp", 0.0 if dunes == 0 else 0.3)
 	flat = own.get("flat", 0.35)
 	var blows: Array = own.get("wind", [wind.x, wind.y])
 	wind = Vector2(blows[0], blows[1])
@@ -276,7 +283,8 @@ func shape_from(layout: Dictionary) -> void:
 				_stand.append([at, float(item.get("base", 40.0)) * 0.72 + 3.0])
 			"pool":
 				_stand.append([at, maxf(item.get("size_x", 6.0), item.get("size_z", 6.0)) * 0.7 + 2.0])
-			"prop", "thing", "person", "door", "mover", "plate", "train", "start", "checkpoint", "ladder", "inscription":
+			# (but not for a palm, a stone or any other prop: those stand on a dune as they find it)
+			"thing", "person", "door", "mover", "plate", "train", "start", "checkpoint", "ladder", "inscription":
 				_stand.append([at, 2.0 * float(item.get("scale", 1.0))])
 			"dune":
 				_extra.append(["dune", at, item.get("width", 40.0), item.get("height", 5.0), item.get("horns", 0.55)])
@@ -348,6 +356,8 @@ func _make_dunes() -> void:
 	all.wind = wind
 	all.seed = seed
 	all.sharp = sharp
+	all.long_backs = dunes != SandDunes.Field.SCATTERED
+	all.soft_below = cell * 1.3 if dunes != SandDunes.Field.SCATTERED else 0.0
 	var scale := dune_height / 4.5
 	var reach := size * 0.5 - rim_width * 0.5
 	var pads := _pads
@@ -357,7 +367,7 @@ func _make_dunes() -> void:
 		# A field of them, in rows across the wind. Where one would stand on ground
 		# that has to stay clear it runs out to nothing, and the rest of it stays.
 		if scatter > 0.0 and dune_height > 0.0:
-			all.field(Rect2(-reach, -reach, reach * 2.0, reach * 2.0), dunes, Vector2(1.6, 6.2) * scale, flat, scatter)
+			all.field(Rect2(-reach, -reach, reach * 2.0, reach * 2.0), dunes, Vector2(3.6, 6.2) * scale, flat, scatter)
 		var blows := all.wind
 		var claimed := _claimed()
 		var across := CLAIM_SIDE
@@ -503,6 +513,11 @@ func rebuild() -> void:
 	# (the dunes all at once, which is much quicker than asking `dunes_at` corner by
 	# corner; then the floor between them and the rim, as `_open_at` has them)
 	var bare := _dunes.bake(Vector2(-half, -half), step, side, side, false)
+	if dunes != SandDunes.Field.SCATTERED:
+		# A field of dunes has every crest, horn and join rounded over, more or less as
+		# `sharp` says: nothing in it is a crease, which a grid of squares can only
+		# draw as teeth. (Dunes scattered as they were are left as they were.)
+		bare = SandDunes.rounded(bare, side, side, 3 if sharp < 0.34 else (2 if sharp < 0.67 else 1))
 	var heights := PackedFloat32Array()
 	heights.resize(side * side)
 	var sunk := 0.2 * dune_height
@@ -530,6 +545,7 @@ func rebuild() -> void:
 	_grid = heights
 	_grid_side = side
 	_grid_step = step
+	_splits = SandDunes.splits(heights, side, side) if dunes != SandDunes.Field.SCATTERED else PackedByteArray()
 	if Engine.is_editor_hint():
 		var material := sand_material()
 		for chunk_row in range(0, count, CHUNK):
@@ -546,11 +562,14 @@ func rebuild() -> void:
 	ground.set(&"apron", rim_height)
 	# (dunes this gentle throw no shadows worth what drawing them again costs)
 	ground.set(&"casts_shadow", false)
+	# (a field of dunes is rounded everywhere, and can be drawn as a curved surface)
+	ground.set(&"curved", dunes != SandDunes.Field.SCATTERED)
+	ground.set(&"splits", _splits)
 	_keep(ground)
 	ground.call(&"build", heights)
 	if dunes != SandDunes.Field.SCATTERED:
 		# In a field of dunes the flat ground between them is swept bare: harder
-		# and paler than the dunes, in ragged patches.
+		# and paler than the dunes, a little more here and a little less there.
 		var packed := PackedByteArray()
 		packed.resize(side * side)
 		var pale := PackedByteArray()
@@ -562,10 +581,10 @@ func rebuild() -> void:
 				if bare[at] > 0.7:
 					continue
 				var x := column * step - half
-				var pan := (1.0 - smoothstep(0.05, 0.7, bare[at])) * (0.5 + 0.5 * smoothstep(0.3, 0.7, SandDunes._noise(x / 9.0 + seed, z / 9.0) * 0.4 + SandDunes._noise(x / 47.0, z / 47.0 - seed) * 0.6))
+				var pan := (1.0 - smoothstep(0.05, 0.7, bare[at])) * (0.72 + 0.28 * smoothstep(0.25, 0.75, SandDunes._noise(x / 9.0 + seed, z / 9.0) * 0.25 + SandDunes._noise(x / 47.0, z / 47.0 - seed) * 0.75))
 				pan *= 1.0 - smoothstep(rim_from - 10.0, rim_from + 10.0, maxf(absf(x), absf(z)))
 				packed[at] = int(pan * 80.0)
-				pale[at] = int(pan * 230.0)
+				pale[at] = int(pan * 190.0)
 		ground.call(&"paint_all", Sand.Kind.PACKED, packed)
 		ground.call(&"paint_all", Sand.Kind.PALE, pale)
 		for at in packed.size():
@@ -683,10 +702,12 @@ func _add_collider(heights: PackedFloat32Array, side: int, step: float) -> void:
 			var b := Vector3(a.x + step, heights[row * side + column + 1], a.z)
 			var c := Vector3(a.x + step, heights[(row + 1) * side + column + 1], a.z + step)
 			var d := Vector3(a.x, heights[(row + 1) * side + column], a.z + step)
+			# (split as `height_at` has it)
+			var turned := _splits.size() > 0 and _splits[row * (side - 1) + column] == 1
 			faces[next] = a
 			faces[next + 1] = b
-			faces[next + 2] = c
-			faces[next + 3] = a
+			faces[next + 2] = d if turned else c
+			faces[next + 3] = b if turned else a
 			faces[next + 4] = c
 			faces[next + 5] = d
 			next += 6

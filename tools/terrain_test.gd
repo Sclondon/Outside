@@ -44,6 +44,7 @@ func run() -> void:
 	same_from_same()
 	await old_level()
 	await shipped_level()
+	await smooth_field()
 	await open(layout_for_tests())
 	await dune()
 	await rocks()
@@ -104,6 +105,9 @@ func old_level() -> void:
 	check("an old level loads", level.nodes.size() >= 2 and terrain.ground != null)
 	check("its dunes are scattered and round at the crest, as they were", terrain.dunes == 0 and terrain.sharp == 0.0)
 	check("it has no far hills", level.get_node_or_null(^"Horizon") == null)
+	var old_sand := terrain.ground as SandGround
+	check("its ripples are soft waves, as they were", old_sand.ripples == Sand.Ripples.SOFT and is_equal_approx(float(old_sand.material().get_shader_parameter(&"ripples")), 0.0))
+	check("its ground is drawn as flat triangles, as it was", not old_sand.curved and old_sand.splits.is_empty() and terrain._splits.is_empty())
 	# Its ground is what the old way of making it gives: asked point by point of the dunes, the pads and the water.
 	var worst := 0.0
 	var step := terrain.size / int(terrain.size / terrain.cell)
@@ -126,10 +130,48 @@ func shipped_level() -> void:
 		kinds[node.get_script()] = true
 	check("the shipped level loads with its valley, cliffs and rocks", kinds.has(KingsValley) and kinds.has(Cliff) and kinds.has(RockField) and level.get_node_or_null(^"Horizon") != null)
 	check("its ground is made in under a second", level.terrain.made_in < 1000.0, "%.0f ms" % level.terrain.made_in)
+	check("its ripples are mixed", (level.terrain.ground as SandGround).ripples == Sand.Ripples.MIXED)
 	var open_doors := 0
 	for door: TombDoor in root.get_tree().get_nodes_in_group(&"tomb_doors"):
 		open_doors += 1 if door.open else 0
 	check("its valley has tomb doors, one of them open", root.get_tree().get_nodes_in_group(&"tomb_doors").size() >= 4 and open_doors == 1)
+
+
+## A field of dunes on ground of its own: nothing in it is a crease, its slip faces still stand at the angle sand
+## lies at, and what is drawn is what is stood on, within a hand's breadth.
+func smooth_field() -> void:
+	for kind: int in [SandDunes.Field.BARCHANS, SandDunes.Field.MIXED]:
+		await open({"version": 1, "terrain": {"size": 400.0, "cell": 2.5, "dune_height": 7.0, "seed": 7, "scatter": 1.0, "rim_height": 9.0, "rim_width": 45.0, "wind": [-0.96, -0.28],
+			"dunes": kind}, "weather": 0, "items": [{"id": 1, "kind": "start", "at": [0.0, 0.0], "lift": 0.0, "yaw": 0.0}]})
+		var terrain := level.terrain
+		var named: String = DesertScenery.DUNES[kind]
+		check("a field (%s) has soft crests unless it says" % named, is_equal_approx(terrain.sharp, 0.3) and (terrain.ground as SandGround).curved)
+		var grid := terrain._grid
+		var side := terrain._grid_side
+		var step := terrain._grid_step
+		var edge := int(terrain.rim_width / step) + 2
+		var sharpest := 0.0
+		var steepest := 0.0
+		var apart := 0.0
+		for row in range(edge, side - edge - 1):
+			for column in range(edge, side - edge - 1):
+				var at := row * side + column
+				# (how far the slope turns from one square to the next, in degrees: a slip face meeting a back as a crease is about 40)
+				var turn_x := absf(rad_to_deg(atan((grid[at + 1] - grid[at]) / step) - atan((grid[at] - grid[at - 1]) / step)))
+				var turn_z := absf(rad_to_deg(atan((grid[at + side] - grid[at]) / step) - atan((grid[at] - grid[at - side]) / step)))
+				sharpest = maxf(sharpest, maxf(turn_x, turn_z))
+				steepest = maxf(steepest, rad_to_deg(atan(Vector2(grid[at + 1] - grid[at - 1], grid[at + side] - grid[at - side]).length() / (2.0 * step))))
+				# (the middle of the square as it is drawn, curved, and as it is stood on)
+				var inner := grid[at] + grid[at + 1] + grid[at + side] + grid[at + side + 1]
+				var beside := grid[at - side] + grid[at - side + 1] + grid[at - 1] + grid[at + 2] + grid[at + side - 1] + grid[at + side + 2] + grid[at + side * 2] + grid[at + side * 2 + 1]
+				var beyond := grid[at - side - 1] + grid[at - side + 2] + grid[at + side * 2 - 1] + grid[at + side * 2 + 2]
+				var x := (column + 0.5) * step - terrain.size * 0.5
+				var z := (row + 0.5) * step - terrain.size * 0.5
+				apart = maxf(apart, absf((81.0 * inner - 9.0 * beside + beyond) / 256.0 - terrain.height_at(x, z)))
+		check("nothing in it is a crease", sharpest < 20.0, "the slope turns %.1f degrees between squares at the most" % sharpest)
+		check("its slip faces still stand as sand lies", steepest > 27.0 and steepest < 35.0, "%.1f degrees at the steepest" % steepest)
+		check("it is drawn within a hand's breadth of what is stood on", apart < 0.1, "%.3f m apart at the most" % apart)
+		check("its ground is made in under a second", terrain.made_in < 1000.0, "%.0f ms" % terrain.made_in)
 
 
 func layout_for_tests() -> Dictionary:
