@@ -108,6 +108,20 @@ var _hud: CanvasLayer
 var _map: TombMap
 var _seen: Array[bool] = []
 var _open: Array[bool] = []
+## The Ba of whoever lies here (see `_work_ba`): it waits by the falcon, shows
+## him the next thing to do when he asks or has got nowhere for a while, and
+## flies ahead of him on the way out. `_hinting` while it is showing a way;
+## `_hint_due` counts down to a hint he asked for; `_idle` is how long since
+## anything came of what he did, and `_since_hint` since it last showed him anything, in seconds of play.
+var ba: Ba
+var hints := 0
+var _hinting := false
+var _hinting_for := 0.0
+var _hint_due := 0
+var _idle := 0.0
+var _since_hint := 1000.0
+var _was := -1
+var _leading := false
 
 
 func _ready() -> void:
@@ -283,6 +297,7 @@ func _settle_in() -> void:
 			camera.look_along(-(layout as TombLayout3D).exit_way)
 		camera.snap()
 	_build_hud()
+	_make_ba()
 	if _held:
 		_player.set_physics_process(false)
 		_show_choice()
@@ -318,6 +333,7 @@ func _physics_process(delta: float) -> void:
 	_keep_things(at)
 	_read_walls(at, delta)
 	_show_on_map()
+	_work_ba(delta)
 	if has_treasure and layout.is_out(at) and _player.is_on_floor() and not _player.is_limp:
 		_finish()
 	_label.text = "%s   %s%s" % [TombDaily.time_text(time_ms()), "deaths %d" % deaths, "   the falcon" if has_treasure else ""]
@@ -424,6 +440,7 @@ func _take_treasure() -> void:
 		if entry["guardian"] and entry["node"].has_method(&"wake"):
 			entry["node"].call(&"wake")
 	_say("You have the falcon. Now get out.", 5.0)
+	_lead_out()
 
 
 func _work_mummies(at: Vector3) -> void:
@@ -554,6 +571,13 @@ func _on_respawned() -> void:
 			_send_home(block["body"], block["home"])
 
 
+## "Stuck": he is put back at the last door with what he carried, which counts
+## as a death, as it always has; and the Ba comes to show him what is next.
+func stuck_asked() -> void:
+	give_up()
+	_hint_due = 100
+
+
 ## For the tools and for a way out of a corner: counts as a death.
 func give_up() -> void:
 	if _player and not _player.is_limp:
@@ -645,7 +669,7 @@ func _build_hud() -> void:
 		_hud.add_child(_map)
 	# A way out of any corner he has got himself into.
 	if not bare:
-		var stuck := _button("Stuck", give_up)
+		var stuck := _button("Stuck", stuck_asked)
 		stuck.modulate.a = 0.8
 		stuck.anchor_left = 1.0
 		stuck.anchor_right = 1.0
@@ -843,3 +867,123 @@ func _button(text: String, pressed: Callable) -> Button:
 	button.add_theme_font_size_override("font_size", 19)
 	button.pressed.connect(pressed)
 	return button
+
+
+# --- The Ba
+
+## How long he gets nowhere before the Ba comes unasked, and the least time between two such comings, in seconds of play.
+const HINT_AFTER := 45.0
+const HINT_APART := 30.0
+
+
+# The Ba of the tomb's owner: a spirit, not a body. It is no part of the plan
+# or the stone, and nothing it does opens anything or costs any time.
+func _make_ba() -> void:
+	var goal := plan.goal_trigger()
+	var by := layout.switch_at[goal.id]
+	var info: Dictionary = layout.rooms[goal.room]
+	if layout.walked():
+		var along := Vector3(TombLayout3D.TURNS[int(info.get("turn", 0))])
+		by += Vector3(-along.z, 0.0, along.x) * 1.5 - along * 0.6
+	else:
+		by += Vector3(-1.4, 0.0, -1.3)
+	ba = Ba.new()
+	ba.name = "Ba"
+	# (it is not there until he is near the burial chamber, or wants it)
+	ba.on = false
+	ba.position = by
+	# (slow enough to be watched as it shows the way; on the way out it has to keep ahead of him)
+	ba.speed = 4.2
+	add_child(ba)
+	ba.came_back.connect(func() -> void: _hinting = false)
+
+
+## Has the Ba show the next thing to do, from where everything is now: it
+## comes out of the air beside him (or from its perch, if he is by it), flies
+## to the thing to take up, the plate to weigh down or the door to go through,
+## looks back, and returns. Says whether there was anything to show. (`asked`:
+## he pressed for it, and is told in words as well.)
+func hint(asked := false) -> bool:
+	if ba == null or _player == null or finished or _leading or _hinting or _player.is_limp or ba.is_flying():
+		return false
+	var found := TombGuide.steps(self)
+	var way := TombGuide.way(self, found)
+	if way.is_empty():
+		return false
+	# (from its perch by the falcon if he is there to see it go; otherwise it is
+	# gone from there, and comes out of the air beside him)
+	if not ba.is_away() and ba.global_position.distance_to(_player.global_position) > 9.0:
+		ba.on = false
+		ba.reset()
+	ba.show_way(way["points"])
+	_hinting = true
+	_hinting_for = 0.0
+	_since_hint = 0.0
+	_idle = 0.0
+	hints += 1
+	if asked:
+		_say(String(way["says"]) + ".", 6.0)
+	return true
+
+
+func _work_ba(delta: float) -> void:
+	if ba == null or not _started:
+		return
+	# Whether anything has come of what he does: a room he had not stood in, a
+	# switch done, a thing taken up or put down.
+	var now := 0
+	for id in done.size():
+		if done[id]:
+			now += 1 << id
+	for room in _seen.size():
+		if _seen[room]:
+			now += 7919 * (room + 1)
+	now = now * 31 + (_player.carried.get_instance_id() % 1000 if _player.carried else 0)
+	if now != _was:
+		_was = now
+		_idle = 0.0
+	_idle += delta
+	_since_hint += delta
+	if _leading:
+		return
+	if _hinting:
+		# (it comes back by itself; if something has kept it, it is not waited for for ever)
+		_hinting_for += delta
+		if _hinting_for > 45.0:
+			_hinting = false
+		return
+	if _hint_due > 0:
+		_hint_due -= 1
+		if _hint_due == 0 and not hint(true):
+			# (he is not on his feet yet, or it is in the air)
+			_hint_due = 30 if not has_treasure else 0
+		return
+	if _idle > HINT_AFTER and _since_hint > HINT_APART and hint():
+		return
+	# By the falcon while he is near enough to see it there, and gone when he is not.
+	var near: bool = built.room_nodes[plan.goal_trigger().room].visible
+	if ba.is_away() and near and not ba.on:
+		ba.reset()
+		ba.on = true
+	elif ba.is_perched() and ba.on and not near:
+		ba.on = false
+
+
+# He has the falcon: the Ba flies ahead of him, all the way out.
+func _lead_out() -> void:
+	if ba == null:
+		return
+	var out := TombGuide.way_out(self, TombGuide.steps(self))
+	if out.size() < 2:
+		return
+	_hinting = false
+	_hint_due = 0
+	_leading = true
+	if not ba.is_perched():
+		ba.on = true
+		ba.reset()
+	ba.on = true
+	ba.leaves_at_end = true
+	ba.speed = 6.5
+	ba.lead_to(out[0])
+	ba.route.assign(out)

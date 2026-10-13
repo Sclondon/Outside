@@ -133,6 +133,8 @@ func _run(names: Array) -> void:
 		await _drive_templates()
 	if "custom" in names:
 		await _drive_custom()
+	if "ba" in names:
+		await _ba_shows()
 	if "map" in names:
 		await _map_shows()
 	if "doors" in names:
@@ -1007,6 +1009,132 @@ func _gaze_holds() -> bool:
 	level.get_parent().queue_free()
 	await _wait(5)
 	return sound and done and shut
+
+
+# The Ba, as tombs are played through. Before every step of the solver's way
+# the guide is asked for the way on from where everything really is: it must
+# have one, no longer than what is left of the solver's own, and the places it
+# would fly by must be in the tomb, the last of them where the step is done.
+# Every few steps the Ba is really sent: it must go, arrive there, and come
+# back. With the falcon taken it must fly ahead of him, and he must still get
+# out; and none of it may change the plan or the stone.
+func _ba_shows() -> void:
+	print("BA: the hint, asked for at every step of a few tombs%s" % (", walked through" if walked else ""))
+	TombLevel.bare = true
+	var tombs: Array = []
+	for seed_value: int in drive_seeds:
+		for difficulty: int in drive_difficulties:
+			tombs.append([seed_value, difficulty, {}])
+	if not branch:
+		tombs.append([0, 0, Shapes.keepers()])
+	for tomb: Array in tombs:
+		await _open(tomb[0], tomb[1], tomb[2])
+		var plan := level.plan
+		var layout := level.layout
+		var before := [plan.fingerprint(), layout.fingerprint()]
+		var asked := 0
+		var none := 0
+		var longer := 0
+		var astray := 0
+		var flown := 0
+		var arrived := 0
+		var spirited := level.ba.spirited
+		var landed := [Vector3.INF]
+		var stuck_tried := false
+		level.ba.arrived.connect(func(at: Vector3) -> void: landed[0] = at)
+		var stopped := ""
+		var todo: Array = plan.solution.duplicate()
+		var i := -1
+		while i + 1 < todo.size():
+			i += 1
+			if level.finished:
+				break
+			var found := TombGuide.steps(level)
+			var way := TombGuide.way(level, found)
+			asked += 1
+			if found.is_empty() or way.is_empty():
+				none += 1
+			else:
+				if found.size() > todo.size() - i:
+					longer += 1
+				var points: PackedVector3Array = way["points"]
+				var last := points[points.size() - 1]
+				var wanted: Array[Vector3] = TombGuide.targets(level, way["step"])
+				for point in points:
+					if layout.plan_room_at(point + Vector3.UP * 0.4) < 0:
+						astray += 1
+				if last.distance_to(wanted[wanted.size() - 1]) > 0.1 and points.size() < 40:
+					astray += 1
+				# (and sent, now and then, while he has not the falcon: after that it leads)
+				if i % 4 == 1 and not level.has_treasure:
+					landed[0] = Vector3.INF
+					if level.hint():
+						flown += 1
+						for frame in 2400:
+							await _wait(1)
+							if not level._hinting:
+								break
+						if landed[0] != Vector3.INF and landed[0].distance_to(last) < 3.0 and not level._hinting:
+							arrived += 1
+						elif OS.has_environment("TOMB_TRACE"):
+							print("    the Ba, sent to %s for \"%s\", landed at %s (still showing: %s)" % [last, way["says"], landed[0], level._hinting])
+			# Once in each tomb: "Stuck" (a death, back at the last door, and the Ba
+			# with words), and then standing about (it comes unasked, and not again at once).
+			if i >= 2 and not stuck_tried and player.carried == null and not level.has_treasure:
+				stuck_tried = true
+				var deaths := level.deaths
+				var had := level.hints
+				level.stuck_asked()
+				for frame in 400:
+					await _wait(1)
+					if level.hints > had:
+						break
+				var told: bool = level.deaths == deaths + 1 and level.hints == had + 1 and level._caption.visible
+				for frame in 2400:
+					await _wait(1)
+					if not level._hinting:
+						break
+				level._idle = TombLevel.HINT_AFTER + 1.0
+				level._since_hint = TombLevel.HINT_APART + 1.0
+				await _wait(5)
+				var unasked: bool = level.hints == had + 2
+				level._idle = TombLevel.HINT_AFTER + 1.0
+				for frame in 2400:
+					await _wait(1)
+					if not level._hinting:
+						break
+				level._idle = TombLevel.HINT_AFTER + 1.0
+				await _wait(30)
+				var quiet: bool = level.hints == had + 2
+				print("    Stuck: a death and a hint in words: %s; getting nowhere: it comes unasked: %s, and holds its peace for half a minute after: %s" % [told, unasked, quiet])
+				if not (told and unasked and quiet):
+					failed = true
+				level._since_hint = 0.0
+				level._idle = 0.0
+				# (and from the door he was put back at, the rest is played by the guide's own way from there)
+				todo = TombGuide.steps(level)
+				i = -1
+				continue
+			if not await _do_step(todo[i]):
+				stopped = TombSolver.words(plan, todo[i])
+				break
+		_still()
+		var led := level._leading and level.has_treasure
+		if stopped == "" and not level.finished:
+			if walked:
+				await _go3(layout.start)
+			else:
+				await _go(layout.start)
+			await _wait(10)
+		var same: bool = before == [plan.fingerprint(), layout.fingerprint()] and before[0] == level.run.get("plan", "") and before[1] == level.run.get("stone", "")
+		var sound: bool = level.finished and none == 0 and longer == 0 and astray == 0 and arrived == flown and flown > 0 and led and same
+		print("  %s: asked at %d steps: no way %d, a longer way than the solver's %d, places out of the tomb or short of the mark %d; sent %d times and back from the right place %d (as a spirit, through stone, %d flights); led him out: %s; he got out: %s; fingerprints as they were: %s: %s" % [
+				("\"%s\"" % tomb[2]["name"]) if not (tomb[2] as Dictionary).is_empty() else "seed %d %s" % [tomb[0], TombGenerator.DIFFICULTY_NAMES[tomb[1]]],
+				asked, none, longer, astray, flown, arrived, level.ba.spirited - spirited, led, level.finished if stopped == "" else "STOPPED at " + stopped, same, "sound" if sound else "NOT SOUND"])
+		if not sound:
+			failed = true
+		level.get_parent().queue_free()
+		await _wait(5)
 
 
 ## A tomb whose only way on is up the sand, which a block on its plate lets in.

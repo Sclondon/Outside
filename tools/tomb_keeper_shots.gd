@@ -2,7 +2,7 @@ extends SceneTree
 ## Not part of the game. Pictures of the creatures in a tomb as he meets them,
 ## through the game's own camera: he is stood before each leaf of the Book,
 ## gate guardian, sphinx and Medjed of a tomb in turn, a little way off and
-## then close to.
+## then close to; and then the Ba showing him the way from the start of the tomb.
 ## godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_keeper_shots.gd -- <folder> [side|3d|branching] [<seed>:<difficulty> | keepers | sphinx | medjed] [name=<prefix>]
 ## (add `--rendering-method gl_compatibility --rendering-driver opengl3` for the web's renderer)
 
@@ -93,6 +93,25 @@ func _run() -> void:
 				continue
 			await _shot("%s_%02d_%s_%s" % [prefix, count, kind, "far" if far > 2.0 else ("near" if far > 0.5 else "at")])
 		count += 1
+	# And the Ba showing the way, from the start of the tomb: as it comes out of the air beside him, on its way, and where it lands.
+	player.global_position = layout.start + Vector3.UP * 0.1
+	player.velocity = Vector3.ZERO
+	if camera and layout is TombLayout3D:
+		camera.look_along(-(layout as TombLayout3D).exit_way)
+		camera.snap()
+	await _wait(40)
+	level._started = true
+	for i in 600:
+		if not level.ba.is_flying():
+			break
+		await _wait(1)
+	var shown := level.hint(true)
+	if not shown:
+		print("  no hint: steps %d, way %s, flying %s, limp %s" % [TombGuide.steps(level).size(), TombGuide.way(level, TombGuide.steps(level)), level.ba.is_flying(), player.is_limp])
+	if shown:
+		for moment: Array in [["comes", 35], ["flies", 45], ["on", 60], ["there", 90]]:
+			await _wait(moment[1])
+			await _shot("%s_ba_%s" % [prefix, moment[0]])
 	print("%d of them in %s" % [count, prefix])
 	quit()
 

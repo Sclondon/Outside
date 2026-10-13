@@ -2340,6 +2340,22 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   same in all three kinds of tomb: a look that sweeps, with pillars to hide behind, was not tried. To the solver the
   way is a door, and what would have opened the door shuts his eyes (`Medjed.worked`), for good. Dying under his eyes
   is a death like any other, and puts Medjed back at his post as he was (`reset`). No block is pushed down his way.
+- **The Ba** (`Ba`, see "The Ba") is the spirit of whoever lies in the tomb, and it is the hint. It locks nothing.
+  It sits by the falcon while he is near enough to the burial chamber for that to be drawn, and is not there
+  otherwise. "Stuck" does what it did (back at the last door with what he carried, and a death counted), and then
+  the Ba comes out of the air beside him, flies to the next thing to do, lands, looks back and returns, with the
+  step in words under the clock: the thing to pick up, the block and its plate, the leaf, the guardian, the door to
+  go through next. It comes unasked as well when nothing has come of what he does for 45 seconds of play (no room
+  he had not stood in, no switch done, nothing taken up or put down), and then not again for half a minute. What it
+  shows is the first step of the solver's shortest way to the end from where everything really is at that moment
+  (`TombGuide`, `TombSolver.way_from`): which room he is in, what he holds, where each thing lies, which switches
+  are done. So it cannot lead him wrong, and where the solver has no way from there (which the proof says cannot
+  be) it shows nothing. The way it flies is a place at each corner of his lines and each doorway; where it can find
+  no way to fly (a crawl, a shut door) it goes as a spirit does. Once he has the falcon it flies ahead of him all
+  the way out, waiting where he can see it, and goes when he is out. It is not a body, opens nothing, and costs no
+  time; it is in neither the plan nor the stone, so it is in neither fingerprint. `tools/tomb_test.gd -- ba` (and
+  `3d ba`, `branching ba`) asks for the way at every step of tombs as they are played, sends the Ba, presses
+  "Stuck", and plays on from the door by the Ba's own way.
 - **Mummies** are of a kind chosen with something in the room that kind cannot get past, between it and whatever he has
   to stand still at: a trench for the shambler, the child and the royal one, a kerb for the priest and the crawler, two
   piers too close together for the brute. Each wakes as he passes, loses him after a few seconds of not being able to get
