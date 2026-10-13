@@ -638,9 +638,13 @@ func _build_hud() -> void:
 	_label.add_theme_constant_override("outline_size", 6)
 	_hud.add_child(_label)
 	_caption = Label.new()
-	_caption.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_caption.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	# (as wide as the screen less the corners, and on two lines when it is long: it never runs off the sides)
+	_caption.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_caption.offset_left = 150.0
+	_caption.offset_right = -150.0
 	_caption.offset_top = 64.0
+	_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_caption.add_theme_font_size_override("font_size", 24)
 	_caption.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
