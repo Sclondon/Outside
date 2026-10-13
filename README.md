@@ -2279,6 +2279,7 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   | A pit too wide to jump | The grappling hook (found earlier), thrown at the ring over it |
   | A face too high to catch, the next room at the top of it | A seal stone (at its foot, or in a loft or under a well) lets sand pour in from the roof; he walks up the heap |
   | A gate guardian, his knives crossed in the gateway | His name, which is on a leaf of the Book of the Dead lying somewhere before: in the open in an earlier room, in a loft, at the foot of the well |
+  | A sphinx lying at the end of the room | The thing its riddle asks for, found earlier and put down before its paws: a canopic jar, a burning torch, or (in a hard tomb) the grappling hook. It keeps it |
 
   Between rooms: stairs down, a passage to duck through, water to swim (which makes him let go of what he carries), a
   shaft with a ladder, a shaft with a rope. A door, once open, stays open. He carries one thing at a time, and not up
@@ -2315,6 +2316,17 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   game is stopped then (mummies and all), and the time counts ticks of play, so reading costs nobody anything, and
   a slow reader is not a slow time. The inscription over his way says that the keeper wants his name, and where the
   leaf is to be looked for.
+- **The sphinx** (`Sphinx`, see "The sphinx") is a small one, 2.5 m long (3.2 in a wide room that is walked through),
+  that lies at the end of a room and keeps the door on from it. Seen from the side it is cut from the far wall and
+  lies out of it towards the camera, face on, its paws just short of his line; walked through, it lies across the
+  room from the right, facing his line. As he comes before its paws its eyes open and its riddle comes up, on a line
+  of its own under the tomb's captions. What he puts down there the tomb hands to it (`Sphinx.offer`). The right
+  thing it keeps, and its door is open for good; the solver knows the thing is used up, so a torch or a hook that a
+  brazier or a pit also wants is a second one (the generators give the sphinx its own, and a plan in which the only
+  one could be given away is thrown out by the proof). A wrong thing its paw puts back on the floor of the room,
+  2.2 m short of where he stood, which seen from the side is on his line (`Sphinx.sweep_to`), to be picked up
+  again. It is never `wrathful`, and dying does not undo it. Nothing in a tomb puts a torch out, so a torch brought
+  to it is burning. No loft is over its room, and no block is pushed through its door.
 - **Mummies** are of a kind chosen with something in the room that kind cannot get past, between it and whatever he has
   to stand still at: a trench for the shambler, the child and the royal one, a kerb for the priest and the crawler, two
   piers too close together for the brute. Each wakes as he passes, loses him after a few seconds of not being able to get
@@ -2620,7 +2632,7 @@ godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- branchin
 godot --headless --path . --fixed-fps 60 --script tools/tomb_test.gd -- 3d doors
 godot --path . --fixed-fps 60 --resolution 1280x720 --script tools/tomb_branch_shots.gd -- <folder> [seed:difficulty] [name=<prefix>]
 godot --path . --fixed-fps 60 --resolution 1280x720 res://tomb.tscn -- tomb=12:1 shape=branching
-godot --headless --path . --fixed-fps 60 --script tools/tomb_editor_test.gd -- [seeds=60] [fuzz=400] [size=1280x720]
+godot --headless --path . --fixed-fps 60 --script tools/tomb_editor_test.gd -- [seeds=60] [fuzz=1200] [size=1280x720]
 godot --path . --fixed-fps 60 --resolution 1560x720 --script tools/tomb_phone_shots.gd -- <folder> [only=<part of a name>]
 godot --path . --resolution 1560x720 res://tomb_editor.tscn -- phone [tombs_file=<file>]
 ```

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Not part of the game. Checks tombs made by hand (`TombSpec`) and the tomb
 ## editor that makes them, with nothing drawn.
-## godot --headless --path . --fixed-fps 60 --script tools/tomb_editor_test.gd -- [seeds=60] [fuzz=400] [size=1280x720]
+## godot --headless --path . --fixed-fps 60 --script tools/tomb_editor_test.gd -- [seeds=60] [fuzz=1200] [size=1280x720]
 ##
 ##  - the tomb a new one starts as can be built and finished;
 ##  - every generated tomb (seeds 1 to `seeds`, each difficulty) taken into the
@@ -37,7 +37,7 @@ extends SceneTree
 const Probe := preload("res://tools/tomb_phone_probe.gd")
 
 var seeds := 60
-var fuzz := 400
+var fuzz := 1200
 ## How big the screen of the phone is, for the part that is worked by touch.
 var screen := Vector2i(1280, 720)
 var failed := false
@@ -344,6 +344,10 @@ func _editor() -> void:
 	expect(editor.found["ok"] and int(editor.rooms()[2]["stone_in"]) == 1, "a gate guardian chosen in the editor: %s (its leaf in room %d)" % [editor.found["says"], int(editor.rooms()[2]["stone_in"]) + 1])
 	expect(_way_says(editor, ["leaf of the Book", "tell him his name"]), "the way through does not say to read the leaf and name the guardian")
 	expect(TombSpec.from_text(TombSpec.to_text(editor.spec)) == editor.spec, "a tomb with a guardian did not come back from text as it went")
+	editor.set_value("lock", "sphinx_jar")
+	editor.rebuild()
+	expect(editor.found["ok"] and int(editor.rooms()[1]["jar"]) == 1, "a sphinx chosen in the editor, and a jar left for it: %s" % editor.found["says"])
+	expect(_way_says(editor, ["Take the jar", "before the sphinx"]), "the way through does not say to give the sphinx its jar")
 	# Every frame of it with a full tomb standing, for a while.
 	editor.take(TombSpec.from_seed(3, 2))
 	editor.rebuild()

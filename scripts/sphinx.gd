@@ -109,6 +109,10 @@ var kept: RigidBody3D
 ## How much of its sand is left, 1..0.
 var sand := 0.0
 
+## Where a thing it refuses is put down, in the world; with none said, out beyond its paw. (For a level that has
+## only one place such a thing can lie: a tomb seen from the side, where everything is on one line.)
+var sweep_to := Vector3.INF
+
 enum Stage { NONE, TAKING, WEIGHING, REFUSING }
 
 var _stone: SphinxMesh.Carved
@@ -598,6 +602,8 @@ func _foot_of(thing: RigidBody3D) -> float:
 # Where a thing knocked off the slab comes down: on the ground out beyond its left paw, clear of everything of its own.
 func _landing(thing: RigidBody3D) -> Vector3:
 	var at := global_transform * Vector3(-(SphinxMesh.BASE.x * size + 1.3), 0.0, 0.5 * size + 0.9)
+	if sweep_to != Vector3.INF:
+		at = sweep_to
 	var up := global_basis.y.normalized()
 	var query := PhysicsRayQueryParameters3D.create(at + up * (size * 0.3 + 2.0), at - up * (size * 0.5 + 6.0))
 	query.exclude = [get_rid(), thing.get_rid()]

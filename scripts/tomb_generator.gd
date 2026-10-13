@@ -60,11 +60,11 @@ const BARRIER_FOR := {
 }
 
 ## The rules that put in a lock, and how likely each is at each difficulty.
-const RULES := ["work", "lever", "brazier", "cross", "gap", "bypass", "offering", "pair", "sand", "name"]
+const RULES := ["work", "lever", "brazier", "cross", "gap", "bypass", "offering", "pair", "sand", "name", "sphinx"]
 const RULE_WEIGHTS := [
-	[4, 3, 2, 0, 0, 0, 0, 0, 2, 3],
-	[3, 3, 3, 2, 2, 2, 1, 1, 2, 3],
-	[2, 3, 3, 3, 3, 3, 2, 2, 2, 3],
+	[4, 3, 2, 0, 0, 0, 0, 0, 2, 3, 0],
+	[3, 3, 3, 2, 2, 2, 1, 1, 2, 3, 3],
+	[2, 3, 3, 3, 3, 3, 2, 2, 2, 3, 3],
 ]
 
 
@@ -287,6 +287,21 @@ static func _apply(rule: String, plan: TombPlan, i: int, rng: TombRandom) -> boo
 			link.fixed = true
 			link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, i + 1).id]
 			link.hint = "over_the_wall"
+			return true
+		"sphinx":
+			# A sphinx lies at the end of the room and wants one of the things he can
+			# carry, which lies somewhere before: a jar, a burning torch, or (in a
+			# hard tomb) the grappling hook. It keeps what it is given, and its door
+			# is open for good. (Not in an easy tomb.)
+			if plan.difficulty == 0 or not _keeper_ok(plan, i) or plan.side_room(i, TombPlan.Role.LOFT) != null:
+				return false
+			var wanted: int = [TombPlan.Item.JAR, TombPlan.Item.TORCH, TombPlan.Item.HOOK][rng.weighted([3, 3, 2 if plan.difficulty >= 2 else 0])]
+			var from := _carry_from(plan, i, rng, 3)
+			plan.add_thing(wanted, from)
+			var asks := plan.add_trigger(TombPlan.Switch.SPHINX, i)
+			asks.wants = wanted
+			link.switches = [asks.id]
+			link.hint = "sphinx_" + String(TombPlan.ITEM_NAMES[wanted])
 			return true
 		"name":
 			# A gate guardian bars the way until he is named, and the leaf of the

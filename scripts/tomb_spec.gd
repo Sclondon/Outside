@@ -57,12 +57,13 @@ const WAY_NOTES := {
 	"sand": "The next room is higher, over a face he cannot climb until sand has poured in to stand on. What lets it in is the lock below; with none, a seal stone at the foot of the face. Nothing is carried up it.",
 }
 ## What opens the door on, and what each is called.
-const LOCKS := ["none", "work", "cross", "pair", "brazier", "offering", "lever_above", "lever_below", "bypass", "name", "name_above", "name_below"]
+const LOCKS := ["none", "work", "cross", "pair", "brazier", "offering", "lever_above", "lever_below", "bypass", "name", "name_above", "name_below", "sphinx_jar", "sphinx_torch", "sphinx_hook"]
 const LOCK_TITLES := {"none": "No door", "work": "A block and its plate", "cross": "A plate, its block from the room before",
 	"pair": "Two plates: its own block, and one from the room before",
 	"brazier": "A brazier to light", "offering": "A block, and a jar on the table", "lever_above": "A seal stone up in a loft",
 	"lever_below": "A seal stone under a well", "bypass": "Opened from behind, over the wall",
-	"name": "A gate guardian, his leaf in a room before", "name_above": "A gate guardian, his leaf up in a loft", "name_below": "A gate guardian, his leaf under a well"}
+	"name": "A gate guardian, his leaf in a room before", "name_above": "A gate guardian, his leaf up in a loft", "name_below": "A gate guardian, his leaf under a well",
+	"sphinx_jar": "A sphinx that wants a jar", "sphinx_torch": "A sphinx that wants a burning torch", "sphinx_hook": "A sphinx that wants the grappling hook"}
 ## What each lock asks of whoever is making the tomb.
 const LOCK_NOTES := {
 	"none": "",
@@ -77,6 +78,9 @@ const LOCK_NOTES := {
 	"name": "A keeper sits by the way with his knives across it until he is told his name. The leaf that says it lies in the room you choose below. Without it he can guess: one chance in three, and a wrong name is his death.",
 	"name_above": "A keeper bars the way until he is told his name. The leaf that says it is on a slab over a room, caught by its edge.",
 	"name_below": "A keeper bars the way until he is told his name. The leaf that says it is in the chamber at the foot of a well.",
+	"sphinx_jar": "A small sphinx lies at the end of the room and asks a riddle: the answer is a canopic jar, put down before its paws. It keeps the jar, and the door is open for good. Leave a jar in an earlier room.",
+	"sphinx_torch": "A small sphinx lies at the end of the room and asks a riddle: the answer is a burning torch, put down before its paws. It keeps the torch, and the door is open for good. Leave a torch in an earlier room.",
+	"sphinx_hook": "A small sphinx lies at the end of the room and asks a riddle: the answer is the grappling hook, put down before its paws. It keeps the hook: if a pit wants one too, leave two.",
 }
 const THINGS := ["torch", "hook", "jar"]
 const THING_TITLES := {"torch": "Torch", "hook": "Grappling hook", "jar": "Jar"}
@@ -186,6 +190,8 @@ static func from_plan(plan: TombPlan) -> Dictionary:
 					told["lock"] = "offering"
 				"over_the_wall":
 					told["lock"] = "bypass"
+				"sphinx_jar", "sphinx_torch", "sphinx_hook":
+					told["lock"] = link.hint
 				"name":
 					told["lock"] = "name"
 					told["stone_in"] = plan.rooms[plan.triggers[plan.triggers[link.switches[0]].needs].room].spine
@@ -300,16 +306,22 @@ static func problems(spec: Dictionary) -> PackedStringArray:
 					crypts[host] = true
 	# (a gate guardian sits by his door, under where the floor of a loft would be)
 	for i in count - 1:
-		if is_keeper(rooms[i].get("lock", "none")):
+		var kept_by: String = rooms[i].get("lock", "none")
+		if is_keeper(kept_by) or kept_by.begins_with("sphinx"):
 			if rooms[i].get("way", "open") == "sand":
-				wrong.append("%s: a gate guardian keeps a doorway, stairs or water, not the way up the sand." % room_title(spec, i))
+				wrong.append("%s: a gate guardian or a sphinx keeps a doorway, stairs or water, not the way up the sand." % room_title(spec, i))
 			if lofts.has(i):
-				wrong.append("%s: its door has a gate guardian, who sits where a loft over this room would be: put the loft over another room." % room_title(spec, i))
+				wrong.append("%s: its door has a gate guardian or a sphinx, and there is no loft over the room of one: put the loft over another room." % room_title(spec, i))
 	if not wrong.is_empty():
 		return wrong
 	var plan := compile(spec)
-	if plan.rooms.size() > (1 << TombSolver.POS_BITS):
-		wrong.append("Too many rooms, with the lofts and chambers: %d, and %d is the most." % [plan.rooms.size(), 1 << TombSolver.POS_BITS])
+	var most_rooms := 1 << TombSolver.POS_BITS
+	for trigger in plan.triggers:
+		# (what a sphinx has been given is kept, by the solver, in a room that is not there)
+		if trigger.kind == TombPlan.Switch.SPHINX:
+			most_rooms = TombPlan.GONE
+	if plan.rooms.size() > most_rooms:
+		wrong.append("Too many rooms, with the lofts and chambers: %d, and %d is the most%s." % [plan.rooms.size(), most_rooms, " in a tomb with a sphinx" if most_rooms == TombPlan.GONE else ""])
 	if plan.things.size() > (1 << TombSolver.HAND_BITS) - 1:
 		wrong.append("Too many things to carry and push: %d, and %d is the most." % [plan.things.size(), (1 << TombSolver.HAND_BITS) - 1])
 	if plan.triggers.size() > TombSolver.DONE_BITS:
@@ -377,6 +389,8 @@ static func compile(spec: Dictionary) -> TombPlan:
 			"offering":
 				link.switches = [plan.add_trigger(TombPlan.Switch.WORK_PLATE, i).id, plan.add_trigger(TombPlan.Switch.OFFERING, i).id]
 				link.hint = "two_weights"
+			"sphinx_jar", "sphinx_torch", "sphinx_hook":
+				_sphinx(plan, link, i, told["lock"])
 			"name":
 				_keeper(plan, link, i, clampi(int(told.get("stone_in", i)), 0, count - 1), "name")
 			"lever_above", "name_above":
@@ -425,6 +439,14 @@ static func _keeper(plan: TombPlan, link: TombPlan.Link, door: int, lies: int, h
 	keeper.needs = leaf.id
 	link.switches = [keeper.id]
 	link.hint = hint
+
+
+## Puts a sphinx at a way, in the room `door` its door is in, that wants what the lock's name says.
+static func _sphinx(plan: TombPlan, link: TombPlan.Link, door: int, lock: String) -> void:
+	var asks := plan.add_trigger(TombPlan.Switch.SPHINX, door)
+	asks.wants = maxi(TombPlan.ITEM_NAMES.find(lock.trim_prefix("sphinx_")), 0)
+	link.switches = [asks.id]
+	link.hint = lock
 
 
 ## Everything there is to say of it. `problems` (it cannot be built: then
@@ -500,6 +522,8 @@ static func step_words(spec: Dictionary, plan: TombPlan, step: Array) -> String:
 					return "Light the brazier"
 				TombPlan.Switch.TREASURE:
 					return "Take the falcon"
+				TombPlan.Switch.SPHINX:
+					return "Put the %s down before the sphinx: it keeps it" % String(TombPlan.ITEM_NAMES[plan.triggers[step[1]].wants])
 				TombPlan.Switch.LEAF:
 					return "Walk onto the leaf of the Book of the Dead, and read the keeper's name"
 				TombPlan.Switch.NAME:

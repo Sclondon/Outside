@@ -63,11 +63,11 @@ const MOST_POSITIONS := 30000
 
 ## The rules that put in a lock, and how likely each is at each difficulty.
 ## (`_afar`: what opens the door is in a side chamber.)
-const RULES := ["work", "work_afar", "lever", "lever_afar", "brazier", "brazier_afar", "offering", "cross", "pair", "gap", "sand", "bypass", "name"]
+const RULES := ["work", "work_afar", "lever", "lever_afar", "brazier", "brazier_afar", "offering", "cross", "pair", "gap", "sand", "bypass", "name", "sphinx"]
 const RULE_WEIGHTS := [
-	[3, 2, 2, 3, 3, 0, 0, 0, 0, 0, 2, 0, 3],
-	[2, 2, 2, 3, 3, 1, 2, 2, 1, 3, 2, 2, 3],
-	[1, 2, 2, 3, 3, 2, 2, 2, 2, 3, 2, 3, 3],
+	[3, 2, 2, 3, 3, 0, 0, 0, 0, 0, 2, 0, 3, 0],
+	[2, 2, 2, 3, 3, 1, 2, 2, 1, 3, 2, 2, 3, 3],
+	[1, 2, 2, 3, 3, 2, 2, 2, 2, 3, 2, 3, 3, 3],
 ]
 
 var plan: TombPlan
@@ -97,6 +97,8 @@ var _blocked := {}
 var _shut := {}
 ## A room one of whose doors is about to be given a keeper (while its lock is put in).
 var _keeping := {}
+## Things that a sphinx wants, and will keep: nothing else is given them to do.
+var _given := {}
 
 
 ## A tomb that can be finished. `plan.sub_seed` says how many were thrown away
@@ -237,7 +239,7 @@ func _grow(from: int, facing: int, role: TombPlan.Role) -> int:
 	var step := TombLayout3D.TURNS[facing]
 	var square: Vector2i = (_where[from] as Vector2i) + Vector2i(step.x, step.z)
 	# (one is kept back for a loft or a crypt)
-	if _square.has(square) or plan.rooms.size() >= MOST_ROOMS - 1:
+	if _square.has(square) or plan.rooms.size() >= _most_rooms() - 1:
 		return -1
 	var room := plan.add_room(role)
 	# (every room that stands on a square is numbered as the rooms down an axis
@@ -424,6 +426,12 @@ func _reaches_all(with := {}) -> bool:
 					reached[to] = true
 					changed = true
 	return reached.size() == plan.rooms.size()
+
+
+# The most rooms the plan may have: one fewer where there is a sphinx, since the
+# solver keeps what a sphinx has been given in a room that is not there (`TombPlan.GONE`).
+func _most_rooms() -> int:
+	return TombPlan.GONE if not _given.is_empty() else MOST_ROOMS
 
 
 func _has_room_for(things: int, switches: int) -> bool:
@@ -683,7 +691,7 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			# A loop. The door is opened from behind, by a seal stone at the foot
 			# of the stairs beyond it; the way to there is up into a cutting over
 			# the wall, and down a drop there is no climbing back up.
-			if plan.side_room(here, TombPlan.Role.LOFT) != null or plan.is_kept(here) or _sand_out_of(here) or _sealed.has(beyond) or plan.rooms.size() >= MOST_ROOMS or not _has_room_for(0, 1):
+			if plan.side_room(here, TombPlan.Role.LOFT) != null or plan.is_kept(here) or _sand_out_of(here) or _sealed.has(beyond) or plan.rooms.size() >= _most_rooms() or not _has_room_for(0, 1):
 				return false
 			var loft := plan.add_room(TombPlan.Role.LOFT, here)
 			_up[loft.id] = here
@@ -705,6 +713,28 @@ func _apply(rule: String, link: TombPlan.Link) -> bool:
 			link.hint = "over_the_wall"
 			_needs[link.id] = [beyond]
 			_sealed[beyond] = true
+			return true
+		"sphinx":
+			# A sphinx lies at the end of the room and wants one of the things he can
+			# carry, which lies somewhere he can bring it from: a jar, a burning
+			# torch, or (in a hard tomb) the grappling hook. It keeps what it is
+			# given, so the thing is its own: no brazier or pit is left to share it.
+			if plan.difficulty == 0 or _busy.has(here) or not _keeper_ok(here) or plan.side_room(here, TombPlan.Role.LOFT) != null \
+					or not _has_room_for(1, 1) or plan.rooms.size() > TombPlan.GONE:
+				return false
+			var wanted: int = [TombPlan.Item.JAR, TombPlan.Item.TORCH, TombPlan.Item.HOOK][_rng.weighted([3, 3, 2 if plan.difficulty >= 2 else 0])]
+			var from := _host_for_item(link, 3, here, wanted == TombPlan.Item.HOOK)
+			if from == -1 or not _reaches_all({link.id: [here, from]}):
+				return false
+			var gift := plan.add_thing(wanted, from)
+			_uses[gift.id] = [here]
+			_given[gift.id] = true
+			var asks := plan.add_trigger(TombPlan.Switch.SPHINX, here)
+			asks.wants = wanted
+			link.switches = [asks.id]
+			link.hint = "sphinx_" + String(TombPlan.ITEM_NAMES[wanted])
+			_needs[link.id] = [here, from]
+			_busy[here] = true
 			return true
 		"name":
 			# A gate guardian bars the way until he is named. The leaf that has his
@@ -772,7 +802,7 @@ func _old_thing(kind: TombPlan.Item, use: int, link: TombPlan.Link, also: Array,
 	if not _rng.chance(75):
 		return -1
 	for thing in plan.things:
-		if thing.kind != kind or (beyond != -1 and _inside(thing.room, beyond)):
+		if thing.kind != kind or _given.has(thing.id) or (beyond != -1 and _inside(thing.room, beyond)):
 			continue
 		var uses: Array = _uses[thing.id]
 		uses.append(use)
@@ -817,7 +847,7 @@ func _sand_out_of(room: int) -> bool:
 # A new loft over the room a door is in or one of the `back` before it, or a
 # new chamber at the foot of one of them that is a well: its id, or -1.
 func _side_room(link: TombPlan.Link, back: int) -> int:
-	if plan.rooms.size() >= MOST_ROOMS:
+	if plan.rooms.size() >= _most_rooms():
 		return -1
 	var hosts: Array = []
 	for room: int in _anchors(link, back):

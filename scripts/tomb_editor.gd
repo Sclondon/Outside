@@ -54,7 +54,8 @@ const MARK_WORD := 54.0
 const WAY_SHORT := {"open": "doorway", "stairs": "stairs", "crawl": "crawl", "flood": "water", "shaft": "ladder", "rope": "rope", "gap": "pit, hook", "sand": "up the sand"}
 const LOCK_SHORT := {"none": "", "work": "block + plate", "cross": "plate, block from before", "pair": "two plates, two blocks", "brazier": "brazier", "offering": "block + jar",
 	"lever_above": "stone in a loft", "lever_below": "stone under a well", "bypass": "over the wall",
-	"name": "gate guardian", "name_above": "guardian, leaf in a loft", "name_below": "guardian, leaf under a well"}
+	"name": "gate guardian", "name_above": "guardian, leaf in a loft", "name_below": "guardian, leaf under a well",
+	"sphinx_jar": "sphinx: a jar", "sphinx_torch": "sphinx: a torch", "sphinx_hook": "sphinx: the hook"}
 const HELP := "One finger drags the tomb about; two pinch to come nearer. Touch a room to choose it, or use the row along the bottom.\nThe panel at the right changes the chosen room: what it is, what is in it, the way on, and what locks the door on.\nUnder these buttons it says whether the tomb can be finished. Way through shows how."
 const HELP_FLOOR := "A tomb that branches, seen from overhead. One finger drags it about; two pinch. Touch a room to choose it.\nTouch a + to put a new room off the chosen one. Move marks where it could go instead, Join the rooms beside it that a second way could be made to, Remove takes it away.\nThe panel at the right changes the chosen room: what it is, what is in it, the way into it, and what opens its door (from any room you like)."
 
@@ -198,6 +199,8 @@ func set_value(key: String, value: Variant) -> void:
 				_leave_one("torch")
 			"offering":
 				_leave_one("jar")
+			"sphinx_jar", "sphinx_torch", "sphinx_hook":
+				_leave_one(String(value).trim_prefix("sphinx_"))
 			"lever_above", "lever_below", "name", "name_above", "name_below":
 				var hosts := _hosts(value)
 				if not hosts.is_empty():
@@ -1036,6 +1039,8 @@ func _follow_on_floor(key: String, value: Variant) -> void:
 				_leave_one_on_floor("torch")
 			"offering":
 				_leave_one_on_floor("jar")
+			"sphinx_jar", "sphinx_torch", "sphinx_hook":
+				_leave_one_on_floor(String(value).trim_prefix("sphinx_"))
 			"lever_above", "lever_below", "name", "name_above", "name_below":
 				var hosts := _hosts_on_floor(value)
 				if not hosts.is_empty():

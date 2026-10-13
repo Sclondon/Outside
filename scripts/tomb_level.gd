@@ -364,6 +364,20 @@ func _work_switches(at: Vector3) -> void:
 				now = at.distance_to(built.treasure.global_position) < 1.5
 				if now:
 					_take_treasure()
+			TombPlan.Switch.SPHINX:
+				# What he puts down before the sphinx it takes, and weighs: the right
+				# thing it keeps, and is content for good; another its paw puts back
+				# on the floor, short of where he stands.
+				var sphinx: Sphinx = built.switches[trigger.id]
+				now = sphinx.on
+				if not now:
+					var before := layout.switch_at[trigger.id]
+					for id: int in built.items:
+						var thing: RigidBody3D = built.items[id]
+						var lies := thing.global_position
+						if thing != _player.carried and not thing.has_meta(&"offered") and layout.apart(lies, before) < OFFER_WITHIN and absf(lies.y - before.y) < 1.0 and thing.linear_velocity.length() < 1.5:
+							sphinx.offer(thing)
+							break
 			TombPlan.Switch.LEAF:
 				# (taken by walking onto it: it is his until the tomb is left)
 				now = (built.switches[trigger.id] as BookPage).is_taken
@@ -594,6 +608,23 @@ func _build_hud() -> void:
 	_caption.add_theme_constant_override("outline_size", 8)
 	_caption.visible = false
 	_hud.add_child(_caption)
+	# What a sphinx says (its riddle) is written under the tomb's own captions, not on them: every
+	# sphinx looks for a label in this group before it makes one of its own.
+	var riddle := Label.new()
+	riddle.add_to_group(&"sphinx_caption")
+	riddle.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	riddle.offset_left = 150.0
+	riddle.offset_right = -150.0
+	riddle.offset_top = 140.0
+	riddle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	riddle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	riddle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	riddle.add_theme_font_size_override("font_size", 24)
+	riddle.add_theme_color_override("font_color", Color(1.0, 0.95, 0.82))
+	riddle.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+	riddle.add_theme_constant_override("outline_size", 8)
+	riddle.visible = false
+	_hud.add_child(riddle)
 	# In a tomb whose rooms stand where a plan put them (one that branches), a map of where he has been.
 	if layout is TombLayout3D and _has_cells():
 		_map = TombMap.new()

@@ -51,6 +51,10 @@ const HINTS := {
 	"name_above": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf that lies over your head.",
 	"name_below": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf at the foot of the well.",
 	"name_afar": "The keeper of this gate lets pass whoever can say his name. It is written on a leaf in another chamber.",
+	# (a sphinx: its riddle says what it wants)
+	"sphinx_jar": "The lion with a king's face lies at this door and asks a gift. Hear what it asks, and lay it between its paws.",
+	"sphinx_torch": "The lion with a king's face lies at this door and asks a gift. Hear what it asks, and lay it between its paws.",
+	"sphinx_hook": "The lion with a king's face lies at this door and asks a gift. Hear what it asks, and lay it between its paws.",
 }
 
 ## What has been read this run and could not be given to a notebook: [meaning, where].

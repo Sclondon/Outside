@@ -642,6 +642,7 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 	var work: TombPlan.Trigger
 	var table: TombPlan.Trigger
 	var fire: TombPlan.Trigger
+	var asks: TombPlan.Trigger
 	for trigger in plan.triggers:
 		if trigger.room != room.id:
 			continue
@@ -652,6 +653,8 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 				table = trigger
 			TombPlan.Switch.BRAZIER:
 				fire = trigger
+			TombPlan.Switch.SPHINX:
+				asks = trigger
 	if fire:
 		var hearth := _area(2.4)
 		var middle := (hearth.u0 + hearth.u1) * 0.5
@@ -676,6 +679,18 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 		_box(frame.at(middle, _y + TABLE_HIGH * 0.5, out), frame.size(TABLE_LONG, TABLE_HIGH, 1.2), "gold", true)
 		parts.append({"kind": "offering", "room": _room, "trigger": table.id, "at": switch_at[table.id], "size": frame.size(TABLE_LONG - 0.2, 0.6, 1.0)})
 		_area(0.9)
+
+	if asks:
+		# A sphinx lies across the room from the right, facing his line, its paws
+		# just short of it: he stands before it, and what he puts down there it
+		# takes. What it will not have, its paw puts back on his line, short of it.
+		var long := SPHINX_SIZE if _w < 7.0 else 3.2
+		var den := _area(SPHINX_DEN)
+		var before := den.u0 + SPHINX_DEN - 1.7
+		switch_at[asks.id] = frame.at(before, _y, WALK + 0.3)
+		stand_at[asks.id] = frame.at(before, _y, WALK)
+		parts.append({"kind": "sphinx", "room": _room, "trigger": asks.id, "at": frame.at(before, _y, WALK + 0.75 + 0.53 * long), "yaw": frame.yaw(PI),
+				"size": long, "wants": asks.wants, "head": sphinx_head(plan, asks.id), "sweep_to": frame.at(before - SPHINX_SWEEP, _y, WALK)})
 
 	# --- The bay, and over it the loft if there is one: its lip is caught from this side
 	_clear()

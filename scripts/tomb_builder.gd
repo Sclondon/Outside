@@ -252,6 +252,22 @@ func _part(part: Dictionary) -> void:
 			switches[part["trigger"]] = table
 		"brazier":
 			switches[part["trigger"]] = _scene("brazier", at, 0.0, node)
+		"sphinx":
+			# A small sphinx that wants one of the things he can carry, and keeps it.
+			var sphinx := Sphinx.new()
+			sphinx.size = part["size"]
+			sphinx.head = int(part["head"]) as Sphinx.Head
+			sphinx.wear = 0.25
+			sphinx.wrathful = false
+			var named: StringName = [&"torch", &"hook", &"jar"][int(part["wants"])]
+			for n in Sphinx.THINGS.size():
+				if Sphinx.THINGS[n][0] == named:
+					sphinx.wants = n
+			sphinx.sweep_to = part["sweep_to"]
+			sphinx.position = at
+			sphinx.rotation.y = part["yaw"]
+			node.add_child(sphinx)
+			switches[part["trigger"]] = sphinx
 		"guardian":
 			# A keeper of a gate, who is his own door: his knives bar the gateway until he is named.
 			var keeper := GateGuardian.new()

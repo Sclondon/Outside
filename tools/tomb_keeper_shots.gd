@@ -75,7 +75,7 @@ func _run() -> void:
 				back = -Vector3(TombLayout3D.TURNS[int((layout as TombLayout3D).ways[part["link"]]["turn"])])
 			elif room.has("turn"):
 				back = -Vector3(TombLayout3D.TURNS[int(room["turn"])])
-		for far: float in [3.2, 1.3]:
+		for far: float in ([3.2, 1.3, 0.0] if kind == "sphinx" else [3.2, 1.3]):
 			var spot := stand + back * far
 			if kind == "leaf":
 				spot = stand + back * (far + 0.4)
@@ -91,7 +91,7 @@ func _run() -> void:
 				GuardianPanel.current.choose(-1)
 				await _wait(20)
 				continue
-			await _shot("%s_%02d_%s_%s" % [prefix, count, kind, "far" if far > 2.0 else "near"])
+			await _shot("%s_%02d_%s_%s" % [prefix, count, kind, "far" if far > 2.0 else ("near" if far > 0.5 else "at")])
 		count += 1
 	print("%d of them in %s" % [count, prefix])
 	quit()

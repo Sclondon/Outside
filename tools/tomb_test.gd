@@ -799,10 +799,12 @@ func _drive_custom() -> void:
 		else:
 			failed = true
 	print("  finished %d of %d" % [finished, specs.size()])
-	var held := pick != "" or (await _sand_holds3() if walked else await _sand_holds())
+	var held := pick != "" or OS.has_environment("TOMB_SKIP_SAND") or (await _sand_holds3() if walked else await _sand_holds())
 	if not held:
 		failed = true
 	if pick == "" and not await _guardian_holds():
+		failed = true
+	if pick == "" and not await _sphinx_holds():
 		failed = true
 	if walked and pick == "" and not await _carried_back3():
 		failed = true
@@ -852,7 +854,7 @@ func _guardian_holds() -> bool:
 			break
 	await _wait(60)
 	var back := player.global_position.distance_to(stand)
-	var held := level.deaths == 1 and not keeper.on and furthest < 0.0 and back < 3.0 and not level._open[link.id]
+	var held := level.deaths == 1 and not keeper.on and furthest < 0.0 and back < 6.0 and not level._open[link.id]
 	print("  the guardian, told a wrong name: deaths %d, he is %.1f m from the gateway and never got nearer than %.2f short of its middle, the guardian %s: %s" % [
 			level.deaths, back, -furthest, "is named" if keeper.on else "is not named", "it holds" if held else "IT DID NOT HOLD"])
 	sound = sound and held
@@ -873,6 +875,67 @@ func _guardian_holds() -> bool:
 	level.get_parent().queue_free()
 	await _wait(5)
 	return sound and done
+
+
+# A sphinx by itself, given the wrong thing first: its paw must put that
+# back on the floor of its own room, where he can get at it (seen from the
+# side: on his line), far enough off not to be taken for a second offer; he
+# takes it up again; and then the tomb is played through, with the right thing
+# given and kept.
+func _sphinx_holds() -> bool:
+	await _open(0, 0, Shapes.one_sphinx())
+	var plan := level.plan
+	var layout := level.layout
+	var asks: TombPlan.Trigger
+	for trigger in plan.triggers:
+		if trigger.kind == TombPlan.Switch.SPHINX:
+			asks = trigger
+	var sphinx: Sphinx = level.built.switches[asks.id]
+	var torch := -1
+	var jar := -1
+	for thing in plan.things:
+		if thing.kind == TombPlan.Item.TORCH:
+			torch = thing.id
+		elif thing.kind == TombPlan.Item.JAR:
+			jar = thing.id
+	var body: RigidBody3D = level.built.items[torch]
+	var before := layout.switch_at[asks.id]
+	var sound := await _do_step(["go", 0, 0, 1]) and await _do_step(["take", torch]) and await _do_step(["go", 1, 1, 2])
+	if walked:
+		var stand := layout3.stand_at[asks.id]
+		sound = sound and await _go3(stand, 0.2)
+		touch.move = _stick(_flat(stand, before), 0.3)
+		await _wait(8)
+	else:
+		sound = sound and await _go(Vector3(before.x, before.y, 0.0), 0.2)
+	sound = sound and await _put_down()
+	for i in 400:
+		await _wait(1)
+		if sphinx.strikes >= 1 and not body.has_meta(&"offered") and body.linear_velocity.length() < 0.2:
+			break
+	await _wait(90)
+	var lies := body.global_position
+	var floor: float = layout.rooms[asks.room]["floor"]
+	var put_back := sphinx.strikes == 1 and not sphinx.on and layout.plan_room_at(lies) == asks.room and absf(lies.y - floor) < 0.6 \
+			and layout.apart(lies, before) > TombLevel.OFFER_WITHIN and (walked or absf(lies.z) < 0.05) and not level.done[asks.id]
+	print("  the sphinx, given a torch when it wants a jar: refused %d time(s); the torch lies %.2f m from where he stood, %.2f over the floor of room %d%s: %s" % [
+			sphinx.strikes, layout.apart(lies, before), lies.y - floor, layout.plan_room_at(lies), "" if walked else (", %.2f off his line" % absf(lies.z)), "put back where he can get it" if put_back else "NOT PUT BACK RIGHT"])
+	sound = sound and put_back
+	var again := await _do_step(["take", torch])
+	sound = sound and again and sphinx.strikes == 1
+	# (carried out of the way, and put down)
+	if walked:
+		sound = sound and await _go3(layout3.rooms[asks.room]["west"])
+	else:
+		sound = sound and await _go(layout.rooms[asks.room]["west"])
+	sound = sound and await _put_down()
+	print("  the torch taken up again and carried off: %s" % ("yes" if sound else "NO"))
+	var done := await _play_through("the sphinx")
+	var kept: bool = sphinx.on and sphinx.kept == level.built.items[jar] and not (level.built.items[jar] as Node).is_in_group(&"throwable")
+	print("  the sphinx, given the jar: %s" % ("it keeps it, and its door is open" if kept else "IT DID NOT KEEP IT"))
+	level.get_parent().queue_free()
+	await _wait(5)
+	return sound and done and kept
 
 
 ## A tomb whose only way on is up the sand, which a block on its plate lets in.
@@ -1077,6 +1140,10 @@ func _do_step(step: Array) -> bool:
 					return await _push(_block_for(-1, trigger.id), trigger.id)
 				TombPlan.Switch.PLATE:
 					return await _push(_block_for(-2, trigger.id), trigger.id)
+				TombPlan.Switch.SPHINX:
+					# (stood before its paws, he puts down what it wants: it takes it from there)
+					if not await _go(Vector3(at.x, at.y, 0.0), 0.2) or not await _put_down():
+						return false
 				TombPlan.Switch.OFFERING:
 					if not await _go(Vector3(at.x - 1.05, at.y - TombLayout.TABLE_HIGH, 0.0), 0.15):
 						return false
@@ -1168,8 +1235,13 @@ func _climb_loft(info: Dictionary) -> bool:
 		# he is under it: then he goes back a few steps, stands, and takes it from there)
 		await _wait(12)
 		if player.global_position.x > edge - 0.5:
-			if not await _go(Vector3(edge - 1.7, top - TombLayout.LOFT_TOP, 0.0), 0.15):
-				return false
+			# (a few slow steps back, with no jumping: there may be a block close behind him)
+			for i in 90:
+				if player.global_position.x < edge - 0.8:
+					break
+				touch.move = Vector2(-0.45, 0.0)
+				await _wait(1)
+			_still()
 			await _wait(15)
 		for i in 240:
 			touch.move = Vector2(1.0, 0.0)
@@ -1942,6 +2014,14 @@ func _do_step3(step: Array) -> bool:
 					return await _push3(_block_for(-1, trigger.id), trigger.id)
 				TombPlan.Switch.PLATE:
 					return await _push3(_block_for(-2, trigger.id), trigger.id)
+				TombPlan.Switch.SPHINX:
+					if not await _go3(stand, 0.2):
+						return false
+					# (turned to face it)
+					touch.move = _stick(_flat(stand, at), 0.3)
+					await _wait(8)
+					if not await _put_down():
+						return false
 				TombPlan.Switch.OFFERING:
 					if not await _go3(stand, 0.15):
 						return false

@@ -102,6 +102,13 @@ const TRACK := 2.6
 const GATE_AT := 1.6
 const GATE_BACK := 0.75
 const GATE_WIDE := 2.2
+## A sphinx: how long it is, how far short of his line its paws stop, how long
+## the stretch of floor before it is, and how far back along his line it puts
+## down a thing it will not have (further than he has to be from it to give it one).
+const SPHINX_SIZE := 2.5
+const SPHINX_SHORT := 0.45
+const SPHINX_DEN := 4.6
+const SPHINX_SWEEP := 2.2
 ## The low table that only a jar weighs down.
 const TABLE_HIGH := 0.3
 const TABLE_LONG := 1.4
@@ -355,6 +362,7 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 	var work: TombPlan.Trigger
 	var table: TombPlan.Trigger
 	var fire: TombPlan.Trigger
+	var asks: TombPlan.Trigger
 	for trigger in plan.triggers:
 		if trigger.room != room.id:
 			continue
@@ -365,6 +373,8 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 				table = trigger
 			TombPlan.Switch.BRAZIER:
 				fire = trigger
+			TombPlan.Switch.SPHINX:
+				asks = trigger
 	if fire:
 		var hearth := _span(2.4, _ceil)
 		switch_at[fire.id] = Vector3((hearth.xa + hearth.xb) * 0.5, _y, -1.0)
@@ -389,6 +399,16 @@ func _lay_room(room: TombPlan.Room, way_in: TombPlan.Link, way_out: TombPlan.Lin
 		parts.append({"kind": "offering", "room": _room, "trigger": table.id, "at": switch_at[table.id]})
 		moves.append({"kind": "stop", "is": TABLE_HIGH, "room": _room})
 		_span(0.9, _ceil)
+	if asks:
+		# A sphinx, cut from the far wall and lying out of it towards the camera,
+		# its paws just short of his line: he stands before it, and what he puts
+		# down there it takes. What it will not have, its paw puts back on his
+		# line, two metres short of it.
+		var den := _span(SPHINX_DEN, _ceil)
+		var middle := den.xa + SPHINX_DEN - 1.7
+		switch_at[asks.id] = Vector3(middle, _y, 0.0)
+		parts.append({"kind": "sphinx", "room": _room, "trigger": asks.id, "at": Vector3(middle, _y, -(SPHINX_SHORT + 0.53 * SPHINX_SIZE)), "yaw": 0.0,
+				"size": SPHINX_SIZE, "wants": asks.wants, "head": sphinx_head(plan, asks.id), "sweep_to": Vector3(middle - SPHINX_SWEEP, _y, 0.0)})
 	# The loft, if there is one, is over what is left of the room: not over a
 	# block on its plate, which he could not then get past.
 	if loft:
@@ -639,6 +659,11 @@ static func keepers(of: TombPlan) -> Dictionary:
 		heads[int(BookOfTheDead.NAMES[who]["head"])] = true
 		found[trigger.id] = {"who": who, "seed": TombRandom.mix([of.seed_value, of.sub_seed, trigger.id, 7001]) | 1}
 	return found
+
+
+## Which head a sphinx of a plan has (a `Sphinx.Head`), by its switch: from the tomb's own number.
+static func sphinx_head(of: TombPlan, trigger: int) -> int:
+	return TombRandom.new(TombRandom.mix([TombGenerator.VERSION, of.seed_value, of.sub_seed, trigger, 3119])).below(3)
 
 
 ## Whose name is on a leaf (a LEAF switch): the guardian's that needs it.
