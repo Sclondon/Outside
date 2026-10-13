@@ -69,7 +69,7 @@ func _scope() -> Control:
 
 
 func _working() -> bool:
-	return editor.visible and editor.cam != null and not mark.typing()
+	return not Loading.busy and editor.visible and editor.cam != null and not mark.typing()
 
 
 func _middle() -> Vector2:

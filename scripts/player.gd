@@ -891,6 +891,9 @@ func _reset_visuals() -> void:
 
 
 func _read_move_input() -> Vector2:
+	# (while a level is being opened nothing is passed on to him: see Loading)
+	if Loading.busy:
+		return Vector2.ZERO
 	var input := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
 	if Input.is_action_pressed(&"walk"):
 		input *= run_threshold
@@ -1157,15 +1160,15 @@ func _is_recovering() -> bool:
 
 
 func _is_jump_held() -> bool:
-	return Input.is_action_pressed(&"jump") or (_touch != null and _touch.jump_held)
+	return not Loading.busy and (Input.is_action_pressed(&"jump") or (_touch != null and _touch.jump_held))
 
 
 func _is_duck_held() -> bool:
-	return Input.is_action_pressed(&"duck") or (_touch != null and _touch.duck_held)
+	return not Loading.busy and (Input.is_action_pressed(&"duck") or (_touch != null and _touch.duck_held))
 
 
 func _is_act_held() -> bool:
-	return Input.is_action_pressed(&"act") or _trigger_pulled or (_touch != null and _touch.act_held)
+	return not Loading.busy and (Input.is_action_pressed(&"act") or _trigger_pulled or (_touch != null and _touch.act_held))
 
 
 # --- Diving, the back tuck and spinning ---

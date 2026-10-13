@@ -56,7 +56,7 @@ func _back() -> void:
 
 
 func _process(delta: float) -> void:
-	if mark.typing():
+	if mark.typing() or Loading.busy:
 		return
 	var stick := Gamepad.left()
 	if stick != Vector2.ZERO and not editor._sheet.visible:

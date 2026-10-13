@@ -145,7 +145,8 @@ func _orbit(delta: float) -> void:
 	if _touch:
 		_turn(_touch.take_look() * drag_sensitivity)
 	var stick := Input.get_vector(&"look_left", &"look_right", &"look_up", &"look_down")
-	if stick.length_squared() > 0.0:
+	# (not while a level is being opened: nothing is passed on then, see Loading)
+	if stick.length_squared() > 0.0 and not Loading.busy:
 		# (pushed a little it turns slowly, to aim it; all the way, at its full speed. How fast that is, and
 		# which way up and down go, are his to choose: Settings.look_speed, Settings.look_invert)
 		stick *= stick.length()

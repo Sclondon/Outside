@@ -105,48 +105,83 @@ var _mummy: Mummy
 
 
 func _ready() -> void:
+	# Opened behind the notebook's page (see Loading) a frame is let go by between stations whenever
+	# the last ones took long, so that the page is seen to move; opened any other way these waits are nothing.
 	_build_light()
-	_build_ground()
+	await Loading.breathe("Setting up: ground", 0.18)
+	await _build_ground()
 	_mark_here(Vector3.ZERO, "TEST YARD\nthe plate changes the weather", 3.4)
 	for z: float in [-0.6, 0.0, 0.6]:
 		_rock(Vector3(3.0, 0.15, 3.0 + z))
+	await Loading.breathe("Setting up: push", 0.21)
 	_build_push(Vector3(12.0, 0.0, -12.0))
+	await Loading.breathe("Setting up: low", 0.23)
 	_build_low(Vector3(24.0, 0.0, 6.0))
+	await Loading.breathe("Setting up: decks", 0.25)
 	_build_decks(Vector3(-8.0, 0.0, 24.0))
+	await Loading.breathe("Setting up: wall", 0.27)
 	_build_wall(Vector3(-16.0, 0.0, 8.0))
+	await Loading.breathe("Setting up: pool", 0.30)
 	_build_pool()
+	await Loading.breathe("Setting up: falls", 0.32)
 	_build_falls()
+	await Loading.breathe("Setting up: lumps", 0.34)
 	_build_lumps()
+	await Loading.breathe("Setting up: pond", 0.36)
 	_build_pond()
+	await Loading.breathe("Setting up: kick", 0.38)
 	_build_kick(Vector3(-5.5, 0.0, 6.0))
+	await Loading.breathe("Setting up: fire", 0.41)
 	_build_fire(Vector3(6.5, 0.0, 6.5))
+	await Loading.breathe("Setting up: oil", 0.43)
 	_build_oil(Vector3(-40.0, 0.0, -52.0))
-	_build_hounds(Vector3(-36.0, 0.0, 30.0))
+	await Loading.breathe("Setting up: hounds", 0.45)
+	await _build_hounds(Vector3(-36.0, 0.0, 30.0))
+	await Loading.breathe("Setting up: mummy", 0.47)
 	_build_mummy(Vector3(-42.0, 0.0, -32.0))
+	await Loading.breathe("Setting up: range", 0.50)
 	_build_range(Vector3(40.0, 0.0, 36.0))
-	_build_camels(Vector3(-44.0, 0.0, 6.0))
+	await Loading.breathe("Setting up: camels", 0.52)
+	await _build_camels(Vector3(-44.0, 0.0, 6.0))
+	await Loading.breathe("Setting up: birds", 0.54)
 	_build_birds(Vector3(-12.0, 0.0, 46.0))
+	await Loading.breathe("Setting up: dig", 0.56)
 	_build_dig(Vector3(24.5, 0.0, 27.0))
+	await Loading.breathe("Setting up: grapple", 0.58)
 	_build_grapple(Vector3(6.0, 0.0, -47.0))
+	await Loading.breathe("Setting up: puzzles", 0.61)
 	_build_puzzles(Vector3(-50.0, 0.0, -12.0))
+	await Loading.breathe("Setting up: light and water", 0.63)
 	_build_light_and_water(Vector3(54.0, 0.0, 12.0))
+	await Loading.breathe("Setting up: scarabs", 0.65)
 	_build_scarabs(Vector3(-18.0, 0.0, -46.0))
+	await Loading.breathe("Setting up: glyphs", 0.67)
 	_build_glyphs(Vector3(44.0, 0.0, -44.0))
+	await Loading.breathe("Setting up: railway", 0.70)
 	_build_railway(Vector3(10.0, 0.0, 58.5))
+	await Loading.breathe("Setting up: kinds", 0.72)
 	_build_kinds()
-	_build_canines(Vector3(-50.0, 0.0, 50.0))
+	await Loading.breathe("Setting up: canines", 0.74)
+	await _build_canines(Vector3(-50.0, 0.0, 50.0))
+	await Loading.breathe("Setting up: medjed", 0.76)
 	_build_medjed(Vector3(MEDJED.position.x, 0.0, MEDJED.position.y))
 
+	await Loading.breathe("Setting up: guardians", 0.78)
 	_build_guardians(Vector3(GUARDIANS.position.x, 0.0, GUARDIANS.position.y))
 
+	await Loading.breathe("Setting up: sphinx", 0.81)
 	_build_sphinx(Vector3(SPHINXES.position.x, 0.0, SPHINXES.position.y))
 
+	await Loading.breathe("Setting up: khepri", 0.83)
 	_build_khepri(Vector3(KHEPRI_COURT.position.x, 0.0, KHEPRI_COURT.position.y))
 
+	await Loading.breathe("Setting up: ba", 0.85)
 	_build_ba(Vector3(BA_FLAT.position.x, 0.0, BA_FLAT.position.y))
 
+	await Loading.breathe("Setting up: apophis", 0.87)
 	_build_apophis(Vector3(40.0, 0.0, -57.5))
 	_settle_in.call_deferred()
+	Loading.built()
 
 
 func _build_light() -> void:
@@ -250,17 +285,20 @@ func _build_ground() -> void:
 	_dunes.add_ridge(Vector2(-88.0, -70.0), Vector2(-104.0, 60.0), 9.0, 0.05, 3)
 	_dunes.add_ridge(Vector2(96.0, -96.0), Vector2(78.0, 40.0), 7.5, 0.06, 8)
 	_dunes.scatter(Rect2(-YARD, -YARD, YARD * 2.0, YARD * 2.0), 22, Vector2(3.5, 9.0), beyond, 0.2)
+	await Loading.breathe("Setting up: the dunes", 0.2)
 	var side := YARD * 2 + 1
 	var heights := _dunes.bake(Vector2(-YARD, -YARD), 1.0, side, side)
 	for row in side:
 		for column in side:
 			heights[row * side + column] = _shaped(heights[row * side + column], column - YARD, row - YARD)
+	await Loading.breathe("Setting up: the sand", 0.24)
 	ground = SandGround.new()
 	ground.name = "Ground"
 	ground.half = Vector2(YARD, YARD)
 	ground.cell = 1.0
 	add_child(ground)
 	ground.build(heights)
+	await Loading.breathe("Setting up: the paths", 0.28)
 	# Damp sand round the pool, and paths trodden hard from the start to each station.
 	ground.paint(Sand.Kind.DAMP, Vector2(POOL.x, POOL.z), 7.5, 1.0, 3.5)
 	for to: Vector2 in [Vector2(8.0, -12.0), Vector2(20.0, 6.0), Vector2(-11.0, 24.0), Vector2(-16.0, 3.0), Vector2(-18.0, -8.0), Vector2(-2.0, -20.0), Vector2(25.0, -23.0)]:
@@ -677,6 +715,7 @@ func _build_hounds(at: Vector3) -> void:
 	# Somewhere to climb out of their reach
 	_solid(at + Vector3(8.0, 1.05, -5.0), Vector3(3.0, 2.1, 3.0), PROP)
 	for kennel: Vector3 in [Vector3(-7.0, 0.1, -1.5), Vector3(-8.5, 0.1, 1.5)]:
+		await Loading.breathe("Setting up: hounds")
 		var hound := Hound.new()
 		hound.position = at + kennel
 		add_child(hound)
@@ -767,6 +806,7 @@ func _build_camels(at: Vector3) -> void:
 	saddled.position = at + Vector3(-2.0, 0.1, -2.5)
 	saddled.tether = at + Vector3(-3.5, 0.0, -3.0)
 	add_child(saddled)
+	await Loading.breathe("Setting up: camels")
 	var resting := Camel.new()
 	resting.packed = true
 	resting.haltered = true
@@ -793,6 +833,7 @@ hyenas hang about beyond", 3.8)
 	_solid(at + Vector3(3.5, 1.05, -4.0), Vector3(3.0, 2.1, 3.0), PROP)
 	var jackals: Array[JackalMummy] = []
 	for side: float in [-1.0, 1.0]:
+		await Loading.breathe("Setting up: canines")
 		_solid(at + Vector3(-4.0, 0.3, side * 2.6), Vector3(1.9, 0.6, 0.9), PROP.darkened(0.08))
 		var jackal := JackalMummy.new()
 		jackal.finery = JackalMummy.Finery.MASK if side > 0.0 else JackalMummy.Finery.COLLAR
@@ -819,6 +860,7 @@ hyenas hang about beyond", 3.8)
 			else:
 				jackal.reset())
 	for den: Vector3 in [Vector3(-9.0, 0.0, 9.5), Vector3(-11.5, 0.0, 7.0)]:
+		await Loading.breathe("Setting up: canines")
 		var hyena := Hyena.new()
 		hyena.position = Vector3(at.x + den.x, height_at(at.x + den.x, at.z + den.z) + 0.2, at.z + den.z)
 		hyena.rotation.y = 2.2

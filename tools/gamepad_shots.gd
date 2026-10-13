@@ -22,6 +22,7 @@ func _initialize() -> void:
 	out = OS.get_cmdline_user_args()[0]
 	DirAccess.make_dir_recursive_absolute(out)
 	Gamepad.device = PAD
+	Loading.instant = true
 	LevelLayout.saved_at = "user://gamepad_shots_layout.json"
 	TombSpec.path = "user://gamepad_shots_my_tombs.json"
 	TombDaily.path = "user://gamepad_shots_tombs.json"

@@ -141,7 +141,8 @@ func put_on_first() -> void:
 ## Whether the gamepad is its own now: because it was given it (`active`), woken (`wake`), or something is up that
 ## is all there is to work (`scope`).
 func has_pad() -> bool:
-	if get_tree().paused and not when_paused:
+	# (nor while a level is being opened: nothing is passed on then, see Loading)
+	if Loading.busy or (get_tree().paused and not when_paused):
 		return false
 	return active or _awake or _in_scope
 

@@ -32,6 +32,8 @@ const Door := TombParts.Door
 const WEB_SUN := 0.3
 const STONE := Color(0.62, 0.55, 0.44)
 const WOOD := Color(0.5, 0.38, 0.24)
+## What the notebook's page says while each of the things that take longest is made (see `_ready`, and Loading).
+const BUILDING := {"cliff": "Raising the cliffs", "rocks": "Standing the rocks up", "valley": "Cutting the valley", "pyramid": "Building the pyramids", "temple": "Building the temple", "abu_simbel": "Cutting the great temple", "sphinx": "Carving the sphinx"}
 
 ## Where to put him when the level next opens, if anywhere: the editor's "Play from here".
 static var play_from := Vector3.INF
@@ -91,13 +93,27 @@ func _ready() -> void:
 	_items = Node3D.new()
 	_items.name = "Items"
 	add_child(_items)
-	for item: Dictionary in layout["items"]:
+	# Opened behind the notebook's page (see Loading) it is made a little at a time, with a frame let
+	# go by between, so that the page is seen to move; opened any other way these waits are nothing.
+	var items: Array = layout["items"]
+	var big := ""
+	for i in items.size():
+		var item: Dictionary = items[i]
+		var far := 0.3 + 0.5 * i / maxf(items.size(), 1.0)
+		if BUILDING.has(item["kind"]) and item["kind"] != big:
+			# (the ground's own rock and the great stones each take a while: the page says which first)
+			big = item["kind"]
+			await Loading.stage(BUILDING[big], far)
+		else:
+			await Loading.breathe("Setting out the dig", far)
 		make(item)
+	await Loading.stage("Raising the wind", 0.82)
 	mirage = HeatMirage.new()
 	add_child(mirage)
 	heat(float(layout.get("mirage", HeatMirage.USUAL)))
 	_weather()
 	_settle_in.call_deferred()
+	Loading.built()
 
 
 ## Sets how much the heat makes the distance swim, 0..1 (0: not at all).

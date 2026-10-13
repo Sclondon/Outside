@@ -106,7 +106,7 @@ func _process(delta: float) -> void:
 # "Step back"), as the arrow keys do. With one in his hands the mark is on the
 # first name from the start.
 func _work_pad(delta: float) -> void:
-	if dealt.is_empty():
+	if dealt.is_empty() or Loading.busy:
 		return
 	if Gamepad.using_pad() and not _keys:
 		_keys = true

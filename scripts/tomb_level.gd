@@ -757,20 +757,17 @@ func _show_result(said: Dictionary) -> void:
 			Desert.play_from = back_at
 			var scene := back_to
 			back_to = ""
-			get_tree().paused = false
-			get_tree().change_scene_to_file(scene)))
+			Loading.go(scene)))
 
 
 func _open_tomb(chosen: Dictionary) -> void:
 	TombLevel.play = chosen
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	Loading.again()
 
 
 ## To the tomb editor (`tomb_editor.tscn`), which opens on the tomb last worked on there.
 func _to_editor() -> void:
-	get_tree().paused = false
-	get_tree().change_scene_to_file("res://tomb_editor.tscn")
+	Loading.go("res://tomb_editor.tscn")
 
 
 func _open_card(title: String) -> VBoxContainer:

@@ -511,7 +511,7 @@ func _process(delta: float) -> void:
 	if moved:
 		_arrange()
 		queue_redraw()
-	if _open and _out >= 1.0:
+	if _open and _out >= 1.0 and not Loading.busy:
 		_work_pad(delta)
 	# (what says which button to press is drawn again when he takes up something else)
 	if _shown_for != Gamepad.using:
@@ -1494,10 +1494,8 @@ func _edit() -> void:
 
 
 func _restart() -> void:
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	Loading.again()
 
 
 func _go_to(scene: String) -> void:
-	get_tree().paused = false
-	get_tree().change_scene_to_file(scene)
+	Loading.go(scene)
