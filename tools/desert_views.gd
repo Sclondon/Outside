@@ -35,6 +35,8 @@ const TEMPLE_VIEWS := [
 	["whole_level", Vector3(60, 420, 520), Vector3(40, 0, 0), 50.0],
 	["edfu_way", Vector3(205, 1.2, 175), Vector3(130, 12, 175), 55.0],
 	["edfu_gate", Vector3(146, 1.2, 177), Vector3(120, 9, 175), 55.0],
+	["above_all", Vector3(0, 950, 1), Vector3(0, 0, 0), 60.0],
+	["edge_low", Vector3(-330, 40, 0), Vector3(-460, 0, 0), 60.0],
 	["luxor", Vector3(230, 45, 380), Vector3(40, 8, 298), 55.0],
 	["luxor_gate", Vector3(150, 1.6, 300), Vector3(100, 10, 298), 60.0],
 	["luxor_court", Vector3(60, 14, 298), Vector3(-40, 6, 298), 60.0],
