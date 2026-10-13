@@ -9,9 +9,12 @@ extends Control
 ##   Me       how he is turned out: his face, the cut and colour of his hair, his
 ##            skin and eyes, what he wears and the colour of each thing, his cap,
 ##            a helmet and a backpack, or all of it at random. A photograph of
-##            him is stuck in beside the lists, and is him as he stands.
+##            him is stuck in beside the lists, and is him as he stands. Every
+##            colour is chosen on the colour wheel (ColourWheel): touch what
+##            is to be painted, then the wheel.
 ##   Places   the levels, on a map; starting this one again; the level editor
-##   Notes    how things are drawn: figures full or demade, the world's light
+##   Notes    how things are drawn: figures full or demade, the world's light;
+##            and how a gamepad's stick turns the camera
 ##
 ## The game pauses while it is out. Touching anywhere off the book, the corner
 ## again, the strap at the foot of the tabs, or Esc puts it away.
@@ -21,8 +24,11 @@ extends Control
 ##
 ## Nothing here is a Button: every page is drawn by hand (NotebookInk), and
 ## each thing that can be touched is a "spot", a rectangle on a page noted as
-## the page is drawn (see `_spot`). A finger, the arrow keys or a stick, and
-## Enter or the jump button, all work the same spots.
+## the page is drawn (see `_spot`). A finger, the arrow keys, and a gamepad
+## all work the same spots: the keys and the gamepad move a mark from spot to
+## spot (`_focus`, `_move_focus`), and Enter or A works the one it is on. With
+## a gamepad B goes back (from a page to its tab, then away), and the shoulders
+## turn to the next part and the one before. See Gamepad (scripts/gamepad.gd).
 
 const Ink := preload("res://scripts/notebook_ink.gd")
 
@@ -81,10 +87,29 @@ var _turn := 1.0
 var _turn_dir := 1
 var _turn_from := {}
 var _turn_face := -1
-## Which of his garments the paints colour.
+## Which of his garments the colour wheel paints; or, if `_painting` is not "", the part of him it paints instead
+## ("skin", "hair" or "iris").
 var _garment := 0
 var _garments: Array = []
-var _paints: Array[Color] = []
+var _painting := ""
+## The colour wheel on the page he is dressed on (see ColourWheel), the finger that has hold of it, and whether a
+## gamepad has: then the sticks work it and nothing else, and `_wheel_was` is the colour to put back.
+var _wheel := ColourWheel.new()
+var _wheel_index := -1
+var _wheel_held := false
+var _wheel_was := Color.WHITE
+var _wheel_moved := false
+## What a finger can take hold of and slide, noted as the pages are drawn: {"on", "rect", "put"} each, `put` being
+## told how far along it is, 0 to 1. And the one a finger has hold of.
+var _grips: Array[Dictionary] = []
+var _grip := {}
+var _grip_index := -1
+## A gamepad's d-pad and stick, as steps of the mark from one thing to the next.
+var _steps := Gamepad.Steps.new()
+## Set when a gamepad has turned to another part: the mark goes to the first thing on its pages once they are drawn.
+var _to_first := 0
+## Which of the keys, a gamepad and a finger the pages were last drawn for (they say what to press).
+var _shown_for := Gamepad.Using.KEYS
 
 ## What can be touched: {"on", "id", "rect", "act"} each, noted as the pages are drawn.
 var _spots: Array[Dictionary] = []
@@ -120,7 +145,8 @@ func _ready() -> void:
 	# PLACEHOLDER entries, so that the journal is not blank: see Notebook.placeholders
 	Notebook.placeholders()
 	_journal_at = _journal_spreads() - 1
-	_paints.assign(CharacterLook.SHIRTS + CharacterLook.CLOTHS + CharacterLook.DRESSES + CharacterLook.LEATHERS + CharacterLook.STOCKINGS)
+	Gamepad.ensure(get_tree())
+	_wheel.changed.connect(func() -> void: _wheel_moved = true)
 
 	_board_box = StyleBoxFlat.new()
 	_board_box.bg_color = Ink.LEATHER
@@ -179,7 +205,7 @@ func _input(event: InputEvent) -> void:
 	# (the level editor hides the rest of the screen while it is open, this with it)
 	if not is_visible_in_tree():
 		return
-	if event.is_action_pressed(&"ui_cancel") or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START):
+	if event.is_action_pressed(&"ui_cancel") or Gamepad.pressed(event, &"pad_start"):
 		_keys = true
 		_set_open(not _open)
 		get_viewport().set_input_as_handled()
@@ -188,9 +214,15 @@ func _input(event: InputEvent) -> void:
 	elif not _open:
 		return
 	elif event is InputEventScreenDrag:
+		_dragged(event)
 		get_viewport().set_input_as_handled()
-	elif event is InputEventKey or event is InputEventJoypadButton or event is InputEventJoypadMotion:
+	elif event is InputEventKey:
 		_keyed(event)
+	elif event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		# (its d-pad and sticks are asked each frame, in `_process`: here, only its buttons. And none of it is the game's.)
+		if Gamepad.heard(event):
+			get_viewport().set_input_as_handled()
+			_padded(event)
 
 
 func _touched(event: InputEventScreenTouch) -> void:
@@ -202,11 +234,19 @@ func _touched(event: InputEventScreenTouch) -> void:
 			get_viewport().set_input_as_handled()
 		elif _open:
 			_keys = false
+			_wheel_held = false
+			get_viewport().set_input_as_handled()
+			# (the colour wheel and whatever slides are taken hold of, and follow the finger: see `_dragged`)
+			if _take_hold(event.index, at):
+				_refresh()
+				return
 			_press_index = event.index
 			_press_at = at
 			_held = _spot_at(at).get("id", "")
 			_refresh()
-			get_viewport().set_input_as_handled()
+	elif event.index == _wheel_index or event.index == _grip_index:
+		_let_go_of(event.index)
+		get_viewport().set_input_as_handled()
 	elif event.index == _press_index:
 		_press_index = -1
 		var let_go := _spot_at(at)
@@ -228,25 +268,22 @@ func _touched(event: InputEventScreenTouch) -> void:
 func _keyed(event: InputEvent) -> void:
 	var handled := true
 	if event.is_action_pressed(&"ui_left", true):
-		_move_focus(Vector2.LEFT)
+		_step(Vector2.LEFT)
 	elif event.is_action_pressed(&"ui_right", true):
-		_move_focus(Vector2.RIGHT)
+		_step(Vector2.RIGHT)
 	elif event.is_action_pressed(&"ui_up", true):
-		_move_focus(Vector2.UP)
+		_step(Vector2.UP)
 	elif event.is_action_pressed(&"ui_down", true):
-		_move_focus(Vector2.DOWN)
+		_step(Vector2.DOWN)
 	elif event.is_action_pressed(&"ui_accept"):
+		_work_focus()
+	elif event.is_action_pressed(&"ui_page_down") or event.is_action_pressed(&"ui_focus_next"):
 		_keys = true
-		for spot in _spots:
-			if spot["id"] == _focus:
-				(spot["act"] as Callable).call()
-				break
-		_refresh()
-	elif event.is_action_pressed(&"ui_page_down") or event.is_action_pressed(&"ui_focus_next") or _button(event, JOY_BUTTON_RIGHT_SHOULDER):
-		_keys = true
+		_wheel_held = false
 		_step_section(1)
-	elif event.is_action_pressed(&"ui_page_up") or event.is_action_pressed(&"ui_focus_prev") or _button(event, JOY_BUTTON_LEFT_SHOULDER):
+	elif event.is_action_pressed(&"ui_page_up") or event.is_action_pressed(&"ui_focus_prev"):
 		_keys = true
+		_wheel_held = false
 		_step_section(-1)
 	else:
 		handled = false
@@ -254,8 +291,143 @@ func _keyed(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func _button(event: InputEvent, button: JoyButton) -> bool:
-	return event is InputEventJoypadButton and event.pressed and event.button_index == button
+# A gamepad's buttons: A works what the mark is on, B goes back (out of the
+# colour wheel, then from a page to its tab, then away), the shoulders turn to
+# the next part and the one before.
+func _padded(event: InputEvent) -> void:
+	if Gamepad.pressed(event, &"pad_a"):
+		_work_focus()
+	elif Gamepad.pressed(event, &"pad_b"):
+		_keys = true
+		if _wheel_held:
+			_wheel_held = false
+			_wheel.set_colour(_wheel_was)
+			_paint(_wheel_was)
+		elif _focus.begins_with("tab:"):
+			_set_open(false)
+		else:
+			_focus = "tab:" + _section
+		_refresh()
+	elif Gamepad.pressed(event, &"pad_rb") or Gamepad.pressed(event, &"pad_lb"):
+		_keys = true
+		_wheel_held = false
+		_to_first = 2
+		_step_section(1 if Gamepad.pressed(event, &"pad_rb") else -1)
+
+
+# Works whatever the mark is on, as a touch on it would. (On the colour wheel:
+# takes hold of it, or, held, lets it go with the colour it has come to.)
+func _work_focus() -> void:
+	_keys = true
+	if _wheel_held:
+		_wheel_held = false
+		_refresh()
+		return
+	for spot in _spots:
+		if spot["id"] == _focus:
+			# (a tab, with a gamepad: the mark goes on to its pages)
+			_to_first = 2 if _focus.begins_with("tab:") and _focus != "tab:away" and Gamepad.using_pad() else 0
+			(spot["act"] as Callable).call()
+			break
+	_refresh()
+
+
+# A step of the mark, by an arrow key or a gamepad: to the next thing that
+# way; or, on something that slides, along it; or, with the colour wheel held,
+# about its square.
+func _step(way: Vector2) -> void:
+	_keys = true
+	if _wheel_held:
+		_wheel.move(way * 0.05)
+		return
+	if way.y == 0.0:
+		for spot in _spots:
+			if spot["id"] == _focus and spot.has("slide"):
+				(spot["slide"] as Callable).call(int(way.x))
+				_refresh()
+				return
+	_move_focus(way)
+
+
+# What a gamepad's d-pad and sticks do, asked each frame while the book is
+# open: they step the mark about; or, with the colour wheel held, the left
+# stick points at a hue and the right stick and the d-pad move in the square.
+func _work_pad(delta: float) -> void:
+	_steps.stick = not _wheel_held
+	var way := _steps.take(delta)
+	if way != Vector2.ZERO:
+		_step(way)
+		_refresh()
+	if _wheel_held:
+		_wheel.point(Gamepad.left())
+		_wheel.move(Gamepad.right() * delta * 0.7)
+	if _wheel_moved:
+		_wheel_moved = false
+		_paint(_wheel.colour())
+	# (a frame after the leaf has gone over: when the pages it turned to have been drawn, and say what is on them)
+	if _to_first > 0 and _turn >= 1.0:
+		_to_first -= 1
+		if _to_first == 0:
+			_focus_first()
+
+
+# Puts the mark on the first thing on the pages that are open (the highest on the left page, or failing that the right).
+func _focus_first() -> void:
+	var best := ""
+	var least := INF
+	for spot in _spots:
+		if spot["on"] != _left and spot["on"] != _right:
+			continue
+		var rect: Rect2 = spot["rect"]
+		var order := (0.0 if spot["on"] == _left else 10000.0) + rect.position.y * 4.0 + rect.position.x
+		if order < least:
+			least = order
+			best = spot["id"]
+	if best != "":
+		_focus = best
+		_refresh()
+
+
+# A finger has come down on the open book: whether it was on the colour wheel
+# or on something that slides, and so has hold of that.
+func _take_hold(index: int, at: Vector2) -> bool:
+	if _out < 1.0 or _turn < 1.0:
+		return false
+	var on_screen := get_global_transform() * at
+	if _section == "me" and _wheel.press(_right.get_global_transform().affine_inverse() * on_screen):
+		_wheel_index = index
+		return true
+	for grip in _grips:
+		var on := grip["on"] as Node2D
+		var rect: Rect2 = grip["rect"]
+		var local := on.get_global_transform().affine_inverse() * on_screen
+		if on.is_visible_in_tree() and rect.has_point(local):
+			_grip = grip
+			_grip_index = index
+			(grip["put"] as Callable).call(clampf((local.x - rect.position.x) / rect.size.x, 0.0, 1.0))
+			return true
+	return false
+
+
+# The finger that has hold of the wheel, or of something that slides, has moved.
+func _dragged(event: InputEventScreenDrag) -> void:
+	var on_screen: Vector2 = get_global_transform() * make_input_local(event).position
+	if event.index == _wheel_index:
+		_wheel.drag(_right.get_global_transform().affine_inverse() * on_screen)
+	elif event.index == _grip_index and not _grip.is_empty():
+		var rect: Rect2 = _grip["rect"]
+		var local := (_grip["on"] as Node2D).get_global_transform().affine_inverse() * on_screen
+		(_grip["put"] as Callable).call(clampf((local.x - rect.position.x) / rect.size.x, 0.0, 1.0))
+
+
+func _let_go_of(index: int) -> void:
+	if index == _wheel_index:
+		_wheel_index = -1
+		_wheel.release()
+	if index == _grip_index:
+		_grip_index = -1
+		_grip = {}
+	_refresh()
 
 
 ## Moves the mark the keys work to the nearest spot that way.
@@ -265,6 +437,9 @@ func _move_focus(way: Vector2) -> void:
 	for spot in _spots:
 		if spot["id"] == _focus:
 			here = _middle(spot)
+			# (on something that is not on the pages now, a leaf being turned: wait)
+			if not (spot["on"] as Node2D).is_visible_in_tree():
+				return
 	if here == Vector2.INF:
 		_focus = "tab:" + _section
 		_refresh()
@@ -272,7 +447,10 @@ func _move_focus(way: Vector2) -> void:
 	var best := ""
 	var least := INF
 	for spot in _spots:
-		var to := _middle(spot) - here
+		# (from the nearest edge of it, mostly: so that something wide is not passed over for something small beyond it)
+		var rect: Rect2 = (spot["on"] as Node2D).get_global_transform() * (spot["rect"] as Rect2)
+		var near := Vector2(clampf(here.x, rect.position.x, rect.end.x), clampf(here.y, rect.position.y, rect.end.y))
+		var to := near.lerp(rect.get_center(), 0.25) - here
 		var along := to.dot(way)
 		var across := absf(to.dot(way.orthogonal()))
 		# (what is more to one side than ahead is not that way at all)
@@ -333,6 +511,12 @@ func _process(delta: float) -> void:
 	if moved:
 		_arrange()
 		queue_redraw()
+	if _open and _out >= 1.0 and not Loading.busy:
+		_work_pad(delta)
+	# (what says which button to press is drawn again when he takes up something else)
+	if _shown_for != Gamepad.using:
+		_shown_for = Gamepad.using
+		_refresh()
 	if _seen_version != Notebook.version:
 		# (what is written while he has it open at the journal he has seen written)
 		if _open and _section == "journal":
@@ -484,19 +668,33 @@ func _arrange() -> void:
 
 
 ## Notes somewhere that can be touched, as it is drawn, and marks it if a finger or the keys are on it.
-func _spot(on: Node2D, id: String, rect: Rect2, act: Callable) -> void:
+## `slide`, if given, is what left and right do on it in place of moving the mark: it is told -1 or 1.
+func _spot(on: Node2D, id: String, rect: Rect2, act: Callable, slide := Callable()) -> void:
 	if _quiet:
 		return
-	_spots.append({"on": on, "id": id, "rect": rect, "act": act})
+	var spot := {"on": on, "id": id, "rect": rect, "act": act}
+	if slide.is_valid():
+		spot["slide"] = slide
+	_spots.append(spot)
 	if _held == id:
 		on.draw_rect(rect.grow(-1.0), Color(0.35, 0.22, 0.08, 0.16))
 	if _keys and _focus == id:
-		Ink.box(on, rect.grow(2.0), Ink.RED, 2.6)
+		# The mark: gone round twice in his red pencil, heavily, with the paper under it rubbed red.
+		on.draw_rect(rect.grow(2.0), Color(Ink.RED, 0.10))
+		Ink.box(on, rect.grow(3.0), Ink.RED, 3.6)
+		Ink.box(on, rect.grow(7.0), Color(Ink.RED, 0.6), 1.6)
+
+
+## Notes something a finger can take hold of and slide: `put` is told how far along `rect` the finger is, 0 to 1.
+func _grip_on(on: Node2D, rect: Rect2, put: Callable) -> void:
+	if not _quiet:
+		_grips.append({"on": on, "rect": rect, "put": put})
 
 
 ## Forgets the spots on something that is about to be drawn again.
 func _forget(on: Node2D) -> void:
 	_spots = _spots.filter(func(spot: Dictionary) -> bool: return spot["on"] != on)
+	_grips = _grips.filter(func(grip: Dictionary) -> bool: return grip["on"] != on)
 
 
 # ---------------------------------------------------------------- the book
@@ -528,6 +726,23 @@ func _draw() -> void:
 	if Notebook.unread > 0 and not _open:
 		draw_circle(corner.position + Vector2(8.0, 7.0), 7.0, Ink.RED, true, -1.0, true)
 		draw_arc(corner.position + Vector2(8.0, 7.0), 7.0, 0.0, TAU, 20, Ink.CARD, 1.5, true)
+	_draw_pad_marks(corner)
+
+
+# With a gamepad in his hands: the button that takes the book out, beside it;
+# and, while it is out, what each button does, along the top of the screen.
+func _draw_pad_marks(corner: Rect2) -> void:
+	if not Gamepad.using_pad():
+		return
+	var ground := Color(0.0, 0.0, 0.0, 0.3)
+	var wide := Gamepad.mark_width(&"pad_start", 13.0, Ink.font())
+	Gamepad.draw(self, &"pad_start", Vector2(corner.position.x - 10.0 - wide * 0.5, corner.get_center().y), 13.0, Ink.CARD, ground, Ink.font())
+	if not _open:
+		return
+	var told := [[&"pad_dpad", "move"], [&"pad_a", "choose"], [&"pad_b", "back"], [&"pad_lb", ""], [&"pad_rb", "turn the pages"]]
+	if _wheel_held:
+		told = [[&"pad_ls", "point at a colour"], [&"pad_rs", ""], [&"pad_dpad", "paler, stronger, lighter, darker"], [&"pad_a", "keep it"], [&"pad_b", "put it back"]]
+	Gamepad.draw_row(self, told, Vector2(22.0, 32.0), 14.0, Color(Ink.CARD, _out), Color(0.0, 0.0, 0.0, 0.3 * _out), Ink.font(), 22)
 
 
 func _board(on: Leaf, rect: Rect2) -> void:
@@ -780,6 +995,7 @@ func _page_me(on: Leaf) -> void:
 	Ink.card_done(on)
 
 	var y := 96.0
+	# (a few paints for each, ready mixed; any other colour is on the wheel across the page)
 	y = _dabs(on, "Skin", "skin", CharacterLook.SKINS, Vector2(304.0, y))
 	y = _dabs(on, "Hair", "hair", CharacterLook.HAIR_COLOURS, Vector2(304.0, y + 6.0))
 	# (they show on the sculpted face, which is the one with eyes to colour)
@@ -797,12 +1013,13 @@ func _dabs(on: Leaf, title: String, material: String, colours: Array[Color], at:
 		Ink.dab(on, cell.grow(-2.0), colours[i])
 		if worn.is_equal_approx(colours[i]):
 			Ink.ring(on, cell.get_center(), Vector2(23.0, 22.0), Ink.INK, 2.4, i)
-		_spot(on, "%s:%d" % [material, i], cell, _recolour.bind(colours[i], material))
+		_spot(on, "%s:%d" % [material, i], cell, _dab.bind(colours[i], material))
 	return at.y + 6.0 + ceili(colours.size() / 4.0) * 47.0 + 22.0
 
 
-## The right page: the lists he chooses from, his cap and pack, and a scrap of
-## each thing he has on, with the paintbox that colours whichever is chosen.
+## The right page: the lists he chooses from, his cap and pack, and the colour
+## wheel, with a scrap of each thing it can paint beside it: his skin, hair and
+## eyes, and each thing he has on. Whichever scrap is chosen is what it paints.
 func _page_wardrobe(on: Leaf) -> void:
 	var helmet := ""
 	for entry: Array in Worn.HELMETS:
@@ -822,23 +1039,31 @@ func _page_wardrobe(on: Leaf) -> void:
 
 	_garments = worn["garments"]
 	_garment = clampi(_garment, 0, _garments.size() - 1)
-	Ink.write(on, Vector2(MARGIN - 6.0, 326.0), "Colours", 21, Ink.FAINT)
-	Ink.write(on, Vector2(MARGIN + 70.0, 326.0), "- touch a scrap, then a paint", 18, Ink.FAINT)
-	var each := 464.0 / maxi(_garments.size(), 5)
-	for i in _garments.size():
-		var cell := Rect2(28.0 + i * each, 334.0, each - 3.0, 66.0)
-		Ink.scrap(on, Rect2(cell.position + Vector2(6.0, 4.0), Vector2(cell.size.x - 12.0, 36.0)), _colour_of(_garments[i][1]))
-		Ink.write_mid(on, Vector2(cell.get_center().x, cell.end.y - 5.0), _garments[i][0], 18, Ink.INK if i == _garment else Ink.FAINT, 0.0)
-		if i == _garment:
-			Ink.ring(on, cell.get_center(), cell.size * 0.5 + Vector2(1.0, 1.0), Ink.RED, 2.2, 3.0)
-		_spot(on, "garment:%d" % i, cell, _choose_garment.bind(i))
-	var chosen := _colour_of(_garments[_garment][1])
-	for i in _paints.size():
-		var cell := Rect2(28.0 + (i % 10) * 46.4, 410.0 + (i / 10) * 48.0, 46.0, 47.0)
-		Ink.dab(on, cell.grow(-2.0), _paints[i])
-		if chosen.is_equal_approx(_paints[i]):
-			Ink.ring(on, cell.get_center(), Vector2(23.0, 22.0), Ink.INK, 2.4, i)
-		_spot(on, "paint:%d" % i, cell, _paint_garment.bind(_paints[i]))
+	Ink.write(on, Vector2(MARGIN - 6.0, 324.0), "Colours", 21, Ink.FAINT)
+	Ink.write(on, Vector2(MARGIN + 70.0, 324.0), "- touch what to paint, then the wheel", 18, Ink.FAINT)
+	# What can be painted, two to a row at the right: his skin, hair and eyes, then each thing he wears.
+	var things: Array = [["Skin", "skin"], ["Hair", "hair"], ["Eyes", "iris"]] + _garments
+	for i in things.size():
+		var cell := Rect2(284.0 + (i % 2) * 105.0, 334.0 + (i / 2) * 49.0, 103.0, 47.0)
+		var is_chosen: bool = _painting == things[i][1] if i < 3 else (_painting == "" and i - 3 == _garment)
+		Ink.scrap(on, Rect2(cell.position + Vector2(4.0, 8.0), Vector2(30.0, 30.0)), _colour_of(things[i][1]))
+		var size := 18
+		while size > 13 and Ink.width_of(things[i][0], size) > 62.0:
+			size -= 1
+		Ink.write(on, cell.position + Vector2(39.0, 30.0), things[i][0], size, Ink.INK if is_chosen else Ink.FAINT, 0.0)
+		if is_chosen:
+			Ink.ring(on, cell.get_center(), cell.size * 0.5 + Vector2(1.0, 0.0), Ink.RED, 2.2, 3.0)
+		if i < 3:
+			_spot(on, "part:" + things[i][1], cell, _choose_part.bind(things[i][1]))
+		else:
+			_spot(on, "garment:%d" % (i - 3), cell, _choose_garment.bind(i - 3))
+	# The wheel: it stands at the colour of whatever it paints, and paints it as it is turned.
+	# (but not while it has been turned and he has yet to be painted: that comes first, in `_work_pad`)
+	if not _wheel_moved:
+		_wheel.set_colour(_colour_of(_painted()))
+	var round := Rect2(26.0, 334.0, 248.0, 248.0)
+	_wheel.draw(on, round, _wheel_held)
+	_spot(on, "wheel", round, _hold_wheel)
 
 
 ## A line of a list to step through: what it is, an arrow each way, and what is chosen between them.
@@ -960,12 +1185,40 @@ func _page_notes(on: Leaf) -> void:
 	_title(on, "Notes")
 	_either(on, "figures", "Figures drawn", "in full", "demade", Settings.low_poly, _swap_models, 100.0)
 	_either(on, "world", "Light on the world", "smooth", "in bands", Settings.world_banded, _swap_world, 220.0)
-	Ink.write(on, Vector2(MARGIN, 356.0), "(changing either starts this place again)", 19, Ink.FAINT)
-	# Room for more, later
-	Ink.write(on, Vector2(MARGIN, 416.0), "Sound", 24, Ink.FAINT)
-	Ink.write(on, Vector2(MARGIN + 150.0, 416.0), "- nothing to set yet", 20, Ink.FAINT)
-	Ink.write(on, Vector2(MARGIN, 476.0), "Controls", 24, Ink.FAINT)
-	Ink.write(on, Vector2(MARGIN + 150.0, 476.0), "- nothing to set yet", 20, Ink.FAINT)
+	Ink.write(on, Vector2(MARGIN, 336.0), "(changing either starts this place again)", 19, Ink.FAINT)
+	# A gamepad's right stick: how fast it turns the camera, and which way up and down go.
+	_slider(on, "look_speed", "Looking about, with a gamepad's stick:", "slower", "faster", inverse_lerp(0.4, 2.0, Settings.look_speed), _set_look_speed, 366.0)
+	_either(on, "look_invert", "Pushed away, the stick looks", "up", "down", Settings.look_invert, _swap_look, 470.0)
+
+
+## A line to slide a knob along, from one word to the other: `at` is how far along it stands (0 to 1), and `put` is
+## told where it is put. A finger drags the knob, or touches the line; left and right move it a tenth with the mark on it.
+func _slider(on: Leaf, id: String, title: String, least: String, most: String, at: float, put: Callable, y: float) -> void:
+	Ink.write(on, Vector2(MARGIN, y + 24.0), title, 24, Ink.INK)
+	var line := Rect2(MARGIN + 86.0, y + 38.0, 270.0, 56.0)
+	Ink.write(on, Vector2(MARGIN + 14.0, y + 74.0), least, 22, Ink.FAINT)
+	Ink.write(on, Vector2(line.end.x + 16.0, y + 74.0), most, 22, Ink.FAINT)
+	var middle := line.get_center().y
+	Ink.line(on, Vector2(line.position.x, middle), Vector2(line.end.x, middle - 1.0), Ink.PENCIL, 2.4)
+	for i in 11:
+		var x := line.position.x + line.size.x * i / 10.0
+		Ink.line(on, Vector2(x, middle - (9.0 if i % 5 == 0 else 5.0)), Vector2(x, middle + (9.0 if i % 5 == 0 else 5.0)), Ink.FAINT, 1.3)
+	var knob := Vector2(line.position.x + line.size.x * clampf(at, 0.0, 1.0), middle)
+	on.draw_circle(knob, 13.0, Ink.PAPER, true, -1.0, true)
+	Ink.ring(on, knob, Vector2(13.0, 12.5), Ink.RED, 2.6, y)
+	on.draw_circle(knob, 4.5, Ink.RED, true, -1.0, true)
+	_spot(on, id, line.grow_individual(8.0, 0.0, 8.0, 0.0), func() -> void: pass, func(by: int) -> void: put.call(clampf(snappedf(at + by * 0.1, 0.1), 0.0, 1.0)))
+	_grip_on(on, line, put)
+
+
+func _set_look_speed(along: float) -> void:
+	Settings.look_speed = snappedf(lerpf(0.4, 2.0, along), 0.01)
+	_refresh()
+
+
+func _swap_look() -> void:
+	Settings.look_invert = not Settings.look_invert
+	_refresh()
 
 
 ## One thing or the other: `second` says whether it is the second that is chosen.
@@ -994,6 +1247,22 @@ func _page_getting_about(on: Leaf) -> void:
 		"The two rings, bottom right: duck, and my hand (pick up, throw, climb).",
 		"Keys: W A S D, Space, C to duck, E for my hand. A gamepad works too.",
 	]
+	# (with a gamepad in his hands it is the gamepad that is written of; with the keys, the keys first)
+	if Gamepad.using_pad():
+		notes = [
+			"The left stick: walk. Push further and I run; hold it there and I sprint.",
+			"The right stick looks about; pressed in, it looks where I am going.",
+			"%s: jump. Hold it for a higher one.  %s: duck, and crawl." % [Gamepad.said(&"pad_a"), Gamepad.said(&"pad_b")],
+			"%s, or %s: my hand (pick up, throw, pull, fire; held, climb)." % [Gamepad.said(&"pad_x"), Gamepad.said(&"pad_rt")],
+			"%s: this book.  %s in a tomb: Stuck, and the map." % [Gamepad.said(&"pad_start"), Gamepad.said(&"pad_back")],
+		]
+	elif Gamepad.using == Gamepad.Using.KEYS:
+		notes = [
+			"Keys: W A S D or the arrows to walk and run; Shift to walk; Space to jump (hold it for a higher one).",
+			"C or Ctrl to duck, E or F for my hand (pick up, throw, climb). Esc: this book.",
+			"A gamepad works too: its left stick, and the buttons where the thumb finds them.",
+			"By touch: left thumb to walk, right thumb to jump, and the two rings for duck and my hand.",
+		]
 	var y := FIRST_LINE - 3.0
 	for text: String in notes:
 		on.draw_circle(Vector2(MARGIN + 5.0, y - 8.0), 3.2, Ink.INK, true, -1.0, true)
@@ -1096,6 +1365,39 @@ func _restyle() -> void:
 	_show_clothes()
 
 
+## What the colour wheel paints: his skin, hair or eyes if one of those is chosen, or else one of his garments.
+func _painted() -> String:
+	if _painting != "":
+		return _painting
+	return _garments[_garment][1] if _garment < _garments.size() else "shirt"
+
+
+## Paints what the wheel paints.
+func _paint(colour: Color) -> void:
+	_recolour(colour, _painted())
+
+
+## One of the ready-mixed paints for his skin, hair or eyes: he is painted with it, and the wheel is turned to that part of him.
+func _dab(colour: Color, material: String) -> void:
+	_painting = material
+	_recolour(colour, material)
+
+
+func _choose_part(material: String) -> void:
+	_painting = material
+	_refresh()
+
+
+## A gamepad (or the keys) takes hold of the colour wheel: see `_work_pad`.
+func _hold_wheel() -> void:
+	# (a finger that came down in a corner of it, off the ring and the square, did not mean this)
+	if not _keys:
+		return
+	_wheel_held = true
+	_wheel_was = _wheel.colour()
+	_refresh()
+
+
 func _recolour(colour: Color, material: String) -> void:
 	Settings.colours[material] = colour
 	CharacterLook.matched(Settings.colours, Settings.outfit)
@@ -1105,12 +1407,8 @@ func _recolour(colour: Color, material: String) -> void:
 
 func _choose_garment(index: int) -> void:
 	_garment = index
+	_painting = ""
 	_refresh()
-
-
-func _paint_garment(colour: Color) -> void:
-	if _garment < _garments.size():
-		_recolour(colour, _garments[_garment][1])
 
 
 func _swap_cap() -> void:

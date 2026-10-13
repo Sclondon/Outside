@@ -7,8 +7,8 @@ extends Control
 ## The game stands still while either is up, so he is safe to read. It is all
 ## drawn here, and worked by a finger: a leaf is put away by a touch anywhere;
 ## a name is said by touching it (each is a button the size of a hand), and
-## "Step back" says nothing. The arrow keys and Enter, or a stick and the jump
-## button, do the same, and Esc steps back.
+## "Step back" says nothing. The arrow keys and Enter, or a gamepad (its d-pad or stick, and A),
+## do the same, and Esc or B steps back. What it says to do is said for whichever was used last (Gamepad.using).
 ##
 ## Nothing here is smaller than 88 high to touch, or written smaller than 26.
 
@@ -42,6 +42,8 @@ var _held := -2
 var _focus := -2
 var _keys := false
 var _was_paused := false
+## A gamepad's d-pad and stick, as steps of the mark.
+var _steps := Gamepad.Steps.new()
 
 
 ## Shows the leaf with this keeper's name on it. `from` is anything in the level.
@@ -77,6 +79,7 @@ static func _open(from: Node) -> GuardianPanel:
 	panel._layer.add_child(panel)
 	tree.root.add_child(panel._layer)
 	current = panel
+	Gamepad.ensure(tree)
 	# The game stands still, and lets go of whatever the thumbs were holding.
 	panel._was_paused = tree.paused
 	tree.paused = true
@@ -95,7 +98,47 @@ func _process(delta: float) -> void:
 	# (the notebook lets the game go on when it is put away: not while this is up)
 	if not get_tree().paused:
 		get_tree().paused = true
+	_work_pad(delta)
 	queue_redraw()
+
+
+# A gamepad: its d-pad or stick moves the mark from name to name (and down to
+# "Step back"), as the arrow keys do. With one in his hands the mark is on the
+# first name from the start.
+func _work_pad(delta: float) -> void:
+	if dealt.is_empty() or Loading.busy:
+		return
+	if Gamepad.using_pad() and not _keys:
+		_keys = true
+		if _focus == -2:
+			_focus = dealt[0]
+	var way := _steps.take(delta)
+	if way != Vector2.ZERO:
+		_step(way)
+
+
+# Moves the mark a step: across the names, down to "Step back", up to the names again.
+func _step(way: Vector2) -> void:
+	_keys = true
+	if way.x != 0.0:
+		var now := dealt.find(_focus)
+		_focus = dealt[clampi(now + int(way.x), 0, dealt.size() - 1)] if _focus >= 0 else dealt[0 if way.x > 0.0 else dealt.size() - 1]
+	elif way.y > 0.0:
+		_focus = -1
+	else:
+		_focus = dealt[1]
+
+
+# A gamepad's buttons: any of them puts a leaf away; A says the name the mark is on, B steps back.
+func _padded(event: InputEvent) -> void:
+	if not (event is InputEventJoypadButton and event.pressed) or _up <= PATIENCE:
+		return
+	if dealt.is_empty():
+		choose(-1)
+	elif Gamepad.pressed(event, &"pad_b"):
+		choose(-1)
+	elif Gamepad.pressed(event, &"pad_a") and _keys and _focus != -2:
+		choose(_focus)
 
 
 ## Puts it away, and lets the game go on.
@@ -136,11 +179,15 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event is InputEventScreenDrag or event is InputEventMouse:
 		get_viewport().set_input_as_handled()
-	elif event is InputEventKey or event is InputEventJoypadButton or event is InputEventJoypadMotion:
+	elif event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		if Gamepad.heard(event):
+			_padded(event)
+			get_viewport().set_input_as_handled()
+	elif event is InputEventKey:
 		if event.is_echo():
 			pass
 		elif dealt.is_empty():
-			if _up > PATIENCE and event.is_pressed() and not event is InputEventJoypadMotion:
+			if _up > PATIENCE and event.is_pressed():
 				choose(-1)
 		elif event.is_action_pressed(&"ui_cancel"):
 			choose(-1)
@@ -213,7 +260,12 @@ func _draw_leaf() -> void:
 	_write_mid(name["from"], Vector2(left, down + 6.0), wide, TEXT, Color(BookOfTheDead.INK, 0.72), 32.0)
 	_write_mid("His name. Whoever says it may pass his gate.", Vector2(picture.position.x, picture.end.y + 44.0), picture.size.x, TEXT, BookOfTheDead.INK, 30.0)
 	if _up > PATIENCE:
-		_write_mid("Touch to put it away", Vector2(left, sheet.end.y - 34.0), wide, TEXT, Color(BookOfTheDead.RUBRIC, 0.6 + 0.4 * sin(_up * 3.0)))
+		var ink := Color(BookOfTheDead.RUBRIC, 0.6 + 0.4 * sin(_up * 3.0))
+		if Gamepad.using_pad():
+			var across := NotebookInk.width_of("puts it away", TEXT) + 44.0
+			Gamepad.draw_row(self, [[&"pad_a", "puts it away"]], Vector2(left + (wide - across) * 0.5, sheet.end.y - 43.0), 15.0, ink, Color(0, 0, 0, 0), NotebookInk.font(), TEXT)
+		else:
+			_write_mid("Touch to put it away" if Gamepad.using == Gamepad.Using.TOUCH else "Any key puts it away", Vector2(left, sheet.end.y - 34.0), wide, TEXT, ink)
 
 
 ## Works out where the buttons are (`buttons`, `back`) from the size of the
@@ -268,4 +320,10 @@ func _draw_names() -> void:
 	if _keys and _focus == -1:
 		draw_rect(back.grow(5.0), BookOfTheDead.RUBRIC, false, 4.0)
 	_write_mid("Step back", Vector2(back.position.x, back.position.y + 56.0), back.size.x, 34, BookOfTheDead.INK)
-	_write_mid("Touch a name to say it.", Vector2(left, back.position.y + 54.0), back.position.x - left - 16.0, TEXT, Color(BookOfTheDead.INK, 0.75))
+	var faint := Color(BookOfTheDead.INK, 0.75)
+	if Gamepad.using_pad():
+		Gamepad.draw_row(self, [[&"pad_dpad", "choose"], [&"pad_a", "say it"], [&"pad_b", "step back"]], Vector2(left + 8.0, back.position.y + 45.0), 15.0, faint, Color(0, 0, 0, 0), NotebookInk.font(), TEXT)
+	elif Gamepad.using == Gamepad.Using.TOUCH:
+		_write_mid("Touch a name to say it.", Vector2(left, back.position.y + 54.0), back.position.x - left - 16.0, TEXT, faint)
+	else:
+		_write_mid("Click a name to say it.", Vector2(left, back.position.y + 54.0), back.position.x - left - 16.0, TEXT, faint)

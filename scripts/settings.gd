@@ -46,6 +46,11 @@ static var parts := {}
 static var helmet := ""
 static var backpack := false
 
+## A gamepad's right stick: how fast it turns the camera (1 is as it was made; 0.4 to 2), and whether pushing it
+## away looks down rather than up.
+static var look_speed := 1.0
+static var look_invert := false
+
 ## Which part of the notebook (the menu: see GameMenu.SECTIONS) was last open, and so is opened at next.
 static var notebook_section := "journal"
 

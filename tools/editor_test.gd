@@ -19,6 +19,8 @@ func _initialize() -> void:
 	Loading.instant = true
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	DisplayServer.window_set_position(Vector2i(-6000, -6000))
+	# (a real gamepad on the desk is heard whether the window has the focus or not, and somebody may be playing: none is listened to)
+	Gamepad.device = 99
 	out = OS.get_cmdline_user_args()[0]
 	DirAccess.make_dir_recursive_absolute(out)
 	run.call_deferred()

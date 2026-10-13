@@ -617,6 +617,30 @@ func _build_hud() -> void:
 			edit.offset_bottom = 68.0
 			edit.add_theme_font_size_override("font_size", 24)
 			_hud.add_child(edit)
+	_build_pad_mark()
+
+
+# How the camera is turned and the map made large, said for whichever of a gamepad, the keys and a finger was used last.
+func _how_to() -> Array:
+	if Gamepad.using_pad():
+		return ["the right stick looks about", "%s, then %s on it, makes it large" % [Gamepad.said(&"pad_back"), Gamepad.said(&"pad_a")]]
+	if Gamepad.using == Gamepad.Using.KEYS:
+		return ["hold the right mouse button and drag to look about", "click it to make it large"]
+	return ["drag the right of the screen to look about", "touch it to make it large"]
+
+
+# For a gamepad (see PadFocus): a card that is up is worked with the d-pad and A; with none up, Back puts the
+# mark on Stuck, Edit and the map (A works them, B or Back gives the gamepad back to the game).
+func _build_pad_mark() -> void:
+	var mark := PadFocus.new()
+	mark.roots = [_hud]
+	mark.scope = func() -> Control: return _card if is_instance_valid(_card) else null
+	mark.wake = &"pad_back"
+	mark.wake_at = Vector2(-520.0 if mode == "custom" else -372.0, 37.0)
+	mark.legend = true
+	if _map:
+		_map.set_meta(&"pad_press", _map.toggle)
+	_hud.add_child(mark)
 
 
 # Whether the plan came with a square for every room (see `TombLayout3D`): the
@@ -682,7 +706,7 @@ func _show_choice() -> void:
 		see.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		see.disabled = way[0] == view and way[1] == shape
 		views.add_child(see)
-	rows.add_child(_line("Seen from the side he keeps to one line. Walked through, the camera is at his back: drag the right of the screen to look about. Branching is another tomb for the day, with ways off to either side and a map: touch it to make it large. Times are kept for each." , 15))
+	rows.add_child(_line("Seen from the side he keeps to one line. Walked through, the camera is at his back: %s. Branching is another tomb for the day, with ways off to either side and a map: %s. Times are kept for each." % _how_to(), 15))
 	rows.add_child(_button("Play today's tomb", func() -> void:
 		_close_card()
 		_held = false

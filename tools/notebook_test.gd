@@ -19,6 +19,8 @@ func _initialize() -> void:
 	Loading.instant = true
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	DisplayServer.window_set_position(Vector2i(-6000, -6000))
+	# (a real gamepad on the desk is heard whether the window has the focus or not, and somebody may be playing: none is listened to)
+	Gamepad.device = 99
 	out = OS.get_cmdline_user_args()[0]
 	DirAccess.make_dir_recursive_absolute(out)
 	# (it gives up, rather than wait for ever, if something has gone wrong)
@@ -74,6 +76,15 @@ func place(id: String) -> Vector2:
 			return menu._middle(spot)
 	check("there is somewhere to touch called " + id, false)
 	return Vector2(-100, -100)
+
+
+## A finger that is down drawn to another place.
+func drag(to: Vector2) -> void:
+	var event := InputEventScreenDrag.new()
+	event.index = 0
+	event.position = to
+	root.push_input(event)
+	await process_frame
 
 
 ## A finger down and up on one of the notebook's spots.
@@ -189,10 +200,31 @@ func run() -> void:
 	await tap("helmet:back")
 	await tap("skin:5")
 	check("his skin is another colour", (Settings.colours.get("skin", Color.BLACK) as Color).is_equal_approx(CharacterLook.SKINS[5]))
+	check("and the wheel is turned to his skin", menu._painted() == "skin" and menu._wheel.colour().is_equal_approx(CharacterLook.SKINS[5]))
 	await tap("garment:1")
-	await tap("paint:22")
 	var overalls: String = CharacterLook.outfit(Settings.outfit)["garments"][1][1]
-	check("and so are his overalls", (Settings.colours.get(overalls, Color.BLACK) as Color).is_equal_approx(menu._paints[22]), overalls)
+	# The colour wheel: a finger on its ring, at the top, drawn a quarter of the way round; then one in its square.
+	var wheel := menu._wheel
+	var on_screen := func(local: Vector2) -> Vector2: return menu._right.get_global_transform() * local
+	var across: float = (on_screen.call(wheel.rect.end) as Vector2).x - (on_screen.call(wheel.rect.position) as Vector2).x
+	check("the colour wheel paints his overalls, and is big enough for a thumb", menu._painted() == overalls and across >= 240.0, "%.0f across" % across)
+	var out := wheel.radius() * 0.87
+	await touch(on_screen.call(wheel.centre() + Vector2(0.0, -out)), true)
+	check("a finger on the top of the ring: red", wheel.held == "ring" and minf(wheel.hue, 1.0 - wheel.hue) < 0.01, "%.3f" % wheel.hue)
+	for step in 9:
+		await drag(on_screen.call(wheel.centre() + Vector2.from_angle(-PI * 0.5 + PI * 0.5 * (step + 1) / 9.0) * out))
+	# (and on out past the ring: it has hold of it still)
+	await drag(on_screen.call(wheel.centre() + Vector2(out * 1.6, 0.0)))
+	await touch(on_screen.call(wheel.centre() + Vector2(out * 1.6, 0.0)), false)
+	check("drawn round to the right: green", wheel.held == "" and absf(wheel.hue - 0.25) < 0.01, "%.3f" % wheel.hue)
+	var square := wheel.square()
+	await touch(on_screen.call(square.position + square.size * Vector2(0.2, 0.2)), true)
+	await drag(on_screen.call(square.position + square.size * Vector2(0.8, 0.3)))
+	await touch(on_screen.call(square.position + square.size * Vector2(0.8, 0.3)), false)
+	await wait(0.1)
+	var painted: Color = Settings.colours.get(overalls, Color.BLACK)
+	check("and one in the square: strong, and a little dark. His overalls are that colour", absf(painted.h - 0.25) < 0.01 and absf(painted.s - 0.8) < 0.02 and absf(painted.v - 0.7) < 0.02, "h %.2f s %.2f v %.2f" % [painted.h, painted.s, painted.v])
+	await picture("desert_me_wheel")
 	await tap("cap")
 	await tap("backpack")
 	await wait(0.2)

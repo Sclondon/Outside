@@ -14,7 +14,91 @@ inside the game, and the test yard (`test_yard.tscn`), where every mechanic has 
   The stick and buttons are drawn on a phone or a tablet, and anywhere else only once a finger has been on the screen
   (`TouchControls.wanted`): with a mouse and keys, or a gamepad, there is nothing over the picture.
 - Keyboard: WASD or arrows, Space to jump, C or Ctrl to duck, E or F to act, Shift to walk, R to drop him as a ragdoll
-  and stand him back up. Gamepads work too.
+  and stand him back up.
+- Gamepad: all of it, the notebook and the editors too. See Gamepad, below.
+
+## Gamepad
+
+Everything can be done with a gamepad alone, from starting the game to leaving it: play, the notebook, whatever comes
+up over the game, and both editors as they are laid out for a desk. Any pad Godot knows the layout of will do (Xbox,
+PlayStation, Switch Pro: SDL's mappings), plugged in before the game starts or after; every action listens to every
+pad. In a browser a pad is only owned up to once one of its buttons has been pressed (that is the browser's rule): press
+one, and it works from then on. The touch controls are not drawn for a gamepad.
+
+The buttons are named here as an Xbox pad names them, by where they are: A is the bottom one of the four (Cross), B the
+right (Circle), X the left (Square), Y the top (Triangle). The keyboard and touch do what they did.
+
+| | Play | The notebook | A panel over the game | The level editor | The tomb editor |
+|---|---|---|---|---|---|
+| Left stick | He moves: a little walks, all the way runs, held there sprints | The mark, from thing to thing; on the colour wheel, points at a hue | The mark | Moves the cross over the ground (the view goes with it) | Moves the tomb about |
+| Right stick | Turns the camera | On the colour wheel: paler, stronger, lighter, darker | | Turns the view and tips it | |
+| D-pad | | The mark; left and right slide a slider; on the wheel, as the right stick | The mark | Left, right: what the page offers to put in. Up, down: the pages. In the settings: the rows, and left and right change a number or a choice | The mark: buttons, the row of rooms, the panel, the marks on a floor plan |
+| A | Jump (held: higher) | Works what the mark is on; takes hold of the colour wheel, and keeps its colour | Says the name; presses the button; puts a leaf away | Chooses the thing at the cross; puts in; joins. Held while the cross moves: carries the thing (or a river's point) | Presses what the mark is on |
+| B | Duck, crawl | Back: out of the wheel (its colour put back), then to the tab, then away | Step back | Not now: gives up putting in, ends joining, unchooses; out of the settings | Closes a sheet; gives up moving or joining a room |
+| X | His hand: pick up, throw, pull a lever, turn a mirror, fire; held, climb a rope | | | Removes what is chosen | Removes the chosen room |
+| Y | | | | The settings of what is chosen (of the desert, with nothing chosen) | The mark to the chosen room's panel |
+| Shoulders | | The part before, the part after | | The page before, the page after | The room before, the room after |
+| Triggers | Right: his hand, as X (to fire) | | | Left nearer, right further off | Left nearer, right further off |
+| Start | The notebook | Puts it away | | Every button of the editor's own (Play, Save, More...), for the d-pad and A | The mark to Play |
+| Back (Select) | In a tomb: the mark on Stuck, Edit and the map | | | | |
+| Left stick pressed in | Drops him as a ragdoll, and stands him up (as R) | | | Undo | Undo |
+| Right stick pressed in | The camera round behind him (as two taps) | | | Redo | Redo |
+
+- **Play.** Guns, the grappling hook, ropes, ladders and swimming are worked as they are by the keys: with the stick,
+  jump, duck and his hand. The right stick turns slowly when pushed a little and has a dead zone; how fast it turns
+  and whether pushing it away looks up or down are in the notebook, under Notes (`Settings.look_speed`,
+  `Settings.look_invert`).
+- **The notebook** keeps its own notion of what the mark is on (its pages are drawn, not made of buttons): the mark is
+  a box gone round twice in red pencil. A shoulder turns to a part and puts the mark on the first thing there.
+- **Panels**: a guardian's names and the leaf (`GuardianPanel`), and the cards of a tomb. The sphinx has no panel: its
+  riddle is answered by bringing it the thing.
+- **A tomb's cards and buttons, and both editors**, are made of real buttons and sliders, which a gamepad cannot reach
+  by itself: `PadFocus` (`scripts/pad_focus.gd`) looks through them each frame, keeps a mark on one, moves it the way
+  the d-pad is pushed, and works it as a touch would. A line of writing (a sign, an inscription, a tomb's name)
+  brings up letters to choose (`PadKeyboard`, `scripts/pad_keyboard.gd`): the d-pad and A write, X rubs out, Y is
+  capitals, Start is done, B leaves it as it was.
+- **The level editor** (`LevelEditorPad`, `scripts/level_editor_pad.gd`): "Choose what works it" in a door's settings
+  goes back to the cross, and A on each plate or lever joins it; B when finished.
+- **What still wants a keyboard**: the level, or a tomb, as text ("More" and "Tombs": Copy and Paste are buttons and
+  work, but the text itself is not typed with a gamepad). On a phone the editors are laid out for thumbs, not for a
+  gamepad.
+- **What says what to press** says it for whichever was used last, a gamepad, the keys or a finger (`Gamepad.using`,
+  which one small node sets from the events as they come): the notebook's "Getting about", the words on a guardian's
+  panel and a tomb's card, the line of words in the level editor, and a row of marks for the buttons wherever a
+  gamepad's mark is. The marks are drawn in code (`Gamepad.draw`): a letter in a ring, the four shapes on a
+  PlayStation pad, the letters where a Switch pad has them.
+
+Before this a gamepad could move him (the pad numbered 0 only), jump, duck, use his hand and turn the camera; take the
+notebook out with Start, move its mark and turn its tabs; and move the mark on a guardian's panel. It could not choose
+anything in the notebook or say a name (A was bound to nothing there), step back, bring the camera round, or reach a
+tomb's cards, its Stuck and Edit, or anything in either editor.
+
+`scripts/gamepad.gd` (`Gamepad`) has the actions, which was used last, and the marks. To check it:
+
+```
+godot --headless --path . --fixed-fps 60 --script tools/gamepad_test.gd
+godot --path . --resolution 1280x720 --script tools/gamepad_shots.gd -- <folder>
+```
+
+The first plays the game with joypad events and nothing else (walks, runs, jumps, ducks, picks up, throws, turns the
+camera, answers a guardian; visits every tab of the notebook, changes a setting, paints his shirt on the wheel; puts
+in, carries, changes, joins, names, removes and undoes in the level editor; goes to the tombs, works the card, and
+makes a room in the tomb editor) and ends PASSED or FAILED. The second takes a picture of each thing the mark is drawn
+on. Both play with a gamepad of their own number and listen to no other (`Gamepad.listen_to`): a real one on the desk
+is heard whether the window has the focus or not, and somebody may be playing. The other tools that open a window
+listen to none (`Gamepad.device = 99`). It has not been tried with a real pad in a browser.
+
+### The colour wheel
+
+Wherever a colour is chosen it is chosen on a wheel (`ColourWheel`, `scripts/colour_wheel.gd`): a ring of every hue,
+and inside it a square of that hue from white across to its full strength and down to black. A finger or a mouse that
+comes down on the ring turns it, and goes on turning it wherever it is dragged; one in the square moves about the
+square. With a gamepad: A on the wheel takes hold of it, the left stick points at a hue, the right stick or the d-pad
+moves in the square, A keeps the colour and B puts back the one it had. The only colours chosen in the game are the
+boy's, in the notebook (Me): his skin, hair and eyes, and each thing he wears. (No thing in either editor has a colour
+to choose; if one is given one, this is what it is to be chosen on.) The few ready-mixed paints for skin, hair and
+eyes beside his photograph are still there, as a quick way to a likely colour: a touch on one paints him and turns the
+wheel to that part of him.
 
 ## What he can do
 
@@ -320,6 +404,8 @@ and keep it in the same form.
 - **Keeping it**: every change is saved on the device as it is made (`user://desert_layout.json`) and is what the
   game plays from then on. "More" shows the whole level as text, to copy off the phone or paste one in, and has
   "Back to the original level". Pasted into `levels/desert.json`, a level becomes the one the game ships with.
+- **With a gamepad** (on a desk): a cross in the middle of the view is moved over the ground with the left stick, and
+  the buttons do the rest (`scripts/level_editor_pad.gd`): see Gamepad, above.
 - Undo and Redo go back and forward through the last forty changes. "Play" starts from the start; "Play here"
   from the middle of the view.
 
@@ -474,18 +560,20 @@ The menu is the boy's field notebook. It lies in the top right corner of the scr
 gamepad) and the book comes up over the stopped game, its cover swings open, and its pages are the menu. Touching
 anywhere off the book, the corner again, the "Put away" strap or Esc puts it away. Tabs down its edge turn to each
 part (a finger drawn across the pages, Page Up and Page Down, or a gamepad's shoulder buttons turn too); the arrow
-keys or a stick move a red mark from one thing to the next, and Enter or the jump button works it.
+keys, or a gamepad's d-pad or stick, move a red mark from one thing to the next, and Enter or A works it (B goes back:
+see Gamepad, above).
 
 - **Journal**: what the game has written in it. Anything new puts a red mark on the notebook in the corner, and is
   what the book then opens at.
 - **Me**: dresses the boy: his face, hair and clothes from lists, his cap and a backpack as boxes to tick, a helmet,
-  paints for his skin, hair and eyes, and a scrap of each thing he wears (touch a scrap, then one of the thirty
-  paints). "Any old how" is all of it at random; "As he was" puts him back. A photograph stuck in the page is him
+  paints for his skin, hair and eyes, and a colour wheel with a scrap beside it of each thing it can paint: his skin,
+  hair and eyes, and each thing he wears (touch a scrap, then the wheel: see The colour wheel, above). "Any old how" is all of it at random; "As he was" puts him back. A photograph stuck in the page is him
   as he stands, so every change is seen as it is made.
 - **Places**: the levels, on a map and as a list; "Start this place again"; and, in the desert, "Edit this level".
 - **Papyrus**: there only once he has found a leaf of the Book of the Dead in this level: the leaves found (see The gate guardians).
-- **Notes**: figures in full or demade, the world's light smooth or in bands (either starts the level again), and
-  how he is moved about.
+- **Notes**: figures in full or demade, the world's light smooth or in bands (either starts the level again); how
+  fast a gamepad's stick turns the camera, and which way up; and how he is moved about, said for whichever of a
+  gamepad, the keys and a finger was used last.
 
 What is chosen lasts until the game is closed.
 
@@ -659,6 +747,11 @@ for 1.3 s now; the test yard 3.8 s and 3.9 s; a tomb 0.4 to 0.5 s and 0.5 to 0.6
 | `tools/build_guardian.py` | Builds the gate guardians and the leaf of papyrus in Blender (`tools/guardian.blend`, `models/guardian.glb`): the figure in wrappings and in a kilt, the nine heads, the knives; separate named things and named materials, no bones |
 | `scripts/book_page.gd`, `scripts/book_of_the_dead.gd` | A leaf of the Book of the Dead to find, with the name of a keeper on it; and the names themselves, the drawings of the keepers, and which leaves he has found in this level |
 | `scripts/guardian_panel.gd` | The leaf to read, and the three names to choose from, over the stopped game |
+| `scripts/gamepad.gd` | The gamepad: its actions, which of a gamepad, the keys and a finger was used last, and the marks drawn for its buttons |
+| `scripts/pad_focus.gd`, `scripts/pad_keyboard.gd` | A gamepad's mark on a screen made of buttons and sliders (a tomb's cards, the editors), and letters to choose for a line of writing |
+| `scripts/level_editor_pad.gd`, `scripts/tomb_editor_pad.gd` | The two editors worked with a gamepad, on a desk |
+| `scripts/colour_wheel.gd` | The colour wheel: a ring of hues and a square inside it, for a finger, a mouse or a gamepad |
+| `tools/gamepad_test.gd`, `tools/gamepad_shots.gd` | Not part of the game: play everything with a gamepad and nothing else, and say what happened; and pictures of the gamepad's mark on everything |
 | `tools/guardian_test.gd`, `tools/guardian_sheets.gd` | Not part of the game: run the guardians and the leaves with nothing drawn, by touch, and say what happened; and pictures of them, of the names on the screen of a phone and of the leaf |
 | `scripts/khepri.gd`, `scripts/akhet.gd` | Khepri and the sun: a big scarab that rolls a ball of sun over a floor of squares, turning at whatever is in its way; and the horizon it is brought to, which is then on for good |
 | `scripts/khepri_court.gd` | The court Khepri is tried in: the test yard's station for it, and what its test and its pictures are run in |
@@ -2064,7 +2157,8 @@ rises stays in `scripts/gate_guardian.gd` (`SEATED`, `RISEN`, `ANKLE`, `THIGH`, 
 moves. The pictures on the leaf and the buttons are drawn in code (`BookOfTheDead.draw_vignette`, `draw_signs`), as is
 the writing on the leaf lying on the ground and the shadow under it, and its voice is made in code,
 not recorded. `scripts/guardian_panel.gd` is the leaf to read and the names to choose from: nothing on it is under 88
-high to touch, or written under 26.
+high to touch, or written under 26. With a gamepad the mark is on the first name as it comes up, the d-pad moves it,
+A says the name and B steps back.
 
 How true it is. The gates, their seated keepers with beasts' heads and knives, and the passing of each by saying a name
 are spells 144 to 147 of the Book of the Dead; in 144 and 147 there are seven gates, each with a keeper, a watcher and
@@ -2411,6 +2505,9 @@ plan with ways off to either side, side chambers, dead ends and loops, and a map
   it), and nothing with a problem is built or played. A
   tomb that can be built but not finished, or in which he could get himself stuck, can still be played: it is said, not
   forbidden.
+- **With a gamepad**, on a desk, the editor is worked from its sticks and buttons (`TombEditorPad`,
+  `scripts/tomb_editor_pad.gd`: see Gamepad, near the top), and so are the card a tomb opens with, the one it ends
+  with, and its Stuck, Edit and map (Back puts the mark on those).
 - **The tomb editor on a phone** (`TombPhoneUI`, `scripts/tomb_phone_ui.gd`) is the same editor with other things to
   touch, for a phone held on its side and worked with two thumbs. It is what `tomb_editor.tscn` opens as wherever the
   touch controls are shown (a phone or a tablet, or once a finger has been on the screen: `TombEditor.wants_phone`), and anywhere with `-- phone`

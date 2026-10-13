@@ -380,6 +380,8 @@ var carried: RigidBody3D
 var visual_position := Vector3.ZERO
 
 var _touch: TouchControls
+## Whether a gamepad's right trigger is pulled (see `_trigger`).
+var _trigger_pulled := false
 var _gravity := 0.0
 var _jump_velocity := 0.0
 var _coyote := 0.0
@@ -519,12 +521,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		_queue_jump()
 	elif event.is_action_pressed(&"act"):
 		_act()
+	elif event is InputEventJoypadMotion:
+		_trigger(event)
 	elif event.is_action_pressed(&"ragdoll"):
 		# For trying it out: R drops him, R again stands him back up.
 		if is_limp:
 			recover()
 		else:
 			ragdoll(Vector3(sin(facing_yaw), 0.6, cos(facing_yaw)) * 25.0)
+
+
+# A gamepad's right trigger is his hand, as X is (it is what a finger wants to
+# fire a gun with): once as it is pulled, however far it goes on after that.
+func _trigger(event: InputEventJoypadMotion) -> void:
+	if event.axis != JOY_AXIS_TRIGGER_RIGHT or not Gamepad.heard(event):
+		return
+	if event.axis_value > 0.5 and not _trigger_pulled:
+		_trigger_pulled = true
+		_act()
+	elif event.axis_value < 0.3:
+		_trigger_pulled = false
 
 
 func _queue_jump() -> void:
@@ -1152,7 +1168,7 @@ func _is_duck_held() -> bool:
 
 
 func _is_act_held() -> bool:
-	return not Loading.busy and (Input.is_action_pressed(&"act") or (_touch != null and _touch.act_held))
+	return not Loading.busy and (Input.is_action_pressed(&"act") or _trigger_pulled or (_touch != null and _touch.act_held))
 
 
 # --- Diving, the back tuck and spinning ---
@@ -2558,7 +2574,9 @@ static func _ensure_input_actions() -> void:
 	_add_action(&"jump", [KEY_SPACE], JOY_AXIS_INVALID, 0.0, JOY_BUTTON_A)
 	_add_action(&"duck", [KEY_C, KEY_CTRL], JOY_AXIS_INVALID, 0.0, JOY_BUTTON_B)
 	_add_action(&"act", [KEY_E, KEY_F], JOY_AXIS_INVALID, 0.0, JOY_BUTTON_X)
-	_add_action(&"ragdoll", [KEY_R])
+	_add_action(&"ragdoll", [KEY_R], JOY_AXIS_INVALID, 0.0, JOY_BUTTON_LEFT_STICK)
+	# (the rest of a gamepad, its right trigger among it, which is his hand too: see `_trigger`)
+	Gamepad.ensure()
 
 
 static func _add_action(action: StringName, keys: Array[Key], axis := JOY_AXIS_INVALID, axis_value := 0.0, button := JOY_BUTTON_INVALID) -> void:
@@ -2573,10 +2591,13 @@ static func _add_action(action: StringName, keys: Array[Key], axis := JOY_AXIS_I
 		var motion := InputEventJoypadMotion.new()
 		motion.axis = axis
 		motion.axis_value = axis_value
+		# (whichever gamepad it is: see Gamepad.device)
+		motion.device = Gamepad.device
 		InputMap.action_add_event(action, motion)
 	if button != JOY_BUTTON_INVALID:
 		var press := InputEventJoypadButton.new()
 		press.button_index = button
+		press.device = Gamepad.device
 		InputMap.action_add_event(action, press)
 
 
