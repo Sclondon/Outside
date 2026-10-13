@@ -26,6 +26,15 @@ extends StaticBody3D
 ## is given these heights and this node keeps the collider. In the editor,
 ## where only tool scripts run, it is drawn as plain pieces of mesh instead:
 ## the same shape, without the prints.
+##
+## It has no edge. Past its own square (`size` across) the dune sea goes on
+## for as far as anyone walks: the square's own open sand, as it is before any
+## pad or water, over and over in every direction. The dunes are made so that
+## the square meets itself (`SandDunes.wrap`), and whatever a level puts
+## within `JOIN` metres of the square's edge runs out into that open sand, so
+## there is nothing to see or to trip on where the one becomes the other.
+## `height_at` answers out there as it does within, the `SandGround` draws it,
+## and it is solid a piece at a time, round whoever is out there (`_tread`).
 
 ## How far the ground runs, edge to edge, in metres.
 @export var size := 400.0:
@@ -49,18 +58,6 @@ extends StaticBody3D
 	set(value):
 		seed = value
 		queue_rebuild()
-## The ground rises to this height at its edges, over `rim_width`, to close the
-## level in. Beyond the edge a flat apron at that height runs to the horizon.
-@export var rim_height := 9.0:
-	set(value):
-		rim_height = value
-		queue_rebuild()
-@export var rim_width := 45.0:
-	set(value):
-		rim_width = value
-		queue_rebuild()
-## How far in from the edge the wall nothing can see stands.
-@export var wall_inset := 16.0
 ## Beyond this many metres from the camera a piece of ground is drawn coarsely
 ## (0: never).
 @export var far_from := 130.0:
@@ -122,6 +119,16 @@ const FAR_MARGIN := 12.0
 ## nothing over this many metres as they come to it.
 const CLAIM_SIDE := 128
 const CLAIM_FADE := 9.0
+## Dunes set out by the level stand no nearer its edge than this (those past
+## the edge are its own, come round again).
+const KEEP_IN := 22.5
+## Over this many metres inside the edge, whatever the level has made of the
+## ground (a pad, a river's bed) runs out into the open sand that lies beyond.
+const JOIN := 30.0
+## Past the edge the ground is made solid in pieces this many squares a side,
+## those within `TREAD_REACH` pieces of whoever is out there.
+const TREAD := 32
+const TREAD_REACH := 2
 
 # Each pad: [world-to-pad Transform3D, half size, round, ease, height]
 var _pads: Array = []
@@ -144,6 +151,14 @@ var _grid_step := 1.0
 # In a field of dunes: which way each square of the grid is split into its two
 # triangles (`SandDunes.splits`). Empty: all one way, as they always were.
 var _splits := PackedByteArray()
+# The open sand that lies past the edge, over and over: a grid like `_grid`.
+var _far := PackedFloat32Array()
+# The pieces of it that are solid just now, by which piece each is (Vector2i),
+# and their shapes, kept by which part of the square each is.
+var _trodden := {}
+var _tread_shapes := {}
+## How long the last new piece of ground past the edge took to make solid, in thousandths of a second.
+var tread_ms := 0.0
 var _made: Array[Node] = []
 var _wait := -1.0
 
@@ -155,10 +170,12 @@ func _ready() -> void:
 		if read is Dictionary:
 			shape_from(read)
 	rebuild(true)
-	set_process(Engine.is_editor_hint())
 
 
 func _process(delta: float) -> void:
+	if not Engine.is_editor_hint():
+		_tread()
+		return
 	if _wait >= 0.0:
 		_wait -= delta
 		if _wait < 0.0:
@@ -201,14 +218,23 @@ func sand_material() -> Material:
 ## has been made, exactly what is stood on there.
 func height_at(x: float, z: float) -> float:
 	if _grid_side > 1:
-		var across := clampf((x + size * 0.5) / _grid_step, 0.0, _grid_side - 1.0001)
-		var down := clampf((z + size * 0.5) / _grid_step, 0.0, _grid_side - 1.0001)
+		var across := (x + size * 0.5) / _grid_step
+		var down := (z + size * 0.5) / _grid_step
+		var grid := _grid
+		var last := _grid_side - 1.0
+		if across < 0.0 or down < 0.0 or across > last or down > last:
+			# (past the edge: the open sand, over and over)
+			grid = _far
+			across = fposmod(across, last)
+			down = fposmod(down, last)
+		across = clampf(across, 0.0, last - 0.0001)
+		down = clampf(down, 0.0, last - 0.0001)
 		var corner := int(down) * _grid_side + int(across)
 		var part := Vector2(across - int(across), down - int(down))
-		var a := _grid[corner]
-		var d := _grid[corner + _grid_side + 1]
-		var b := _grid[corner + 1]
-		var c := _grid[corner + _grid_side]
+		var a := grid[corner]
+		var d := grid[corner + _grid_side + 1]
+		var b := grid[corner + 1]
+		var c := grid[corner + _grid_side]
 		# (each square is two triangles, split the way the collider splits it: see `_splits`)
 		if _splits.size() > 0 and _splits[int(down) * (_grid_side - 1) + int(across)] == 1:
 			if part.x + part.y < 1.0:
@@ -241,8 +267,7 @@ func shape_from(layout: Dictionary) -> void:
 	cell = own.get("cell", cell)
 	dune_height = own.get("dune_height", dune_height)
 	seed = int(own.get("seed", seed))
-	rim_height = own.get("rim_height", rim_height)
-	rim_width = own.get("rim_width", rim_width)
+	# (a level from before the desert went on for ever may say how high its rim was: there is none now)
 	scatter = own.get("scatter", scatter)
 	# (a level from before there were kinds of dune has them as they were: scattered, and round at the crest)
 	dunes = int(own.get("dunes", 0))
@@ -364,7 +389,7 @@ func _make_dunes() -> void:
 	all.long_backs = dunes != SandDunes.Field.SCATTERED
 	all.soft_below = cell * 1.3 if dunes != SandDunes.Field.SCATTERED else 0.0
 	var scale := dune_height / 4.5
-	var reach := size * 0.5 - rim_width * 0.5
+	var reach := size * 0.5 - KEEP_IN
 	var pads := _pads
 	var carves := _carves
 	var clear := _clear
@@ -389,6 +414,7 @@ func _make_dunes() -> void:
 				most = maxf(most, claimed[row * across + column])
 			return 1.0 - most)
 		_add_extra()
+		_dunes.wrap(Rect2(-edge, -edge, size, size))
 		return
 	var count := int(size * size / 5200.0 * scatter)
 	if count > 0:
@@ -409,6 +435,7 @@ func _make_dunes() -> void:
 				return true
 		return false)
 	_add_extra()
+	_dunes.wrap(Rect2(-size * 0.5, -size * 0.5, size, size))
 
 
 # How much of the ground is spoken for, 0..1, over a coarse grid of the whole
@@ -461,10 +488,16 @@ func _add_extra() -> void:
 				_dunes.add_ridge(dune[1], dune[2], dune[3], 0.05, int(absf(dune[1].x * 3.0 + dune[1].y)))
 
 
-# Dunes and the rim, before any pad.
+# The open sand, before any pad. (The roll of the floor between the dunes dies
+# away towards the edge of the square, so that the square meets itself there.)
 func _open_at(x: float, z: float) -> float:
-	var rim := smoothstep(size * 0.5 - rim_width, size * 0.5, maxf(absf(x), absf(z)))
-	return dunes_at(x, z) * (1.0 - rim * rim) + rim_height * rim
+	return dunes_at(x, z) - _dunes.floor_at(x, z) * (1.0 - _inside(x, z))
+
+
+# How far inside the edge of the square a place is: nothing at the edge (and
+# for two squares of the grid in from it), 1 from `JOIN` metres in.
+func _inside(x: float, z: float) -> float:
+	return smoothstep(cell * 2.0, JOIN, size * 0.5 - maxf(absf(x), absf(z)))
 
 
 # How far outside a pad a place is.
@@ -500,7 +533,7 @@ func _gather_pads() -> void:
 
 # --- Making it ---
 
-## Makes the ground again: mesh, collider, the wall round it and the apron.
+## Makes the ground again: mesh and collider.
 ##
 ## It is the longest single piece of work in opening the desert, and longer the bigger the desert. With `in_parts`
 ## (as it is made when the scene opens) and the notebook's page up (see `Loading`), it is made in five parts with a
@@ -524,22 +557,37 @@ func rebuild(in_parts := false) -> void:
 	# (the dunes all at once, which is much quicker than asking `dunes_at` corner by
 	# corner; then the floor between them and the rim, as `_open_at` has them)
 	var bare := _dunes.bake(Vector2(-half, -half), step, side, side, false)
+	# (it meets itself at its edges, as near as numbers go: now exactly)
+	for along in side:
+		bare[along * side + side - 1] = bare[along * side]
+	for along in side:
+		bare[(side - 1) * side + along] = bare[along]
 	if dunes != SandDunes.Field.SCATTERED:
 		# A field of dunes has every crest, horn and join rounded over, more or less as
 		# `sharp` says: nothing in it is a crease, which a grid of squares can only
 		# draw as teeth. (Dunes scattered as they were are left as they were.)
-		bare = SandDunes.rounded(bare, side, side, 3 if sharp < 0.34 else (2 if sharp < 0.67 else 1))
+		bare = SandDunes.rounded(bare, side, side, 3 if sharp < 0.34 else (2 if sharp < 0.67 else 1), true)
 	began += await _breath(in_parts, "Pressing the ground level", 0.16)
 	var heights := PackedFloat32Array()
 	heights.resize(side * side)
 	var sunk := 0.2 * dune_height
-	var rim_from := half - rim_width
+	# How far inside the edge each row or column is (`_inside`).
+	var inside := PackedFloat32Array()
+	inside.resize(side)
+	for along in side:
+		inside[along] = smoothstep(cell * 2.0, JOIN, half - absf(along * step - half))
+	var band := mini(int(JOIN / step) + 1, side)
 	for row in side:
 		var z := row * step - half
 		for column in side:
 			var x := column * step - half
-			var rim := smoothstep(rim_from, half, maxf(absf(x), absf(z)))
-			heights[row * side + column] = (bare[row * side + column] + _dunes.floor_at(x, z) - sunk) * (1.0 - rim * rim) + rim_height * rim
+			var floor := _dunes.floor_at(x, z)
+			if row < band or column < band or row >= side - band or column >= side - band:
+				floor *= minf(inside[row], inside[column])
+			heights[row * side + column] = bare[row * side + column] + floor - sunk
+	# That is the open sand, and what lies past the edge for ever.
+	_far = heights.duplicate()
+	_clear_tread()
 	for pad: Array in _pads:
 		var middle: Vector3 = (pad[0] as Transform3D).affine_inverse().origin
 		var reach: float = (pad[1] as Vector2).length() + pad[3] + step
@@ -554,6 +602,13 @@ func rebuild(in_parts := false) -> void:
 		for row in range(maxi(int((bounds.position.y + half) / step), 0), mini(int((bounds.end.y + half) / step) + 2, side)):
 			for column in range(maxi(int((bounds.position.x + half) / step), 0), mini(int((bounds.end.x + half) / step) + 2, side)):
 				heights[row * side + column] = _carved(heights[row * side + column], carve, column * step - half, row * step - half)
+	# And whatever that made of the ground near the edge runs out into the open sand.
+	for row in side:
+		var whole_row := row < band or row >= side - band
+		for column: int in (range(side) if whole_row else range(band) + range(side - band, side)):
+			var at := row * side + column
+			if heights[at] != _far[at]:
+				heights[at] = lerpf(_far[at], heights[at], minf(inside[row], inside[column]))
 	_grid = heights
 	_grid_side = side
 	_grid_step = step
@@ -573,7 +628,7 @@ func rebuild(in_parts := false) -> void:
 	ground.set(&"half", Vector2(half, half))
 	ground.set(&"cell", step)
 	ground.set(&"solid", false)
-	ground.set(&"apron", rim_height)
+	ground.set(&"far_heights", _far)
 	# (dunes this gentle throw no shadows worth what drawing them again costs)
 	ground.set(&"casts_shadow", false)
 	# (a field of dunes is rounded everywhere, and can be drawn as a curved surface)
@@ -596,8 +651,11 @@ func rebuild(in_parts := false) -> void:
 				if bare[at] > 0.7:
 					continue
 				var x := column * step - half
-				var pan := (1.0 - smoothstep(0.05, 0.7, bare[at])) * (0.72 + 0.28 * smoothstep(0.25, 0.75, SandDunes._noise(x / 9.0 + seed, z / 9.0) * 0.25 + SandDunes._noise(x / 47.0, z / 47.0 - seed) * 0.75))
-				pan *= 1.0 - smoothstep(rim_from - 10.0, rim_from + 10.0, maxf(absf(x), absf(z)))
+				var more := smoothstep(0.25, 0.75, SandDunes._noise(x / 9.0 + seed, z / 9.0) * 0.25 + SandDunes._noise(x / 47.0, z / 47.0 - seed) * 0.75)
+				# (evened out towards the edge, as the floor is, so that the square meets itself)
+				if row < band or column < band or row >= side - band or column >= side - band:
+					more = lerpf(0.5, more, minf(inside[row], inside[column]))
+				var pan := (1.0 - smoothstep(0.05, 0.7, bare[at])) * (0.72 + 0.28 * more)
 				packed[at] = int(pan * 80.0)
 				pale[at] = int(pan * 190.0)
 		ground.call(&"paint_all", Sand.Kind.PACKED, packed)
@@ -605,6 +663,8 @@ func rebuild(in_parts := false) -> void:
 		for at in packed.size():
 			packed[at] = packed[at] * 3 / 4
 		ground.call(&"paint_all", Sand.Kind.WHITE, packed)
+		# (and the same past the edge as within)
+		ground.call(&"paint_far")
 	# Where a pad is the sand is trodden: harder, and it takes less of a print.
 	for pad: Array in _pads:
 		var middle: Vector3 = global_transform * (pad[0] as Transform3D).affine_inverse().origin
@@ -704,10 +764,12 @@ func _add_chunk(heights: PackedFloat32Array, side: int, step: float, first_colum
 		_keep(visual)
 
 
-# Level ground from the edge to the horizon, so that the level does not end in air.
+# In the editor, where the dunes past the edge are not drawn: level ground from
+# the edge to the horizon, so that the level does not end in air.
 func _add_apron(material: Material) -> void:
 	var half := size * 0.5
 	var far := 2500.0
+	var rim_height := -0.2 * dune_height
 	for strip: Array in [
 		[Vector2(0.0, (half + far) * 0.5), Vector2(far * 2.0, far - half)], [Vector2(0.0, -(half + far) * 0.5), Vector2(far * 2.0, far - half)],
 		[Vector2((half + far) * 0.5, 0.0), Vector2(far - half, size)], [Vector2(-(half + far) * 0.5, 0.0), Vector2(far - half, size)],
@@ -746,13 +808,105 @@ func _add_collider(heights: PackedFloat32Array, side: int, step: float) -> void:
 	var collider := CollisionShape3D.new()
 	collider.shape = shape
 	_keep(collider)
-	# A wall nothing can see, short of the edge.
-	var edge := half - wall_inset
-	for way: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
-		var along := Vector3(absf(way.z), 0.0, absf(way.x))
-		var box := BoxShape3D.new()
-		box.size = along * edge * 2.0 + (Vector3.ONE - along) * Vector3(1.0, 80.0, 1.0)
-		var wall := CollisionShape3D.new()
-		wall.shape = box
-		wall.position = way * (edge + 0.5) + Vector3.UP * 30.0
-		_keep(wall)
+
+
+# --- Past the edge ---
+
+# Makes the ground past the edge solid round whoever is out there, or near it:
+# the boy, and whatever has come after him. It is cut into pieces `TREAD`
+# squares a side; those within `TREAD_REACH` pieces of him are solid, and the
+# rest are let go. One piece is made in a frame, the nearest first (a few
+# thousandths of a second: `tread_ms`), and since the sand out there is one
+# square over and over, a piece's shape is made once and used wherever that
+# part of the square comes round again.
+func _tread() -> void:
+	if _far.is_empty() or laying or not is_inside_tree():
+		return
+	var piece := TREAD * _grid_step
+	var half := size * 0.5
+	# (how many pieces across the square: the last may be a narrow one)
+	var across := ceili((_grid_side - 1) / float(TREAD))
+	var here := global_transform.affine_inverse()
+	var wanted := {}
+	var nearest := Vector2i.ZERO
+	var nearest_far := INF
+	for body: Node in get_tree().get_nodes_in_group(&"figures") + get_tree().get_nodes_in_group(&"hounds"):
+		if not body is Node3D:
+			continue
+		var at := here * (body as Node3D).global_position
+		if maxf(absf(at.x), absf(at.z)) < half - piece * (TREAD_REACH + 1):
+			continue
+		# (which square of the sea he is in, and which piece of it)
+		var square := Vector2i(floori((at.x + half) / size), floori((at.z + half) / size))
+		var within := Vector2(at.x + half, at.z + half) - Vector2(square) * size
+		var middle := square * across + Vector2i(mini(int(within.x / piece), across - 1), mini(int(within.y / piece), across - 1))
+		for down in range(-TREAD_REACH, TREAD_REACH + 1):
+			for along in range(-TREAD_REACH, TREAD_REACH + 1):
+				var which := middle + Vector2i(along, down)
+				# (not the level's own square, which is solid already)
+				if which.x >= 0 and which.y >= 0 and which.x < across and which.y < across:
+					continue
+				wanted[which] = true
+				var far := (_tread_corner(which, across) + Vector2(piece, piece) * 0.5).distance_to(Vector2(at.x, at.z))
+				if not _trodden.has(which) and far < nearest_far:
+					nearest_far = far
+					nearest = which
+	for which: Vector2i in _trodden.keys():
+		if not wanted.has(which):
+			(_trodden[which] as Node).queue_free()
+			_trodden.erase(which)
+	if nearest_far == INF:
+		return
+	var began := Time.get_ticks_usec()
+	var part := Vector2i(posmod(nearest.x, across), posmod(nearest.y, across))
+	if not _tread_shapes.has(part):
+		var side := _grid_side
+		var step := _grid_step
+		var faces := PackedVector3Array()
+		faces.resize(TREAD * TREAD * 6)
+		var next := 0
+		for r in TREAD:
+			var row := part.y * TREAD + r
+			for c in TREAD:
+				var column := part.x * TREAD + c
+				if row >= side - 1 or column >= side - 1:
+					continue
+				var a := Vector3(c * step, _far[row * side + column], r * step)
+				var b := Vector3(a.x + step, _far[row * side + column + 1], a.z)
+				var d := Vector3(a.x + step, _far[(row + 1) * side + column + 1], a.z + step)
+				var e := Vector3(a.x, _far[(row + 1) * side + column], a.z + step)
+				# (split as `height_at` has it)
+				var turned := _splits.size() > 0 and _splits[row * (side - 1) + column] == 1
+				faces[next] = a
+				faces[next + 1] = b
+				faces[next + 2] = e if turned else d
+				faces[next + 3] = b if turned else a
+				faces[next + 4] = d
+				faces[next + 5] = e
+				next += 6
+		faces.resize(next)
+		var shape := ConcavePolygonShape3D.new()
+		shape.set_faces(faces)
+		_tread_shapes[part] = shape
+		tread_ms = (Time.get_ticks_usec() - began) / 1000.0
+	var collider := CollisionShape3D.new()
+	collider.shape = _tread_shapes[part]
+	var corner := _tread_corner(nearest, across)
+	collider.position = Vector3(corner.x, 0.0, corner.y)
+	add_child(collider, false, Node.INTERNAL_MODE_BACK)
+	_trodden[nearest] = collider
+
+
+# Where the first corner of a piece of the ground past the edge is.
+func _tread_corner(which: Vector2i, across: int) -> Vector2:
+	var part := Vector2i(posmod(which.x, across), posmod(which.y, across))
+	@warning_ignore("integer_division")
+	var square := (which - part) / across
+	return Vector2(square) * size + Vector2(part) * TREAD * _grid_step - Vector2(size, size) * 0.5
+
+
+func _clear_tread() -> void:
+	for which: Vector2i in _trodden:
+		(_trodden[which] as Node).queue_free()
+	_trodden.clear()
+	_tread_shapes.clear()

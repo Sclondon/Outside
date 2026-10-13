@@ -20,10 +20,24 @@ extends MeshInstance3D
 @export var colour := Color(0.66, 0.5, 0.37)
 ## The colour of the air they are seen through.
 @export var air := Color(0.8, 0.83, 0.82)
+## The level they stand round is a square this far across. While the eye is
+## in it they stand still; when it goes out past an edge they go with it, by
+## as much, so that however far anyone walks they are as far off as they were
+## and the whole level is still inside them. (0: they stay where they are.)
+@export var round_square := 0.0
 
 
 func _ready() -> void:
 	build()
+
+
+func _process(_delta: float) -> void:
+	var eye := get_viewport().get_camera_3d() if round_square > 0.0 else null
+	if eye:
+		var at := eye.global_position
+		var edge := round_square * 0.5
+		position.x = at.x - clampf(at.x, -edge, edge)
+		position.z = at.z - clampf(at.z, -edge, edge)
 
 
 ## Makes it (again) from its numbers.

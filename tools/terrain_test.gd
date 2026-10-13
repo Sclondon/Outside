@@ -6,6 +6,9 @@ extends SceneTree
 ## - the same seed gives the same ground, the same field of rocks and the same cliff; another gives another
 ## - a level saved before there were kinds of dune loads, and its ground is what it was
 ## - the shipped level loads, with its valley, its cliffs and its rocks
+## - the desert has no edge: he walks out of the level's square each of the four ways and 300 m on, nothing stops
+##   him, he never goes through the ground and there is no step where the square ends; the ground is solid under
+##   him and ahead of him all the way; and a place out there is as high when he comes back to it
 ## - he walks up the back of a dune and over its crest, and no sand runs under him on the way up
 ## - on the slip face the sand lets go
 ## - thrown at every rock formation, at a mesa and at a cliff, from all round, running and
@@ -44,6 +47,7 @@ func run() -> void:
 	same_from_same()
 	await old_level()
 	await shipped_level()
+	await no_edge()
 	await smooth_field()
 	await open(layout_for_tests())
 	await dune()
@@ -129,12 +133,88 @@ func shipped_level() -> void:
 	for node: Node in level.nodes.values():
 		kinds[node.get_script()] = true
 	check("the shipped level loads with its valley, cliffs and rocks", kinds.has(KingsValley) and kinds.has(Cliff) and kinds.has(RockField) and level.get_node_or_null(^"Horizon") != null)
-	check("its ground is made in under a second", level.terrain.made_in < 1000.0, "%.0f ms" % level.terrain.made_in)
+	check("its ground is made in little over a second", level.terrain.made_in < 1150.0, "%.0f ms" % level.terrain.made_in)
 	check("its ripples are mixed", (level.terrain.ground as SandGround).ripples == Sand.Ripples.MIXED)
 	var open_doors := 0
 	for door: TombDoor in root.get_tree().get_nodes_in_group(&"tomb_doors"):
 		open_doors += 1 if door.open else 0
 	check("its valley has tomb doors, one of them open", root.get_tree().get_nodes_in_group(&"tomb_doors").size() >= 4 and open_doors == 1)
+
+
+## The shipped level, which is still open: out through each edge of its square and 300 m beyond.
+func no_edge() -> void:
+	var terrain := level.terrain
+	var edge := terrain.size * 0.5
+	var space := level.get_world_3d().direct_space_state
+	for way: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+		var side := Vector3(way.z, 0.0, way.x)
+		var from := way * (edge - 45.0) + side * 150.0
+		place_on(Vector2(from.x, from.z))
+		await frames(20)
+		var out := 0.0
+		var through := 0.0
+		var step := 0.0
+		var unready := 0
+		var fastest := 0.0
+		var stuck := 0
+		var was := player.global_position
+		for i in 9000:
+			# (round a slip face too steep to climb, as anyone would go)
+			await frames(1, (way + side * (0.9 if stuck > 0 else 0.0)).normalized())
+			var at := player.global_position
+			out = at.dot(way) - edge
+			through = maxf(through, terrain.height_at(at.x, at.z) - at.y)
+			if absf(out) < 4.0 and player.is_on_floor():
+				step = maxf(step, absf(at.y - was.y) - Vector2(at.x - was.x, at.z - was.z).length())
+			fastest = maxf(fastest, Vector2(at.x - was.x, at.z - was.z).length() * 60.0)
+			# (solid under him, and where he will be in a second and a half at his fastest)
+			for ahead: float in [0.0, 12.0]:
+				var spot := at + way * ahead
+				if space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(spot.x, 80.0, spot.z), Vector3(spot.x, -40.0, spot.z), 1)).is_empty():
+					unready += 1
+			if i % 90 == 89:
+				stuck = 120 if at.dot(way) - from.dot(way) < float(i) / 60.0 * 1.0 and stuck <= 0 else stuck
+			stuck -= 1
+			was = at
+			if out > 300.0:
+				break
+		touch.move = Vector2.ZERO
+		var named := "%s%s" % ["+" if way.x + way.z > 0.0 else "-", "x" if way.x != 0.0 else "z"]
+		check("he walks out of the square (%s) and 300 m on" % named, out > 300.0, "got %.0f m past the edge, at %.1f m/s at his fastest" % [out, fastest])
+		check("and never goes through the ground (%s)" % named, through < 0.5, "%.2f m under it at the worst" % through)
+		check("there is no step where the square ends (%s)" % named, step < 0.3, "%.2f m" % step)
+		check("the ground is solid under him and ahead of him all the way (%s)" % named, unready == 0, "%d times not" % unready)
+	check("a piece of ground past the edge is made solid in well under 20 ms", terrain.tread_ms > 0.0 and terrain.tread_ms < 20.0, "%.1f ms the last" % terrain.tread_ms)
+	# A place out there, now far behind him, is as high when he comes back to it: asked, and stood on.
+	var far := Vector2(edge + 150.0, 37.0)
+	var probe := PhysicsRayQueryParameters3D.create(Vector3(far.x, 80.0, far.y), Vector3(far.x, -40.0, far.y), 1)
+	place_on(far)
+	await frames(40)
+	var first: Dictionary = space.intersect_ray(probe)
+	var asked := terrain.height_at(far.x, far.y)
+	place_on(Vector2(-edge - 2000.0, -3000.0))
+	await frames(60)
+	var gone: Dictionary = space.intersect_ray(probe)
+	var far_off := player.is_on_floor()
+	place_on(far)
+	await frames(40)
+	var again: Dictionary = space.intersect_ray(probe)
+	check("three kilometres out he stands on sand", far_off and gone.is_empty(), "at %s" % player.global_position)
+	check("a place out there is as high when he comes back to it", not first.is_empty() and not again.is_empty() and absf(first["position"].y - again["position"].y) < 0.001
+			and absf(asked - terrain.height_at(far.x, far.y)) < 0.0001 and absf(asked - first["position"].y) < 0.02, "%.3f m asked, %.3f stood on" % [asked, first.get("position", Vector3.ZERO).y])
+	check("the sand answers for it too", absf((terrain.ground as SandGround).height_at(far.x, far.y) - asked) < 0.001 and (terrain.ground as SandGround).give_at(far.x, far.y) > 0.0)
+	# And where the square ends the ground does not turn: the slope a square inside the edge and a square outside.
+	var turn := 0.0
+	var cell := terrain._grid_step
+	for i in 320:
+		var along := (i - 160) * cell
+		for corner: Array in [[Vector2(edge, along), Vector2(1, 0)], [Vector2(-edge, along), Vector2(1, 0)], [Vector2(along, edge), Vector2(0, 1)], [Vector2(along, -edge), Vector2(0, 1)]]:
+			var at: Vector2 = corner[0]
+			var by: Vector2 = (corner[1] as Vector2) * cell
+			var inner := atan((terrain.height_at(at.x, at.y) - terrain.height_at(at.x - by.x, at.y - by.y)) / cell)
+			var outer := atan((terrain.height_at(at.x + by.x, at.y + by.y) - terrain.height_at(at.x, at.y)) / cell)
+			turn = maxf(turn, absf(rad_to_deg(outer - inner)))
+	check("the ground does not turn where the square ends", turn < 20.0, "%.1f degrees between squares at the most, all round the edge" % turn)
 
 
 ## A field of dunes on ground of its own: nothing in it is a crease, its slip faces still stand at the angle sand
@@ -149,7 +229,7 @@ func smooth_field() -> void:
 		var grid := terrain._grid
 		var side := terrain._grid_side
 		var step := terrain._grid_step
-		var edge := int(terrain.rim_width / step) + 2
+		var edge := int(45.0 / step) + 2
 		var sharpest := 0.0
 		var steepest := 0.0
 		var apart := 0.0

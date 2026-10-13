@@ -12,7 +12,7 @@ class_name LevelLayout
 ##
 ## A layout is a Dictionary:
 ##     version   1
-##     terrain   size, cell, dune_height, seed, scatter, rim_height, rim_width, wind [x, z];
+##     terrain   size, cell, dune_height, seed, scatter, wind [x, z] (and `rim_height`, `rim_width` in an old one: not used);
 ##               and, if it says: dunes (how they are set out, as `SandDunes.Field`; without it, 0: scattered),
 ##               sharp (their crests, 0..1), flat (level ground between them, 0..1), hills (the far hills, 0: none),
 ##               ripples (the look of the sand's ripples, as `Sand.Ripples`; without it, 0: soft waves)

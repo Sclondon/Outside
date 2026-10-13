@@ -57,6 +57,7 @@ uniform sampler2D height_map : filter_nearest, repeat_disable;
 // it, and how high zero is; with no ground, the side is zero)
 uniform vec4 field = vec4(0.0);
 uniform vec2 field_cells = vec2(1.0);
+uniform float endless = 0.0;
 
 varying vec2 where;
 varying float grain;
@@ -84,9 +85,15 @@ float ground(vec2 xz) {
 		return field.w;
 	}
 	vec2 square = (xz - field.xy) / field.z;
+	int rows = 0;
+	if (endless > 0.5 && (square.x < 0.0 || square.y < 0.0 || square.x > field_cells.x || square.y > field_cells.y)) {
+		// (past the edges of ground that goes on for ever: see the sand's own shader)
+		square = mod(square, field_cells);
+		rows = int(field_cells.y) + 1;
+	}
 	vec2 whole = clamp(floor(square), vec2(0.0), field_cells - 1.0);
 	vec2 part = clamp(square - whole, 0.0, 1.0);
-	ivec2 corner = ivec2(whole);
+	ivec2 corner = ivec2(whole) + ivec2(0, rows);
 	float a = texelFetch(height_map, corner, 0).r;
 	float b = texelFetch(height_map, corner + ivec2(1, 0), 0).r;
 	float c = texelFetch(height_map, corner + ivec2(0, 1), 0).r;
