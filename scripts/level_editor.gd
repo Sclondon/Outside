@@ -29,6 +29,10 @@ extends Control
 ## one in. "Play" starts the level from its start; "Play here" from where the
 ## view is.
 ##
+## WITH A GAMEPAD, on a desk, a cross in the middle of the view is moved over
+## the ground with the left stick, and the buttons do the rest: see
+## `LevelEditorPad` (`scripts/level_editor_pad.gd`), which says which does what.
+##
 ## ON A PHONE all of that is laid out again for thumbs (`LevelEditorPhone`,
 ## `scripts/level_editor_phone.gd`, which says how): a bar of six big buttons,
 ## and one sheet or page at a time. It is what there is wherever there is a
@@ -87,6 +91,8 @@ var _radii := {}
 
 var _overlay: Control
 var _phone: LevelEditorPhone
+## On a desk, what lets a gamepad work it (see LevelEditorPad); null on a phone.
+var _gamepad: LevelEditorPad
 var _ui: Control
 var _shelf: PanelContainer
 # How far the arrows move a thing, metres; and where it was taken hold of, from its own middle.
@@ -345,6 +351,11 @@ func _build_ui() -> void:
 	row.add_child(_button("Back to the original level", _back_to_original))
 	row.add_child(_button("Close", _show_share.bind(false)))
 
+	# And a gamepad does all of the above from its sticks and buttons: see LevelEditorPad.
+	_gamepad = LevelEditorPad.new()
+	_gamepad.editor = self
+	add_child(_gamepad)
+
 
 # --- Looking about, and touching things ---
 
@@ -372,7 +383,7 @@ func _process(delta: float) -> void:
 		if _save_in < 0.0:
 			_save_now(true)
 	if not phone:
-		_status.text = _status_line()
+		_status.text = _gamepad.says(_status_line())
 	_overlay.queue_redraw()
 
 

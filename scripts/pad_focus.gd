@@ -308,13 +308,13 @@ func _input(event: InputEvent) -> void:
 	elif not has_pad():
 		return
 	elif Gamepad.pressed(event, &"pad_a"):
-		work()
 		get_viewport().set_input_as_handled()
+		work()
 	elif Gamepad.pressed(event, &"pad_b"):
+		get_viewport().set_input_as_handled()
 		if _awake and not active and not _in_scope:
 			_awake = false
 		left.emit()
-		get_viewport().set_input_as_handled()
 
 
 func _draw() -> void:

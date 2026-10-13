@@ -37,6 +37,10 @@ extends Node3D
 ## and the lock, which here are of the way INTO the chosen room, and may be
 ## opened from any room of the tomb. Such a tomb is only ever walked through.
 ##
+## WITH A GAMEPAD, on a desk, a mark goes from button to button with the d-pad
+## and A presses it; the left stick moves the tomb about and the triggers come
+## nearer and go further: see `TombEditorPad` (`scripts/tomb_editor_pad.gd`).
+##
 ## ON A PHONE (wherever the touch controls are shown: a touch screen, or the
 ## web build; `-- phone` on the command line asks for it anywhere, `-- desk`
 ## for the other) none of the bar, the row of rooms, the panel and the sheet
@@ -1506,6 +1510,11 @@ func _build_ui() -> void:
 	_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rows.add_theme_constant_override("separation", 7)
 	sheet_scroll.add_child(_rows)
+
+	# And a gamepad does all of the above from its sticks and buttons: see TombEditorPad.
+	var gamepad := TombEditorPad.new()
+	gamepad.editor = self
+	layer.add_child(gamepad)
 
 
 # Keeps everything clear of the edges a phone cannot show or be touched at (as LevelEditor does).

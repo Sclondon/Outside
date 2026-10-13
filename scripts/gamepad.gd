@@ -126,7 +126,7 @@ func _input(event: InputEvent) -> void:
 			using = Using.PAD
 	elif event is InputEventJoypadMotion:
 		# (a stick that is a hair off its middle says so all the time: that is not somebody using it)
-		if heard(event) and absf(event.axis_value) > 0.5:
+		if heard(event) and absf(event.axis_value) > 0.3:
 			using = Using.PAD
 	elif event is InputEventKey or event is InputEventMouseButton:
 		if event.is_pressed():

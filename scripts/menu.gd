@@ -101,7 +101,7 @@ var _grip_index := -1
 ## A gamepad's d-pad and stick, as steps of the mark from one thing to the next.
 var _steps := Gamepad.Steps.new()
 ## Set when a gamepad has turned to another part: the mark goes to the first thing on its pages once they are drawn.
-var _to_first := false
+var _to_first := 0
 ## Which of the keys, a gamepad and a finger the pages were last drawn for (they say what to press).
 var _shown_for := Gamepad.Using.KEYS
 
@@ -215,8 +215,8 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventJoypadButton or event is InputEventJoypadMotion:
 		# (its d-pad and sticks are asked each frame, in `_process`: here, only its buttons. And none of it is the game's.)
 		if Gamepad.heard(event):
-			_padded(event)
 			get_viewport().set_input_as_handled()
+			_padded(event)
 
 
 func _touched(event: InputEventScreenTouch) -> void:
@@ -305,7 +305,7 @@ func _padded(event: InputEvent) -> void:
 	elif Gamepad.pressed(event, &"pad_rb") or Gamepad.pressed(event, &"pad_lb"):
 		_keys = true
 		_wheel_held = false
-		_to_first = true
+		_to_first = 2
 		_step_section(1 if Gamepad.pressed(event, &"pad_rb") else -1)
 
 
@@ -320,7 +320,7 @@ func _work_focus() -> void:
 	for spot in _spots:
 		if spot["id"] == _focus:
 			# (a tab, with a gamepad: the mark goes on to its pages)
-			_to_first = _focus.begins_with("tab:") and _focus != "tab:away" and Gamepad.using_pad()
+			_to_first = 2 if _focus.begins_with("tab:") and _focus != "tab:away" and Gamepad.using_pad() else 0
 			(spot["act"] as Callable).call()
 			break
 	_refresh()
@@ -358,9 +358,11 @@ func _work_pad(delta: float) -> void:
 	if _wheel_moved:
 		_wheel_moved = false
 		_paint(_wheel.colour())
-	if _to_first and _turn >= 1.0:
-		_to_first = false
-		_focus_first()
+	# (a frame after the leaf has gone over: when the pages it turned to have been drawn, and say what is on them)
+	if _to_first > 0 and _turn >= 1.0:
+		_to_first -= 1
+		if _to_first == 0:
+			_focus_first()
 
 
 # Puts the mark on the first thing on the pages that are open (the highest on the left page, or failing that the right).
@@ -429,6 +431,9 @@ func _move_focus(way: Vector2) -> void:
 	for spot in _spots:
 		if spot["id"] == _focus:
 			here = _middle(spot)
+			# (on something that is not on the pages now, a leaf being turned: wait)
+			if not (spot["on"] as Node2D).is_visible_in_tree():
+				return
 	if here == Vector2.INF:
 		_focus = "tab:" + _section
 		_refresh()
@@ -436,7 +441,10 @@ func _move_focus(way: Vector2) -> void:
 	var best := ""
 	var least := INF
 	for spot in _spots:
-		var to := _middle(spot) - here
+		# (from the nearest edge of it, mostly: so that something wide is not passed over for something small beyond it)
+		var rect: Rect2 = (spot["on"] as Node2D).get_global_transform() * (spot["rect"] as Rect2)
+		var near := Vector2(clampf(here.x, rect.position.x, rect.end.x), clampf(here.y, rect.position.y, rect.end.y))
+		var to := near.lerp(rect.get_center(), 0.25) - here
 		var along := to.dot(way)
 		var across := absf(to.dot(way.orthogonal()))
 		# (what is more to one side than ahead is not that way at all)
@@ -1044,7 +1052,9 @@ func _page_wardrobe(on: Leaf) -> void:
 		else:
 			_spot(on, "garment:%d" % (i - 3), cell, _choose_garment.bind(i - 3))
 	# The wheel: it stands at the colour of whatever it paints, and paints it as it is turned.
-	_wheel.set_colour(_colour_of(_painted()))
+	# (but not while it has been turned and he has yet to be painted: that comes first, in `_work_pad`)
+	if not _wheel_moved:
+		_wheel.set_colour(_colour_of(_painted()))
 	var round := Rect2(26.0, 334.0, 248.0, 248.0)
 	_wheel.draw(on, round, _wheel_held)
 	_spot(on, "wheel", round, _hold_wheel)
