@@ -189,6 +189,9 @@ func _find(what: Variant) -> int:
 func rect_of(thing: Variant) -> Rect2:
 	if thing is Dictionary:
 		return thing["rect"]
+	# (it may have been taken away since it was found)
+	if not is_instance_valid(thing):
+		return Rect2()
 	return (thing as Control).get_global_rect()
 
 
@@ -216,7 +219,7 @@ func step(way: Vector2) -> void:
 	var best: Variant = null
 	var least := INF
 	for other: Variant in _list:
-		if _name_of(other) == _name_of(thing) and typeof(_name_of(other)) == typeof(_name_of(thing)):
+		if typeof(_name_of(other)) == typeof(_name_of(thing)) and _name_of(other) == _name_of(thing):
 			continue
 		var rect := rect_of(other)
 		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
