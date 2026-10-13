@@ -54,11 +54,11 @@ script = ExtResource("2_tnnf3")
 layout_file = "res://levels/desert.json"
 
 [node name="Player" type="CharacterBody3D" parent="." unique_id=776168422 instance=ExtResource("43_jhf4o")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 165)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120, 0.05, 45)
 script = ExtResource("4_rsy7j")
 
 [node name="Camera" type="Camera3D" parent="." unique_id=188475981 node_paths=PackedStringArray("target")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 176)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -120, 1.75, 56)
 current = true
 fov = 30.0
 far = 3000.0

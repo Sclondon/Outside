@@ -2441,9 +2441,34 @@ ceilings come down towards the sanctuary as the real ones do; the battle on the 
 and the king, not the scenes as they are; the small temple's pillars and sanctuary are plainer than the real ones;
 and the writing is the king's names and the stock formulas, not what is carved there. The two temples are set as
 they lie to each other only roughly. Below about three quarters of its size the doors get too low and narrow for him.
-A good place for it in the desert level would be the far north-west, beyond the dunes, with a river or a long pond
-laid along its east side for the Nile: it wants 250 m of level ground from north to south and 200 from the back of its
-ramp to the water. It has not been put there: the ground of that level is being changed.
+The sides of the ramp of sand are steeper the nearer the top (up to 62 degrees), where it is banked against the rock:
+lying at 33 degrees all the way up, its top stood out 75 m either side of the hill and its upper end was open there,
+so that he could walk in under the sand.
+
+### The temples in the shipped desert
+
+The shipped desert (`levels/desert.json`) is 640 m across. What was in it when it was 400 m across is all there, as
+far from the north and west edges as it was: 120 m west and 120 m north of where its numbers used to put it (he starts
+at -120, 45). East of it a river runs from north to south, 24 m wide, with palms and reeds on its west bank. Three
+temples stand by it at their true size, each on level ground that the dunes keep off:
+
+- **Edfu**, in the south, inland: its middle at 60, 175, its gate looking east down a way lined with jackals to the
+  water. From the start it is south-east, 220 m to its back wall and 285 m round the wall to the gate; its pylon
+  stands over the dunes from where he starts. A keeper with a lion's head bars the sanctuary; the leaf with its name
+  is by the well, behind the temple inside the wall; in the sanctuary is the helmet of Horus.
+- **Kom Ombo**, on the bank at 160, 20, looking south, its lake on the river side. East of the start, 280 m. A keeper
+  with a crocodile's head bars the left-hand sanctuary; its leaf is by the well, west of the temple; inside is the
+  helmet of Sobek.
+- **Abu Simbel**, in the north-east: the door of the Great Temple at 188, -100, looking east over the river. East-
+  north-east of the start, 340 m; its hill is on the skyline from there. The sun is on its axis, but a slab shuts the
+  inner halls. A lever at the end of the first store-room on the left (a torch burns there) raises it; the sun reaches
+  the gods, the sun disc at their knees stays lit, and the first store-room on the right opens for good: a khopesh
+  is in it.
+
+There is a checkpoint before each and one inside each. Luxor is not there (it wants 300 m by 100, and the open ground
+left is the level's dunes): it is still on the editor's Stone page. `tools/desert_temples_test.gd` checks where they
+stand and does the three things; `tools/desert_walk.gd` walks to each, in and out; `tools/desert_temples_sheets.gd
+-- <folder>` takes the pictures and says what each costs.
 
 ## Tombs
 
