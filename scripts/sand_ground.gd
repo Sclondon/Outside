@@ -118,6 +118,16 @@ var splits := PackedByteArray()
 ## INF, as high as the edge is on the whole.
 @export var beyond := 160.0
 @export var apron := INF
+## Ground that goes on for ever. Given a grid of heights the same size as its
+## own, that is what lies past its edges: the same square of open sand over and
+## over, in every direction, for as far as anyone walks (so its last row and
+## column must be its first again, and the ground's own heights must be these
+## along its edges: see `SandDunes.wrap`). It is drawn, it takes prints and
+## `height_at`, `give_at` and the rest answer for it; whoever made the ground
+## gives it something to stand on. Left empty, the ground ends at its edges and
+## a rolling plain is drawn beyond (`beyond`, `apron`). Set it before the
+## ground is built; `paint_far` paints it.
+var far_heights := PackedFloat32Array()
 ## Whether the dunes throw shadows (never on a phone: see `Sand.quality`).
 @export var casts_shadow := true
 ## Turns `Sand.quality` down if frames are coming slowly.
@@ -139,6 +149,9 @@ var _heights := PackedFloat32Array()
 # `Sand.Kind`, a share of each at every corner of the grid.
 var _kinds: Array[PackedByteArray] = [PackedByteArray(), PackedByteArray(), PackedByteArray()]
 var _kinds_stale := 0
+# The same for the ground past its edges (`far_heights`), and whether there is any.
+var _far_kinds: Array[PackedByteArray] = [PackedByteArray(), PackedByteArray(), PackedByteArray()]
+var _endless := false
 var _kind_images: Array[Image] = []
 var _kind_maps: Array[ImageTexture] = []
 var _height_map: ImageTexture
@@ -215,7 +228,14 @@ func build(heights := PackedFloat32Array()) -> void:
 		for row in long:
 			for column in wide:
 				_heights[row * wide + column] = height.call(column * cell - half.x, row * cell - half.y)
-	_height_map = ImageTexture.create_from_image(Image.create_from_data(wide, long, false, Image.FORMAT_RF, _heights.to_byte_array()))
+	# (ground that goes on for ever keeps what lies past its edges under its own, in each of its pictures)
+	_endless = far_heights.size() == wide * long
+	var deep := long * 2 if _endless else long
+	var pictured := _heights
+	if _endless:
+		pictured = _heights.duplicate()
+		pictured.append_array(far_heights)
+	_height_map = ImageTexture.create_from_image(Image.create_from_data(wide, deep, false, Image.FORMAT_RF, pictured.to_byte_array()))
 	_make_form()
 	_size_kinds()
 	_kind_images.clear()
@@ -227,7 +247,7 @@ func build(heights := PackedFloat32Array()) -> void:
 	_material.set_shader_parameter(&"ripples", float(ripples))
 	_material.set_shader_parameter(&"curve", 1.0 if curved else 0.0)
 	for i in 3:
-		_kind_images.append(Image.create_from_data(wide, long, false, Image.FORMAT_RGBA8, _kinds[i]))
+		_kind_images.append(Image.create_from_data(wide, deep, false, Image.FORMAT_RGBA8, _kinds_pictured(i)))
 		_kind_maps.append(ImageTexture.create_from_image(_kind_images[i]))
 		_material.set_shader_parameter([&"kind_map", &"kind_map2", &"kind_map3"][i], _kind_maps[i])
 	_kinds_stale = 0
@@ -258,6 +278,7 @@ func lend(material: ShaderMaterial) -> void:
 	material.set_shader_parameter(&"height_map", _height_map)
 	material.set_shader_parameter(&"field", Vector4(_origin.x - half.x, _origin.z - half.y, cell, _origin.y))
 	material.set_shader_parameter(&"field_cells", Vector2(_columns, _rows))
+	material.set_shader_parameter(&"endless", 1.0 if _endless else 0.0)
 
 
 ## The material it is drawn with.
@@ -282,6 +303,20 @@ func _size_kinds() -> void:
 		if kinds.size() != size:
 			kinds.resize(size)
 			kinds.fill(0)
+	if far_heights.size() * 4 == size:
+		for kinds in _far_kinds:
+			if kinds.size() != size:
+				kinds.resize(size)
+				kinds.fill(0)
+
+
+# What is painted, as its picture has it: the ground's own, and under it what lies past its edges.
+func _kinds_pictured(index: int) -> PackedByteArray:
+	if not _endless:
+		return _kinds[index]
+	var both := _kinds[index].duplicate()
+	both.append_array(_far_kinds[index])
+	return both
 
 
 # Which way each corner faces, how sharply the ground bends there (a crest
@@ -290,38 +325,102 @@ func _size_kinds() -> void:
 func _make_form() -> void:
 	var wide := _columns + 1
 	var long := _rows + 1
+	var form := _form_of(_heights, false)
+	if _endless:
+		# What lies past the edges is worked out as ground that repeats; and the
+		# ground's own outermost corners, which are the same sand (and which cannot
+		# see past the edge they stand on), take theirs from it: there is no line
+		# in the light where one becomes the other.
+		var beyond_form := _form_of(far_heights, true)
+		for ring in 3:
+			for along in maxi(wide, long):
+				for at: Vector2i in [Vector2i(along, ring), Vector2i(along, long - 1 - ring), Vector2i(ring, along), Vector2i(wide - 1 - ring, along)]:
+					if at.x < wide and at.y < long:
+						var corner := (at.y * wide + at.x) * 4
+						for part in 4:
+							form[corner + part] = beyond_form[corner + part]
+		form.append_array(beyond_form)
+	var image := Image.create_from_data(wide, long * 2 if _endless else long, false, Image.FORMAT_RGBAF, form.to_byte_array())
+	image.convert(Image.FORMAT_RGBAH)
+	_form_map = ImageTexture.create_from_image(image)
+
+
+# The same for one grid of heights. `wraps`: it is ground that repeats, and a
+# corner at its edge looks across to the far edge for what is next to it.
+func _form_of(heights: PackedFloat32Array, wraps: bool) -> PackedFloat32Array:
+	var wide := _columns + 1
+	var long := _rows + 1
 	# The ground round about: the mean over a square some way each side.
-	var round_about := _smoothed(_heights, wide, long, maxi(int(7.0 / cell), 2))
+	var round_about := _smoothed(heights, wide, long, maxi(int(7.0 / cell), 2), wraps)
 	var form := PackedFloat32Array()
 	form.resize(wide * long * 4)
 	var far := maxi(int(round(2.0 / cell)), 1)
 	for row in long:
-		var north := maxi(row - 1, 0) * wide
-		var south := mini(row + 1, long - 1) * wide
-		var far_north := maxi(row - far, 0) * wide
-		var far_south := mini(row + far, long - 1) * wide
+		var north := maxi(row - 1, 0)
+		var south := mini(row + 1, long - 1)
+		var far_north := maxi(row - far, 0)
+		var far_south := mini(row + far, long - 1)
+		if wraps:
+			north = posmod(row - 1, _rows)
+			south = posmod(row + 1, _rows)
+			far_north = posmod(row - far, _rows)
+			far_south = posmod(row + far, _rows)
+		var deep := cell * (2 if wraps else south - north)
+		north *= wide
+		south *= wide
+		far_north *= wide
+		far_south *= wide
 		for column in wide:
-			var here := _heights[row * wide + column]
+			var here := heights[row * wide + column]
 			var west := maxi(column - 1, 0)
 			var east := mini(column + 1, wide - 1)
-			var facing := Vector3((_heights[row * wide + west] - _heights[row * wide + east]) / (cell * (east - west)), 1.0,
-					(_heights[north + column] - _heights[south + column]) / (cell * (south - north) / wide)).normalized()
-			var bend := (_heights[row * wide + maxi(column - far, 0)] + _heights[row * wide + mini(column + far, wide - 1)]
-					+ _heights[far_north + column] + _heights[far_south + column] - 4.0 * here) / (far * cell * far * cell)
+			var far_west := maxi(column - far, 0)
+			var far_east := mini(column + far, wide - 1)
+			var across := cell * (east - west)
+			if wraps:
+				west = posmod(column - 1, _columns)
+				east = posmod(column + 1, _columns)
+				far_west = posmod(column - far, _columns)
+				far_east = posmod(column + far, _columns)
+				across = cell * 2.0
+			var facing := Vector3((heights[row * wide + west] - heights[row * wide + east]) / across, 1.0,
+					(heights[north + column] - heights[south + column]) / deep).normalized()
+			var bend := (heights[row * wide + far_west] + heights[row * wide + far_east]
+					+ heights[far_north + column] + heights[far_south + column] - 4.0 * here) / (far * cell * far * cell)
 			var at := (row * wide + column) * 4
 			form[at] = facing.x
 			form[at + 1] = facing.z
 			form[at + 2] = clampf(-bend * 2.2, -1.0, 1.0)
 			form[at + 3] = clampf((round_about[row * wide + column] - here) / 2.5, -1.0, 1.0)
-	var image := Image.create_from_data(wide, long, false, Image.FORMAT_RGBAF, form.to_byte_array())
-	image.convert(Image.FORMAT_RGBAH)
-	_form_map = ImageTexture.create_from_image(image)
+	return form
 
 
 # Each value the mean of those within `reach` of it, along and then across.
-static func _smoothed(values: PackedFloat32Array, wide: int, long: int, reach: int) -> PackedFloat32Array:
+# (`wraps`: of a grid that repeats, whose last row and column are its first again)
+static func _smoothed(values: PackedFloat32Array, wide: int, long: int, reach: int, wraps := false) -> PackedFloat32Array:
 	var along := PackedFloat32Array()
 	along.resize(values.size())
+	if wraps:
+		var both_ways := PackedFloat32Array()
+		both_ways.resize(values.size())
+		var share := 1.0 / (reach * 2 + 1)
+		for row in long:
+			var sum := 0.0
+			for column in range(-reach * 2, wide):
+				sum += values[row * wide + posmod(column + reach, wide - 1)]
+				if column > 0:
+					sum -= values[row * wide + posmod(column - reach - 1, wide - 1)]
+				if column >= 0:
+					along[row * wide + column] = sum * share
+		for column in wide:
+			var sum := 0.0
+			for row in range(-reach * 2, long):
+				sum += along[posmod(row + reach, long - 1) * wide + column]
+				if row > 0:
+					sum -= along[posmod(row - reach - 1, long - 1) * wide + column]
+				if row >= 0:
+					both_ways[row * wide + column] = sum * share
+		return both_ways
 	for row in long:
 		var sum := 0.0
 		var count := 0
@@ -494,17 +593,25 @@ func _make_mesh(first: float, across: int) -> ArrayMesh:
 func height_at(x: float, z: float) -> float:
 	if _heights.is_empty():
 		return _origin.y
-	var across := clampf((x - _origin.x + half.x) / cell, 0.0, _columns - 0.0001)
-	var along := clampf((z - _origin.z + half.y) / cell, 0.0, _rows - 0.0001)
+	var across := (x - _origin.x + half.x) / cell
+	var along := (z - _origin.z + half.y) / cell
+	var heights := _heights
+	if _endless and (across < 0.0 or across > _columns or along < 0.0 or along > _rows):
+		# (past its edges: the same square of open sand, over and over)
+		heights = far_heights
+		across = fposmod(across, _columns)
+		along = fposmod(along, _rows)
+	across = clampf(across, 0.0, _columns - 0.0001)
+	along = clampf(along, 0.0, _rows - 0.0001)
 	var column := int(across)
 	var row := int(along)
 	across -= column
 	along -= row
 	var corner := row * (_columns + 1) + column
-	var a := _heights[corner]
-	var d := _heights[corner + _columns + 2]
-	var b := _heights[corner + 1]
-	var c := _heights[corner + _columns + 1]
+	var a := heights[corner]
+	var d := heights[corner + _columns + 2]
+	var b := heights[corner + 1]
+	var c := heights[corner + _columns + 1]
 	# (each square is two triangles: split from this corner to the far one, or
 	# the other way if `splits` says so)
 	if splits.size() == _columns * _rows and splits[row * _columns + column] == 1:
@@ -524,16 +631,21 @@ func normal_at(x: float, z: float) -> Vector3:
 
 ## Whether a point in the world is on this sand, or within `slack` above or below it.
 func covers(point: Vector3, slack := 0.15) -> bool:
-	if _heights.is_empty() or absf(point.x - _origin.x) > half.x or absf(point.z - _origin.z) > half.y:
+	if _heights.is_empty() or (not _endless and _past(point.x, point.z)):
 		return false
 	return absf(point.y - height_at(point.x, point.z)) <= slack
+
+
+# Whether a place is past the ground's own edges.
+func _past(x: float, z: float) -> bool:
+	return absf(x - _origin.x) > half.x or absf(z - _origin.z) > half.y
 
 
 ## What has been painted at a place: a share of each of the first four of
 ## `Sand.Kind` (coarse, damp, packed, pale), in that order, as r, g, b, a.
 ## (For the others, `share_at`.)
 func kind_at(x: float, z: float) -> Color:
-	if _kinds[0].is_empty() or _heights.is_empty():
+	if _kinds[0].is_empty() or _heights.is_empty() or _past(x, z):
 		return Color(0.0, 0.0, 0.0, 0.0)
 	var at := _corner(x, z)
 	var kinds := _kinds[0]
@@ -545,10 +657,10 @@ func share_at(kind: int, x: float, z: float) -> float:
 	if kind == Sand.Kind.SNOW and snow:
 		return 1.0
 	@warning_ignore("integer_division")
-	var kinds := _kinds[kind / 4]
-	if kinds.is_empty() or _heights.is_empty():
+	if _kinds[kind / 4].is_empty() or _heights.is_empty():
 		return 0.0
-	return _between(kinds, kind % 4, x, z)
+	@warning_ignore("integer_division")
+	return _between(kind / 4, kind % 4, x, z)
 
 
 ## How readily the ground gives at a place: 1 is loose sand, a quarter a path
@@ -557,14 +669,14 @@ func share_at(kind: int, x: float, z: float) -> float:
 func give_at(x: float, z: float) -> float:
 	if _kinds[0].is_empty() or _heights.is_empty():
 		return 1.0
-	var hard := maxf(_between(_kinds[1], 0, x, z), _between(_kinds[1], 1, x, z))
-	return (1.0 - 0.75 * _between(_kinds[0], 2, x, z)) * (1.0 - smoothstep(0.36, 0.64, hard))
+	var hard := maxf(_between(1, 0, x, z), _between(1, 1, x, z))
+	return (1.0 - 0.75 * _between(0, 2, x, z)) * (1.0 - smoothstep(0.36, 0.64, hard))
 
 
 ## About the colour of the ground at a place, for whatever is thrown up from it.
 func colour_at(x: float, z: float) -> Color:
 	var here := Sand.SNOW if snow and colour == Sand.COLOUR else colour
-	if _kinds[0].is_empty() or _heights.is_empty():
+	if _kinds[0].is_empty() or _heights.is_empty() or _past(x, z):
 		return here
 	var at := _corner(x, z)
 	here = here.lerp(Sand.WHITE, _kinds[1][at + 2] / 255.0).lerp(Sand.RED, _kinds[1][at + 3] / 255.0)
@@ -583,9 +695,16 @@ func _corner(x: float, z: float) -> int:
 
 # One kind's share at a place, taken from the four corners round it (as the
 # shader takes it: what is done to him matches what he sees).
-func _between(kinds: PackedByteArray, channel: int, x: float, z: float) -> float:
-	var across := clampf((x - _origin.x + half.x) / cell, 0.0, _columns - 0.0001)
-	var along := clampf((z - _origin.z + half.y) / cell, 0.0, _rows - 0.0001)
+func _between(picture: int, channel: int, x: float, z: float) -> float:
+	var kinds := _kinds[picture]
+	var across := (x - _origin.x + half.x) / cell
+	var along := (z - _origin.z + half.y) / cell
+	if _endless and (across < 0.0 or across > _columns or along < 0.0 or along > _rows):
+		kinds = _far_kinds[picture]
+		across = fposmod(across, _columns)
+		along = fposmod(along, _rows)
+	across = clampf(across, 0.0, _columns - 0.0001)
+	along = clampf(along, 0.0, _rows - 0.0001)
 	var column := int(across)
 	var row := int(along)
 	across -= column
@@ -641,6 +760,18 @@ func paint_all(kind: int, shares: PackedByteArray) -> void:
 			kinds[i * 4 + channel] = shares[i]
 	@warning_ignore("integer_division")
 	_kinds_stale |= 1 << (kind / 4)
+
+
+## Paints the ground past its edges (`far_heights`) as the ground itself is
+## painted just now. (It is one square of sand over and over, and what is
+## painted on it is painted on them all: so paint the ground with what belongs
+## to the open sand, call this, and then paint the rest.)
+func paint_far() -> void:
+	_size_kinds()
+	for i in 3:
+		if _far_kinds[i].size() == _kinds[i].size():
+			_far_kinds[i] = _kinds[i].duplicate()
+	_kinds_stale = 7
 
 
 # --- Pressing into it ---
@@ -1144,7 +1275,7 @@ func _process(delta: float) -> void:
 	if _kinds_stale != 0:
 		for i in 3:
 			if _kinds_stale & (1 << i):
-				_kind_images[i].set_data(_columns + 1, _rows + 1, false, Image.FORMAT_RGBA8, _kinds[i])
+				_kind_images[i].set_data(_columns + 1, (_rows + 1) * (2 if _endless else 1), false, Image.FORMAT_RGBA8, _kinds_pictured(i))
 				_kind_maps[i].update(_kind_images[i])
 		_kinds_stale = 0
 	cost_usec = lerpf(cost_usec, float(Time.get_ticks_usec() - began), 0.1)
@@ -1429,7 +1560,7 @@ func _watch_body(body: RigidBody3D, known: Dictionary) -> void:
 	var under: float = at.y - known.rise
 	var falling: float = known.speed
 	known.speed = body.linear_velocity.y
-	if body.freeze or absf(at.x - _origin.x) > half.x or absf(at.z - _origin.z) > half.y:
+	if body.freeze or (not _endless and _past(at.x, at.z)):
 		known.touching = false
 		return
 	var ground_y := height_at(at.x, at.z)

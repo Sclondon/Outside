@@ -360,6 +360,44 @@ func scatter(area: Rect2, count: int, heights := Vector2(2.5, 8.0), keep_clear :
 	return placed
 
 
+## For ground that is to go on for ever as the same square of dunes over and
+## over: every dune that reaches past an edge of `square` is put in again a
+## whole square away, so that it comes in at the far edge where it went out at
+## this one. Baked over the square, the last row and column are then the first
+## again, and the squares meet with no seam. Call it when all the dunes are in.
+func wrap(square: Rect2) -> void:
+	for index in _dunes.size():
+		var dune: Array = _dunes[index]
+		var bounds: Rect2 = dune[3]
+		if square.encloses(bounds):
+			continue
+		for down in range(-1, 2):
+			for along in range(-1, 2):
+				var by := Vector2(along, down) * square.size
+				var moved := Rect2(bounds.position + by, bounds.size)
+				if by == Vector2.ZERO or not moved.intersects(square):
+					continue
+				var again := dune.duplicate()
+				again[3] = moved
+				if dune.size() > 4:
+					var star: Array = (dune[4] as Array).duplicate()
+					star[0] = (star[0] as Vector2) + by
+					var lines: Array = []
+					for line: PackedVector2Array in star[3]:
+						var shifted := PackedVector2Array()
+						for point in line:
+							shifted.append(point + by)
+						lines.append(shifted)
+					star[3] = lines
+					again[4] = star
+				else:
+					var frame: PackedFloat32Array = (dune[0] as PackedFloat32Array).duplicate()
+					frame[0] += by.x
+					frame[1] += by.y
+					again[0] = frame
+				_dunes.append(again)
+
+
 ## How high the sand stands at a place.
 func height_at(x: float, z: float) -> float:
 	var height := 0.0
@@ -410,16 +448,22 @@ func bake(origin: Vector2, cell: float, columns: int, rows: int, floor := true) 
 ## and then across, `passes` times (each pass rounds over about 0.7 of a
 ## square more). A crest that is a crease cannot be drawn with a grid: it comes
 ## out as teeth wherever it runs aslant to the squares. Rounded over two squares
-## or so it is a clean line from any side.
-static func rounded(heights: PackedFloat32Array, columns: int, rows: int, passes := 2) -> PackedFloat32Array:
+## or so it is a clean line from any side. With `wraps` the grid is one that
+## repeats (its last row and column are its first again: see `wrap`), and it is
+## rounded across its edges as it is everywhere else, so that it still repeats.
+static func rounded(heights: PackedFloat32Array, columns: int, rows: int, passes := 2, wraps := false) -> PackedFloat32Array:
 	var from := heights
 	for pass_no in passes:
 		var along := PackedFloat32Array()
 		along.resize(from.size())
 		for row in rows:
 			var first := row * columns
-			along[first] = (from[first] * 3.0 + from[first + 1]) * 0.25
-			along[first + columns - 1] = (from[first + columns - 1] * 3.0 + from[first + columns - 2]) * 0.25
+			if wraps:
+				along[first] = (from[first + columns - 2] + from[first] * 2.0 + from[first + 1]) * 0.25
+				along[first + columns - 1] = along[first]
+			else:
+				along[first] = (from[first] * 3.0 + from[first + 1]) * 0.25
+				along[first + columns - 1] = (from[first + columns - 1] * 3.0 + from[first + columns - 2]) * 0.25
 			for at in range(first + 1, first + columns - 1):
 				along[at] = (from[at - 1] + from[at] * 2.0 + from[at + 1]) * 0.25
 		var both := PackedFloat32Array()
@@ -427,9 +471,13 @@ static func rounded(heights: PackedFloat32Array, columns: int, rows: int, passes
 		for at in range(columns, columns * (rows - 1)):
 			both[at] = (along[at - columns] + along[at] * 2.0 + along[at + columns]) * 0.25
 		for column in columns:
-			both[column] = (along[column] * 3.0 + along[column + columns]) * 0.25
 			var last := (rows - 1) * columns + column
-			both[last] = (along[last] * 3.0 + along[last - columns]) * 0.25
+			if wraps:
+				both[column] = (along[last - columns] + along[column] * 2.0 + along[column + columns]) * 0.25
+				both[last] = both[column]
+			else:
+				both[column] = (along[column] * 3.0 + along[column + columns]) * 0.25
+				both[last] = (along[last] * 3.0 + along[last - columns]) * 0.25
 		from = both
 	return from
 

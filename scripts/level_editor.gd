@@ -1101,7 +1101,6 @@ func _show_level() -> void:
 	_number("Height of the dunes", own, "dune_height", 0.0, 18.0, 0.25, "terrain")
 	_number("Dunes scattered about", own, "scatter", 0.0, 2.5, 0.05, "terrain")
 	_number("Which scatter", own, "seed", 0.0, 99.0, 1.0, "terrain")
-	_number("Height of the edge", own, "rim_height", 0.0, 30.0, 0.5, "terrain")
 	DesertScenery.desk_rows(self, own)
 	var blows: Array = own.get("wind", [1.0, 0.0])
 	var turn := {"deg": snappedf(rad_to_deg(atan2(blows[1], blows[0])), 1.0)}

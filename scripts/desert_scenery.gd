@@ -80,7 +80,8 @@ static func dress(level: Desert) -> void:
 		horizon.hills = hills
 		horizon.distance = level.terrain.size * 0.5 + 170.0
 		horizon.seed = level.terrain.seed
-		horizon.position.y = level.terrain.rim_height - 1.5
+		horizon.round_square = level.terrain.size
+		horizon.position.y = 7.5
 		var sky := level.get_node_or_null(^"Sky") as WorldEnvironment
 		if sky and sky.environment and sky.environment.sky and sky.environment.sky.sky_material is ProceduralSkyMaterial:
 			horizon.air = (sky.environment.sky.sky_material as ProceduralSkyMaterial).sky_horizon_color

@@ -768,7 +768,7 @@ func _level_numbers() -> Array:
 	return [
 		_spec("How far across", own, "size", 160.0, 800.0, 20.0, "terrain"), _spec("Height of the dunes", own, "dune_height", 0.0, 18.0, 0.25, "terrain"),
 		_spec("Dunes scattered about", own, "scatter", 0.0, 2.5, 0.05, "terrain"), _spec("Which scatter", own, "seed", 0.0, 99.0, 1.0, "terrain"),
-		_spec("Height of the edge", own, "rim_height", 0.0, 30.0, 0.5, "terrain"), _spec("The wind blows towards", turn, "deg", -180.0, 180.0, 5.0, "wind"),
+		_spec("The wind blows towards", turn, "deg", -180.0, 180.0, 5.0, "wind"),
 		_spec("Heat mirage (0: none)", editor.layout, "mirage", 0.0, 1.0, 0.05, "mirage"),
 	]
 

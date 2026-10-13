@@ -158,12 +158,43 @@ uniform vec4 dent = vec4(0.015, 1024.0, 0.1275, 0.6667);
 uniform vec2 dent_at = vec2(0.0);
 // The desert beyond the edge: how high it lies, and how far it rolls up and down.
 uniform vec2 apron = vec2(0.0, 6.0);
+// 1: the ground goes on for ever (`SandGround.far_heights`). Past its edges
+// lies one square of open sand over and over, the size of the ground's own, and
+// each of the pictures above has it under the ground's own: twice as many rows.
+uniform float endless = 0.0;
+
+// For a place past the edges of ground that goes on for ever: where in that
+// square it is (in squares of the grid), and how many rows down its pictures
+// start. For any other place, nothing is changed and the answer is none.
+float beyond(inout vec2 square) {
+	if (endless > 0.5 && (square.x < 0.0 || square.y < 0.0 || square.x > field_cells.x || square.y > field_cells.y)) {
+		square = mod(square, field_cells);
+		return field_cells.y + 1.0;
+	}
+	return 0.0;
+}
+
+// Where in the pictures of the ground a place is.
+vec2 pictured(vec2 xz) {
+	vec2 square = (xz - field.xy) / field.z;
+	float rows = beyond(square);
+	return (square + vec2(0.5, 0.5 + rows)) / (field_cells + 1.0) * vec2(1.0, endless > 0.5 ? 0.5 : 1.0);
+}
+
+// (the corner next to one at the edge: of ground that goes on for ever, the one across the edge)
+int lapped(int corner, int last) {
+	if (endless < 0.5) {
+		return clamp(corner, 0, last);
+	}
+	return corner < 0 ? corner + last : (corner > last ? corner - last : corner);
+}
 
 float ground(vec2 xz) {
 	vec2 square = (xz - field.xy) / field.z;
+	int rows = int(beyond(square));
 	vec2 whole = clamp(floor(square), vec2(0.0), field_cells - 1.0);
 	vec2 part = clamp(square - whole, 0.0, 1.0);
-	ivec2 corner = ivec2(whole);
+	ivec2 corner = ivec2(whole) + ivec2(0, rows);
 	float a = texelFetch(height_map, corner, 0).r;
 	float d = texelFetch(height_map, corner + ivec2(1, 1), 0).r;
 	// (each square is two triangles, split the way the collider splits it)
@@ -197,16 +228,17 @@ vec4 spline(float t) {
 
 float curved(vec2 xz) {
 	vec2 square = (xz - field.xy) / field.z;
+	int rows = int(beyond(square));
 	vec2 whole = clamp(floor(square), vec2(0.0), field_cells - 1.0);
 	vec2 part = clamp(square - whole, 0.0, 1.0);
 	ivec2 corner = ivec2(whole);
 	ivec2 last = ivec2(field_cells);
 	vec4 along = spline(part.x);
 	vec4 down = spline(part.y);
-	ivec4 columns = clamp(ivec4(corner.x - 1, corner.x, corner.x + 1, corner.x + 2), ivec4(0), ivec4(last.x));
+	ivec4 columns = ivec4(lapped(corner.x - 1, last.x), corner.x, corner.x + 1, lapped(corner.x + 2, last.x));
 	float sum = 0.0;
 	for (int j = 0; j < 4; j++) {
-		int row = clamp(corner.y + j - 1, 0, last.y);
+		int row = lapped(corner.y + j - 1, last.y) + rows;
 		sum += down[j] * dot(along, vec4(texelFetch(height_map, ivec2(columns.x, row), 0).r, texelFetch(height_map, ivec2(columns.y, row), 0).r,
 				texelFetch(height_map, ivec2(columns.z, row), 0).r, texelFetch(height_map, ivec2(columns.w, row), 0).r));
 	}
@@ -298,6 +330,11 @@ void vertex() {
 	// of the edge to a rolling plain.
 	vec2 within = clamp(xz, field.xy, field.xy + field_cells * field.z);
 	float past = length(xz - within);
+	if (endless > 0.5) {
+		// (or, if it goes on for ever, as the same dunes)
+		within = xz;
+		past = 0.0;
+	}
 	// (curved where the mesh is finer than the grid of heights; further off its
 	// own squares are as coarse as the grid, or coarser, and it is drawn flat)
 	float y = curve > 0.5 && step_by < field.z * 0.99 ? curved(within) : ground(within);
@@ -309,7 +346,7 @@ void vertex() {
 		y += (textureLod(dent_map, xz / (dent.x * dent.y), 0.0).r - dent.w) * dent.z * dented(xz) * clamp((0.2 - square) * 10.0, 0.0, 1.0);
 	}
 	VERTEX = vec3(xz.x, y, xz.y);
-	vec2 lean = textureLod(form_map, ((xz - field.xy) / field.z + 0.5) / (field_cells + 1.0), 0.0).xy;
+	vec2 lean = textureLod(form_map, pictured(xz), 0.0).xy;
 	NORMAL = normalize(vec3(lean.x, sqrt(max(1.0 - dot(lean, lean), 0.01)), lean.y));
 #endif
 	at = VERTEX;
@@ -337,17 +374,17 @@ void fragment() {
 	// (how steeply sand that stands above the rest falls away at its edge)
 	float brink = 0.0;
 #ifdef GROUND
-	vec2 where = ((at.xz - field.xy) / field.z + 0.5) / (field_cells + 1.0);
-	vec4 form = texture(form_map, where);
+	vec2 where = pictured(at.xz);
+	vec4 form = textureLod(form_map, where, 0.0);
 	up = normalize(vec3(form.x, sqrt(max(1.0 - dot(form.xy, form.xy), 0.01)), form.y));
-	float past = length(at.xz - clamp(at.xz, field.xy, field.xy + field_cells * field.z));
+	float past = endless > 0.5 ? 0.0 : length(at.xz - clamp(at.xz, field.xy, field.xy + field_cells * field.z));
 	up = normalize(mix(up, vec3(0.0, 1.0, 0.0), smoothstep(0.0, 60.0, past)));
 	form.zw *= 1.0 - smoothstep(0.0, 30.0, past);
 	crest = max(form.z, 0.0);
 	hollow = max(form.w, 0.0) + max(-form.z, 0.0) * 0.5;
-	painted = texture(kind_map, where);
-	laid = texture(kind_map2, where);
-	more = texture(kind_map3, where);
+	painted = textureLod(kind_map, where, 0.0);
+	laid = textureLod(kind_map2, where, 0.0);
+	more = textureLod(kind_map3, where, 0.0);
 	float shows = dented(at.xz);
 	if (shows > 0.0) {
 		// What has been pressed in: darker in the hollow, and lit as the

@@ -100,7 +100,7 @@ func the_ground(edfu: Temple, kom: Temple, abu: AbuSimbel) -> void:
 			if int(item["id"]) == int(water["id"]):
 				bank = float(item.get("bank", 8.0))
 		var lowest_dry := 100.0
-		var wall := level.terrain.size * 0.5 - level.terrain.wall_inset
+		var wall := level.terrain.size * 0.5 - DesertTerrain.JOIN
 		for row in int(rect.size.y / 4.0):
 			for column in int(rect.size.x / 4.0):
 				var at := rect.position + Vector2(column * 4.0 + 2.0, row * 4.0 + 2.0)
