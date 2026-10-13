@@ -116,11 +116,29 @@ The ground of a level is a `SandGround` (`scripts/sand_ground.gd`), drawn by the
 - **Sand thrown up** by feet (`SandSpray`) is many fine grains that are flung out and come straight back down in
   arcs, drifting a little in the wind.
 
-- **Wind ripples** are drawn by the sand shader wherever sand lies flattish and open to the wind: thin ridges a
-  third of a metre apart lying across the wind, each with a long back and a short dark lee side. There are two sets of
-  them, one a little closer together than the other, in patches: where one gives way to the other a ripple runs into
-  the next and ends, or becomes two, so they fork and join as real ones do. They fade out on a slip face, on trodden
-  ground, and before they are too fine to draw, so that far sand is smooth and does not shimmer.
+- **Wind ripples** are drawn by the sand shader, lying across the wind, and have three looks (`Sand.Ripples`):
+  - **soft waves**, the look they always had: low even waves a third of a metre apart that bend with the ground.
+    They fade out on a slip face, on trodden ground, and before they are too fine to draw;
+  - **fine lines**: closer together and fainter, each with a longer back than lee side. There are two sets of them in
+    patches, and where one gives way to the other a line ends or becomes two, so they fork and join;
+  - **none**: bare smooth sand.
+
+  Which a level has is its "Ripples in the sand" (on the editor's Level page; `ripples` in the layout;
+  `SandGround.ripples` in code):
+  - **Soft waves, as they were** (0): soft waves wherever there are ripples. It is what a level has that does not say,
+    and what the test yard has.
+  - **Mixed, as a desert is** (1): it differs from place to place, in patches some tens of metres across, by where a
+    place is and never by the clock. Soft waves on most open sand and on the backs of dunes; fine lines only in some of
+    the patches where the ground is level, and on level ground painted `PACKED` (trodden sand, and the swept ground
+    between dunes); bare sand in other patches, round chalk rock (ground painted `WHITE`), in the lee of a dune and
+    on its slip face; fewer on `COARSE` and `DAMP` sand, none on dirt, rock or snow. One look fades into the next
+    over a few metres. This is what the shipped desert has.
+  - **Fine lines** (2), **None** (3): the one look everywhere.
+
+  With the world's light in bands, the line between light and shade is drawn from the ground without its ripples, so
+  it is one clean line and not a row of teeth, and the ripples are shaded on top of it. The sand costs no more to
+  draw than it did (0.39 to 0.41 thousandths of a second for a picture full of it on a desk, each look, where the
+  forking lines alone took 0.41).
 
 `tools/sand_sheets.gd` walks and runs him over all of it in the test yard and saves pictures (see the top of the file).
 
@@ -133,7 +151,8 @@ rises gently (about 11 degrees at its steepest), and down wind the slip face fal
 
 - a **crescent** (a barchan): its horns point down wind;
 - a **ridge** across the wind, long, its crest wandering;
-- **linked crescents** (a barchanoid ridge): a scalloped line of them, joined horn to horn, with a low saddle at each join;
+- **linked crescents** (a barchanoid ridge): a wavy line of them, joined horn to horn, with a low saddle at each join
+  (the crest runs round each join in a curve, not to a point);
 - a **star dune**: three to five crests running out from a peak, one side of each a slip face;
 - and the **floor** between, which is nearly level.
 
@@ -141,17 +160,44 @@ How they are set out is the level's "Kind of dunes" (on the editor's Level page;
 
 - **Scattered, as they were** (0): crescents and ridges dropped by chance. It is what a level has that does not say.
 - **Crescents, Ridges across the wind, Linked crescents, Star dunes**: a field of the one form.
-- **A sea of all kinds**: each form where it belongs, crescents where the sand is thin and ridges where there is more,
-  and now and then a star. This is what the shipped desert has.
+- **A sea of all kinds**: crescents where the sand is thin, linked crescents and ridges where there is more. (No
+  stars: a star is a peak.)
+
+The shipped desert has **crescents**: there is little open ground between its places, and crescents fill what there is
+with a dozen big dunes.
 
 A field is set out as the wind sets one out: in rows across it, each row a dune's length and some flat ground
 behind the last ("Flat ground between them"), the dunes of a row much of a size and standing opposite the gaps of the
-row before, no two alike. "How sharp their crests are" makes the crest a crease (the back is still climbing when it
-gets to the brink) or rounds it over. Everything comes from the level's seed through whole numbers: the same level is
-the same ground every time, on every device. In a field the flat ground between dunes is painted harder and paler
-(packed, pale and a little white sand), and a dune runs out to nothing where it would stand on level ground, a pond,
-rock, or anything else that stands in the level. The Ground page also has a **Star dune** and **Linked dunes** to
-place by hand, beside the Dune and the Ridge.
+row before, no two alike. Everything comes from the level's seed through whole numbers: the same level is the same
+ground every time, on every device. In a field the flat ground between dunes is painted harder and a little paler
+(packed, pale and a little white sand). A dune runs out to nothing, over a dozen metres, where it would stand on level
+ground, a pond, rock, a person, a door or a checkpoint, and one with four fifths of it gone is left out; a palm, a
+stone or any other prop does not move a dune, and stands on it as it finds it. The Ground page also has a **Star
+dune** and **Linked dunes** to place by hand, beside the Dune and the Ridge.
+
+**A field of dunes is smooth everywhere.** The dunes were rough and spiky, and these were the causes and the cures:
+
+- A crest was a crease, and so were the points of horns and the joins of linked dunes. The ground is a grid of heights
+  two and a half metres apart, and a crease that runs aslant to a grid comes out as teeth. The heights of a field are
+  now rounded over after they are made (`SandDunes.rounded`: each corner the mean of those round it, three times
+  over, or twice or once as "How sharp their crests are" goes up), so a crest is a curve some metres across. Soft
+  (0.3) is what a level has that does not say; the slip face under the crest still stands at 31 or 32 degrees.
+- A dune's back was as long as the dune was high at each place along it, so at its ends, and where it ran out at a
+  pad, it shrank to nothing and the end was a steep-sided wedge: a roof, or a shard. The back is now as long at the
+  ends as in the middle (`long_backs`), and the ends of a ridge rise over six times its height.
+- There were too many small dunes. They are now between a little over half and the whole of "Height of the dunes"
+  (they went down to a quarter), ridges are shorter, and there are about half as many.
+- Low horns had slip faces a metre high and under two metres long, which the grid cannot draw. Below about three
+  metres the lee side is now a gentler slope, the gentler the lower (`soft_below`).
+- The ground was drawn as the flat triangles it is stood on, so a rounded crest against the sky was a line of straight
+  pieces. Near the eye it is now drawn as a curved surface through the same corners (`SandGround.curved`: sixteen
+  heights read for each corner of the mesh, where there were three; no more triangles). Each square of the grid is
+  split into its two triangles along whichever diagonal lies nearer that curve (`SandDunes.splits`), in what is stood
+  on too, so a crest that runs aslant is not notched: what is drawn and what is stood on are within a hand's breadth (8 cm on open dunes).
+- The forking ripples drew a dark line down every slope, and in banded light broke the edge of every shadow into
+  teeth (see the ripples, above).
+- The sand banked against a rock is a ring of flat pieces with a plain edge, and was paler than the ground it lay on.
+  The ground round every rock is now painted the same pale drift, fading out over five metres.
 
 What dunes look like has a great deal to do with where the sun is: a slip face that is turned from the sun is dark
 and its crest is a hard line, and one turned to it is nearly lost. The shipped desert's wind was turned right round
@@ -159,13 +205,16 @@ and its crest is a hard line, and one turned to it is nearly lost. The shipped d
 
 **A level saved before this** (one made in the editor on a phone, or pasted in) says nothing of the kind of dunes, and
 so keeps them exactly as they were: scattered, round at the crest, the same dunes in the same places, nothing moved
-under what was put on them. What does change in it: wind ripples fork, and are thin dark lines where they were soft
-waves; and things stand on the ground exactly as it is drawn and stood on, where they used to stand on the height the
-dunes were worked out from, which between two corners of the ground's grid could differ by a hand's breadth. To give
-such a level the new dunes, choose a kind on its Level page; the far hills are there too, and it has none until asked.
+under what was put on them, drawn as flat triangles, with soft waves for ripples. What does change in it: things stand
+on the ground exactly as it is drawn and stood on, where they used to stand on the height the dunes were worked out
+from, which between two corners of the ground's grid could differ by a hand's breadth. To give such a level the new
+dunes, choose a kind on its Level page; the ripples and the far hills are there too.
 
-The ground is made again by the editor a moment after any change: that takes about a fifth of a second for the
+The ground is made again by the editor a moment after any change: that takes about a quarter of a second for the
 shipped desert on a desk (it was asked of the dunes corner by corner, and is now worked out dune by dune).
+
+`tools/terrain_sheets.gd` takes pictures of all of this (see the top of the file): `crests`, `start`, `looks` (each
+look of the ripples, and where two meet) and `relief` (the shape of the ground alone, as a map) among them.
 
 ## Rock: cliffs, the White Desert, the Valley of the Kings
 
