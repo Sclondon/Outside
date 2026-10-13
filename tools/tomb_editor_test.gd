@@ -1,7 +1,7 @@
 extends SceneTree
 ## Not part of the game. Checks tombs made by hand (`TombSpec`) and the tomb
 ## editor that makes them, with nothing drawn.
-## godot --headless --path . --fixed-fps 60 --script tools/tomb_editor_test.gd -- [seeds=60] [fuzz=400] [size=1280x720]
+## godot --headless --path . --fixed-fps 60 --script tools/tomb_editor_test.gd -- [seeds=60] [fuzz=1200] [size=1280x720]
 ##
 ##  - the tomb a new one starts as can be built and finished;
 ##  - every generated tomb (seeds 1 to `seeds`, each difficulty) taken into the
@@ -37,7 +37,7 @@ extends SceneTree
 const Probe := preload("res://tools/tomb_phone_probe.gd")
 
 var seeds := 60
-var fuzz := 400
+var fuzz := 1200
 ## How big the screen of the phone is, for the part that is worked by touch.
 var screen := Vector2i(1280, 720)
 var failed := false
@@ -336,6 +336,35 @@ func _editor() -> void:
 	editor.choose(0)
 	editor.remove()
 	expect(editor.rooms().size() == before, "the entrance was removed")
+	# The creatures, each chosen by name where the other locks are, and the way through said in words.
+	editor.take(TombSpec.fresh("Keepers"))
+	editor.choose(2)
+	editor.set_value("lock", "name")
+	editor.rebuild()
+	expect(editor.found["ok"] and int(editor.rooms()[2]["stone_in"]) == 1, "a gate guardian chosen in the editor: %s (its leaf in room %d)" % [editor.found["says"], int(editor.rooms()[2]["stone_in"]) + 1])
+	expect(_way_says(editor, ["leaf of the Book", "tell him his name"]), "the way through does not say to read the leaf and name the guardian")
+	expect(TombSpec.from_text(TombSpec.to_text(editor.spec)) == editor.spec, "a tomb with a guardian did not come back from text as it went")
+	editor.set_value("lock", "sphinx_jar")
+	editor.rebuild()
+	expect(editor.found["ok"] and int(editor.rooms()[1]["jar"]) == 1, "a sphinx chosen in the editor, and a jar left for it: %s" % editor.found["says"])
+	expect(_way_says(editor, ["Take the jar", "before the sphinx"]), "the way through does not say to give the sphinx its jar")
+	editor.set_value("lock", "gaze_work")
+	editor.rebuild()
+	expect(editor.found["ok"] and (editor.found["plan"] as TombPlan).links.any(func(link: TombPlan.Link) -> bool: return link.watched), "Medjed chosen in the editor: %s" % editor.found["says"])
+	expect(_way_says(editor, ["Push the block onto the plate", "past Medjed"]), "the way through does not say to shut Medjed's eyes and go past him")
+	expect(TombSpec.from_text(TombSpec.to_text(editor.spec)) == editor.spec, "a tomb with Medjed did not come back from text as it went")
+	# Apophis, by hand, in the burial chamber and nowhere else.
+	editor.choose(editor.rooms().size() - 1)
+	editor.set_value("apophis", true)
+	editor.rebuild()
+	expect(editor.found["ok"] and ((editor.found["plan"] as TombPlan).rooms[(editor.found["plan"] as TombPlan).goal_trigger().room] as TombPlan.Room).snake, "Apophis put in the burial chamber in the editor: %s" % editor.found["says"])
+	editor.choose(1)
+	editor.set_value("apophis", true)
+	editor.rebuild()
+	expect(not (editor.found["problems"] as PackedStringArray).is_empty(), "Apophis in a corridor was let through")
+	editor.undo()
+	editor.rebuild()
+	expect(editor.found["ok"], "undoing Apophis in a corridor did not put it right: %s" % editor.found["says"])
 	# Every frame of it with a full tomb standing, for a while.
 	editor.take(TombSpec.from_seed(3, 2))
 	editor.rebuild()
@@ -348,6 +377,15 @@ func _editor() -> void:
 	scene.queue_free()
 	await process_frame
 	print("editor: done")
+
+
+# Whether the way through the tomb in the editor says each of these, in this order.
+func _way_says(editor: TombEditor, wanted: Array) -> bool:
+	var at := 0
+	for step: Array in editor.found["solved"]["steps"]:
+		if at < wanted.size() and String(wanted[at]) in TombSpec.step_words(editor.spec, editor.found["plan"], step):
+			at += 1
+	return at == wanted.size()
 
 
 # --- Tombs that branch: the floor plan
@@ -510,6 +548,11 @@ func _floor_editor() -> void:
 	editor.rebuild()
 	expect(editor.found["ok"] and editor.rooms()[4]["dark"], "the editor did not leave a torch for the brazier, or make its room dark: %s" % editor.found["says"])
 	# Move: with the loop there are places marked; the touch moves it, and the loop goes.
+	editor.set_value("lock", "name")
+	editor.rebuild()
+	expect(editor.found["ok"] and (editor.found["plan"] as TombPlan).triggers.any(func(trigger: TombPlan.Trigger) -> bool: return trigger.kind == TombPlan.Switch.NAME), "a gate guardian for the new room, on a floor plan: %s" % editor.found["says"])
+	editor.set_value("lock", "brazier")
+	editor.rebuild()
 	editor.start("move")
 	await process_frame
 	await process_frame

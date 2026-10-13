@@ -82,6 +82,8 @@ const THICK := 1.0
 ## left as he goes in), and the lane a room's own block is pushed along (to the right).
 const WALK := -1.0
 const LANE := 1.3
+## How far to the right of the middle of his gateway a gate guardian sits.
+const GATE_SIDE := 1.75
 ## How wide a plate is across the lane its block comes along.
 const PAD := 1.4
 ## How wide each kind of room is (`TombPlan.Role`), wall to wall.
@@ -553,9 +555,10 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 
 	# --- Just inside: a seal stone that opens the door behind him, the things that lie here, a plate
 	for trigger in plan.triggers:
-		if trigger.room == room.id and trigger.kind == TombPlan.Switch.LEVER and not _lets_sand_in(trigger, room.id):
+		if trigger.room == room.id and TombPlan.is_trodden(trigger) and not _lets_sand_in(trigger, room.id):
 			_area(1.6)
-			_seal(trigger, frame.at(_u - 0.8, _y, WALK))
+			# (a leaf lies to the right of his line: he goes to it, he does not trip over it)
+			_seal(trigger, frame.at(_u - 0.8, _y, WALK + 2.0 if trigger.kind == TombPlan.Switch.LEAF else WALK))
 	var entry := _area(2.6)
 	var west := frame.at(entry.u0 + 1.0, _y, WALK)
 	if _sky:
@@ -639,6 +642,7 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 	var work: TombPlan.Trigger
 	var table: TombPlan.Trigger
 	var fire: TombPlan.Trigger
+	var asks: TombPlan.Trigger
 	for trigger in plan.triggers:
 		if trigger.room != room.id:
 			continue
@@ -649,6 +653,8 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 				table = trigger
 			TombPlan.Switch.BRAZIER:
 				fire = trigger
+			TombPlan.Switch.SPHINX:
+				asks = trigger
 	if fire:
 		var hearth := _area(2.4)
 		var middle := (hearth.u0 + hearth.u1) * 0.5
@@ -673,6 +679,18 @@ func _set_room(room: TombPlan.Room, frame: Frame) -> float:
 		_box(frame.at(middle, _y + TABLE_HIGH * 0.5, out), frame.size(TABLE_LONG, TABLE_HIGH, 1.2), "gold", true)
 		parts.append({"kind": "offering", "room": _room, "trigger": table.id, "at": switch_at[table.id], "size": frame.size(TABLE_LONG - 0.2, 0.6, 1.0)})
 		_area(0.9)
+
+	if asks:
+		# A sphinx lies across the room from the right, facing his line, its paws
+		# just short of it: he stands before it, and what he puts down there it
+		# takes. What it will not have, its paw puts back on his line, short of it.
+		var long := SPHINX_SIZE if _w < 7.0 else 3.2
+		var den := _area(SPHINX_DEN)
+		var before := den.u0 + SPHINX_DEN - 1.7
+		switch_at[asks.id] = frame.at(before, _y, WALK + 0.3)
+		stand_at[asks.id] = frame.at(before, _y, WALK)
+		parts.append({"kind": "sphinx", "room": _room, "trigger": asks.id, "at": frame.at(before, _y, WALK + 0.75 + 0.53 * long), "yaw": frame.yaw(PI),
+				"size": long, "wants": asks.wants, "head": sphinx_head(plan, asks.id), "sweep_to": frame.at(before - SPHINX_SWEEP, _y, WALK)})
 
 	# --- The bay, and over it the loft if there is one: its lip is caught from this side
 	_clear()
@@ -758,6 +776,11 @@ func _set_burial(room: TombPlan.Room, info: Dictionary, with_bay: bool) -> void:
 		parts.append({"kind": "mummy", "room": _room, "what": room.mummy, "guardian": true, "at": _f.at(niche.u1 - 0.9, _y, 1.4),
 				"safe_at": held, "safe_way": -_f.dir(), "wake": 3.0})
 		parts.append({"kind": "jackal", "room": _room, "at": _f.at(niche.u1 - 0.9, _y, -2.4)})
+	if room.snake:
+		# Apophis, down a hole beyond the falcon: he comes out behind the boy as it is taken.
+		if room.mummy < 0:
+			_area(2.6)
+		parts.append({"kind": "apophis", "room": _room, "at": _f.at(_u - 0.8, _y, 0.0)})
 	if with_bay:
 		var bay := _area(BAY)
 		info["east"] = _f.at((bay.u0 + bay.u1) * 0.5, _y, WALK)
@@ -872,11 +895,37 @@ func _set_way(link: TombPlan.Link, frame: Frame, filler: float) -> float:
 			# (no wall: the bay opens onto the head of the ladder or the rope, or the foot of the face)
 			pass
 		_:
-			var gate := _area(WALL, roof if over else _y + way_high)
+			var keeper := plan.keeper_of(link, TombPlan.Switch.NAME)
+			# (a gate guardian's gateway is no wider than his knives bar: it is at the
+			# left of the passage, round the boy's line, and he sits against the wall to the right of it)
+			var gate := _area(WALL, roof if over else _y + way_high, -PASSAGE * 0.5, -PASSAGE * 0.5 + GATE_WIDE) if keeper \
+					else _area(WALL, roof if over else _y + way_high)
 			gate.gate = true
 			if loft:
 				moves.append({"kind": "under", "is": way_high, "room": _room})
-			if not link.switches.is_empty():
+			if keeper:
+				var middle := -PASSAGE * 0.5 + GATE_WIDE * 0.5
+				door_at[link.id] = frame.at(WALL * 0.5, _y + way_high * 0.5, middle)
+				switch_at[keeper.id] = frame.at(-0.05, _y, WALK)
+				stand_at[keeper.id] = switch_at[keeper.id]
+				var is_who: Dictionary = keepers(plan)[keeper.id]
+				parts.append({"kind": "guardian", "room": _room, "link": link.id, "trigger": keeper.id,
+						"at": frame.at(WALL * 0.5 - GATE_BACK, _y, middle + GATE_SIDE), "yaw": frame.yaw(-PI * 0.5), "gate_at": -GATE_SIDE,
+						"wide": GATE_WIDE, "tall": way_high, "who": is_who["who"], "seed": is_who["seed"]})
+				moves.append({"kind": "slot", "is": GATE_WIDE, "room": _room})
+				_sign(link, frame, turned, float(rooms[a.id].get("wide", PASSAGE)), _y + way_high + 0.5 if not loft else -1.0)
+			elif link.watched:
+				# No slab: Medjed stands at the far end of a plain stretch of passage and
+				# looks back down it to the doorway, his look as wide as the passage. The
+				# bay is out of his sight, round the jamb and beyond his reach.
+				door_at[link.id] = frame.at(WALL * 0.5, _y + way_high * 0.5, 0.0)
+				_sign(link, frame, turned, float(rooms[a.id].get("wide", PASSAGE)), _y + way_high + 0.5 if not loft else -1.0)
+				var watch := _area(WATCH_LONG, roof)
+				parts.append({"kind": "medjed", "room": _room, "link": link.id, "at": frame.at(watch.u1 - WATCH_BACK, _y, 0.0), "yaw": frame.yaw(-PI * 0.5),
+						"reach": WATCH_LONG - WATCH_BACK + WATCH_INTO, "cone": 90.0, "stand": frame.at(-1.6, _y, WALK)})
+				if not a.dark:
+					parts.append({"kind": "torch", "room": _room, "at": frame.at((watch.u0 + watch.u1) * 0.5, _y + 2.1, -PASSAGE * 0.5 + 0.05), "yaw": frame.yaw()})
+			elif not link.switches.is_empty():
 				door_at[link.id] = frame.at(WALL * 0.5, _y + way_high * 0.5, 0.0)
 				parts.append({"kind": "door", "room": _room, "link": link.id, "at": door_at[link.id],
 						"size": frame.size(0.5, way_high, PASSAGE - 0.1), "sinks": over})
@@ -1084,6 +1133,9 @@ func _line(one: int, other: int) -> void:
 func _seal(trigger: TombPlan.Trigger, at: Vector3) -> void:
 	switch_at[trigger.id] = at
 	stand_at[trigger.id] = at
+	if trigger.kind == TombPlan.Switch.LEAF:
+		parts.append({"kind": "leaf", "room": _room, "trigger": trigger.id, "at": at, "who": leaf_name(plan, trigger.id)})
+		return
 	parts.append({"kind": "lever", "room": _room, "trigger": trigger.id, "at": at, "size": Vector3(1.2, 0.5, 1.2)})
 
 

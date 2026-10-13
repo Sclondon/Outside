@@ -883,6 +883,8 @@ func _fill_room() -> void:
 	if index > 0:
 		_section("What is in it")
 		_switch("switch:dark", "Dark", "No torches on its walls.", told["dark"], func() -> void: editor.set_value("dark", not told["dark"]))
+		if burial:
+			_switch("switch:apophis", "Apophis", TombSpec.APOPHIS_NOTE, told.get("apophis", false), func() -> void: editor.set_value("apophis", not told.get("apophis", false)))
 		if not burial:
 			_switch("switch:pit", "A pit to jump", "A pit across the floor, narrow enough to jump.", told["pit"], func() -> void: editor.set_value("pit", not told["pit"]))
 		var mummies: Array = [["none", "None", "Nothing wakes in this room."]]
@@ -943,7 +945,7 @@ func _fill_way() -> void:
 	var asks := "What lets the sand in" if sand else ("What opens its door" if floor else "What opens the door on")
 	_row("row:lock", asks, lock_rows[lock][1], lock_rows[lock][2], func() -> void:
 		_pick(asks + "?", lock_rows, lock, func(picked: int) -> void: editor.set_value("lock", locks[picked])))
-	if floor and told["lock"] in ["work", "brazier", "offering"]:
+	if floor and told["lock"] in ["work", "brazier", "offering", "gaze_work"]:
 		var others: Array = []
 		var other_rows: Array = []
 		for i in range(1, count):
@@ -953,10 +955,10 @@ func _fill_way() -> void:
 		var at := maxi(others.find(from if held_in < 0 else held_in), 0)
 		_row("row:lock_in", "It stands in", other_rows[at][1], "The room its block and plate, brazier or table are in: any room of the tomb.", func() -> void:
 			_pick("Which room does it stand in?", other_rows, at, func(picked: int) -> void: editor.set_value("lock_in", others[picked])))
-	elif told["lock"] in ["lever_above", "lever_below", "seal"]:
+	elif TombSpec.host_kind(told["lock"]) != "":
 		var hosts: Array = e._hosts_on_floor(told["lock"]) if floor else e._hosts(told["lock"])
 		if hosts.is_empty():
-			if told["lock"] == "lever_below":
+			if TombSpec.host_kind(told["lock"]) == "below":
 				_say("There is no well in this tomb: make one of the rooms a well." if floor else "There is no well at or before this room: make one of the rooms a well.", BAD)
 			else:
 				_say("There is no room to put a loft over.", BAD)
@@ -965,7 +967,7 @@ func _fill_way() -> void:
 			for host: int in hosts:
 				host_rows.append([str(host), TombSpec.room_title(e.spec, host), room_says(host)])
 			var at := maxi(hosts.find(int(told["stone_in"])), 0)
-			var where: String = {"lever_above": "Its stone is over", "lever_below": "Its stone is under", "seal": "Its stone lies just inside"}[told["lock"]]
+			var where: String = TombSpec.host_title(told["lock"])
 			_row("row:stone_in", where, host_rows[at][1], "", func() -> void:
 				_pick(where + " which room?", host_rows, at, func(picked: int) -> void: editor.set_value("stone_in", hosts[picked])))
 

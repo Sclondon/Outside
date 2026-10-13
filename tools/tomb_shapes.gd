@@ -123,3 +123,62 @@ static func branching() -> TombPlan:
 	plan.solution = proof["steps"]
 	plan.proof = proof
 	return plan
+
+
+## A tomb with the creatures that keep a way: a gate guardian whose leaf lies
+## in the open in the room before, another whose leaf is up in a loft, and a
+## sphinx that wants the torch from the first corridor; and between the two
+## guardians a way that Medjed watches, his eyes shut by a block on its plate.
+static func keepers() -> Dictionary:
+	var spec := TombSpec.fresh("Keepers")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "antechamber", "corridor", "hall", "corridor", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[2]["lock"] = "name"
+	rooms[2]["stone_in"] = 1
+	rooms[2]["way"] = "stairs"
+	rooms[4]["lock"] = "name_above"
+	rooms[4]["stone_in"] = 3
+	rooms[1]["torch"] = 1
+	rooms[3]["lock"] = "gaze_work"
+	rooms[5]["lock"] = "sphinx_torch"
+	rooms[5]["way"] = "stairs"
+	spec["rooms"] = rooms
+	return spec
+
+
+## A tomb with a sphinx that wants a jar, and a torch lying about as well to
+## give it by mistake.
+static func one_sphinx() -> Dictionary:
+	var spec := TombSpec.fresh("One sphinx")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "hall", "corridor", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[1]["jar"] = 1
+	rooms[1]["torch"] = 1
+	rooms[2]["lock"] = "sphinx_jar"
+	spec["rooms"] = rooms
+	return spec
+
+
+## A tomb with a way that Medjed watches, his eyes shut by the block and plate of the room before it.
+static func one_medjed() -> Dictionary:
+	var spec := TombSpec.fresh("One Medjed")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "hall", "corridor", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[2]["lock"] = "gaze_work"
+	spec["rooms"] = rooms
+	return spec
+
+
+## A tomb with Apophis in its burial chamber, and nothing between that and the way out but stairs and a doorway.
+static func one_snake() -> Dictionary:
+	var spec := TombSpec.fresh("One snake")
+	var rooms: Array = []
+	for role: String in ["entrance", "corridor", "hall", "burial"]:
+		rooms.append(TombSpec.room(role))
+	rooms[1]["way"] = "stairs"
+	rooms[3]["apophis"] = true
+	spec["rooms"] = rooms
+	return spec

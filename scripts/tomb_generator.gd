@@ -29,8 +29,14 @@ extends RefCounted
 
 ## Changed whenever a change here would make a different tomb from the same
 ## seed. It is part of the seed, and of every result that is kept.
-const VERSION := 2
+const VERSION := 3
 const MAX_TRIES := 40
+## For each difficulty, how many of the creatures of the funerary texts a tomb
+## may have keeping its ways (a gate guardian, a sphinx, Medjed): an easy tomb
+## one, and that a guardian whose leaf lies in the open in a room before. No
+## two of them keep the doors of rooms next to one another: each is a good deal
+## to draw.
+const KEEPERS := [1, 2, 3]
 ## For each difficulty: the fewest and most rooms down the axis, the fewest and
 ## most locks, and how many mummies.
 const SPINE := [[4, 5], [6, 7], [8, 9]]
@@ -54,11 +60,11 @@ const BARRIER_FOR := {
 }
 
 ## The rules that put in a lock, and how likely each is at each difficulty.
-const RULES := ["work", "lever", "brazier", "cross", "gap", "bypass", "offering", "pair", "sand"]
+const RULES := ["work", "lever", "brazier", "cross", "gap", "bypass", "offering", "pair", "sand", "name", "sphinx"]
 const RULE_WEIGHTS := [
-	[4, 3, 2, 0, 0, 0, 0, 0, 2],
-	[3, 3, 3, 2, 2, 2, 1, 1, 2],
-	[2, 3, 3, 3, 3, 3, 2, 2, 2],
+	[4, 3, 2, 0, 0, 0, 0, 0, 2, 3, 0],
+	[3, 3, 3, 2, 2, 2, 1, 1, 2, 3, 3],
+	[2, 3, 3, 3, 3, 3, 2, 2, 2, 3, 3],
 ]
 
 
@@ -107,6 +113,13 @@ static func attempt(seed_value: int, difficulty: int, sub: int) -> TombPlan:
 				break
 			weights[pick] = 0
 			if _apply(RULES[pick], plan, i, rng):
+				# A door that a block on its plate or a seal stone opens may be no door
+				# at all, but Medjed, who looks back down the passage beyond it: what
+				# would have opened it shuts his eyes. (Not in an easy tomb.)
+				if RULES[pick] in ["work", "lever"] and difficulty >= 1 and _keeper_ok(plan, i) and rng.chance(40):
+					var watched := plan.spine_link(i)
+					watched.watched = true
+					watched.hint = "gaze_" + watched.hint
 				made += 1
 				break
 
@@ -206,7 +219,7 @@ static func _apply(rule: String, plan: TombPlan, i: int, rng: TombRandom) -> boo
 			if i < 2:
 				return false
 			var before := plan.spine_link(i - 1)
-			if before.pass_kind != TombPlan.Pass.OPEN or before.fixed:
+			if before.pass_kind != TombPlan.Pass.OPEN or before.fixed or plan.keeps(before):
 				return false
 			before.keep_push = true
 			before.fixed = true
@@ -220,7 +233,7 @@ static func _apply(rule: String, plan: TombPlan, i: int, rng: TombRandom) -> boo
 			if i < 2:
 				return false
 			var before := plan.spine_link(i - 1)
-			if before.pass_kind != TombPlan.Pass.OPEN or before.fixed:
+			if before.pass_kind != TombPlan.Pass.OPEN or before.fixed or plan.keeps(before):
 				return false
 			before.keep_push = true
 			before.fixed = true
@@ -282,7 +295,64 @@ static func _apply(rule: String, plan: TombPlan, i: int, rng: TombRandom) -> boo
 			link.switches = [plan.add_trigger(TombPlan.Switch.LEVER, i + 1).id]
 			link.hint = "over_the_wall"
 			return true
+		"sphinx":
+			# A sphinx lies at the end of the room and wants one of the things he can
+			# carry, which lies somewhere before: a jar, a burning torch, or (in a
+			# hard tomb) the grappling hook. It keeps what it is given, and its door
+			# is open for good. (Not in an easy tomb.)
+			if plan.difficulty == 0 or not _keeper_ok(plan, i) or plan.side_room(i, TombPlan.Role.LOFT) != null:
+				return false
+			var wanted: int = [TombPlan.Item.JAR, TombPlan.Item.TORCH, TombPlan.Item.HOOK][rng.weighted([3, 3, 2 if plan.difficulty >= 2 else 0])]
+			var from := _carry_from(plan, i, rng, 3)
+			plan.add_thing(wanted, from)
+			var asks := plan.add_trigger(TombPlan.Switch.SPHINX, i)
+			asks.wants = wanted
+			link.switches = [asks.id]
+			link.hint = "sphinx_" + String(TombPlan.ITEM_NAMES[wanted])
+			return true
+		"name":
+			# A gate guardian bars the way until he is named, and the leaf of the
+			# Book of the Dead that has his name on it lies somewhere before: in a
+			# room off this one or one of the two before it (not in an easy tomb),
+			# or in the open in one of the three rooms before. (No loft over the
+			# room itself: the guardian sits under where its floor would be.)
+			if not _keeper_ok(plan, i) or plan.side_room(i, TombPlan.Role.LOFT) != null:
+				return false
+			var hosts: Array = []
+			if plan.difficulty >= 1:
+				for j in range(maxi(i - 2, 1), i + 1):
+					if _side_role(plan, j) != -1 and (j != i or plan.rooms[j].role == TombPlan.Role.WELL):
+						hosts.append(j)
+			var lies := i
+			link.hint = "name"
+			if not hosts.is_empty() and rng.chance(60):
+				var host: int = hosts[rng.below(hosts.size())]
+				var role := _side_role(plan, host)
+				var side := plan.add_room(role, host)
+				plan.add_link(host, side.id, TombPlan.Pass.SHAFT if role == TombPlan.Role.CRYPT else TombPlan.Pass.CLIMB)
+				lies = side.id
+				link.hint = "name_below" if role == TombPlan.Role.CRYPT else "name_above"
+			elif i > 1:
+				lies = rng.between(maxi(i - 3, 1), i - 1)
+			var leaf := plan.add_trigger(TombPlan.Switch.LEAF, lies)
+			var keeper := plan.add_trigger(TombPlan.Switch.NAME, i)
+			keeper.needs = leaf.id
+			link.switches = [keeper.id]
+			return true
 	return false
+
+
+# Whether the door out of the room at `i` may be kept by one of the creatures:
+# the tomb has not as many as it may, and neither room next to it has one.
+static func _keeper_ok(plan: TombPlan, i: int) -> bool:
+	var count := 0
+	var along := plan.spine()
+	for room in along:
+		if plan.is_kept(room.id):
+			count += 1
+	if count >= KEEPERS[plan.difficulty]:
+		return false
+	return not plan.is_kept(along[i - 1].id) and not (i + 1 < along.size() and plan.is_kept(along[i + 1].id))
 
 
 # What kind of room can still be made off the room at `i`: the chamber at the
@@ -295,6 +365,9 @@ static func _side_role(plan: TombPlan, i: int) -> int:
 		return -1
 	# (from a loft at the foot of the sand's face he would get over it with no sand)
 	if plan.spine_link(i).pass_kind == TombPlan.Pass.SAND:
+		return -1
+	# (nor over a room whose door a guardian or a sphinx keeps, or Medjed watches)
+	if plan.is_kept(i):
 		return -1
 	return -1 if plan.side_room(i, TombPlan.Role.LOFT) != null else TombPlan.Role.LOFT
 

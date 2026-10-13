@@ -27,6 +27,12 @@ var room_nodes: Array[Node3D] = []
 var doors := {}
 ## By link: the sand that pours in to make a way up (a SandFall), where there is one.
 var sands := {}
+## By link: the gate guardian that keeps it (a GateGuardian), where there is one.
+var keepers := {}
+## By link: Medjed, where he watches it (a Medjed).
+var watchers := {}
+## Apophis, where a tomb made by hand has him in its burial chamber.
+var snake: Apophis
 ## The ropes that hang down shafts.
 var ropes: Array[Rope] = []
 ## By switch: the Plate (a plate, a seal stone, an offering table), or for a
@@ -250,6 +256,62 @@ func _part(part: Dictionary) -> void:
 			switches[part["trigger"]] = table
 		"brazier":
 			switches[part["trigger"]] = _scene("brazier", at, 0.0, node)
+		"sphinx":
+			# A small sphinx that wants one of the things he can carry, and keeps it.
+			var sphinx := Sphinx.new()
+			sphinx.size = part["size"]
+			sphinx.head = int(part["head"]) as Sphinx.Head
+			sphinx.wear = 0.25
+			sphinx.wrathful = false
+			var named: StringName = [&"torch", &"hook", &"jar"][int(part["wants"])]
+			for n in Sphinx.THINGS.size():
+				if Sphinx.THINGS[n][0] == named:
+					sphinx.wants = n
+			sphinx.sweep_to = part["sweep_to"]
+			sphinx.position = at
+			sphinx.rotation.y = part["yaw"]
+			node.add_child(sphinx)
+			switches[part["trigger"]] = sphinx
+		"medjed":
+			# Medjed, who looks one way and does not turn: down the stretch he keeps.
+			var watcher := Medjed.new()
+			watcher.sweep = 0.0
+			watcher.reach = part["reach"]
+			watcher.cone = part["cone"]
+			watcher.follows = false
+			watcher.position = at
+			watcher.rotation.y = part["yaw"]
+			node.add_child(watcher)
+			watchers[part["link"]] = watcher
+		"apophis":
+			# The serpent, down his hole until the falcon is taken. (Not put away with the room: he leaves it.)
+			snake = Apophis.new()
+			snake.rest = Apophis.Rest.HOLE
+			snake.length = 14.0
+			snake.position = at
+			root.add_child(snake)
+		"guardian":
+			# A keeper of a gate, who is his own door: his knives bar the gateway until he is named.
+			var keeper := GateGuardian.new()
+			keeper.who = part["who"]
+			keeper.seed = part["seed"]
+			keeper.dress = (int(part["who"]) % 2) as GateGuardian.Dress
+			keeper.bars_way = true
+			keeper.gate_at = part["gate_at"]
+			keeper.wide = part["wide"]
+			keeper.tall = part["tall"]
+			keeper.position = at
+			keeper.rotation.y = part["yaw"]
+			node.add_child(keeper)
+			switches[part["trigger"]] = keeper
+			keepers[part["link"]] = keeper
+		"leaf":
+			# A leaf of the Book of the Dead, with a keeper's name on it.
+			var leaf := BookPage.new()
+			leaf.who = part["who"]
+			leaf.position = at
+			node.add_child(leaf)
+			switches[part["trigger"]] = leaf
 		"block":
 			var block := RigidBody3D.new()
 			block.add_to_group(&"interest")
