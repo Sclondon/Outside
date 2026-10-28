@@ -159,7 +159,7 @@ func _stride_of(phases: Array[float], duty: Vector2, stride: float, lift: Vector
 			made.load_side += bearing * signf(rest.x)
 		# Low enough that a planted leg reaches both ends of its ground.
 		var from_hip := rest.z - _hips[i].z + centre * gait
-		var furthest := (absf(from_hip) + span * 0.5 * gait) * (1.0 - GLIDE)
+		var furthest := (absf(from_hip) + span * 0.5 * gait) * (1.0 - (GLIDE.x if fore else GLIDE.y))
 		var total := _lengths[i].x + _lengths[i].y + _lengths[i].z - 0.012
 		made.drop = maxf(made.drop, _hips[i].y - _paw_height - sqrt(maxf(total * total - furthest * furthest, 0.01)))
 	return made
@@ -183,7 +183,7 @@ func _place_legs(targets: Array[Vector3], pitches: Array[float], poles: Array[Ve
 		var paw := to_body * target
 		# The shoulder blade slides over the ribs, and the hip swings, with the leg.
 		var under := hip.z + rest.z - _hips[i].z
-		hip.z += clampf((paw.z - under) * GLIDE, -0.07, 0.07)
+		hip.z += clampf((paw.z - under) * (GLIDE.x if fore else GLIDE.y), -0.07, 0.07)
 		var lifted := maxf(_air, clampf((target.y - _paw_height) / (0.05 * _size), 0.0, 1.0)) * fold
 		_solve_leg(i, hip, paw, to_body.basis * Basis(Vector3.RIGHT, lerpf(pitches[i], 0.5, _air)), to_body.basis * poles[i], to_body.basis * AHEAD,
 				flat[i] * (1.0 - _air), lifted)
