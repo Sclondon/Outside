@@ -7,9 +7,13 @@ extends Node3D
 ## The gaits follow what is measured of dogs (sources in the comments below):
 ## a walk in which each hind paw lands a quarter of a stride before the fore paw
 ## of its own side; a trot on diagonal pairs; and a rotary gallop, hind, hind,
-## fore, fore round in a circle, with the back gathering and stretching once a
-## stride and the whole dog off the ground twice in it. Which it uses goes by
-## its speed.
+## fore, fore round in a circle, with the back stretching and arching once a
+## stride and the whole dog off the ground once in it, gathered. Which it uses
+## goes by its speed. The gallop's timings, every gait's stride lengths, where
+## the paws land and leave and how high they are lifted, and the body's rise,
+## pitch and bend are measured from a real dog's motion capture (the
+## AI4Animation dog, Zhang et al., SIGGRAPH 2018: a dog with its hips 0.49 m up,
+## scaled to the bloodhound's 0.52).
 ##
 ## Each leg is three bones and a paw, as a dog's is: upper arm, forearm and
 ## pastern in front; thigh, shank and hock behind. They fold in a zigzag, the
@@ -41,37 +45,55 @@ const BEHIND := Vector3(0.0, 0.0, -1.0)
 const WALK: Array[float] = [0.25, 0.75, 0.0, 0.5]
 ## Trot: diagonal pairs together.
 const TROT: Array[float] = [0.5, 1.0, 0.0, 0.5]
-## Gallop: rotary, as carnivores do it: the hind pair, a flight with the body
-## stretched out, the fore pair in the opposite order, a flight with it gathered
-## (vanat.ahc.umn.edu/run/plate9.html).
-const GALLOP: Array[float] = [0.6, 0.5, 0.0, 0.1]
+## Gallop: rotary, as carnivores do it: the hind pair, the fore pair in the
+## opposite order, and a flight with it gathered (vanat.ahc.umn.edu/run/plate9.html;
+## the timings are the mocap dog's: hinds 0 and 0.16, fores 0.38 and 0.53).
+const GALLOP: Array[float] = [0.53, 0.38, 0.0, 0.16]
 ## The share of the stride a paw is down, fore and hind, at a walk, a trot and a
 ## gallop. Walk and trot are measured (Kano et al. 2016, BMC Vet. Res. 12:2:
-## 0.63 and 0.60 walking, 0.47 and 0.40 trotting); the gallop is a running
-## hound's, a fifth of the stride or a little over, which leaves it in the air
-## for a third of it.
-const DUTY_FORE := Vector3(0.63, 0.47, 0.22)
-const DUTY_HIND := Vector3(0.60, 0.42, 0.20)
-## The middle of the first of the two flights of a gallop stride, as a share of
-## the stride: the second is half a stride later.
-const FLIGHT := 0.405
-## How high the two flights throw it (m, for a hound of the bloodhound's size).
-## More than a real hound rises, so that it shows.
-const BOUND := 0.04
+## 0.63 and 0.60 walking, 0.47 and 0.40 trotting); the gallop is the mocap
+## dog's, under a quarter of the stride, which leaves it in the air for a
+## quarter of it.
+const DUTY_FORE := Vector3(0.63, 0.47, 0.23)
+const DUTY_HIND := Vector3(0.60, 0.42, 0.21)
+## Galloping faster, a paw is down for less of the stride: from FLAT_OUT.x to
+## FLAT_OUT.y m/s its share falls to FLAT_OUT_DUTY of the gallop's (the mocap
+## dog's: 0.22 at 3.6 m/s, 0.15 at 4.6, scaled to this leg).
+const FLAT_OUT := Vector2(3.7, 4.8)
+const FLAT_OUT_DUTY := 0.66
+## Galloping, the body rises and falls once a stride (m, for the bloodhound's
+## size), highest at LOFT, in the flight; it pitches (radians), nose down most
+## at PITCHED, as the forepaws take it; and its back arches (chest and pelvis,
+## radians) most at ARCHED, the hind legs swung forward under it, and is
+## stretched straightest half a stride from that, the hind legs driving.
+const BOUND := 0.022
+const LOFT := 0.72
+const PITCH := 0.15
+const PITCHED := 0.7
+const ARCH := Vector2(0.09, 0.15)
+const ARCHED := 0.64
 ## Speeds (m/s) over which the walk gives way to the trot, and the trot to the
-## gallop. Dogs change at Froude numbers (speed squared over g times leg length)
-## of about 0.5 and 3; for this leg, 1.5 and 3.7 m/s.
-const TROT_AT := Vector2(1.25, 1.75)
-const GALLOP_AT := Vector2(3.3, 4.0)
-## Length of a stride (m) against speed (m/s): 0.74 m at 1 m/s walking (Kano),
-## about a metre trotting at 2.5 (the speed malinois choose to trot at: Andrada
-## et al. 2023, Front. Bioeng. Biotechnol. 11:1193177), and three strides a
-## second flat out.
-const STRIDE := [0.0, 0.42, 1.0, 0.70, 2.5, 1.0, 3.6, 1.25, 5.4, 1.75, 9.0, 2.6]
+## gallop. The walk gives way where the mocap dog's does, scaled to this leg (it
+## trots from about 1.2 m/s); a hound keeps trotting faster than it cantered
+## (malinois choose to trot at 2.5 m/s: Andrada et al. 2023, Front. Bioeng.
+## Biotechnol. 11:1193177), so its trot_speed of 2.4 stays a trot.
+const TROT_AT := Vector2(1.05, 1.45)
+const GALLOP_AT := Vector2(2.8, 3.4)
+## Length of a stride (m) against speed (m/s), the mocap dog's scaled to this
+## leg: 0.61 m walking at 0.8 m/s, 0.88 trotting at 1.7, 1.7 m galloping at 3.7
+## (a little over two strides a second); about 1.1 m trotting at 2.4.
+const STRIDE := [0.0, 0.42, 0.82, 0.61, 1.74, 0.88, 2.4, 1.1, 3.0, 1.4, 3.73, 1.71, 5.4, 2.2, 9.0, 3.0]
 ## The furthest a planted paw travels under the body.
 const REACH := 0.42
-## How far a shoulder or a hip goes with its leg, as a share of how far the paw is from under it.
-const GLIDE := 0.25
+## How far a shoulder (with its blade) and a hip go with their legs, as a share of how far the paw is from under it.
+const GLIDE := Vector2(0.2, 0.08)
+## How high a forepaw is lifted (m, for the bloodhound's size) walking, trotting
+## and galloping (the mocap dog's: a sixth, a quarter and over two fifths of its
+## hip height); a hind paw goes HIND_LIFT as high (walking, galloping).
+const LIFT := Vector3(0.088, 0.125, 0.22)
+const HIND_LIFT := Vector2(0.77, 0.95)
+## Where a stride is centred: this far (m) behind the hip or shoulder.
+const CENTRE := 0.01
 ## How much further the last bone of a leg (pastern, hock) folds as the leg is
 ## shortened, radians for each share of its length it is shortened by (fore,
 ## hind): with the paw in the air, and with it on the ground. A foreleg's
@@ -327,12 +349,11 @@ func _process(delta: float) -> void:
 		_phase = fposmod(_phase + _pace / stride * delta, 1.0)
 	var gait := smoothstep(0.05, 0.45, _pace) * (1.0 - _air) * (1.0 - down)
 	var travel := clampf(speed / maxf(_pace, 0.05), 0.0, 1.0)
-	var lift := lerpf(lerpf(0.045, 0.075, trot), 0.15, gallop) * _size
-	# At a gallop it is thrown clear of the ground twice a stride: after the hind
-	# legs drive, stretched out, and after the forelegs, gathered up.
+	var lift := lerpf(lerpf(LIFT.x, LIFT.y, trot), LIFT.z, gallop) * _size
+	# At a gallop it is thrown clear of the ground once a stride, after the
+	# forelegs, gathered up.
 	var flying := gallop * gait
-	var bound := cos(2.0 * TAU * (_phase - FLIGHT))
-	var rise := (0.25 + bound) * BOUND * _size * flying
+	var rise := cos(TAU * (_phase - LOFT)) * BOUND * _size * flying
 	var targets: Array[Vector3] = []
 	var pitches: Array[float] = []
 	# How hard each end of it is bearing down on its legs, 0..2.
@@ -342,16 +363,16 @@ func _process(delta: float) -> void:
 	for i in 4:
 		var fore := i < 2
 		var duties := DUTY_FORE if fore else DUTY_HIND
-		var duty := lerpf(lerpf(duties.x, duties.y, trot), duties.z, gallop)
+		var duty := lerpf(lerpf(duties.x, duties.y, trot), duties.z * lerpf(1.0, FLAT_OUT_DUTY, smoothstep(FLAT_OUT.x, FLAT_OUT.y, _pace)), gallop)
 		var span := minf(duty * stride, REACH * _size) * travel
-		# A paw comes down about 20 degrees ahead of its hip and leaves 25 to 30
-		# behind it (Andrada et al.), so its ground is set back; at a gallop it
-		# reaches further ahead instead.
-		var middle := lerpf(-0.035, 0.05 if fore else 0.09, gallop) * travel
+		# A paw comes down about as far ahead of its hip or shoulder as it leaves
+		# behind it, at every gait (the mocap dog's; trotting, about 20 degrees
+		# ahead and 25 behind: Andrada et al.), so its ground is centred under it.
+		var middle := (_hips[i].z - _paws[i].z - CENTRE * _size) * travel
 		# (the other fore leg leads in a hound that gallops the other way round)
 		var other := i ^ 1 if _mirrored else i
 		var at := fposmod(_phase - lerpf(lerpf(WALK[i], TROT[i], trot), GALLOP[other], gallop), 1.0)
-		var cycle := _foot_cycle(at, duty, span * 0.5, lift * (1.0 if fore else 0.85))
+		var cycle := _foot_cycle(at, duty, span * 0.5, lift * (1.0 if fore else lerpf(HIND_LIFT.x, HIND_LIFT.y, gallop)))
 		var rest := _paws[i]
 		# Off the ground, a paw goes up with the rest of it.
 		var carried := 0.0
@@ -369,7 +390,7 @@ func _process(delta: float) -> void:
 				load_hind += bearing
 		# Low enough that a planted leg reaches both ends of its ground.
 		var from_hip := rest.z - _hips[i].z + middle * gait
-		var furthest := (absf(from_hip) + span * 0.5 * gait) * (1.0 - GLIDE)
+		var furthest := (absf(from_hip) + span * 0.5 * gait) * (1.0 - (GLIDE.x if fore else GLIDE.y))
 		var total := _lengths[i].x + _lengths[i].y + _lengths[i].z - 0.012
 		drop = maxf(drop, _hips[i].y - _paw_height - sqrt(maxf(total * total - furthest * furthest, 0.01)))
 
@@ -382,10 +403,10 @@ func _process(delta: float) -> void:
 	var high_hind := ((load_hind - 0.7) * vault - (load_hind - 0.5) * sprung) * gait
 	# At a gallop the two ends take turns to be up, which rocks it: nose up over
 	# the hind legs, down over the fore.
-	var rock := (high_hind - high_fore) / 0.42 + sin(TAU * (_phase - FLIGHT)) * 0.085 * flying
-	# The back gathers under it as the forelegs leave the ground and stretches
-	# out as the hind legs do, once a stride.
-	var gather := cos(TAU * (_phase - FLIGHT - 0.5)) * flying
+	var rock := (high_hind - high_fore) / 0.42 + cos(TAU * (_phase - PITCHED)) * PITCH * flying
+	# The back arches as the hind legs swing forward under it and stretches as
+	# they drive, once a stride.
+	var gather := cos(TAU * (_phase - ARCHED)) * flying
 	# The hips and the shoulders each swing with their own legs, and into a turn.
 	var bend := clampf(_turn * 0.06, -0.3, 0.3) * (1.0 - down)
 	var swing_fore := (targets[1].z - targets[0].z) * 0.22 * (1.0 - gallop)
@@ -395,8 +416,8 @@ func _process(delta: float) -> void:
 	var air_pitch := _air * clampf(-velocity.y * 0.04, -0.4, 0.4)
 	var body_at := _body_rest + Vector3(0.0, -_drop - _crouch + (high_fore + high_hind) * 0.5 + rise, 0.0)
 	var body_turn := Vector3(air_pitch + rock, 0.0, bank)
-	var chest_turn := Vector3(gather * 0.2, bend + swing_fore, (targets[0].y - targets[1].y) * 0.5)
-	var pelvis_turn := Vector3(-gather * 0.38, -bend * 0.7 + swing_hind, (targets[2].y - targets[3].y) * 0.6)
+	var chest_turn := Vector3(gather * ARCH.x, bend + swing_fore, (targets[0].y - targets[1].y) * 0.5)
+	var pelvis_turn := Vector3(-gather * ARCH.y, -bend * 0.7 + swing_hind, (targets[2].y - targets[3].y) * 0.6)
 	# Which way the first joint of each leg goes: the elbows back, the stifles forward.
 	var poles: Array[Vector3] = [BEHIND, BEHIND, AHEAD, AHEAD]
 	# How far the last bone of each leg is laid flat along the ground.
@@ -521,7 +542,7 @@ func _pose_head(delta: float, upstream: float, level: float, sit: float, lie: fl
 	var laid := lie * _doze
 	_chest.rotation.y += yaw * 0.1 * (1.0 - sit)
 	# Flat out, its neck goes out in front of it, and reaches with every stride.
-	var stretch := flying * (0.2 + 0.25 * _size * _size + 0.08 * sin(TAU * (_phase - FLIGHT)))
+	var stretch := flying * (0.2 + 0.25 * _size * _size + 0.08 * sin(TAU * (_phase - ARCHED + 0.25)))
 	var neck := Vector3(-upstream * 0.55 * level + pitch * 0.5 - bow * 0.1 + laid * _lay_angle + lie * awake * 0.2 + stretch, yaw * 0.45 + laid * _side * 0.2, 0.0)
 	_neck.rotation = neck * 0.5
 	_neck_1.rotation = neck * 0.5
@@ -582,8 +603,9 @@ func _pose_legs(targets: Array[Vector3], pitches: Array[float], poles: Array[Vec
 		var paw := to_body * target
 		# The shoulder blade slides over the ribs, and the hip swings, with the leg: a
 		# quarter of the way to wherever the paw is.
-		var under := hip.z + rest.z - _hips[i].z
-		hip.z += clampf((paw.z - under) * GLIDE, -0.07, 0.07)
+		# (where its stride is centred, moving; where it stands, still)
+		var under := hip.z + lerpf(rest.z - _hips[i].z, -CENTRE * _size, minf(_pace / TROT_AT.x, 1.0))
+		hip.z += clampf((paw.z - under) * (GLIDE.x if fore else GLIDE.y), -0.07, 0.07)
 		var lifted := maxf(_air, clampf((target.y - _paw_height) / (0.05 * _size), 0.0, 1.0))
 		_solve_leg(i, hip, paw, to_body.basis * Basis(Vector3.RIGHT, lerpf(pitches[i], 0.5, _air)), to_body.basis * poles[i], to_body.basis * AHEAD,
 				flat[i] * (1.0 - _air), lifted)

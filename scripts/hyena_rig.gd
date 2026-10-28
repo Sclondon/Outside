@@ -53,7 +53,7 @@ const SHUFFLE: Array[float] = [0.25, 0.75, 0.0, 0.5]
 ## Lope: the right hind; the left hind and the right fore together; the left fore, which leads.
 const LOPE: Array[float] = [0.47, 0.25, 0.25, 0.0]
 ## Flat out: the hound's gallop.
-const BOLT: Array[float] = [0.6, 0.5, 0.0, 0.1]
+const BOLT: Array[float] = [0.53, 0.38, 0.0, 0.16]
 ## The share of the stride a paw is down, fore and hind, walking, loping and flat out.
 const DOWN_FORE := Vector3(0.64, 0.36, 0.22)
 const DOWN_HIND := Vector3(0.62, 0.34, 0.20)
@@ -161,10 +161,10 @@ func _process(delta: float) -> void:
 		phases.append(lerpf(lerpf(SHUFFLE[i], LOPE[i], lope), BOLT[i], bolt))
 	# Shuffling, its paws hardly leave the ground; loping they are picked up, the hind ones less.
 	var lift := lerpf(lerpf(0.035, 0.09, lope), 0.16, bolt) * _size
-	# The lope throws it clear of the ground once a stride, after the leading foreleg; the gallop twice.
+	# The lope throws it clear of the ground once a stride, after the leading foreleg; the gallop too, gathered.
 	var loping := lope * (1.0 - bolt) * gait
 	var flying := bolt * gait
-	var rise := maxf(cos(TAU * (_phase - ALOFT)), -0.3) * SPRING * _size * loping + (0.25 + cos(2.0 * TAU * (_phase - FLIGHT))) * BOUND * _size * flying
+	var rise := maxf(cos(TAU * (_phase - ALOFT)), -0.3) * SPRING * _size * loping + cos(TAU * (_phase - LOFT)) * BOUND * _size * flying
 	# (its hind paws come down well forward under it, which is what keeps its rump low)
 	var step := _stride_of(phases, duty, stride, Vector2(lift, lift * 0.7), Vector2(lerpf(-0.03, 0.03, lope), lerpf(-0.01, 0.06, lope)) * _size, gait, travel,
 			lerpf(1.0, 0.78, lope * gait), rise, PAW_REACH)
@@ -181,8 +181,8 @@ func _process(delta: float) -> void:
 	var sway := _lean * 0.016 * _size * gait * (1.0 - lope)
 	var roll := _lean * 0.03 * gait * (1.0 - lope)
 	# Loping, it rocks: nose up as the hind legs come under it, down onto the forelegs.
-	var rock := (high_hind - high_fore) / 0.6 - cos(TAU * (_phase - 0.1)) * ROCK * loping + sin(TAU * (_phase - FLIGHT)) * 0.07 * flying
-	var gather := cos(TAU * (_phase - FLIGHT - 0.5)) * flying + cos(TAU * (_phase - ALOFT)) * 0.45 * loping
+	var rock := (high_hind - high_fore) / 0.6 - cos(TAU * (_phase - 0.1)) * ROCK * loping + cos(TAU * (_phase - PITCHED)) * PITCH * flying
+	var gather := cos(TAU * (_phase - ARCHED)) * flying + cos(TAU * (_phase - ALOFT)) * 0.45 * loping
 	var bend := clampf(_turn * 0.06, -0.3, 0.3)
 	var swing_fore := (targets[1].z - targets[0].z) * 0.2 * (1.0 - bolt)
 	var swing_hind := (targets[3].z - targets[2].z) * 0.26 * (1.0 - bolt)

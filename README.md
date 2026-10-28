@@ -910,7 +910,7 @@ There are two breeds (`breed` on the Hound; left at `ANY`, the hounds of a scene
 
 They are separate models built by one script from two lists of measurements (`tools/build_hound.py`), on the same bones.
 Their legs are three bones and a paw (upper arm, forearm, pastern; thigh, shank, hock), and at a gallop they are clear of
-the ground twice a stride. Their voices are recordings of dogs (`audio/hounds/`, credited in `CREDITS.md` there).
+the ground once a stride, gathered. Their voices are recordings of dogs (`audio/hounds/`, credited in `CREDITS.md` there).
 They are a little faster than the player; being caught knocks him down as a ragdoll, and that, or falling, restarts the chase.
 
 Until they are let loose they play (bows, barks, jumps aside, a run round each other), then sit, then lie down and
@@ -918,10 +918,15 @@ sleep; `play_time`, `settle_after` and `sleep_after` on the Hound set how long e
 getting nowhere (he is up on something) drops onto braced forepaws under him and barks. They watch the player first,
 otherwise each other or anything in the group `interest`.
 
-Their gaits follow measurements of dogs (the sources are in the comments at the top of `scripts/hound_rig.gd`). To see them:
+Their gaits follow measurements of dogs (the sources are in the comments at the top of `scripts/hound_rig.gd`): the
+gallop's timings, the stride lengths, where each paw lands and leaves and how high it goes, and the body's rise, pitch and
+bend are a real dog's, measured from motion capture (the AI4Animation dog, SIGGRAPH 2018). To see them, and to measure
+them again against the capture (`tools/hound_gait_dump.gd` writes a hound's joints at given speeds, for the analyser in
+`C:\Projects\reference\canine-motion\tools`, which also holds the capture: it is CC BY-NC, so it stays out of this repo):
 
 ```
 godot --path . --fixed-fps 60 --resolution 960x960 --script tools/hound_sheets.gd -- <folder> [walk trot gallop bay bow play sit sleep look fur ...]
+godot --headless --path . --fixed-fps 60 --script tools/hound_gait_dump.gd -- <file.json> [speed ...] [pharaoh]
 ```
 
 Add `pharaoh` for the prick-eared hound, `lo` for the demade models, `pale` for a light coat that shows the shape; the
